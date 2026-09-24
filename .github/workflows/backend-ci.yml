@@ -1,0 +1,35 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore SmartPoolManagementSystem.sln
+      
+    - name: Build
+      run: dotnet build SmartPoolManagementSystem.sln --no-restore
+      
+    - name: Test
+      run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal
