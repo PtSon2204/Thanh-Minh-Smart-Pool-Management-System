@@ -1,0 +1,18 @@
+/* Main layout wrapper */
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Offset for fixed navbar (main bar ~70px) */
+.main-content {
+  flex: 1;
+  padding-top: 70px;
+}
+
+/* For hero pages that manage their own top padding */
+.main-content > main > .hero {
+  margin-top: -70px;
+  padding-top: 0;
+}

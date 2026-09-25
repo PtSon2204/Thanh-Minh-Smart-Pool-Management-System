@@ -1,0 +1,91 @@
+import { Link } from 'react-router-dom'
+import './Footer.css'
+
+export default function Footer() {
+  return (
+    <footer className="footer">
+      <div className="container">
+        <div className="footer-grid">
+          {/* Brand */}
+          <div>
+            <div className="footer-brand-name">
+              <span>🏊</span> Thanh Minh Smart Pool
+            </div>
+            <p className="footer-brand-desc">
+              Hệ thống quản lý hồ bơi thông minh — nơi mang lại trải nghiệm bơi lội
+              an toàn, hiện đại và đẳng cấp cho mọi lứa tuổi.
+            </p>
+            <div className="footer-social">
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook">📘</a>
+              <a href="https://zalo.me" target="_blank" rel="noreferrer" aria-label="Zalo">💬</a>
+              <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">▶️</a>
+              <a href="mailto:info@thanhminh.vn" aria-label="Email">📧</a>
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="footer-col">
+            <h4>Liên kết nhanh</h4>
+            <div className="footer-links">
+              <Link to="/">→ Trang chủ</Link>
+              <Link to="/gioi-thieu">→ Giới thiệu</Link>
+              <Link to="/dich-vu">→ Dịch vụ</Link>
+              <Link to="/bang-gia">→ Bảng giá vé</Link>
+              <Link to="/dat-ve">→ Đặt vé online</Link>
+              <Link to="/tin-tuc">→ Tin tức</Link>
+            </div>
+          </div>
+
+          {/* Services */}
+          <div className="footer-col">
+            <h4>Dịch vụ</h4>
+            <div className="footer-links">
+              <Link to="/dich-vu/ho-boi-ngoai-troi">→ Hồ bơi ngoài trời</Link>
+              <Link to="/dich-vu/ho-boi-trong-nha">→ Hồ bơi trong nhà</Link>
+              <Link to="/dich-vu/be-song">→ Bể sóng</Link>
+              <Link to="/dich-vu/truot-nuoc">→ Trượt nước</Link>
+              <Link to="/dich-vu/am-thuc">→ Dịch vụ ẩm thực</Link>
+              <Link to="/dich-vu/nha-khach">→ Nhà khách</Link>
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div className="footer-col">
+            <h4>Liên hệ</h4>
+            <div className="footer-contact-item">
+              <span className="footer-contact-icon">📍</span>
+              <span>614 Lạc Long Quân, Phường Tây Hồ, Hà Nội</span>
+            </div>
+            <div className="footer-contact-item">
+              <span className="footer-contact-icon">📞</span>
+              <span>(84-24) 37 184 222 / 37 100 957</span>
+            </div>
+            <div className="footer-contact-item">
+              <span className="footer-contact-icon">📠</span>
+              <span>Fax: (84-24) 37 184 190</span>
+            </div>
+            <div className="footer-contact-item">
+              <span className="footer-contact-icon">📧</span>
+              <span>info@thanhminh-pool.vn</span>
+            </div>
+            <div className="footer-contact-item">
+              <span className="footer-contact-icon">🕐</span>
+              <span>Mở cửa: 8:00 – 18:00 hàng ngày</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="footer-bottom">
+        <div className="container" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+          <span>© 2026 Thanh Minh Smart Pool. All rights reserved.</span>
+          <div className="footer-bottom-links">
+            <a href="/chinh-sach">Chính sách</a>
+            <a href="/bao-mat">Bảo mật</a>
+            <a href="/dieu-khoan">Điều khoản</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}
