@@ -1,0 +1,100 @@
+/* ===== Floating Contact Buttons ===== */
+.floating-contacts {
+  position: fixed;
+  right: 20px;
+  bottom: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 998;
+}
+
+.floating-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+}
+
+.floating-btn:hover {
+  transform: scale(1.12);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+}
+
+/* Messenger */
+.floating-btn.messenger {
+  background: linear-gradient(135deg, #0084ff, #a033ff);
+}
+
+.floating-btn.messenger img,
+.floating-btn.zalo img {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+/* Zalo */
+.floating-btn.zalo {
+  background: #0068ff;
+}
+
+/* Tooltip label */
+.floating-btn::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.floating-btn:hover::before {
+  opacity: 1;
+}
+
+/* Pulse ring animation */
+.floating-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: ringPulse 2.5s ease-out infinite;
+}
+
+.floating-btn.messenger::after { color: #0084ff; }
+.floating-btn.zalo::after     { color: #0068ff; }
+
+@keyframes ringPulse {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+@media (max-width: 480px) {
+  .floating-contacts {
+    right: 12px;
+    bottom: 80px;
+  }
+  .floating-btn {
+    width: 46px;
+    height: 46px;
+  }
+}
