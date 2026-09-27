@@ -1,0 +1,27 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace SmartPool.Infrastructure.Persistence.TempModels;
+
+public partial class Incident
+{
+    public Guid Id { get; set; }
+
+    public string Title { get; set; } = null!;
+
+    public string? Description { get; set; }
+
+    public string SeverityLevel { get; set; } = null!;
+
+    public Guid? ReportedBy { get; set; }
+
+    public DateTime? IncidentTime { get; set; }
+
+    public string? Status { get; set; }
+
+    public DateTime? CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    public virtual User? ReportedByNavigation { get; set; }
+}

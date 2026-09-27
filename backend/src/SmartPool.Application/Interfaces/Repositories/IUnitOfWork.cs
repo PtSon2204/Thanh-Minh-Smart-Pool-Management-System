@@ -5,3 +5,4 @@ namespace SmartPool.Application.Interfaces.Repositories
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }
+ 
