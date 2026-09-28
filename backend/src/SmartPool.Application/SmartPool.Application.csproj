@@ -8,14 +8,9 @@
 
   <ItemGroup>
     <Folder Include="Features\manage-equipments\Equipments\" />
-    <Folder Include="Features\manage-safety-and-incident\Warnings\" />
-    <Folder Include="Features\manage-payments\Payments\" />
-    <Folder Include="Features\manage-services\Merchandise\" />
-    <Folder Include="Features\manage-vouchers\Vouchers\" />
-    <Folder Include="Features\manage-tickets\Tickets\" />
+    <Folder Include="Features\manage-vouchers\Commands\" />
+    <Folder Include="Features\manage-vouchers\Queries\" />
     <Folder Include="Features\access-control-pool\" />
-    <Folder Include="Features\manage-vouchers\" />
-    <Folder Include="Features\manage-payments\" />
   </ItemGroup>
 
   <ItemGroup>

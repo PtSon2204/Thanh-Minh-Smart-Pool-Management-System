@@ -19,7 +19,7 @@
   --radius-sm: 8px;
   --radius-lg: 20px;
 
-  --sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  --sans: 'Open Sans', system-ui, -apple-system, Roboto, sans-serif;
   font-family: var(--sans);
   font-size: 16px;
   line-height: 1.6;
