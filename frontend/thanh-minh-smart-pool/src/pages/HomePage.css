@@ -114,7 +114,7 @@
 }
 
 .hero-title {
-  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
   font-weight: 900;
   color: #fff;
   line-height: 1.1;
@@ -170,15 +170,48 @@
   align-items: center;
 }
 
+@property --border-angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0turn;
+}
+
 .hero-card-main {
   background: rgba(255,255,255,0.12);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.2);
   border-radius: var(--radius-lg);
   padding: 30px;
   width: 340px;
   color: #fff;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  position: relative;
+}
+
+.hero-card-main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  padding: 2px;
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 60%,
+    rgba(0, 240, 255, 0.8) 90%,
+    #00f0ff 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  animation: border-spin 3s linear infinite;
+}
+
+@keyframes border-spin {
+  100% {
+    --border-angle: 1turn;
+  }
 }
 
 .hero-card-title {
@@ -197,7 +230,7 @@
 
 .hero-pool-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 20px;
 }
