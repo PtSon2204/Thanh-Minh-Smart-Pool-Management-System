@@ -134,9 +134,8 @@ export default function HomePage() {
                 🏆 Mùa hè giải nhiệt
               </div>
               <h1 className="hero-title">
-                Thanh Minh<br />
-                <span>Smart Pool</span><br />
-                Management
+                <div style={{ whiteSpace: 'nowrap' }}>Bể bơi <span>Thành Minh</span></div>
+                <div style={{ whiteSpace: 'nowrap' }}>Kính chào quý khách!</div>
               </h1>
               <p className="hero-desc">
                 Trải nghiệm hồ bơi thông minh với hệ thống quản lý hiện đại —
@@ -162,10 +161,6 @@ export default function HomePage() {
 
                 <div className="hero-pool-stats">
                   <div className="hero-pool-stat">
-                    <div className="hero-pool-stat-val">7.2</div>
-                    <div className="hero-pool-stat-label">Độ pH</div>
-                  </div>
-                  <div className="hero-pool-stat">
                     <div className="hero-pool-stat-val">142</div>
                     <div className="hero-pool-stat-label">Khách hiện tại</div>
                   </div>
@@ -175,10 +170,6 @@ export default function HomePage() {
                   <span className="status-dot" />
                   Đang hoạt động bình thường
                 </div>
-              </div>
-
-              <div className="hero-card-float hero-card-float-1">
-                ✅ Chất lượng nước đạt chuẩn
               </div>
             </div>
           </div>
