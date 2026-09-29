@@ -3,6 +3,7 @@ import MainLayout from './layouts/MainLayout'
 import HomePage from './pages/HomePage'
 import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
+import TicketTypePage from './pages/admin/TicketTypePage'
 
 import { ConfigProvider } from 'antd'
 
@@ -29,9 +30,8 @@ function App() {
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="tickets/types" element={<TicketTypePage />} />
             {/* Future admin routes go here */}
-            {/* <Route path="users" element={<UsersPage />} /> */}
-            {/* <Route path="orders" element={<OrdersPage />} /> */}
           </Route>
         </Routes>
       </BrowserRouter>

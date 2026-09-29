@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class Ticket
 {
@@ -33,3 +33,4 @@ public partial class Ticket
 
     public virtual User? User { get; set; }
 }
+

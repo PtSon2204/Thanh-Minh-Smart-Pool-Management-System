@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class InventoryLog
 {
@@ -23,3 +23,4 @@ public partial class InventoryLog
 
     public virtual Product Product { get; set; } = null!;
 }
+
