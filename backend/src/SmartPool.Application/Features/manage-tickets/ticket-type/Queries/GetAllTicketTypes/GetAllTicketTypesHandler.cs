@@ -1,11 +1,11 @@
 using AutoMapper;
 using MediatR;
+using SmartPool.Application.Common.Models;
 using SmartPool.Application.Interfaces.Repositories;
-using SmartPool.Domain.Entities;
 
 namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetAllTicketTypes
 {
-    public class GetAllTicketTypesHandler : IRequestHandler<GetAllTicketTypesQuery, List<GetAllTicketTypesResponse>>
+    public class GetAllTicketTypesHandler : IRequestHandler<GetAllTicketTypesQuery, PagedResponse<GetAllTicketTypesResponse>>
     {
         private readonly IRepository<SmartPool.Domain.Entities.TicketType> _repo;
         private readonly IMapper _mapper;
@@ -18,13 +18,49 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetAll
             _mapper = mapper;
         }
 
-        public async Task<List<GetAllTicketTypesResponse>> Handle(
+        public async Task<PagedResponse<GetAllTicketTypesResponse>> Handle(
             GetAllTicketTypesQuery request,
             CancellationToken cancellationToken)
         {
-            var entities = await _repo.FindAsync(t => t.IsDeleted != true, cancellationToken);
+            var query = await _repo.FindAsync(t => t.IsDeleted != true, cancellationToken);
+            var queryable = query.AsQueryable();
 
-            return _mapper.Map<List<GetAllTicketTypesResponse>>(entities);
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+            {
+                var search = request.SearchTerm.ToLower();
+                queryable = queryable.Where(t => t.Name.ToLower().Contains(search));
+            }
+
+            if (request.Category.HasValue)
+            {
+                queryable = queryable.Where(t => t.TicketCategory == request.Category.Value.ToString());
+            }
+
+            if (request.IsActive.HasValue)
+            {
+                if (request.IsActive.Value)
+                    queryable = queryable.Where(t => t.IsActive == true || t.IsActive == null); // null is considered active in map
+                else
+                    queryable = queryable.Where(t => t.IsActive == false);
+            }
+
+            var totalCount = queryable.Count();
+
+            var items = queryable
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip((request.PageIndex - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
+            var mappedItems = _mapper.Map<List<GetAllTicketTypesResponse>>(items);
+
+            return new PagedResponse<GetAllTicketTypesResponse>
+            {
+                Items = mappedItems,
+                TotalCount = totalCount,
+                PageIndex = request.PageIndex,
+                PageSize = request.PageSize
+            };
         }
     }
 }

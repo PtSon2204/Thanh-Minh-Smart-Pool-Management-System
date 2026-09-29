@@ -15,7 +15,7 @@ import { TicketCategoryLabel, TicketCategoryColor } from '../types/ticketType'
  * Props:
  *   ticketType — object từ API (id, name, ticketCategory, price, durationDays, isActive, createdAt)
  */
-export default function TicketTypeCard({ ticketType }) {
+export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock }) {
   const { name, ticketCategory, price, durationDays, isActive } = ticketType
 
   const categoryLabel = TicketCategoryLabel[ticketCategory] ?? ticketCategory
@@ -30,60 +30,82 @@ export default function TicketTypeCard({ ticketType }) {
     <Card
       hoverable
       style={{
-        borderRadius: 12,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-        opacity: isActive ? 1 : 0.6,
-        borderTop: `4px solid ${isActive ? '#005f8e' : '#d9d9d9'}`,
+        borderRadius: 16,
+        boxShadow: isActive ? '0 10px 30px rgba(0, 95, 142, 0.08)' : '0 4px 12px rgba(0,0,0,0.05)',
+        opacity: isActive ? 1 : 0.65,
+        border: 'none',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         height: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
-      bodyStyle={{ flex: 1 }}
+      bodyStyle={{ flex: 1, padding: '24px 20px' }}
       actions={[
         <Tooltip title="Xem chi tiết" key="view">
-          <Button type="text" icon={<EyeOutlined />} />
+          <Button type="text" icon={<EyeOutlined />} onClick={() => onView(ticketType)} style={{ width: '100%' }} />
         </Tooltip>,
         <Tooltip title="Sửa" key="edit">
-          <Button type="text" icon={<EditOutlined />} style={{ color: '#1677ff' }} />
+          <Button type="text" icon={<EditOutlined />} style={{ color: '#00b4d8', width: '100%' }} onClick={() => onEdit(ticketType)} />
         </Tooltip>,
-        <Tooltip title={isActive ? "Khóa loại vé" : "Mở khóa"} key="lock">
+        <Tooltip title={isActive ? "Khóa vé" : "Mở khóa"} key="lock">
           <Button 
             type="text" 
             icon={isActive ? <LockOutlined /> : <UnlockOutlined />} 
-            style={{ color: isActive ? '#ff4d4f' : '#52c41a' }} 
+            style={{ color: isActive ? '#ff4d4f' : '#52c41a', width: '100%' }} 
+            onClick={() => onToggleLock(ticketType)}
           />
         </Tooltip>,
       ]}
     >
-      {/* Header: Tên + Badge trạng thái */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1a2e', flex: 1, marginRight: 8 }}>
-          {name}
-        </span>
-        <Tag color={isActive ? 'success' : 'default'}>
-          {isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}
-        </Tag>
-      </div>
+      {/* Accent Header Line */}
+      <div 
+        style={{ 
+          height: 6, 
+          background: isActive ? 'linear-gradient(90deg, #005f8e 0%, #00b4d8 100%)' : '#d9d9d9', 
+          width: '100%', 
+          position: 'absolute', 
+          top: 0, 
+          left: 0 
+        }} 
+      />
 
-      {/* Phân loại */}
-      <div style={{ marginBottom: 8 }}>
-        <Tag icon={<TagOutlined />} color={categoryColor} style={{ fontSize: 13 }}>
+      {/* Header: Phân loại + Status */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Tag 
+          icon={<TagOutlined />} 
+          color={categoryColor} 
+          style={{ fontSize: 13, borderRadius: 20, padding: '2px 10px', border: 'none', fontWeight: 600 }}
+        >
           {categoryLabel}
         </Tag>
+        <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#52c41a' : '#8c8c8c' }}>
+          {isActive ? '● Đang hoạt động' : '○ Bị khóa'}
+        </span>
       </div>
 
-      {/* Giá */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <CalendarOutlined style={{ color: '#005f8e' }} />
-        <span style={{ fontWeight: 700, fontSize: 18, color: '#005f8e' }}>
-          {formattedPrice}
-        </span>
+      {/* Tên vé */}
+      <div style={{ fontWeight: 800, fontSize: 18, color: '#1a1a2e', marginBottom: 16, lineHeight: 1.3 }}>
+        {name}
+      </div>
+
+      {/* Thông tin giá */}
+      <div style={{ background: '#f8fafc', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: 600 }}>
+          Mức giá
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontWeight: 800, fontSize: 24, color: '#005f8e' }}>
+            {formattedPrice}
+          </span>
+        </div>
       </div>
 
       {/* Hiệu lực */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 13 }}>
-        <ClockCircleOutlined />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 13, fontWeight: 500, paddingLeft: 4 }}>
+        <ClockCircleOutlined style={{ fontSize: 15 }} />
         <span>
           {durationDays ? `Hiệu lực: ${durationDays} ngày` : 'Không giới hạn thời hạn'}
         </span>

@@ -2,42 +2,59 @@ import { useEffect } from 'react'
 import { Modal, Form, Input, Select, InputNumber } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import { useCreateTicketType } from '../hooks/useCreateTicketType'
+import { useUpdateTicketType } from '../hooks/useTicketTypeMutations'
 import { TicketCategoryOptions } from '../types/ticketType'
 
 /**
- * Modal form để thêm mới loại vé.
+ * Modal form để thêm mới / sửa loại vé.
  * Props:
- *   open     — boolean hiển thị/ẩn modal
- *   onClose  — callback đóng modal
+ *   open          — boolean hiển thị/ẩn modal
+ *   onClose       — callback đóng modal
+ *   editingTicket — object vé đang sửa (nếu null là chế độ thêm mới)
  */
-export default function TicketTypeFormModal({ open, onClose }) {
+export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
   const [form] = Form.useForm()
-  const { mutate: createTicketType, isPending } = useCreateTicketType()
+  
+  const { mutate: createTicketType, isPending: isCreating } = useCreateTicketType()
+  const { mutate: updateTicketType, isPending: isUpdating } = useUpdateTicketType()
+  
+  const isEditMode = !!editingTicket
+  const isPending = isCreating || isUpdating
 
-  // Reset form mỗi lần mở
+  // Đổ dữ liệu vào form khi mở (nếu có editingTicket)
   useEffect(() => {
-    if (open) form.resetFields()
-  }, [open, form])
+    if (open) {
+      if (isEditMode) {
+        form.setFieldsValue(editingTicket)
+      } else {
+        form.resetFields()
+      }
+    }
+  }, [open, isEditMode, editingTicket, form])
 
   const handleSubmit = () => {
     form.validateFields().then((values) => {
-      createTicketType(
-        {
-          name:           values.name,
-          ticketCategory: values.ticketCategory,
-          price:          values.price,
-          durationDays:   values.durationDays ?? null,
-        },
-        {
-          onSuccess: () => onClose(),
-        }
-      )
+      const payload = {
+        name:           values.name,
+        ticketCategory: values.ticketCategory,
+        price:          values.price,
+        durationDays:   values.durationDays ?? null,
+      }
+
+      if (isEditMode) {
+        updateTicketType(
+          { id: editingTicket.id, data: payload },
+          { onSuccess: () => onClose() }
+        )
+      } else {
+        createTicketType(payload, { onSuccess: () => onClose() })
+      }
     })
   }
 
   return (
     <Modal
-      title={<span style={{ color: '#fff', fontSize: '18px' }}>Thêm Loại Vé Mới</span>}
+      title={<span style={{ color: '#fff', fontSize: '18px' }}>{isEditMode ? 'Cập Nhật Loại Vé' : 'Thêm Loại Vé Mới'}</span>}
       open={open}
       onOk={handleSubmit}
       onCancel={onClose}
@@ -73,11 +90,7 @@ export default function TicketTypeFormModal({ open, onClose }) {
         style: { background: '#005f8e', borderColor: '#005f8e' }
       }}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={{ durationDays: null }}
-      >
+      <Form form={form} layout="vertical" initialValues={{ durationDays: null }}>
         {/* Tên loại vé */}
         <Form.Item
           label="Tên loại vé"
@@ -87,7 +100,7 @@ export default function TicketTypeFormModal({ open, onClose }) {
             { max: 255, message: 'Tên không vượt quá 255 ký tự.' },
           ]}
         >
-          <Input placeholder="Ví dụ: Vé tháng học sinh" />
+          <Input placeholder="Ví dụ: Vé tháng (30 ngày)" />
         </Form.Item>
 
         {/* Phân loại */}

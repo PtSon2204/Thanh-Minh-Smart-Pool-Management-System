@@ -52,7 +52,7 @@ export default function AdminLayout() {
       label: 'Quản lý vé',
       children: [
         { key: '/admin/tickets/types', label: <Link to="/admin/tickets/types">Loại vé</Link> },
-        { key: '/admin/tickets/booking', label: <Link to="/admin/tickets/booking">Đăng ký vé tháng</Link> },
+        { key: '/admin/tickets/booking', label: <Link to="/admin/tickets/booking">Mua vé</Link> },
       ],
     },
     {

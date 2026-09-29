@@ -8,9 +8,9 @@ export const TICKET_TYPES_QUERY_KEY = ['ticket-types']
  * Hook lấy danh sách loại vé từ API.
  * Tự động cache, refetch khi stale.
  */
-export function useTicketTypes() {
+export function useTicketTypes(params) {
   return useQuery({
-    queryKey: TICKET_TYPES_QUERY_KEY,
-    queryFn: ticketTypeService.getAll,
+    queryKey: [...TICKET_TYPES_QUERY_KEY, params],
+    queryFn: () => ticketTypeService.getAll(params),
   })
 }
