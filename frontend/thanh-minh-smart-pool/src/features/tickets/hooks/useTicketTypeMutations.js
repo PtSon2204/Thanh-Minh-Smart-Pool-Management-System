@@ -28,7 +28,7 @@ export function useToggleLockTicketType() {
       queryClient.invalidateQueries({ queryKey: TICKET_TYPES_QUERY_KEY })
       message.success(data.message || 'Thay đổi trạng thái thành công!')
     },
-    onError: (error) => {
+    onError: () => {
       message.error('Không thể thay đổi trạng thái loại vé.')
     },
   })
