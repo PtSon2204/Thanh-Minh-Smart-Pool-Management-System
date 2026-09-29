@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using SmartPool.Infrastructure.Persistence.TempModels;
+using SmartPool.Domain.Entities;
 using EfDbContext = Microsoft.EntityFrameworkCore.DbContext;
 
 namespace SmartPool.Infrastructure.Persistence.DbContext;
@@ -839,3 +839,4 @@ public partial class SmartPoolDbContext : EfDbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
+

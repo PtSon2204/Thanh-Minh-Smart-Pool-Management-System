@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class Equipment
 {
@@ -27,3 +27,4 @@ public partial class Equipment
 
     public virtual ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; } = new List<MaintenanceSchedule>();
 }
+

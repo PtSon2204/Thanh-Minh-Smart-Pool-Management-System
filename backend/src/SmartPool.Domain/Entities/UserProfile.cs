@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class UserProfile
 {
@@ -19,3 +19,4 @@ public partial class UserProfile
 
     public virtual User User { get; set; } = null!;
 }
+

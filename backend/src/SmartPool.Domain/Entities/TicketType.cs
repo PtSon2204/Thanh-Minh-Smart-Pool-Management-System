@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class TicketType
 {
@@ -25,3 +25,4 @@ public partial class TicketType
 
     public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 }
+

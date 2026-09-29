@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class EntryLog
 {
@@ -19,3 +19,4 @@ public partial class EntryLog
 
     public virtual Ticket? Ticket { get; set; }
 }
+

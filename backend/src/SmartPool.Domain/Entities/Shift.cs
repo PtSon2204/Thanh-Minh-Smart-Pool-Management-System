@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class Shift
 {
@@ -17,3 +17,4 @@ public partial class Shift
 
     public virtual ICollection<EmployeeShift> EmployeeShifts { get; set; } = new List<EmployeeShift>();
 }
+

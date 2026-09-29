@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class MaintenanceLog
 {
@@ -29,3 +29,4 @@ public partial class MaintenanceLog
 
     public virtual MaintenanceSchedule? Schedule { get; set; }
 }
+
