@@ -1,19 +1,14 @@
+using MediatR;
 using SmartPool.Domain.Enums;
 
-namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetAllTicketTypes
+namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.UpdateTicketType
 {
-    public class GetAllTicketTypesResponse
+    public class UpdateTicketTypeCommand : IRequest<UpdateTicketTypeResponse>
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-
         public TicketCategoryEnum TicketCategory { get; set; }
-
         public decimal Price { get; set; }
-
         public int? DurationDays { get; set; }
-
-        public bool IsActive { get; set; }
-        public DateTime? CreatedAt { get; set; }
     }
 }

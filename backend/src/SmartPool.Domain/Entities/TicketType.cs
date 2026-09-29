@@ -19,7 +19,7 @@ public partial class TicketType
 
     public bool? IsDeleted { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }   
 
     public DateTime? UpdatedAt { get; set; }
 
