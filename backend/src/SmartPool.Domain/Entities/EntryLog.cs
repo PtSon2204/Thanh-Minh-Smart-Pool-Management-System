@@ -17,5 +17,11 @@ public partial class EntryLog
 
     public string? Message { get; set; }
 
+    public Guid? OperatorId { get; set; }
+
+    public string? InputMode { get; set; }
+
+    public virtual User? Operator { get; set; }
+
     public virtual Ticket? Ticket { get; set; }
 }

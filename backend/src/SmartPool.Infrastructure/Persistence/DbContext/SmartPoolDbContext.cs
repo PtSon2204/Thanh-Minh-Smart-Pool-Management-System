@@ -103,6 +103,8 @@ public partial class SmartPoolDbContext : EfDbContext
 
             entity.ToTable("employee_shifts", "smart_pool");
 
+            entity.HasIndex(e => new { e.EmployeeId, e.ShiftId, e.WorkDate }, "ux_employee_shifts_employee_id_shift_id_work_date").IsUnique();
+
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("uuid_generate_v4()")
                 .HasColumnName("id");
@@ -139,13 +141,21 @@ public partial class SmartPoolDbContext : EfDbContext
 
             entity.ToTable("entry_logs", "smart_pool");
 
+            entity.HasIndex(e => e.ScanTime, "ix_entry_logs_scan_time");
+
+            entity.HasIndex(e => new { e.TicketId, e.ScanTime }, "ix_entry_logs_ticket_id_scan_time");
+
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("uuid_generate_v4()")
                 .HasColumnName("id");
             entity.Property(e => e.GateId)
                 .HasMaxLength(50)
                 .HasColumnName("gate_id");
+            entity.Property(e => e.InputMode)
+                .HasMaxLength(50)
+                .HasColumnName("input_mode");
             entity.Property(e => e.Message).HasColumnName("message");
+            entity.Property(e => e.OperatorId).HasColumnName("operator_id");
             entity.Property(e => e.ScanTime)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("scan_time");
@@ -157,6 +167,10 @@ public partial class SmartPoolDbContext : EfDbContext
             entity.HasOne(d => d.Ticket).WithMany(p => p.EntryLogs)
                 .HasForeignKey(d => d.TicketId)
                 .HasConstraintName("entry_logs_ticket_id_fkey");
+
+            entity.HasOne(d => d.Operator).WithMany()
+                .HasForeignKey(d => d.OperatorId)
+                .HasConstraintName("entry_logs_operator_id_fkey");
         });
 
         modelBuilder.Entity<Equipment>(entity =>
@@ -595,6 +609,8 @@ public partial class SmartPoolDbContext : EfDbContext
             entity.HasKey(e => e.Id).HasName("salaries_pkey");
 
             entity.ToTable("salaries", "smart_pool");
+
+            entity.HasIndex(e => new { e.EmployeeId, e.Month, e.Year }, "ux_salaries_employee_id_month_year").IsUnique();
 
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("uuid_generate_v4()")
