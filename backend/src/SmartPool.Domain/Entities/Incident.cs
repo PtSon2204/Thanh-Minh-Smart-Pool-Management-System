@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class Incident
 {
@@ -25,3 +25,4 @@ public partial class Incident
 
     public virtual User? ReportedByNavigation { get; set; }
 }
+

@@ -49,7 +49,11 @@ export default function AdminLayout() {
     {
       key: '/admin/tickets',
       icon: <IdcardOutlined />,
-      label: <Link to="/admin/tickets">Quản lý vé</Link>,
+      label: 'Quản lý vé',
+      children: [
+        { key: '/admin/tickets/types', label: <Link to="/admin/tickets/types">Loại vé</Link> },
+        { key: '/admin/tickets/booking', label: <Link to="/admin/tickets/booking">Mua vé</Link> },
+      ],
     },
     {
       key: '/admin/coupons',

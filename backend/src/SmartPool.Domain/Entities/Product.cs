@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class Product
 {
@@ -29,3 +29,4 @@ public partial class Product
 
     public virtual ICollection<Rental> Rentals { get; set; } = new List<Rental>();
 }
+

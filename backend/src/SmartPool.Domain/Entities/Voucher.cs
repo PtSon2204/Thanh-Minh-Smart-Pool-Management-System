@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace SmartPool.Infrastructure.Persistence.TempModels;
+namespace SmartPool.Domain.Entities;
 
 public partial class Voucher
 {
@@ -27,3 +27,4 @@ public partial class Voucher
 
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
 }
+
