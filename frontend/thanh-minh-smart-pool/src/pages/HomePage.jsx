@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom'
 import './HomePage.css'
 
 // Import service images
-import imgFood from '../assets/service_food.png'
-import imgShop from '../assets/service_shop.png'
-import imgHotel from '../assets/service_hotel.png'
-import imgLocker from '../assets/service_locker.png'
+import imgLocker from '../assets/tu-do-mien-phi.png'
+import imgShop from '../assets/dich-vu-cho-thue.png'
+import imgFood from '../assets/dich-vu-am-thuc.png'
 
 const promoItems = [
   {
@@ -36,38 +35,37 @@ const promoItems = [
 ]
 
 const services = [
-  { img: imgLocker, title: 'Tủ để đồ', desc: 'Tủ để đồ cá nhân, an toàn và tiện lợi' },
-  { img: imgHotel, title: 'Nhà khách', desc: 'Phòng nghỉ thoải mái, đầy đủ tiện nghi' },
-  { img: imgShop, title: 'Đồ bơi – Tủ gửi đồ', desc: 'Cho thuê đồ bơi, tủ gửi đồ an toàn' },
-  { img: imgFood, title: 'Du lịch', desc: 'Tour tham quan, dịch vụ du lịch trọn gói' },
+  { img: imgLocker, title: 'Tủ đồ miễn phí', desc: 'Tủ đồ cá nhân an toàn, miễn phí cho mọi khách hàng' },
+  { img: imgShop, title: 'Cho thuê phụ kiện', desc: 'Cung cấp đầy đủ phao, kính bơi, khăn tắm...' },
+  { img: imgFood, title: 'Đồ ăn nhanh', desc: 'Phục vụ đa dạng: bim bim, nước giải khát, xúc xích...' },
 ]
 
 const pricingPlans = [
   {
     icon: '👶',
-    name: 'Trẻ em',
-    desc: 'Dành cho trẻ dưới 10 tuổi',
-    price: '80.000đ',
+    name: 'Vé trẻ em',
+    desc: 'Dành cho khách cao dưới 1,4m',
+    price: '30.000đ',
     unit: '/ lượt',
-    features: ['Vào cổng tự do', 'Bể vầy trẻ em', 'Khu vui chơi trẻ nhỏ', 'An toàn có bảo vệ'],
+    features: ['Bể bơi an toàn dành riêng cho trẻ', 'Camera AI giám sát an toàn 24/7', 'Sử dụng tủ đồ cá nhân miễn phí', 'Giá tiền minh bạch rõ ràng'],
   },
   {
     icon: '🧑',
-    name: 'Người lớn',
-    desc: 'Dành cho khách từ 10 tuổi',
-    price: '150.000đ',
+    name: 'Vé người lớn',
+    desc: 'Dành cho khách cao từ 1,4m',
+    price: '50.000đ',
     unit: '/ lượt',
     featured: true,
     badge: 'Phổ biến nhất',
-    features: ['Toàn bộ khu vực hồ bơi', 'Đường trượt nước', 'Bể sóng nhân tạo', 'Sông lười', 'Tủ gửi đồ miễn phí'],
+    features: ['Bể bơi lớn (Rộng 10m x Dài 23m)', 'Camera AI giám sát an toàn 24/7', 'Sử dụng tủ đồ cá nhân miễn phí', 'Giá tiền minh bạch rõ ràng'],
   },
   {
-    icon: '👨‍👩‍👧‍👦',
-    name: 'Gia đình',
-    desc: '2 người lớn + 2 trẻ em',
-    price: '380.000đ',
-    unit: '/ gói',
-    features: ['Toàn bộ tiện ích', 'Ưu tiên vị trí', 'Khăn tắm miễn phí', 'Giảm 10% ẩm thực', 'Chỗ ngồi riêng'],
+    icon: '🎟️',
+    name: 'Thẻ tháng',
+    desc: 'Bơi thoả thích không giới hạn',
+    price: '800.000đ',
+    unit: '/ tháng',
+    features: ['Tiết kiệm chi phí tối đa', 'Được sử dụng toàn bộ tiện ích', 'Camera AI giám sát an toàn 24/7', 'Sử dụng tủ đồ cá nhân miễn phí'],
   },
 ]
 

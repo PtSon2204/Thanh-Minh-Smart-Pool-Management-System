@@ -37,6 +37,9 @@ namespace SmartPool.Application
             // Mỗi thành viên chỉ cần tạo class kế thừa Profile
             services.AddAutoMapper(cfg => { /* global config nếu cần */ }, assembly);
 
+            // Register IMemoryCache
+            services.AddMemoryCache();
+
             return services;
         }
     }

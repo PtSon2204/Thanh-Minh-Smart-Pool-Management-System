@@ -5,18 +5,8 @@ import './Navbar.css'
 const navItems = [
   { label: 'Trang chủ', to: '/' },
   { label: 'Giới thiệu', to: '/gioi-thieu' },
-  {
-    label: 'Dịch vụ',
-    to: '/dich-vu',
-    children: [
-      { label: 'Hồ bơi ngoài trời', to: '/dich-vu/ho-boi-ngoai-troi' },
-      { label: 'Cho thuê phao, khăn tắm', to: '/dich-vu/ho-boi-trong-nha' },
-      { label: 'Dịch vụ ẩm thực', to: '/dich-vu/am-thuc' },
-    ],
-  },
-  { label: 'Bảng giá', to: '/bang-gia' },
-  { label: 'Đặt vé', to: '/dat-ve' },
-  { label: 'Tin tức', to: '/tin-tuc' },
+  { label: 'Bảng giá vé', to: '/bang-gia' },
+  { label: 'Sơ đồ bể bơi', to: '/so-do-be-boi' },
   { label: 'Liên hệ', to: '/lien-he' },
 ]
 

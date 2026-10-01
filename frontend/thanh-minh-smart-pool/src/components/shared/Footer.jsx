@@ -29,23 +29,35 @@ export default function Footer() {
             <div className="footer-links">
               <Link to="/">→ Trang chủ</Link>
               <Link to="/gioi-thieu">→ Giới thiệu</Link>
-              <Link to="/dich-vu">→ Dịch vụ</Link>
-              <Link to="/bang-gia">→ Bảng giá vé</Link>
-              <Link to="/dat-ve">→ Đặt vé online</Link>
-              <Link to="/tin-tuc">→ Tin tức</Link>
+            </div>
+            <div className="footer-service-item">
+              <span className="footer-contact-icon"></span>
+              <span>Bảng giá vé</span>
+            </div>
+             <div className="footer-service-item">
+              <span className="footer-contact-icon"></span>
+              <span>Sơ đồ hồ bơi</span>
             </div>
           </div>
 
           {/* Services */}
           <div className="footer-col">
             <h4>Dịch vụ</h4>
-            <div className="footer-links">
-              <Link to="/dich-vu/ho-boi-ngoai-troi">→ Hồ bơi ngoài trời</Link>
-              <Link to="/dich-vu/ho-boi-trong-nha">→ Hồ bơi trong nhà</Link>
-              <Link to="/dich-vu/be-song">→ Bể sóng</Link>
-              <Link to="/dich-vu/truot-nuoc">→ Trượt nước</Link>
-              <Link to="/dich-vu/am-thuc">→ Dịch vụ ẩm thực</Link>
-              <Link to="/dich-vu/nha-khach">→ Nhà khách</Link>
+             <div className="footer-service-item">
+              <span className="footer-contact-icon"></span>
+              <span>Dịch vụ đồ ăn</span>
+            </div>
+            <div className="footer-service-item">
+              <span className="footer-contact-icon"></span>
+              <span>Dịch vụ thuê đồ</span>
+            </div>
+            <div className="footer-service-item">
+              <span className="footer-contact-icon"></span>
+              <span>Tủ đồ miễn phí</span>
+            </div>
+            <div className="footer-service-item">
+              <span className="footer-contact-icon"></span>
+              <span>Trông xe miễn phí</span>
             </div>
           </div>
 
