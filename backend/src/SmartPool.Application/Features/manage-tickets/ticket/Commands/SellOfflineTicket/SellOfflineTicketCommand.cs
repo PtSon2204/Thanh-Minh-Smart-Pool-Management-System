@@ -8,5 +8,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
         public List<SellOfflineTicketItem> Items { get; set; } = new List<SellOfflineTicketItem>();
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }
+        public DateTime? StartDate { get; set; }
     }
 }

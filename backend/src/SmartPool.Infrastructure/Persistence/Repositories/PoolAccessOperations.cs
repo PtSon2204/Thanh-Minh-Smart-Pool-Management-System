@@ -64,21 +64,13 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, reason, transaction, cancellationToken);
             }
 
-            if ((category is TicketCategoryEnum.VE_THANG or TicketCategoryEnum.VE_LUOT)
+            if (category == TicketCategoryEnum.VE_THANG
                 && await HasRecentAllowedEntryAsync(ticket.Id, utcNow, cancellationToken))
             {
                 return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, "DuplicateScan", transaction, cancellationToken);
             }
 
             if (category == TicketCategoryEnum.VE_LUOT)
-            {
-                ticket.RemainingEntries--;
-                if (ticket.RemainingEntries == 0)
-                {
-                    ticket.Status = PoolAccessValues.Used;
-                }
-            }
-            else if (category == TicketCategoryEnum.VE_THUONG)
             {
                 ticket.Status = PoolAccessValues.Used;
             }
@@ -206,15 +198,9 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 return false;
             }
 
-            if (category == TicketCategoryEnum.VE_THANG && ticket.ExpiryDate <= utcNow)
+            if (ticket.ExpiryDate is { } expiry && expiry <= utcNow)
             {
                 reason = "TicketExpired";
-                return false;
-            }
-
-            if (category == TicketCategoryEnum.VE_LUOT && ticket.RemainingEntries is not > 0)
-            {
-                reason = "InsufficientEntries";
                 return false;
             }
 

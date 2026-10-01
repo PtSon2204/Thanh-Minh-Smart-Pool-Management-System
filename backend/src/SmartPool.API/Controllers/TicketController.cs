@@ -48,7 +48,7 @@ namespace SmartPool.API.Controllers
             }
         }
 
-        /// <summary>Kiểm tra trạng thái đơn hàng (Dùng cho Polling).</summary>
+        /// <summary>Hàm này sẽ được fe gọi 3s 1 lần để kiểm tra xem trạng thái thanh toán đã đổi chưa.</summary>
         [HttpGet("orders/{orderId}/status")]
         [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderStatus.GetOrderStatusResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetOrderStatus(Guid orderId, CancellationToken cancellationToken)

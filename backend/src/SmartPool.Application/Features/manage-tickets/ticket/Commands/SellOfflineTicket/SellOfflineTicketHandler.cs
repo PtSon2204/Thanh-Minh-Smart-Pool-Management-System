@@ -45,25 +45,29 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             // Xử lý Khách hàng nếu có SĐT
             if (!string.IsNullOrWhiteSpace(request.CustomerPhone))
             {
-                var existingUser = await _userRepo.FirstOrDefaultAsync(u => u.Phone == request.CustomerPhone, cancellationToken);
+                // Tìm theo Phone HOẶC Username (SĐT) để tránh UNIQUE constraint
+                var existingUser = await _userRepo.FirstOrDefaultAsync(
+                    u => u.Phone == request.CustomerPhone || u.Username == request.CustomerPhone,
+                    cancellationToken);
+
                 if (existingUser != null)
                 {
                     customerUserId = existingUser.Id;
                 }
                 else
                 {
-                    // Tự động tạo user
-                    var password = request.CustomerPhone.Length >= 6 
-                        ? request.CustomerPhone.Substring(request.CustomerPhone.Length - 6) 
-                        : "123456";
-                    
+                    // Username = SĐT (hệ thống đăng nhập bằng SĐT)
+                    // Mật khẩu ngẫu nhiên đủ mạnh: HOA + thường + số + ký tự đặc biệt, 8 ký tự
+                    var password = GenerateStrongPassword();
+
                     var newUser = new Domain.Entities.User
                     {
                         Id = Guid.NewGuid(),
                         Username = request.CustomerPhone,
                         Phone = request.CustomerPhone,
-                        PasswordHash = password, 
+                        PasswordHash = password,
                         Status = UserStatusEnum.ACTIVE.ToString(),
+                        IsDeleted = false,
                         CreatedAt = DateTime.UtcNow
                     };
                     await _userRepo.AddAsync(newUser, cancellationToken);
@@ -120,20 +124,21 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 };
                 await _orderDetailRepo.AddAsync(orderDetail, cancellationToken);
 
-                // Sinh Tickets
+                if (ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString())
+                    continue;
+
                 for (int i = 0; i < item.Quantity; i++)
                 {
-                    DateTime? expiryDate = ticketType.TicketCategory == TicketCategoryEnum.VE_THUONG.ToString()
-                        ? DateTime.UtcNow.AddHours(24) // Vé thường 24h
-                        : DateTime.UtcNow.AddDays(ticketType.DurationDays ?? 30); // Vé tháng
+                    DateTime issueDate = (request.StartDate ?? DateTime.UtcNow).ToUniversalTime();
+                    DateTime expiryDate = issueDate.AddDays(ticketType.DurationDays ?? 30);
 
                     var ticket = new Domain.Entities.Ticket
                     {
                         Id = Guid.NewGuid(),
                         TicketTypeId = ticketType.Id,
                         UserId = customerUserId,
-                        QrCode = $"TKT-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}", // Mã QR
-                        IssueDate = DateTime.UtcNow,
+                        QrCode = $"TKT-{Guid.NewGuid().ToString("N").ToUpper()}",
+                        IssueDate = issueDate,
                         ExpiryDate = expiryDate,
                         Status = TicketStatusEnum.ACTIVE.ToString(),
                         CreatedAt = DateTime.UtcNow
@@ -146,7 +151,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                         Id = ticket.Id,
                         QrCode = ticket.QrCode,
                         ExpiryDate = ticket.ExpiryDate,
-                        TicketCategory = ticketType.TicketCategory ?? ""
+                        TicketCategory = ticketType.TicketCategory
                     });
                 }
             }
@@ -172,6 +177,32 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return response;
+        }
+
+        /// <summary>Sinh mật khẩu ngẫu nhiên đủ mạnh: 8 ký tự, có HOA + thường + số + đặc biệt.</summary>
+        private static string GenerateStrongPassword()
+        {
+            const string upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string lower   = "abcdefghjkmnpqrstuvwxyz";
+            const string digits  = "23456789";
+            const string special = "@#!%*?&";
+            const string all     = upper + lower + digits + special;
+
+            var bytes = new byte[8];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+
+            // Đảm bảo mỗi nhóm có ít nhất 1 ký tự
+            var chars = new char[8];
+            chars[0] = upper  [bytes[0] % upper.Length];
+            chars[1] = lower  [bytes[1] % lower.Length];
+            chars[2] = digits [bytes[2] % digits.Length];
+            chars[3] = special[bytes[3] % special.Length];
+            for (int i = 4; i < 8; i++)
+                chars[i] = all[bytes[i] % all.Length];
+
+            // Xáo trộn để tránh pattern cố định (HOA luôn ở đầu)
+            var shuffled = chars.OrderBy(_ => System.Security.Cryptography.RandomNumberGenerator.GetInt32(100)).ToArray();
+            return new string(shuffled);
         }
     }
 }

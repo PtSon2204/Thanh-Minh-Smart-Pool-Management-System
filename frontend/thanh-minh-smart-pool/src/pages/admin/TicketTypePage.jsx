@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button, Row, Col, Spin, Empty, Typography, Modal, Input, Select, Pagination } from 'antd'
 import { PlusOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons'
-import { useTicketTypes } from '../../features/tickets/hooks/useTicketTypes'
+import { useTicketTypes, useDeleteTicketType } from '../../features/tickets/hooks/useTicketTypes'
 import { useToggleLockTicketType } from '../../features/tickets/hooks/useTicketTypeMutations'
 import TicketTypeCard from '../../features/tickets/components/TicketTypeCard'
 import TicketTypeFormModal from '../../features/tickets/components/TicketTypeFormModal'
@@ -35,6 +35,7 @@ export default function TicketTypePage() {
   const totalCount = pagedData?.totalCount || 0
 
   const { mutate: toggleLock } = useToggleLockTicketType()
+  const { mutate: deleteTicketType } = useDeleteTicketType()
 
   const handleCreate = () => {
     setSelectedTicket(null)
@@ -60,6 +61,20 @@ export default function TicketTypePage() {
       cancelText: 'Hủy',
       onOk() {
         toggleLock(ticket.id)
+      },
+    })
+  }
+
+  const handleDelete = (ticket) => {
+    confirm({
+      title: 'Xóa loại vé?',
+      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      content: `Bạn có chắc muốn xóa loại vé "${ticket.name}"? Thao tác này không thể hoàn tác nhưng các vé đã bán ra sẽ không bị ảnh hưởng.`,
+      okText: 'Xóa',
+      okType: 'danger',
+      cancelText: 'Hủy',
+      onOk() {
+        deleteTicketType(ticket.id)
       },
     })
   }
@@ -190,6 +205,7 @@ export default function TicketTypePage() {
                   onEdit={handleEdit}
                   onView={handleView}
                   onToggleLock={handleToggleLock}
+                  onDelete={handleDelete}
                 />
               </Col>
             ))}

@@ -5,7 +5,8 @@ import {
   EditOutlined,
   LockOutlined,
   UnlockOutlined,
-  EyeOutlined
+  EyeOutlined,
+  DeleteOutlined
 } from '@ant-design/icons'
 import { TicketCategoryLabel, TicketCategoryColor } from '../types/ticketType'
 
@@ -14,7 +15,7 @@ import { TicketCategoryLabel, TicketCategoryColor } from '../types/ticketType'
  * Props:
  *   ticketType — object từ API (id, name, ticketCategory, price, durationDays, isActive, createdAt)
  */
-export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock }) {
+export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock, onDelete }) {
   const { name, ticketCategory, price, durationDays, isActive } = ticketType
 
   const categoryLabel = TicketCategoryLabel[ticketCategory] ?? ticketCategory
@@ -53,8 +54,16 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
           <Button 
             type="text" 
             icon={isActive ? <LockOutlined /> : <UnlockOutlined />} 
-            style={{ color: isActive ? '#ff4d4f' : '#52c41a', width: '100%' }} 
+            style={{ color: isActive ? '#faad14' : '#52c41a', width: '100%' }} 
             onClick={() => onToggleLock(ticketType)}
+          />
+        </Tooltip>,
+        <Tooltip title="Xóa vé" key="delete">
+          <Button 
+            type="text" 
+            icon={<DeleteOutlined />} 
+            style={{ color: '#ff4d4f', width: '100%' }} 
+            onClick={() => onDelete(ticketType)}
           />
         </Tooltip>,
       ]}

@@ -3,6 +3,7 @@ using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePendingOrder
 {
@@ -14,6 +15,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
         private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
         private readonly IRepository<Domain.Entities.User> _userRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
         public CreatePendingOrderHandler(
             IRepository<Domain.Entities.TicketType> ticketTypeRepo,
@@ -21,7 +23,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             IRepository<Domain.Entities.OrderDetail> orderDetailRepo,
             IRepository<Domain.Entities.Payment> paymentRepo,
             IRepository<Domain.Entities.User> userRepo,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
         {
             _ticketTypeRepo = ticketTypeRepo;
             _orderRepo = orderRepo;
@@ -29,6 +32,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             _paymentRepo = paymentRepo;
             _userRepo = userRepo;
             _unitOfWork = unitOfWork;
+            _cache = cache;
         }
 
         public async Task<CreatePendingOrderResponse> Handle(CreatePendingOrderCommand request, CancellationToken cancellationToken)
@@ -42,24 +46,26 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             // Xử lý Khách hàng nếu có SĐT
             if (!string.IsNullOrWhiteSpace(request.CustomerPhone))
             {
-                var existingUser = await _userRepo.FirstOrDefaultAsync(u => u.Phone == request.CustomerPhone, cancellationToken);
+                var existingUser = await _userRepo.FirstOrDefaultAsync(
+                    u => u.Phone == request.CustomerPhone || u.Username == request.CustomerPhone,
+                    cancellationToken);
+
                 if (existingUser != null)
                 {
                     customerUserId = existingUser.Id;
                 }
                 else
                 {
-                    var password = request.CustomerPhone.Length >= 6 
-                        ? request.CustomerPhone.Substring(request.CustomerPhone.Length - 6) 
-                        : "123456";
-                    
+                    var password = GenerateStrongPassword();
+
                     var newUser = new Domain.Entities.User
                     {
                         Id = Guid.NewGuid(),
                         Username = request.CustomerPhone,
                         Phone = request.CustomerPhone,
-                        PasswordHash = password, 
+                        PasswordHash = password,
                         Status = UserStatusEnum.ACTIVE.ToString(),
+                        IsDeleted = false,
                         CreatedAt = DateTime.UtcNow
                     };
                     await _userRepo.AddAsync(newUser, cancellationToken);
@@ -73,7 +79,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
                 }
             }
 
-            // Generate unique TransactionRef (e.g. SP + 6 random alphanumeric)
             var transactionRef = "SP" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
 
             var order = new Domain.Entities.Order
@@ -128,6 +133,11 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
                 CreatedAt = DateTime.UtcNow
             };
             await _paymentRepo.AddAsync(payment, cancellationToken);
+            
+            if (request.StartDate.HasValue)
+            {
+                _cache.Set($"OrderStartDate_{order.Id}", request.StartDate.Value, TimeSpan.FromHours(1));
+            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -138,6 +148,29 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
                 TotalAmount = totalAmount,
                 AccountInfo = accountInfo
             };
+        }
+
+        private static string GenerateStrongPassword()
+        {
+            const string upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string lower   = "abcdefghjkmnpqrstuvwxyz";
+            const string digits  = "23456789";
+            const string special = "@#!%*?&";
+            const string all     = upper + lower + digits + special;
+
+            var bytes = new byte[8];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+
+            var chars = new char[8];
+            chars[0] = upper  [bytes[0] % upper.Length];
+            chars[1] = lower  [bytes[1] % lower.Length];
+            chars[2] = digits [bytes[2] % digits.Length];
+            chars[3] = special[bytes[3] % special.Length];
+            for (int i = 4; i < 8; i++)
+                chars[i] = all[bytes[i] % all.Length];
+
+            var shuffled = chars.OrderBy(_ => System.Security.Cryptography.RandomNumberGenerator.GetInt32(100)).ToArray();
+            return new string(shuffled);
         }
     }
 }
