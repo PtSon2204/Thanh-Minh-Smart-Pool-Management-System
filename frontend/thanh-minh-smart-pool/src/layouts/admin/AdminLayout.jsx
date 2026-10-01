@@ -51,14 +51,14 @@ export default function AdminLayout() {
       icon: <IdcardOutlined />,
       label: 'Quản lý vé',
       children: [
+        { key: '/admin/tickets/pos', label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link> },
         { key: '/admin/tickets/types', label: <Link to="/admin/tickets/types">Loại vé</Link> },
-        { key: '/admin/tickets/booking', label: <Link to="/admin/tickets/booking">Mua vé</Link> },
       ],
     },
     {
       key: '/admin/coupons',
       icon: <TagOutlined />,
-      label: <Link to="/admin/coupons">Quản lý mã giảm giá</Link>,
+      label: <Link to="/admin/coupons">Quản lý mã giảm giá và khuyến mãi</Link>,
     },
     {
       key: '/admin/equipment',
@@ -80,7 +80,7 @@ export default function AdminLayout() {
       icon: <TransactionOutlined />,
       label: 'Thanh toán và giao dịch',
       children: [
-        { key: '/admin/payments/invoices', label: <Link to="/admin/payments/invoices">Xuất hóa đơn</Link> },
+        { key: '/admin/payments/invoices', label: <Link to="/admin/payments/invoices">Lịch sử thanh toán</Link> },
       ],
     },
     {

@@ -19,7 +19,7 @@ namespace SmartPool.API.Controllers
             _sender = sender;
         }
 
-        /// <summary>Lấy danh sách tất cả loại vé (có phân trang, search, filter).</summary>
+        /// <summary>Lấy danh sách tất cả loại vé.</summary>
         [HttpGet]
         [ProducesResponseType(typeof(SmartPool.Application.Common.Models.PagedResponse<GetAllTicketTypesResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAll([FromQuery] GetAllTicketTypesQuery query, CancellationToken cancellationToken)
@@ -28,7 +28,7 @@ namespace SmartPool.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Lấy chi tiết 1 loại vé (có ngày tạo, ngày sửa, trạng thái khóa).</summary>
+        /// <summary>Lấy chi tiết 1 loại vé .</summary>
         [HttpGet("{id:guid}")]
         [ProducesResponseType(typeof(GetTicketTypeByIdResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -79,7 +79,7 @@ namespace SmartPool.API.Controllers
             }
         }
 
-        /// <summary>Khóa / Mở khóa loại vé (đảo ngược trạng thái IsActive).</summary>
+        /// <summary>Khóa / Mở khóa loại vé </summary>
         [HttpPut("{id:guid}/toggle-lock")]
         [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
