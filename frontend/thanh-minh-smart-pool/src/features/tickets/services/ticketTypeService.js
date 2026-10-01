@@ -3,7 +3,7 @@ import apiClient from '../../../services/apiClient'
 const BASE = '/api/ticket-types'
 
 const ticketTypeService = {
-  /** Lấy danh sách loại vé (hỗ trợ phân trang, tìm kiếm, lọc) */
+  /** Lấy danh sách loại vé  */
   getAll: (params) => apiClient.get(BASE, { params }).then((res) => res.data),
 
   /** Tạo mới loại vé */
