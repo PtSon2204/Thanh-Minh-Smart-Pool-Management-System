@@ -99,6 +99,9 @@ namespace SmartPool.Infrastructure
             // Repository & Unit of Work
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IServiceOperations, ServiceOperations>();
+            services.AddScoped<IStaffOperations, StaffOperations>();
+            services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
 
             return services;
         }
