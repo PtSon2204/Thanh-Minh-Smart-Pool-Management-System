@@ -1,25 +1,17 @@
-using Microsoft.AspNetCore.Identity;
 using SmartPool.Domain.Entities;
+using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Infrastructure.Services;
 
-public sealed class PasswordHasherService : SmartPool.Application.Interfaces.Services.IPasswordHasher
+public sealed class PasswordHasherService : IPasswordHasher
 {
-    private readonly Microsoft.AspNetCore.Identity.IPasswordHasher<User> _hasher;
-
-    public PasswordHasherService(Microsoft.AspNetCore.Identity.IPasswordHasher<User> hasher)
-    {
-        _hasher = hasher;
-    }
-
     public string HashPassword(User user, string password)
     {
-        return _hasher.HashPassword(user, password);
+        return BCrypt.Net.BCrypt.HashPassword(password);
     }
 
     public bool VerifyPassword(User user, string passwordHash, string password)
     {
-        return _hasher.VerifyHashedPassword(user, passwordHash, password)
-            != PasswordVerificationResult.Failed;
+        return BCrypt.Net.BCrypt.Verify(password, passwordHash);
     }
 }

@@ -1,6 +1,5 @@
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,8 +13,7 @@ using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
 using System.Text;
-using ApplicationPasswordHasher = SmartPool.Application.Interfaces.Services.IPasswordHasher;
-using UserEntity = SmartPool.Domain.Entities.User;
+
 
 namespace SmartPool.Infrastructure
 {
@@ -93,8 +91,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IEmailService, EmailService>();
 
             // Password hashing — ASP.NET Core Identity (salt và hash do PasswordHasher quản lý)
-            services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
-            services.AddScoped<ApplicationPasswordHasher, PasswordHasherService>();
+            services.AddScoped<IPasswordHasher, PasswordHasherService>();
 
             // SignalR — real-time notifications
             services.AddSignalR();

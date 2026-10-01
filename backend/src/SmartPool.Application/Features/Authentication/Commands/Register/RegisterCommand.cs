@@ -1,20 +1,15 @@
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
 
 namespace SmartPool.Application.Features.Authentication.Commands.Register;
 
-/// <summary>
-/// Dữ liệu người dùng cung cấp khi đăng ký tài khoản.
-/// Role và trạng thái tài khoản do hệ thống tự gán, không nhận từ client.
-/// </summary>
-public sealed class RegisterCommand : IRequest<RegisterResponse>
+
+public sealed class RegisterCommand : IRequest<IActionResult>
 {
     public string Username { get; init; } = string.Empty;
 
     public string Email { get; init; } = string.Empty;
 
-    /// <summary>
-    /// Số điện thoại là bắt buộc và sẽ được sử dụng làm thông tin đăng nhập.
-    /// </summary>
     public string Phone { get; init; } = string.Empty;
 
     public string Password { get; init; } = string.Empty;

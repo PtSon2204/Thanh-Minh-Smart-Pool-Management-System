@@ -1,21 +1,26 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using FluentValidation;
+using System.Text.Json;
 
 namespace SmartPool.Application.Features.Authentication.Commands.Register;
 
-public sealed class RegisterHandler : IRequestHandler<RegisterCommand, RegisterResponse>
+public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionResult>
 {
     private readonly IRepository<User> _users;
     private readonly IRepository<UserProfile> _profiles;
     private readonly IRepository<Role> _roles;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ILogger<RegisterHandler> _logger;
 
-    private readonly IValidator<RegisterCommand > _validator;
+    private readonly IValidator<RegisterCommand> _validator;
 
     public RegisterHandler(
         IRepository<User> users,
@@ -23,7 +28,8 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, RegisterR
         IRepository<Role> roles,
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
-        IValidator<RegisterCommand> validator)
+        IValidator<RegisterCommand> validator,
+        ILogger<RegisterHandler> logger)
     {
         _users = users;
         _profiles = profiles;
@@ -31,9 +37,48 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, RegisterR
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
         _validator = validator;
+        _logger = logger;
     }
 
-    public async Task<RegisterResponse> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await RegisterAsync(request, cancellationToken);
+            return new ObjectResult(response) { StatusCode = StatusCodes.Status201Created };
+        }
+        catch (ValidationException exception)
+        {
+            var errors = exception.Errors
+                .GroupBy(error => JsonNamingPolicy.CamelCase.ConvertName(error.PropertyName))
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(error => error.ErrorMessage).Distinct().ToArray());
+
+            return new BadRequestObjectResult(new ValidationProblemDetails(errors));
+        }
+        catch (UniqueFieldConflictException exception)
+        {
+            return CreateConflictResult(exception.Field);
+        }
+        catch (CustomerRoleNotConfiguredException)
+        {
+            return CreateProblemResult(
+                StatusCodes.Status500InternalServerError,
+                "Cấu hình đăng ký chưa sẵn sàng.",
+                "Role CUSTOMER chưa tồn tại trong hệ thống.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            return CreateUnexpectedErrorResult(exception);
+        }
+    }
+
+    private async Task<RegisterResponse> RegisterAsync(RegisterCommand request, CancellationToken cancellationToken)
     {
         await _validator.ValidateAndThrowAsync(request, cancellationToken);
         var username = request.Username.Trim().ToLowerInvariant();
@@ -51,24 +96,24 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, RegisterR
         if (await _users.ExistsAsync(
                 user => user.Username != null && user.Username.ToLower() == username,
                 cancellationToken))
-            throw new RegisterConflictException(nameof(RegisterCommand.Username));
+            throw new UniqueFieldConflictException(nameof(RegisterCommand.Username));
 
         if (await _users.ExistsAsync(
                 user => user.Email != null && user.Email.ToLower() == email,
                 cancellationToken))
-            throw new RegisterConflictException(nameof(RegisterCommand.Email));
+            throw new UniqueFieldConflictException(nameof(RegisterCommand.Email));
 
         var internationalPhone = phone.StartsWith('0') ? "+84" + phone[1..] : inputPhone;
         if (await _users.ExistsAsync(
                 user => user.Phone == phone || user.Phone == internationalPhone,
                 cancellationToken))
-            throw new RegisterConflictException(nameof(RegisterCommand.Phone));
+            throw new UniqueFieldConflictException(nameof(RegisterCommand.Phone));
 
         var customerRole = await _roles.FirstOrDefaultAsync(
             role => role.Name == nameof(RoleEnum.CUSTOMER) && role.IsDeleted != true,
             cancellationToken);
         if (customerRole is null)
-            throw new InvalidOperationException("Role CUSTOMER chưa tồn tại trong bảng roles.");
+            throw new CustomerRoleNotConfiguredException();
 
         var user = new User
         {
@@ -109,24 +154,74 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, RegisterR
         };
     }
 
-
-    public sealed class RegisterConflictException : Exception
+    private static IActionResult CreateConflictResult(string field)
     {
-        public string Field { get; }
-
-        public RegisterConflictException(string field)
-            : base($"The field '{field}' already exists.")
+        var fieldName = JsonNamingPolicy.CamelCase.ConvertName(field);
+        var message = fieldName switch
         {
-            Field = field;
-        }
+            "username" => "Tên đăng nhập đã được sử dụng.",
+            "email" => "Email đã được sử dụng.",
+            "phone" => "Số điện thoại đã được sử dụng.",
+            _ => "Thông tin đăng ký đã được sử dụng."
+        };
+
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Thông tin đăng ký bị trùng."
+        };
+        problem.Extensions["errors"] = new Dictionary<string, string[]>
+        {
+            [fieldName] = [message]
+        };
+
+        return new ObjectResult(problem)
+        {
+            StatusCode = StatusCodes.Status409Conflict,
+            ContentTypes = { "application/problem+json" }
+        };
     }
 
+    private IActionResult CreateUnexpectedErrorResult(Exception exception)
+    {
+        _logger.LogError(exception, "Đăng ký tài khoản thất bại do lỗi không mong đợi.");
+        return CreateProblemResult(
+            StatusCodes.Status500InternalServerError,
+            "Không thể đăng ký tài khoản.",
+            "Hệ thống gặp lỗi khi xử lý đăng ký.");
+    }
+
+    private static IActionResult CreateProblemResult(int status, string title, string detail)
+    {
+        return new ObjectResult(new ProblemDetails
+        {
+            Status = status,
+            Title = title,
+            Detail = detail
+        })
+        {
+            StatusCode = status,
+            ContentTypes = { "application/problem+json" }
+        };
+    }
 
     public sealed class CustomerRoleNotConfiguredException : Exception
     {
         public CustomerRoleNotConfiguredException()
             : base("Role CUSTOMER chưa tồn tại trong hệ thống.")
         {
+        }
+    }
+
+
+    public sealed class UniqueFieldConflictException : Exception
+    {
+        public string Field { get; }
+
+        public UniqueFieldConflictException(string field, Exception? innerException = null)
+            : base($"The field '{field}' already exists.", innerException)
+        {
+            Field = field;
         }
     }
 
