@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, DatePicker } from 'antd'
-import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CalendarOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import dayjs from 'dayjs'
 import { useTicketTypes } from '../../features/tickets/hooks/useTicketTypes'
@@ -450,7 +450,7 @@ export default function OfflineSalesPage() {
           <Divider style={{ margin: '12px 0', borderColor: '#000', borderStyle: 'dashed' }} />
           
           {/* IN THẺ CHO VÉ THÁNG / VÉ LƯỢT */}
-          {soldTickets.filter(t => t.ticketCategory !== 'VE_THUONG').map((t, idx) => (
+          {soldTickets.filter(t => t.ticketCategory !== 'VE_THUONG').map(t => (
             <div key={t.id} style={{ marginBottom: 24, pageBreakInside: 'avoid', border: '2px solid #000', padding: 12, borderRadius: 8 }}>
               {/* MẶT TRƯỚC (Thông tin thẻ) */}
               <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: 8, marginBottom: 8 }}>
