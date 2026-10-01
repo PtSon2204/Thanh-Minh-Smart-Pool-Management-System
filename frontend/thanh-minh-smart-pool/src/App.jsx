@@ -9,6 +9,8 @@ import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
 import TicketTypePage from './pages/admin/TicketTypePage'
+import ServicePage from './pages/admin/ServicePage'
+import InventoryPage from './pages/admin/InventoryPage'
 
 import { ConfigProvider } from 'antd'
 
@@ -38,6 +40,8 @@ function App() {
             <Route index element={<DashboardPage />} />
             <Route path="tickets/pos" element={<OfflineSalesPage />} />
             <Route path="tickets/types" element={<TicketTypePage />} />
+            <Route path="services" element={<ServicePage />} />
+            <Route path="inventory" element={<InventoryPage />} />
             {/* Future admin routes go here */}
           </Route>
         </Routes>

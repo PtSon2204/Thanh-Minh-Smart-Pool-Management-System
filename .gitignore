@@ -56,6 +56,7 @@ $RECYCLE.BIN/
 !.vscode/extensions.json
 *.code-workspace
 .history/
+.omo/
 
 # JetBrains (Rider, WebStorm, IntelliJ)
 .idea/
