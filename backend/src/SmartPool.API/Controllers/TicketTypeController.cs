@@ -95,6 +95,23 @@ namespace SmartPool.API.Controllers
                 return NotFound(new { message = ex.Message });
             }
         }
+
+        /// <summary>Xóa mềm loại vé (Soft Delete).</summary>
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _sender.Send(new SmartPool.Application.Features.ManageTickets.TicketType.Commands.DeleteTicketType.DeleteTicketTypeCommand { Id = id }, cancellationToken);
+                return Ok(new { success = result, message = "Đã xóa loại vé." });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
     }
 }
 

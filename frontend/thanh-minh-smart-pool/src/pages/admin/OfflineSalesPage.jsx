@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message } from 'antd'
-import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined } from '@ant-design/icons'
+import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, DatePicker } from 'antd'
+import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CalendarOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
+import dayjs from 'dayjs'
 import { useTicketTypes } from '../../features/tickets/hooks/useTicketTypes'
 import { useSellOfflineTicket, useCreatePendingOrder, useOrderStatus } from '../../features/tickets/hooks/useSellOfflineTicket'
 
@@ -12,6 +13,7 @@ export default function OfflineSalesPage() {
   const [cart, setCart] = useState([])
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
+  const [startDate, setStartDate] = useState(dayjs())
 
   // Modals
   const [paymentMethodVisible, setPaymentMethodVisible] = useState(false)
@@ -34,8 +36,7 @@ export default function OfflineSalesPage() {
   
   const ticketTypes = pagedData?.items || []
   
-  // Grouping
-  const veThuong = ticketTypes.filter(t => t.ticketCategory === 'VE_THUONG')
+  // Grouping theo loại vé
   const veThang = ticketTypes.filter(t => t.ticketCategory === 'VE_THANG')
   const veLuot = ticketTypes.filter(t => t.ticketCategory === 'VE_LUOT')
 
@@ -63,6 +64,7 @@ export default function OfflineSalesPage() {
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
+      setStartDate(dayjs());
     }
   }, [orderStatusData])
 
@@ -88,12 +90,13 @@ export default function OfflineSalesPage() {
   const totalAmount = cart.reduce((sum, item) => sum + (item.ticketType.price * item.quantity), 0)
   const formattedTotal = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)
 
-  // Check if cart requires registration
-  const requiresRegistration = cart.some(item => 
-    item.ticketType.ticketCategory === 'VE_THANG' || item.ticketType.ticketCategory === 'VE_LUOT'
-  )
+  // VE_THANG: cần đăng ký TK để gắn QR + StartDate
+  // VE_LUOT tại quầy: không cần đăng ký (trừ lượt ngay, không QR)
+  const requiresRegistration = cart.some(item => item.ticketType.ticketCategory === 'VE_THANG')
+  const requiresStartDate = requiresRegistration
 
-  const canCheckout = cart.length > 0 && (!requiresRegistration || (customerPhone.trim() !== ''))
+  const isValidPhone = customerPhone ? /^0\d{9}$/.test(customerPhone.trim()) : false;
+  const canCheckout = cart.length > 0 && (!requiresRegistration || isValidPhone)
 
   const handleOpenPaymentMethod = () => {
     if (!canCheckout) return
@@ -110,8 +113,9 @@ export default function OfflineSalesPage() {
   const handlePayCash = () => {
     const payload = { 
       items: getItemsPayload(),
-      customerPhone: requiresRegistration ? customerPhone : null,
-      customerName: requiresRegistration ? customerName : null
+      customerPhone: requiresRegistration ? customerPhone.trim() : null,
+      customerName: requiresRegistration ? customerName.trim() : null,
+      startDate: requiresRegistration ? startDate.toISOString() : null
     }
 
     sellTicket(
@@ -122,6 +126,8 @@ export default function OfflineSalesPage() {
             id: data.orderId,
             totalAmount: data.totalAmount,
             cartSummary: getOrderSummary(),
+            customerName: requiresRegistration ? customerName.trim() : '',
+            customerPhone: requiresRegistration ? customerPhone.trim() : ''
           })
           setSoldTickets(data.tickets)
           setGeneratedAccount(data.accountInfo || null)
@@ -130,6 +136,7 @@ export default function OfflineSalesPage() {
           setCart([])
           setCustomerName('')
           setCustomerPhone('')
+          setStartDate(dayjs())
         }
       }
     )
@@ -138,8 +145,9 @@ export default function OfflineSalesPage() {
   const handlePayTransfer = () => {
     const payload = { 
       items: getItemsPayload(),
-      customerPhone: requiresRegistration ? customerPhone : null,
-      customerName: requiresRegistration ? customerName : null
+      customerPhone: requiresRegistration ? customerPhone.trim() : null,
+      customerName: requiresRegistration ? customerName.trim() : null,
+      startDate: requiresRegistration ? startDate.toISOString() : null
     }
 
     createPendingOrder(
@@ -150,6 +158,8 @@ export default function OfflineSalesPage() {
             id: data.orderId,
             totalAmount: data.totalAmount,
             cartSummary: getOrderSummary(),
+            customerName: requiresRegistration ? customerName.trim() : '',
+            customerPhone: requiresRegistration ? customerPhone.trim() : ''
           })
           setGeneratedAccount(data.accountInfo || null)
           setTransactionRef(data.transactionRef)
@@ -238,9 +248,8 @@ export default function OfflineSalesPage() {
               <div style={{ textAlign: 'center', marginTop: 100 }}><Spin size="large" /></div>
             ) : (
               <div>
-                {renderTicketSection('🎟️ Vé ngày (Bơi 1 lần)', veThuong)}
-                {renderTicketSection('📅 Vé tháng', veThang)}
-                {renderTicketSection('🎫 Vé lượt (Mua nhiều lượt)', veLuot)}
+                {renderTicketSection('📅 Vé tháng (Có QR, 1 lượt/ngày)', veThang)}
+                {renderTicketSection('🎫 Vé lượt (Mua tại quầy, bơi ngay)', veLuot)}
               </div>
             )}
           </div>
@@ -284,15 +293,24 @@ export default function OfflineSalesPage() {
             {requiresRegistration && (
               <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontWeight: 600, color: '#ff4d4f', marginBottom: 12 }}>
-                  * Bắt buộc đăng ký tài khoản cho khách (do có mua Vé Tháng/Lượt)
+                  * Bắt buộc nhập thông tin khách hàng (do có mua Vé Tháng)
                 </div>
                 <Form layout="vertical">
-                  <Form.Item label="Số điện thoại khách hàng" required>
+                  <Form.Item 
+                    label="Số điện thoại khách hàng" 
+                    required 
+                    validateStatus={customerPhone && !isValidPhone ? 'error' : ''}
+                    help={customerPhone && !isValidPhone ? 'Số điện thoại không hợp lệ (phải bắt đầu bằng số 0 và gồm 10 chữ số)' : ''}
+                  >
                     <Input 
                       prefix={<PhoneOutlined />} 
-                      placeholder="Nhập SĐT..." 
+                      placeholder="VD: 0912345678" 
                       value={customerPhone}
-                      onChange={e => setCustomerPhone(e.target.value)}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setCustomerPhone(val);
+                      }}
+                      maxLength={10}
                     />
                   </Form.Item>
                   <Form.Item label="Tên khách hàng (Không bắt buộc)">
@@ -303,6 +321,17 @@ export default function OfflineSalesPage() {
                       onChange={e => setCustomerName(e.target.value)}
                     />
                   </Form.Item>
+                  {requiresStartDate && (
+                    <Form.Item label="Ngày bắt đầu có hiệu lực">
+                      <DatePicker 
+                        format="DD/MM/YYYY" 
+                        value={startDate} 
+                        onChange={val => setStartDate(val || dayjs())}
+                        allowClear={false}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  )}
                 </Form>
               </div>
             )}
@@ -404,35 +433,57 @@ export default function OfflineSalesPage() {
         <div className="print-section" style={{ padding: 20, fontFamily: 'monospace', maxWidth: 350, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <h2 style={{ margin: 0, fontSize: 22 }}>THÀNH MINH POOL</h2>
-            <p style={{ margin: 0, fontSize: 12 }}>Biên lai bán vé tại quầy</p>
-            <p style={{ margin: 0, fontSize: 12 }}>Ngày: {new Date().toLocaleString('vi-VN')}</p>
+            <p style={{ margin: 0, fontSize: 14 }}>Biên lai bán vé tại quầy</p>
+            <p style={{ margin: 0, fontSize: 14 }}>Ngày: {new Date().toLocaleString('vi-VN')}</p>
           </div>
           
           <Divider style={{ margin: '12px 0', borderColor: '#000', borderStyle: 'dashed' }} />
           
-          <div style={{ marginBottom: 16, fontSize: 13 }}>
-            <div style={{ marginBottom: 8 }}><strong>Chi tiết vé:</strong></div>
+          <div style={{ marginBottom: 16, fontSize: 14 }}>
+            <div style={{ marginBottom: 8 }}>Chi tiết vé:</div>
             <div style={{ marginBottom: 12 }}>{soldOrder?.cartSummary}</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 16 }}>
-              <strong>Tổng cộng:</strong> <strong>{soldOrder ? new Intl.NumberFormat('vi-VN').format(soldOrder.totalAmount) : 0} đ</strong>
+            <div style={{ marginTop: 8 }}>
+              Tổng cộng: {soldOrder ? new Intl.NumberFormat('vi-VN').format(soldOrder.totalAmount) : 0} đ
             </div>
           </div>
           
           <Divider style={{ margin: '12px 0', borderColor: '#000', borderStyle: 'dashed' }} />
           
-          {soldTickets.map((t, idx) => (
-            <div key={t.id} style={{ textAlign: 'center', marginBottom: 24, pageBreakInside: 'avoid' }}>
-              <p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>VÉ SỐ #{idx + 1}</p>
-              <QRCodeSVG value={t.qrCode} size={200} style={{ margin: '0 auto' }} />
-              <p style={{ margin: '8px 0 0 0', fontSize: 12 }}>Mã: {t.qrCode}</p>
-              
-              {t.ticketCategory === 'VE_THUONG' ? (
-                <p style={{ margin: '4px 0 0 0', fontSize: 11 }}>HSD: 24h kể từ lúc in</p>
-              ) : (
-                <p style={{ margin: '4px 0 0 0', fontSize: 11, fontWeight: 'bold' }}>Vui lòng giữ lại mã QR này!</p>
-              )}
+          {/* IN THẺ CHO VÉ THÁNG / VÉ LƯỢT */}
+          {soldTickets.filter(t => t.ticketCategory !== 'VE_THUONG').map((t, idx) => (
+            <div key={t.id} style={{ marginBottom: 24, pageBreakInside: 'avoid', border: '2px solid #000', padding: 12, borderRadius: 8 }}>
+              {/* MẶT TRƯỚC (Thông tin thẻ) */}
+              <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: 8, marginBottom: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 18, textTransform: 'uppercase', color: '#d81b60' }}>THÀNH MINH POOL</h3>
+                <h2 style={{ margin: '4px 0', fontSize: 20, backgroundColor: '#d81b60', color: 'black', padding: '4px 0', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  {t.ticketCategory === 'VE_THANG' ? 'THẺ VÉ THÁNG' : 'THẺ VÉ LƯỢT'}
+                </h2>
+                <div style={{ textAlign: 'left', fontSize: 13, marginTop: 8 }}>
+                  <p style={{ margin: '4px 0' }}><strong>Khách hàng:</strong> {soldOrder?.customerName || '....................'}</p>
+                  <p style={{ margin: '4px 0' }}><strong>SĐT:</strong> {soldOrder?.customerPhone || '....................'}</p>
+                  <p style={{ margin: '4px 0' }}>
+                    <strong>Hạn dùng:</strong> {new Date().toLocaleDateString('vi-VN')} - {t.expiryDate ? new Date(t.expiryDate).toLocaleDateString('vi-VN') : 'Không thời hạn'}
+                  </p>
+                </div>
+              </div>
 
-              {idx < soldTickets.length - 1 && <Divider style={{ margin: '16px 0', borderColor: '#000', borderStyle: 'dashed' }} />}
+              {/* MẶT SAU (Mã QR + Chú ý) */}
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: 14, fontWeight: 'bold' }}>MÃ QUÉT VÀO CỔNG</p>
+                <QRCodeSVG value={t.qrCode} size={150} style={{ margin: '0 auto' }} />
+                <p style={{ margin: '4px 0 12px 0', fontSize: 11 }}>{t.qrCode}</p>
+                
+                <div style={{ textAlign: 'left', fontSize: 12, borderTop: '1px solid #000', paddingTop: 8 }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'red', fontWeight: 'bold', textDecoration: 'underline' }}>CHÚ Ý:</p>
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    <li style={{ marginBottom: 4 }}>Sử dụng thẻ đúng tên chủ thẻ.</li>
+                    <li style={{ marginBottom: 4 }}>Tuân thủ các quy định của bể bơi.</li>
+                    {t.ticketCategory === 'VE_THANG' && (
+                      <li>Chủ thẻ chỉ sử dụng tối đa 1 lần/ngày.</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
             </div>
           ))}
 
@@ -441,10 +492,11 @@ export default function OfflineSalesPage() {
               <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>TÀI KHOẢN KHÁCH HÀNG (Dùng để đăng nhập Web):</p>
               <p style={{ margin: 0 }}>SĐT: {generatedAccount.username}</p>
               <p style={{ margin: 0 }}>Mật khẩu: {generatedAccount.password}</p>
+              <Divider style={{ margin: '16px 0', borderColor: '#000', borderStyle: 'dashed' }} />
             </div>
           )}
           
-          <p style={{ textAlign: 'center', fontSize: 12, marginTop: 16 }}>
+          <p style={{ textAlign: 'center', fontSize: 14 }}>
             Cảm ơn quý khách!<br/>Chúc quý khách bơi lội vui vẻ.
           </p>
         </div>,

@@ -17,6 +17,9 @@ const ticketTypeService = {
 
   /** Khóa / Mở khóa loại vé */
   toggleLock: (id) => apiClient.put(`${BASE}/${id}/toggle-lock`).then((res) => res.data),
+
+  /** Xóa mềm loại vé */
+  delete: (id) => apiClient.delete(`${BASE}/${id}`).then((res) => res.data),
 }
 
 export default ticketTypeService

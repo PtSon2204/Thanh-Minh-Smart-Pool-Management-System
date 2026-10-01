@@ -37,7 +37,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
         public async Task<ConfirmPendingOrderResponse> Handle(ConfirmPendingOrderCommand request, CancellationToken cancellationToken)
         {
-            // The webhook will pass something like SP123456
             var payment = await _paymentRepo.FirstOrDefaultAsync(p => p.TransactionRef == request.TransactionRef, cancellationToken);
             
             if (payment == null)
@@ -50,11 +49,10 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 return new ConfirmPendingOrderResponse { Success = true, Message = "Already processed.", OrderId = payment.OrderId };
             }
 
-            // BẢO MẬT: Kiểm tra số tiền chuyển thực tế có khớp (hoặc lớn hơn) số tiền đơn hàng không
+            //  Kiểm tra số tiền chuyển thực tế có khớp số tiền đơn hàng không
             if (request.ActualAmount < payment.Amount)
             {
-                // Nếu khách chuyển thiếu tiền, ta có thể lưu vết lại nhưng TUYỆT ĐỐI KHÔNG duyệt đơn và KHÔNG sinh vé
-                // Cập nhật trạng thái là PARTIAL để thu ngân biết
+                //Nếu khách giả thiếu tiền, cập nhật trạng thái là PARTIAL để thu ngân biết
                 payment.Status = PaymentStatusEnum.PARTIAL.ToString();
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 
@@ -84,9 +82,14 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 Message = "Confirmed and Tickets generated."
             };
 
-            // Generate tickets based on OrderDetails
             var orderDetails = await _orderDetailRepo.FindAsync(od => od.OrderId == order.Id, cancellationToken);
             
+            DateTime issueDate = DateTime.UtcNow;
+            if (_memoryCache.TryGetValue($"OrderStartDate_{order.Id}", out DateTime cachedStartDate))
+            {
+                issueDate = cachedStartDate.ToUniversalTime();
+            }
+
             foreach (var detail in orderDetails)
             {
                 var ticketType = await _ticketTypeRepo.GetByIdAsync(detail.ItemId, cancellationToken);
@@ -94,17 +97,19 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
                 for (int i = 0; i < detail.Quantity; i++)
                 {
-                    DateTime? expiryDate = ticketType.TicketCategory == TicketCategoryEnum.VE_THUONG.ToString()
-                        ? DateTime.UtcNow.AddHours(24) 
-                        : DateTime.UtcNow.AddDays(ticketType.DurationDays ?? 30); 
+                    // VE_LUOT online: hết hạn cuối ngày phát hành (23:59:59 UTC)
+                    // VE_THANG: hết hạn sau DurationDays tính từ ngày bắt đầu
+                    DateTime expiryDate = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString()
+                        ? issueDate.Date.AddDays(1).AddTicks(-1)
+                        : issueDate.AddDays(ticketType.DurationDays ?? 30);
 
                     var ticket = new Domain.Entities.Ticket
                     {
                         Id = Guid.NewGuid(),
                         TicketTypeId = ticketType.Id,
                         UserId = order.UserId,
-                        QrCode = $"TKT-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
-                        IssueDate = DateTime.UtcNow,
+                        QrCode = $"TKT-{Guid.NewGuid().ToString("N").ToUpper()}",
+                        IssueDate = issueDate,
                         ExpiryDate = expiryDate,
                         Status = TicketStatusEnum.ACTIVE.ToString(),
                         CreatedAt = DateTime.UtcNow

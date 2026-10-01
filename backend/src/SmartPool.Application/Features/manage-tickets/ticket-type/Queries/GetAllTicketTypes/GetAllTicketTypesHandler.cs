@@ -2,6 +2,7 @@ using AutoMapper;
 using MediatR;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetAllTicketTypes
 {
@@ -24,6 +25,9 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetAll
         {
             var query = await _repo.FindAsync(t => t.IsDeleted != true, cancellationToken);
             var queryable = query.AsQueryable();
+
+            queryable = queryable.Where(t => t.TicketCategory == TicketCategoryEnum.VE_THANG.ToString() || 
+                                             t.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString());
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
