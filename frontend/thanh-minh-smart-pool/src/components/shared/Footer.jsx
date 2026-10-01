@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import './Footer.css'
+import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
 
 export default function Footer() {
   return (
@@ -9,7 +10,8 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="footer-brand-name">
-              <span>🏊</span> Thanh Minh Smart Pool
+              <img src={logoImg} alt="Thanh Minh Logo" className="footer-logo-img" />
+              Thanh Minh Smart Pool
             </div>
             <p className="footer-brand-desc">
               Hệ thống quản lý hồ bơi thông minh — nơi mang lại trải nghiệm bơi lội
