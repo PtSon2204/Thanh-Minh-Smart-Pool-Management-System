@@ -67,15 +67,11 @@
   text-decoration: none;
 }
 
-.navbar-logo-icon {
+.navbar-logo-img {
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
   border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.4rem;
+  object-fit: contain;
 }
 
 .navbar-logo-text {
@@ -207,24 +203,24 @@
   white-space: nowrap;
 }
 
-.btn-register {
+nav .voltage-button.btn-register .v-btn {
   border: 2px solid var(--primary);
   color: var(--primary);
   background: transparent;
 }
 
-.btn-register:hover {
+nav .voltage-button.btn-register .v-btn:hover {
   background: var(--primary);
   color: #fff;
 }
 
-.btn-login {
+nav .voltage-button.btn-login .v-btn {
   background: var(--primary);
   color: #fff;
   border: 2px solid var(--primary);
 }
 
-.btn-login:hover {
+nav .voltage-button.btn-login .v-btn:hover {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
 }

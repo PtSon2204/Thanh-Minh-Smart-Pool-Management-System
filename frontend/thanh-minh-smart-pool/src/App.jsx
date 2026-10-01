@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import AboutPage from './pages/AboutPage'
 import PricingPage from './pages/PricingPage'
 import ContactPage from './pages/ContactPage'
+import NotFoundPage from './pages/NotFoundPage'
 import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
@@ -29,6 +30,7 @@ function App() {
             <Route path="/bang-gia" element={<PricingPage />} />
             <Route path="/lien-he" element={<ContactPage />} />
             {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
 
           {/* Admin Routes */}

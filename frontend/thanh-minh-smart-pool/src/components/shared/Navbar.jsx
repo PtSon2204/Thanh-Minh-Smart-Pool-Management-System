@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import './Navbar.css'
+import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
+import VoltageButton from './VoltageButton'
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
@@ -32,7 +34,7 @@ export default function Navbar() {
       <div className="navbar-main">
         <div className="container">
           <Link to="/" className="navbar-logo">
-            <div className="navbar-logo-icon">🏊</div>
+            <img src={logoImg} alt="Logo" className="navbar-logo-img" />
             <div className="navbar-logo-text">
               <span className="navbar-logo-name">Thanh Minh</span>
               <span className="navbar-logo-sub">Smart Pool Management</span>
@@ -62,13 +64,13 @@ export default function Navbar() {
             ))}
           </ul>
 
-          <div className="navbar-cta">
-            <Link to="/dang-ky" className="btn-auth btn-register">
+          <div className="navbar-cta" style={{ display: 'flex', gap: '12px' }}>
+            <VoltageButton to="/dang-ky" variant="outline">
               Đăng ký
-            </Link>
-            <Link to="/dang-nhap" className="btn-auth btn-login">
+            </VoltageButton>
+            <VoltageButton to="/dang-nhap" variant="solid">
               Đăng nhập
-            </Link>
+            </VoltageButton>
           </div>
 
           <button
