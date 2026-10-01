@@ -1,55 +1,85 @@
 using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using SmartPool.Application.Features.AccessControlPool.Commands;
 using SmartPool.Application.Features.AccessControlPool.Contracts;
-using SmartPool.Application.Features.AccessControlPool.Queries;
+using SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry;
+using SmartPool.Application.Features.AccessControlPool.Queries.GetDailyEntrySummary;
+using SmartPool.Application.Features.AccessControlPool.Queries.GetEntryHistory;
+using SmartPool.Application.Features.AccessControlPool.Queries.LookupTicket;
 
-namespace SmartPool.API.Controllers;
-
-[ApiController]
-[Route("api/v1/pool-access")]
-public sealed class PoolAccessController(ISender sender) : ControllerBase
+namespace SmartPool.API.Controllers
 {
-    [HttpPost("lookup")]
-    public async Task<ActionResult<TicketLookupResult>> Lookup([FromBody] LookupTicketRequest request, CancellationToken cancellationToken)
+    [ApiController]
+    [Route("api/pool-access")]
+    public sealed class PoolAccessController : ControllerBase
     {
-        var result = await sender.Send(new LookupTicketQuery(request.Code), cancellationToken);
-        return result.IsValid ? Ok(result.Value) : BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>(result.Errors!)));
+        private readonly ISender _sender;
+
+        public PoolAccessController(ISender sender)
+        {
+            _sender = sender;
+        }
+
+        /// <summary>Tra cứu thông tin và điều kiện vào bể của vé.</summary>
+        [HttpPost("lookup")]
+        [ProducesResponseType(typeof(LookupTicketResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Lookup([FromBody] LookupTicketQuery query, CancellationToken cancellationToken)
+        {
+            var result = await _sender.Send(query, cancellationToken);
+            return ToActionResult(result);
+        }
+
+        /// <summary>Xác nhận một lượt vào bể.</summary>
+        [HttpPost("entries")]
+        [ProducesResponseType(typeof(ConfirmEntryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Confirm([FromBody] ConfirmEntryCommand command, CancellationToken cancellationToken)
+        {
+            var operatorId = GetOperatorId();
+            if (operatorId is null)
+            {
+                return Unauthorized();
+            }
+
+            command.OperatorId = operatorId.Value;
+            var result = await _sender.Send(command, cancellationToken);
+            return ToActionResult(result);
+        }
+
+        /// <summary>Lấy lịch sử lượt vào bể có phân trang.</summary>
+        [HttpGet("entries")]
+        [ProducesResponseType(typeof(SmartPool.Application.Common.Models.PagedResponse<GetEntryHistoryResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetHistory([FromQuery] GetEntryHistoryQuery query, CancellationToken cancellationToken)
+        {
+            var result = await _sender.Send(query, cancellationToken);
+            return ToActionResult(result);
+        }
+
+        /// <summary>Lấy tổng số lượt vào bể đã được chấp nhận trong ngày.</summary>
+        [HttpGet("summary")]
+        [ProducesResponseType(typeof(GetDailyEntrySummaryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetSummary([FromQuery] GetDailyEntrySummaryQuery query, CancellationToken cancellationToken)
+        {
+            var result = await _sender.Send(query, cancellationToken);
+            return ToActionResult(result);
+        }
+
+        private Guid? GetOperatorId()
+        {
+            return Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var operatorId)
+                ? operatorId
+                : null;
+        }
+
+        private ActionResult ToActionResult<T>(PoolAccessValidationResult<T> result)
+        {
+            return result.IsValid
+                ? Ok(result.Value)
+                : BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>(result.Errors!)));
+        }
     }
-
-    [HttpPost("entries")]
-    public async Task<ActionResult<EntryConfirmationResult>> Confirm([FromBody] ConfirmEntryRequest request, CancellationToken cancellationToken)
-    {
-        var operatorId = GetOperatorId();
-        if (operatorId is null)
-            return Unauthorized();
-
-        var result = await sender.Send(new ConfirmEntryCommand(request.Code, request.InputMode, operatorId.Value), cancellationToken);
-        return result.IsValid ? Ok(result.Value) : BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>(result.Errors!)));
-    }
-
-    [HttpGet("entries")]
-    public async Task<ActionResult<PagedResult<EntryHistoryItemDto>>> GetHistory(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] DateOnly? date = null,
-        [FromQuery] string? status = null, [FromQuery] Guid? ticketId = null, CancellationToken cancellationToken = default)
-    {
-        var result = await sender.Send(new GetEntryHistoryQuery(page, pageSize, date, status, ticketId), cancellationToken);
-        return result.IsValid ? Ok(result.Value) : BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>(result.Errors!)));
-    }
-
-    [HttpGet("summary")]
-    public async Task<ActionResult<DailyEntrySummaryDto>> GetSummary([FromQuery] DateOnly date, CancellationToken cancellationToken)
-    {
-        var result = await sender.Send(new GetDailyEntrySummaryQuery(date), cancellationToken);
-        return result.IsValid ? Ok(result.Value) : BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>(result.Errors!)));
-    }
-
-    private Guid? GetOperatorId() => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var operatorId)
-        ? operatorId
-        : null;
 }
-
-public sealed record LookupTicketRequest(string? Code);
-
-public sealed record ConfirmEntryRequest(string? Code, string? InputMode);

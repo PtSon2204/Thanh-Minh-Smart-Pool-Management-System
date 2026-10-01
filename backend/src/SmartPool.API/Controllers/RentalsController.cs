@@ -1,43 +1,110 @@
 using System.Security.Claims;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using SmartPool.Application.Features.ManageServices.Commands;
-using SmartPool.Application.Features.ManageServices.Contracts;
-using SmartPool.Application.Features.ManageServices.Queries;
+using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageServices;
+using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
+using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
+using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 
-namespace SmartPool.API.Controllers;
-
-[ApiController]
-[Route("api/v1/rentals")]
-public sealed class RentalsController(ISender sender) : ControllerBase
+namespace SmartPool.API.Controllers
 {
-    [HttpGet]
-    public async Task<ActionResult<PageDto<RentalDto>>> GetRentals([FromQuery] RentalListQuery query, CancellationToken cancellationToken)
-        => ToActionResult(await sender.Send(new GetRentalsQuery(query), cancellationToken));
-
-    [HttpPost]
-    public async Task<ActionResult<RentalCheckoutDto>> Checkout([FromBody] RentalCheckoutRequest request, CancellationToken cancellationToken)
+    [ApiController]
+    [Route("api/rentals")]
+    public sealed class RentalsController : ControllerBase
     {
-        if (!TryGetOperatorId(out var operatorId)) return Forbid();
-        var result = await sender.Send(new CheckoutRentalCommand(request, operatorId), cancellationToken);
-        return result.IsSuccess ? Created($"/api/v1/rentals/{result.Value!.Rentals[0].Id}", result.Value) : ToActionResult(result);
+        private readonly ISender _sender;
+
+        public RentalsController(ISender sender)
+        {
+            _sender = sender;
+        }
+
+        /// <summary>Lấy danh sách lượt thuê có phân trang và lọc.</summary>
+        [HttpGet]
+        [ProducesResponseType(typeof(PagedResponse<GetRentalsResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRentals([FromQuery] GetRentalsQuery query, CancellationToken cancellationToken)
+        {
+            return await SendAsync(query, cancellationToken);
+        }
+
+        /// <summary>Tạo đơn thuê và trừ tồn kho theo giao dịch nguyên tử.</summary>
+        [HttpPost]
+        [ProducesResponseType(typeof(CheckoutRentalResponse), StatusCodes.Status201Created)]
+        public async Task<IActionResult> Checkout([FromBody] CheckoutRentalCommand command, CancellationToken cancellationToken)
+        {
+            if (!TryGetOperatorId(out var operatorId))
+            {
+                return Forbid();
+            }
+
+            command.OperatorId = operatorId;
+            try
+            {
+                var result = await _sender.Send(command, cancellationToken);
+                return Created($"/api/rentals/{result.Rentals[0].Id}", result);
+            }
+            catch (ValidationException exception)
+            {
+                return BadRequest(CreateValidationError(exception));
+            }
+            catch (KeyNotFoundException exception)
+            {
+                return NotFound(new { message = exception.Message });
+            }
+            catch (ServiceConflictException exception)
+            {
+                return Conflict(new { message = exception.Message });
+            }
+        }
+
+        /// <summary>Trả một đơn vị thuê và cộng tồn kho theo giao dịch nguyên tử.</summary>
+        [HttpPost("{rentalId:guid}/return")]
+        [ProducesResponseType(typeof(ReturnRentalResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Return(Guid rentalId, CancellationToken cancellationToken)
+        {
+            if (!TryGetOperatorId(out var operatorId))
+            {
+                return Forbid();
+            }
+
+            return await SendAsync(new ReturnRentalCommand { RentalId = rentalId, OperatorId = operatorId }, cancellationToken);
+        }
+
+        private bool TryGetOperatorId(out Guid operatorId)
+        {
+            return Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out operatorId);
+        }
+
+        private async Task<IActionResult> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                return Ok(await _sender.Send(request, cancellationToken));
+            }
+            catch (ValidationException exception)
+            {
+                return BadRequest(CreateValidationError(exception));
+            }
+            catch (KeyNotFoundException exception)
+            {
+                return NotFound(new { message = exception.Message });
+            }
+            catch (ServiceConflictException exception)
+            {
+                return Conflict(new { message = exception.Message });
+            }
+        }
+
+        private static object CreateValidationError(ValidationException exception)
+        {
+            return new
+            {
+                message = "Dữ liệu không hợp lệ.",
+                errors = exception.Errors.GroupBy(error => error.PropertyName)
+                    .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray())
+            };
+        }
     }
-
-    [HttpPost("{rentalId:guid}/return")]
-    public async Task<ActionResult<RentalReturnDto>> Return(Guid rentalId, CancellationToken cancellationToken)
-    {
-        if (!TryGetOperatorId(out var operatorId)) return Forbid();
-        return ToActionResult(await sender.Send(new ReturnRentalCommand(rentalId, operatorId), cancellationToken));
-    }
-
-    private bool TryGetOperatorId(out Guid operatorId) => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out operatorId);
-
-    private ActionResult<T> ToActionResult<T>(ServiceOperationResult<T> result) => result.Error switch
-    {
-        null => Ok(result.Value),
-        ServiceOperationError.Validation => BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>(result.Errors))),
-        ServiceOperationError.NotFound => NotFound(result.Errors),
-        ServiceOperationError.Conflict => Conflict(result.Errors),
-        _ => Problem()
-    };
 }

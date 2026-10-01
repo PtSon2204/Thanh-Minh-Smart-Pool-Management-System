@@ -1,15 +1,21 @@
-using SmartPool.Application.Features.ManageServices.Contracts;
+using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageServices.Commands.AdjustStock;
+using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
+using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
+using SmartPool.Application.Features.ManageServices.Commands.UpdateService;
+using SmartPool.Application.Features.ManageServices.Queries.GetInventoryHistory;
+using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 
-namespace SmartPool.Application.Interfaces.Repositories;
+namespace SmartPool.Application.Interfaces.Repositories
+{
 
 public interface IServiceOperations
 {
-    Task<ServiceOperationResult<PageDto<ServiceDto>>> GetServicesAsync(ServiceListQuery query, CancellationToken cancellationToken);
-    Task<ServiceOperationResult<ServiceDto>> CreateServiceAsync(CreateServiceRequest request, CancellationToken cancellationToken);
-    Task<ServiceOperationResult<ServiceDto>> UpdateServiceAsync(Guid serviceId, UpdateServiceRequest request, CancellationToken cancellationToken);
-    Task<ServiceOperationResult<StockAdjustmentDto>> AdjustStockAsync(Guid serviceId, AdjustStockRequest request, Guid operatorId, CancellationToken cancellationToken);
-    Task<ServiceOperationResult<PageDto<InventoryLogDto>>> GetInventoryHistoryAsync(Guid serviceId, InventoryHistoryQuery query, CancellationToken cancellationToken);
-    Task<ServiceOperationResult<PageDto<RentalDto>>> GetRentalsAsync(RentalListQuery query, CancellationToken cancellationToken);
-    Task<ServiceOperationResult<RentalCheckoutDto>> CheckoutRentalAsync(RentalCheckoutRequest request, Guid operatorId, CancellationToken cancellationToken);
-    Task<ServiceOperationResult<RentalReturnDto>> ReturnRentalAsync(Guid rentalId, Guid operatorId, CancellationToken cancellationToken);
+    Task<UpdateServiceResponse> UpdateServiceAsync(UpdateServiceCommand command, CancellationToken cancellationToken);
+    Task<AdjustStockResponse> AdjustStockAsync(AdjustStockCommand command, CancellationToken cancellationToken);
+    Task<PagedResponse<GetInventoryHistoryResponse>> GetInventoryHistoryAsync(GetInventoryHistoryQuery query, CancellationToken cancellationToken);
+    Task<PagedResponse<GetRentalsResponse>> GetRentalsAsync(GetRentalsQuery query, CancellationToken cancellationToken);
+    Task<CheckoutRentalResponse> CheckoutRentalAsync(CheckoutRentalCommand command, CancellationToken cancellationToken);
+    Task<ReturnRentalResponse> ReturnRentalAsync(ReturnRentalCommand command, CancellationToken cancellationToken);
+}
 }

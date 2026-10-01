@@ -1,19 +1,33 @@
-using SmartPool.Application.Features.ManageStaffs.Contracts;
+using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
+using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
+using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
+using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
+using SmartPool.Application.Features.ManageStaffs.Commands.SaveSalary;
+using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
+using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetSalaries;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetShifts;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
 
-namespace SmartPool.Application.Interfaces.Repositories;
+namespace SmartPool.Application.Interfaces.Repositories
+{
 
 public interface IStaffOperations
 {
-    Task<OperationResult<PageResult<StaffDto>>> GetStaffsAsync(StaffListRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<StaffOptionsDto>> GetOptionsAsync(CancellationToken cancellationToken);
-    Task<OperationResult<StaffDto>> CreateStaffAsync(CreateStaffRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<StaffDto>> UpdateStaffAsync(Guid userId, UpdateStaffRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<PageResult<ShiftDto>>> GetShiftsAsync(ShiftListRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<ShiftDto>> SaveShiftAsync(Guid? id, SaveShiftRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<PageResult<ScheduleDto>>> GetScheduleAsync(ScheduleListRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<ScheduleDto>> AssignShiftAsync(AssignShiftRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<ScheduleDto>> CancelAssignmentAsync(Guid id, CancellationToken cancellationToken);
-    Task<OperationResult<ScheduleDto>> RecordAttendanceAsync(Guid id, bool checkIn, Guid? ownerId, CancellationToken cancellationToken);
-    Task<OperationResult<PageResult<SalaryDto>>> GetSalariesAsync(SalaryListRequest request, CancellationToken cancellationToken);
-    Task<OperationResult<SalaryDto>> SaveSalaryAsync(Guid userId, Guid? id, SaveSalaryRequest request, CancellationToken cancellationToken);
+    Task<PagedResponse<GetStaffsResponse>> GetStaffsAsync(GetStaffsQuery request, CancellationToken cancellationToken);
+    Task<GetStaffOptionsResponse> GetOptionsAsync(CancellationToken cancellationToken);
+    Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken);
+    Task<UpdateStaffResponse> UpdateStaffAsync(UpdateStaffCommand request, CancellationToken cancellationToken);
+    Task<PagedResponse<GetShiftsResponse>> GetShiftsAsync(GetShiftsQuery request, CancellationToken cancellationToken);
+    Task<SaveShiftResponse> SaveShiftAsync(SaveShiftCommand request, CancellationToken cancellationToken);
+    Task<PagedResponse<GetScheduleResponse>> GetScheduleAsync(GetScheduleQuery request, CancellationToken cancellationToken);
+    Task<AssignShiftResponse> AssignShiftAsync(AssignShiftCommand request, CancellationToken cancellationToken);
+    Task<CancelShiftAssignmentResponse> CancelAssignmentAsync(CancelShiftAssignmentCommand request, CancellationToken cancellationToken);
+    Task<RecordAttendanceResponse> RecordAttendanceAsync(RecordAttendanceCommand request, CancellationToken cancellationToken);
+    Task<PagedResponse<GetSalariesResponse>> GetSalariesAsync(GetSalariesQuery request, CancellationToken cancellationToken);
+    Task<SaveSalaryResponse> SaveSalaryAsync(SaveSalaryCommand request, CancellationToken cancellationToken);
+}
 }

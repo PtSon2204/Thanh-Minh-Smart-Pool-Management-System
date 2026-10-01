@@ -1,34 +1,39 @@
 using Microsoft.EntityFrameworkCore;
-using SmartPool.Application.Features.ManageServices.Contracts;
-using SmartPool.Infrastructure.Persistence.TempModels;
+using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageServices;
+using SmartPool.Application.Features.ManageServices.Commands.AdjustStock;
+using SmartPool.Application.Features.ManageServices.Queries.GetInventoryHistory;
+using SmartPool.Domain.Entities;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories;
+namespace SmartPool.Infrastructure.Persistence.Repositories
+{
 
 public sealed partial class ServiceOperations
 {
-    public async Task<ServiceOperationResult<StockAdjustmentDto>> AdjustStockAsync(Guid serviceId, AdjustStockRequest request, Guid operatorId, CancellationToken cancellationToken)
+    public async Task<AdjustStockResponse> AdjustStockAsync(AdjustStockCommand command, CancellationToken cancellationToken)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        var changed = await _context.Database.ExecuteSqlInterpolatedAsync($"UPDATE smart_pool.products SET stock_quantity = stock_quantity + {request.Delta}, updated_at = now() WHERE id = {serviceId} AND is_deleted = false AND stock_quantity IS NOT NULL AND stock_quantity + {request.Delta} >= 0", cancellationToken);
+        var changed = await _context.Database.ExecuteSqlInterpolatedAsync($"UPDATE smart_pool.products SET stock_quantity = stock_quantity + {command.Delta}, updated_at = now() WHERE id = {command.ServiceId} AND is_deleted = false AND stock_quantity IS NOT NULL AND stock_quantity + {command.Delta} >= 0", cancellationToken);
         if (changed == 0)
         {
             await transaction.RollbackAsync(cancellationToken);
-            var exists = await _context.Products.AsNoTracking().AnyAsync(product => product.Id == serviceId, cancellationToken);
-            return exists ? Conflict<StockAdjustmentDto>(nameof(request.Delta), "The adjustment would make stock negative or stock is unavailable.") : NotFound<StockAdjustmentDto>(nameof(serviceId));
+            var exists = await _context.Products.AsNoTracking().AnyAsync(product => product.Id == command.ServiceId, cancellationToken);
+            if (!exists) throw new KeyNotFoundException("Không tìm thấy dịch vụ.");
+            throw new ServiceConflictException("Điều chỉnh làm tồn kho âm hoặc dịch vụ không có tồn kho.");
         }
-        var stockQuantity = await _context.Products.AsNoTracking().Where(product => product.Id == serviceId).Select(product => product.StockQuantity!.Value).SingleAsync(cancellationToken);
-        var log = new InventoryLog { Id = Guid.NewGuid(), ProductId = serviceId, ChangeType = "Adjustment", Quantity = request.Delta, Note = request.Note.Trim(), CreatedBy = operatorId, CreatedAt = DateTime.UtcNow };
+        var stockQuantity = await _context.Products.AsNoTracking().Where(product => product.Id == command.ServiceId).Select(product => product.StockQuantity!.Value).SingleAsync(cancellationToken);
+        var log = new InventoryLog { Id = Guid.NewGuid(), ProductId = command.ServiceId, ChangeType = "Adjustment", Quantity = command.Delta, Note = command.Note.Trim(), CreatedBy = command.OperatorId, CreatedAt = DateTime.UtcNow };
         _context.InventoryLogs.Add(log);
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return ServiceOperationResult<StockAdjustmentDto>.Success(new(ToDto(log), stockQuantity));
+        return new AdjustStockResponse { Id = log.Id, ProductId = log.ProductId, ChangeType = log.ChangeType, Quantity = log.Quantity, Note = log.Note, CreatedBy = log.CreatedBy, CreatedAt = log.CreatedAt, StockQuantity = stockQuantity };
     }
 
-    public async Task<ServiceOperationResult<PageDto<InventoryLogDto>>> GetInventoryHistoryAsync(Guid serviceId, InventoryHistoryQuery query, CancellationToken cancellationToken)
+    public async Task<PagedResponse<GetInventoryHistoryResponse>> GetInventoryHistoryAsync(GetInventoryHistoryQuery query, CancellationToken cancellationToken)
     {
-        var productExists = await _context.Products.AsNoTracking().AnyAsync(product => product.Id == serviceId, cancellationToken);
-        if (!productExists) return NotFound<PageDto<InventoryLogDto>>(nameof(serviceId));
-        var logs = _context.InventoryLogs.AsNoTracking().Where(log => log.ProductId == serviceId);
+        var productExists = await _context.Products.AsNoTracking().AnyAsync(product => product.Id == query.ServiceId, cancellationToken);
+        if (!productExists) throw new KeyNotFoundException("Không tìm thấy dịch vụ.");
+        var logs = _context.InventoryLogs.AsNoTracking().Where(log => log.ProductId == query.ServiceId);
         if (query.Date.HasValue)
         {
             var start = query.Date.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
@@ -36,7 +41,8 @@ public sealed partial class ServiceOperations
             logs = logs.Where(log => log.CreatedAt >= start && log.CreatedAt < end);
         }
         var total = await logs.CountAsync(cancellationToken);
-        var items = await logs.OrderByDescending(log => log.CreatedAt).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).Select(log => new InventoryLogDto(log.Id, log.ProductId, log.ChangeType, log.Quantity, log.Note, log.CreatedBy, log.CreatedAt)).ToListAsync(cancellationToken);
-        return ServiceOperationResult<PageDto<InventoryLogDto>>.Success(new(items, total, query.Page, query.PageSize));
+        var items = await logs.OrderByDescending(log => log.CreatedAt).Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).Select(log => new GetInventoryHistoryResponse { Id = log.Id, ProductId = log.ProductId, ChangeType = log.ChangeType, Quantity = log.Quantity, Note = log.Note, CreatedBy = log.CreatedBy, CreatedAt = log.CreatedAt }).ToListAsync(cancellationToken);
+        return new PagedResponse<GetInventoryHistoryResponse> { Items = items, TotalCount = total, PageIndex = query.PageIndex, PageSize = query.PageSize };
     }
+}
 }

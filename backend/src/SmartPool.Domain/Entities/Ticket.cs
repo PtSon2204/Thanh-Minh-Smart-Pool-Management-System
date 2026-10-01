@@ -19,6 +19,8 @@ public partial class Ticket
 
     public string? Status { get; set; }
 
+    public int? RemainingEntries { get; set; }
+
     public Guid? RowVersion { get; set; }
 
     public bool? IsDeleted { get; set; }

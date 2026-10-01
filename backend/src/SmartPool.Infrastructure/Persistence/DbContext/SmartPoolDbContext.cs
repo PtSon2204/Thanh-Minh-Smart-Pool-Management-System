@@ -685,6 +685,7 @@ public partial class SmartPoolDbContext : EfDbContext
             entity.Property(e => e.QrCode)
                 .HasMaxLength(255)
                 .HasColumnName("qr_code");
+            entity.Property(e => e.RemainingEntries).HasColumnName("remaining_entries");
             entity.Property(e => e.RowVersion)
                 .HasDefaultValueSql("uuid_generate_v4()")
                 .HasColumnName("row_version");
