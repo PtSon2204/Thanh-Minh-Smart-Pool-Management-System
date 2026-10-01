@@ -10,7 +10,6 @@ import {
   TagOutlined,
   ToolOutlined,
   AppstoreOutlined,
-  InboxOutlined,
   TransactionOutlined,
   BarChartOutlined,
   BellOutlined,
@@ -67,14 +66,14 @@ export default function AdminLayout() {
       label: <Link to="/admin/equipment">Quản lý thiết bị</Link>,
     },
     {
-      key: '/admin/services',
+      key: 'services',
+      className: 'admin-service-menu',
       icon: <AppstoreOutlined />,
-      label: <Link to="/admin/services">Quản lý dịch vụ</Link>,
-    },
-    {
-      key: '/admin/inventory',
-      icon: <InboxOutlined />,
-      label: <Link to="/admin/inventory">Quản lý hàng hóa</Link>,
+      label: 'Quản lý dịch vụ',
+      children: [
+        { key: '/admin/services', label: <Link to="/admin/services">Danh mục dịch vụ</Link> },
+        { key: '/admin/inventory', label: <Link to="/admin/inventory">Tồn kho và lịch sử</Link> },
+      ],
     },
     {
       key: 'payments',
@@ -120,7 +119,7 @@ export default function AdminLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#e2e8f0' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} width={250} className="admin-sidebar">
+      <Sider trigger={null} collapsible collapsed={collapsed} breakpoint="md" onBreakpoint={setCollapsed} width={250} className="admin-sidebar">
         <div className="bubbles-container">
           <div className="bubble"></div>
           <div className="bubble"></div>
@@ -146,6 +145,7 @@ export default function AdminLayout() {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
+          defaultOpenKeys={['/admin/services', '/admin/inventory'].includes(location.pathname) ? ['services'] : []}
           items={menuItems}
           style={{ 
             borderRight: 0, 
@@ -157,7 +157,7 @@ export default function AdminLayout() {
           }}
         />
       </Sider>
-      <Layout style={{ background: '#e2e8f0' }}>
+      <Layout style={{ background: '#e2e8f0', minWidth: 0 }}>
         <Header
           style={{
             padding: '0 24px',
@@ -173,6 +173,7 @@ export default function AdminLayout() {
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <Button
               type="text"
+              aria-label={collapsed ? 'Mở menu quản trị' : 'Thu gọn menu quản trị'}
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
               style={{
@@ -197,8 +198,8 @@ export default function AdminLayout() {
           </div>
         </Header>
         <Content
+          className="admin-content"
           style={{
-            margin: '24px',
             minHeight: 280,
           }}
         >
