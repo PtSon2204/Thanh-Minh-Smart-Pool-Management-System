@@ -1,4 +1,4 @@
-namespace SmartPool.API.Models
+namespace SmartPool.Application.Features.ManageTickets.Ticket.DTOs
 {
     public class SePayWebhookPayload
     {

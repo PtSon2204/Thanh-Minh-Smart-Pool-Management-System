@@ -5,11 +5,9 @@ namespace SmartPool.Domain.Enums
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum TicketCategoryEnum
     {
-        //Vé tháng
+        /// <summary>Vé tháng - 1 lượt/ngày, có QR, mua cả online lẫn tại quầy</summary>
         VE_THANG,
-        //Vé dùng tùy vào số lượt trên vé (15-20 lượt)
+        /// <summary>Vé lượt - mua tại quầy: trừ lượt ngay, không QR. Mua online: có QR, hết hạn cuối ngày</summary>
         VE_LUOT,
-        //Vé dùng 1 lần vào bể
-        VE_THUONG,
     }
 }

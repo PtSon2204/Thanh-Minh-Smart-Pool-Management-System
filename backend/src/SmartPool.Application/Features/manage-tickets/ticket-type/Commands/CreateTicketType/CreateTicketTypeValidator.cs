@@ -12,7 +12,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
                 .MaximumLength(255).WithMessage("Tên loại vé không được vượt quá 255 ký tự.");
 
             RuleFor(x => x.TicketCategory)
-                .IsInEnum().WithMessage("Phân loại vé không hợp lệ. Chấp nhận: VE_THANG, VE_LUOT, VE_THUONG.");
+                .IsInEnum().WithMessage("Phân loại vé không hợp lệ. Chấp nhận: VE_THANG, VE_LUOT.");
 
             RuleFor(x => x.Price)
                 .GreaterThan(0).WithMessage("Giá vé phải lớn hơn 0.");
