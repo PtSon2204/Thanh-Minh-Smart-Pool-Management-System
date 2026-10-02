@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bể bơi Thành Minh — Đăng nhập</title>
+<style>
+/* ─── Reset & Root ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#0077b6;
+  --primary-dark:#005f8e;
+  --primary-light:#90e0ef;
+  --secondary:#00b4d8;
+  --accent:#f77f00;
+  --page:#eaf6fb;
+  --card-bg:rgba(255,255,255,0.92);
+  --ink:#1a2e3b;
+  --sub-grey:#607d8b;
+  --input-fill:#f0f8ff;
+  --input-border:#90caf9;
+  --btn1:#0077b6;
+  --btn2:#005f8e;
+  --g-border:#c8c8ca;
+  --divider:#b0bec5;
+  --bottom:#0a1929;
+  --card-shadow:0 4px 32px rgba(0,119,182,0.13), 0 1px 4px rgba(0,119,182,0.07);
+}
+html,body{height:100%;background:var(--page)}
+body{-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;overflow:hidden;font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif}
+
+/* ─── Stage ─── */
+.stage{position:fixed;inset:0;overflow:hidden;display:flex}
+
+/* ─── Left Panel: Form ─── */
+.pane{
+  position:relative;
+  width:42%;
+  min-width:380px;
+  height:100%;
+  z-index:10;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(160deg,#e8f4fd 0%,#d0eaf8 50%,#bce0f5 100%);
+}
+
+/* Wave decoration behind pane */
+.pane::before{
+  content:'';
+  position:absolute;
+  bottom:0;left:0;right:0;height:40%;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 200'%3E%3Cpath fill='%230077b6' fill-opacity='0.08' d='M0,64 C360,160 1080,0 1440,96 L1440,200 L0,200 Z'/%3E%3Cpath fill='%2300b4d8' fill-opacity='0.07' d='M0,96 C480,0 960,160 1440,64 L1440,200 L0,200 Z'/%3E%3C/svg%3E") bottom/100% auto no-repeat;
+  pointer-events:none;
+}
+
+/* Logo area top of pane */
+.pane-logo{
+  position:absolute;
+  top:28px; left:0; right:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  z-index:2;
+}
+.pane-logo-icon{
+  width:40px;height:40px;
+  background:linear-gradient(135deg,var(--primary),var(--secondary));
+  border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(0,119,182,0.3);
+}
+.pane-logo-icon svg{width:24px;height:24px;fill:white}
+.pane-logo-name{font-size:1.1rem;font-weight:700;color:var(--primary-dark);letter-spacing:-0.01em}
+.pane-logo-sub{font-size:0.7rem;color:var(--sub-grey);font-weight:400}
+
+/* Card */
+.card{
+  position:relative;
+  width:min(440px,90%);
+  background:var(--card-bg);
+  border-radius:24px;
+  border:1px solid rgba(0,119,182,0.12);
+  box-shadow:var(--card-shadow);
+  backdrop-filter:blur(28px) saturate(160%);
+  padding:44px 40px 36px;
+  z-index:2;
+}
+
+.card-title{
+  font-size:2rem;
+  font-weight:700;
+  color:var(--ink);
+  letter-spacing:-0.03em;
+  margin-bottom:6px;
+}
+.card-sub{
+  font-size:0.9rem;
+  color:var(--sub-grey);
+  margin-bottom:28px;
+  line-height:1.5;
+}
+.card-sub b{color:var(--primary);font-weight:700}
+
+/* Tabs */
+.tabs{
+  display:flex;
+  background:rgba(0,119,182,0.07);
+  border-radius:999px;
+  padding:3px;
+  margin-bottom:28px;
+  gap:3px;
+}
+.tab{
+  flex:1;
+  padding:8px;
+  border:none;
+  border-radius:999px;
+  font-size:0.88rem;
+  font-weight:600;
+  cursor:pointer;
+  background:transparent;
+  color:var(--sub-grey);
+  transition:all 0.2s;
+}
+.tab.active{
+  background:white;
+  color:var(--primary);
+  box-shadow:0 1px 4px rgba(0,119,182,0.15);
+}
+
+/* Fields */
+.field-group{margin-bottom:14px}
+.field-label{
+  font-size:0.78rem;
+  font-weight:600;
+  color:var(--primary-dark);
+  margin-bottom:5px;
+  display:block;
+  letter-spacing:0.01em;
+}
+.field{
+  display:flex;
+  align-items:center;
+  background:var(--input-fill);
+  border:1.5px solid var(--input-border);
+  border-radius:12px;
+  padding:0 16px;
+  height:52px;
+  transition:border-color 0.18s,box-shadow 0.18s;
+  position:relative;
+}
+.field:focus-within{
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(0,119,182,0.12);
+  background:#fff;
+}
+.field svg{width:18px;height:18px;flex-shrink:0;opacity:0.45;margin-right:10px}
+.field input{
+  flex:1;
+  border:none;
+  background:transparent;
+  font-size:0.95rem;
+  color:var(--ink);
+  outline:none;
+  font-family:inherit;
+}
+.field input::placeholder{color:#90a4ae}
+.field input[type="password"]{letter-spacing:0.1em}
+.eye-btn{
+  background:none;border:none;cursor:pointer;
+  padding:4px;opacity:0.4;
+  display:flex;align-items:center;
+  transition:opacity 0.15s;
+}
+.eye-btn:hover{opacity:0.8}
+
+/* Forgot */
+.forgot-row{
+  display:flex;
+  justify-content:flex-end;
+  margin-bottom:20px;
+  margin-top:-4px;
+}
+.forgot-link{
+  font-size:0.78rem;
+  color:var(--primary);
+  text-decoration:none;
+  font-weight:600;
+}
+.forgot-link:hover{text-decoration:underline}
+
+/* Login button */
+.btn-login-main{
+  width:100%;
+  height:54px;
+  border:none;
+  border-radius:999px;
+  background:linear-gradient(180deg,var(--btn1) 0%,var(--btn2) 100%);
+  color:#fff;
+  font-size:0.97rem;
+  font-weight:700;
+  letter-spacing:0.04em;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  box-shadow:0 6px 20px rgba(0,119,182,0.28),0 2px 6px rgba(0,119,182,0.14);
+  transition:transform 0.18s cubic-bezier(.2,.7,.3,1),box-shadow 0.18s ease,filter 0.18s ease;
+  margin-bottom:18px;
+}
+.btn-login-main:hover{filter:brightness(1.12)}
+.btn-login-main:active{transform:translateY(1px)}
+.btn-login-main svg{width:18px;height:18px}
+
+/* Divider */
+.divider{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:18px;
+  color:#90a4ae;
+  font-size:0.75rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+}
+.divider i{flex:1;height:1px;background:var(--divider);display:block;font-style:normal}
+
+/* Google button */
+.btn-google{
+  width:100%;
+  height:50px;
+  border:1.5px solid var(--g-border);
+  border-radius:999px;
+  background:rgba(255,255,255,0.92);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  font-size:0.92rem;
+  font-weight:600;
+  color:#3c4043;
+  cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  transition:background 0.18s ease,box-shadow 0.18s ease,transform 0.18s cubic-bezier(.2,.7,.3,1);
+  margin-bottom:24px;
+}
+.btn-google:hover{background:#fff;box-shadow:0 3px 10px rgba(0,0,0,0.08)}
+.btn-google:active{transform:translateY(1px)}
+
+/* Footer text */
+.card-footer-text{
+  text-align:center;
+  font-size:0.82rem;
+  color:var(--sub-grey);
+}
+.card-footer-text a{
+  color:var(--primary);
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:2px;
+  text-decoration-thickness:1.5px;
+}
+
+/* Terms (register mode) */
+.terms-text{
+  font-size:0.73rem;
+  color:#90a4ae;
+  text-align:center;
+  line-height:1.5;
+  margin-top:14px;
+  display:none;
+}
+.terms-text a{color:var(--primary);text-decoration:underline}
+
+/* Name row (register mode) */
+.name-row{display:none;gap:12px}
+.name-row .field-group{flex:1;margin-bottom:0}
+
+/* ─── Right Panel: Video/Photo ─── */
+.photo{
+  position:absolute;
+  right:0; top:0;
+  height:100%;
+  width:58%;
+  overflow:hidden;
+}
+.photo-img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:50% 50%;
+  display:block;
+  -webkit-user-drag:none;
+}
+.photo-img--wide{display:block}
+.photo-img--tall{display:none}
+
+/* Overlay on photo */
+.photo-overlay{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(160deg,rgba(0,119,182,0.55) 0%,rgba(0,64,120,0.4) 50%,rgba(0,180,216,0.3) 100%);
+  z-index:1;
+}
+
+/* Photo content */
+.photo-content{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  padding:48px 52px;
+}
+.photo-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(255,255,255,0.15);
+  backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.25);
+  border-radius:999px;
+  padding:6px 16px 6px 10px;
+  color:#fff;
+  font-size:0.8rem;
+  font-weight:600;
+  letter-spacing:0.02em;
+  margin-bottom:20px;
+  width:fit-content;
+}
+.photo-badge svg{width:16px;height:16px;opacity:0.9}
+.photo-headline{
+  font-size:clamp(2.2rem,3.5vw,3.2rem);
+  font-weight:800;
+  color:#fff;
+  line-height:1.05;
+  letter-spacing:-0.035em;
+  margin-bottom:16px;
+  text-shadow:0 2px 20px rgba(0,0,0,0.2);
+}
+.photo-headline span{color:#90e0ef}
+.photo-sub{
+  font-size:1rem;
+  color:rgba(255,255,255,0.82);
+  line-height:1.6;
+  max-width:400px;
+}
+
+/* Wave animation overlay */
+.waves-wrap{
+  position:absolute;
+  bottom:0; left:0; right:0;
+  height:120px;
+  overflow:hidden;
+  z-index:2;
+}
+.wave{
+  position:absolute;
+  bottom:0;
+  width:200%;
+  left:-50%;
+}
+.wave svg{width:100%;display:block}
+.wave1{animation:wave-move 6s linear infinite}
+.wave2{animation:wave-move 9s linear infinite reverse;opacity:0.6}
+.wave3{animation:wave-move 12s linear infinite;opacity:0.4}
+
+@keyframes wave-move{
+  0%{transform:translateX(0)}
+  100%{transform:translateX(25%)}
+}
+
+/* Floating bubbles */
+.bubbles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
+.bubble{
+  position:absolute;
+  bottom:-50px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.2);
+  animation:bubble-rise linear infinite;
+}
+.b1{width:12px;height:12px;left:15%;animation-duration:7s;animation-delay:0s}
+.b2{width:20px;height:20px;left:30%;animation-duration:9s;animation-delay:2s}
+.b3{width:8px;height:8px;left:50%;animation-duration:6s;animation-delay:4s}
+.b4{width:16px;height:16px;left:65%;animation-duration:11s;animation-delay:1s}
+.b5{width:10px;height:10px;left:80%;animation-duration:8s;animation-delay:3s}
+.b6{width:24px;height:24px;left:90%;animation-duration:12s;animation-delay:5s}
+
+@keyframes bubble-rise{
+  0%{transform:translateY(0) scale(1);opacity:0}
+  10%{opacity:1}
+  90%{opacity:0.6}
+  100%{transform:translateY(-100vh) scale(0.8);opacity:0}
+}
+
+/* Form waves in pane */
+.form-wave{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  pointer-events:none;
+  z-index:0;
+  overflow:hidden;
+  height:160px;
+}
+.form-wave svg{width:100%;position:absolute;bottom:0}
+.form-wave .fw1{animation:fw-wave 7s ease-in-out infinite alternate}
+.form-wave .fw2{animation:fw-wave 10s ease-in-out infinite alternate-reverse;opacity:0.5}
+@keyframes fw-wave{
+  0%{transform:translateX(-5px) scaleY(1)}
+  100%{transform:translateX(5px) scaleY(1.05)}
+}
+
+/* ─── Responsive ─── */
+@media (max-width:900px){
+  .photo{width:50%}
+  .pane{width:50%}
+}
+@media (max-width:700px){
+  .stage{flex-direction:column;position:relative;height:auto;min-height:100svh;overflow-y:auto}
+  body{overflow:auto;height:auto}
+  .photo{
+    position:relative;
+    width:100%;height:260px;
+    right:auto;top:auto;
+    flex-shrink:0;
+  }
+  .pane{
+    position:relative;
+    width:100%;
+    min-width:0;
+    height:auto;
+    padding:0 0 max(20px,env(safe-area-inset-bottom));
+    flex:1;
+    background:white;
+  }
+  .pane::before{display:none}
+  .pane-logo{display:none}
+  .card{
+    width:100%;max-width:100%;
+    border-radius:24px 24px 0 0;
+    margin-top:-28px;
+    border:none;
+    box-shadow:0 -8px 28px rgba(0,119,182,0.1);
+    padding:32px 24px 28px;
+    background:#fff;
+    backdrop-filter:none;
+  }
+  .card-title{font-size:1.6rem}
+  .field{height:48px}
+  .field input{font-size:16px !important}
+  .btn-login-main{height:50px}
+  .btn-google{height:46px}
+  .photo-headline{font-size:clamp(1.8rem,7vw,2.4rem)}
+  .photo-content{padding:28px 24px}
+  .form-wave{display:none}
+  .photo-img--wide{display:block}
+}
+@media (max-width:370px){
+  .card{padding:24px 16px 20px}
+  .card-title{font-size:1.4rem}
+}
+
+/* Focus visible */
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:4px}
+
+/* Reduced motion */
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ─── Entrance animation ─── */
+.entry-pending .card{opacity:0;transform:translateY(14px)}
+.entry-pending .photo-badge{opacity:0;transform:translateY(8px)}
+.entry-pending .photo-headline{opacity:0;transform:translateY(16px)}
+.entry-pending .photo-sub{opacity:0;transform:translateY(10px)}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- Left: Login Form -->
+  <section class="pane">
+    <div class="pane-logo">
+      <div class="pane-logo-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="pane-logo-name">Thành Minh</div>
+        <div class="pane-logo-sub">Bể bơi thông minh</div>
+      </div>
+    </div>
+
+    <!-- Form waves -->
+    <div class="form-wave" aria-hidden="true">
+      <svg class="fw1" viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,60 C360,120 1080,0 1440,60 L1440,120 L0,120 Z" fill="rgba(0,119,182,0.06)"/>
+      </svg>
+      <svg class="fw2" viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,80 C480,20 960,120 1440,40 L1440,120 L0,120 Z" fill="rgba(0,180,216,0.05)"/>
+      </svg>
+    </div>
+
+    <div class="card" id="card">
+      <!-- Tab switcher -->
+      <div class="tabs" role="tablist" aria-label="Loại tài khoản">
+        <button class="tab active" id="tab-login" role="tab" aria-selected="true" type="button" onclick="switchTab('login')">Đăng nhập</button>
+        <button class="tab" id="tab-register" role="tab" aria-selected="false" type="button" onclick="switchTab('register')">Đăng ký</button>
+      </div>
+
+      <div id="card-in">
+        <!-- Login mode title -->
+        <h1 class="card-title" id="card-title">Chào mừng trở lại!</h1>
+        <p class="card-sub" id="card-sub"><b>Đăng nhập</b> để tiếp tục trải nghiệm bể bơi Thành Minh.</p>
+
+        <!-- Name row (register only) -->
+        <div class="name-row" id="name-row">
+          <div class="field-group">
+            <label class="field-label" for="inp-fname">Họ</label>
+            <div class="field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/></svg>
+              <input type="text" id="inp-fname" placeholder="Nguyễn" autocomplete="given-name" aria-label="Họ">
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="inp-lname">Tên</label>
+            <div class="field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M12 15c4.4 0 8 3 8 7"/></svg>
+              <input type="text" id="inp-lname" placeholder="Văn An" autocomplete="family-name" aria-label="Tên">
+            </div>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="field-group" id="email-group">
+          <label class="field-label" for="inp-email">Email</label>
+          <div class="field" id="email">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+            <input type="email" id="inp-email" placeholder="Eg. johndoe@gmail.com" autocomplete="email" aria-label="Địa chỉ email">
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="field-group" id="pw-group">
+          <label class="field-label" for="inp-pw">Mật khẩu</label>
+          <div class="field" id="pw">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="inp-pw" placeholder="Mật khẩu" autocomplete="current-password" aria-label="Mật khẩu">
+            <button class="eye-btn" type="button" onclick="togglePw()" aria-label="Hiện/ẩn mật khẩu">
+              <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Confirm password (register only) -->
+        <div class="field-group" id="pw2-group" style="display:none">
+          <label class="field-label" for="inp-pw2">Xác nhận mật khẩu</label>
+          <div class="field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="inp-pw2" placeholder="Nhập lại mật khẩu" autocomplete="new-password" aria-label="Xác nhận mật khẩu">
+          </div>
+        </div>
+
+        <!-- Forgot password (login only) -->
+        <div class="forgot-row" id="forgot-row">
+          <a href="#" class="forgot-link">Quên mật khẩu?</a>
+        </div>
+
+        <!-- Main button -->
+        <button class="btn-login-main" id="loginBtn" type="button">
+          <span id="btn-label">Đăng nhập</span>
+          <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 11h15.4M11 3.3l7.7 7.7-7.7 7.7" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <!-- Divider -->
+        <div class="divider">
+          <i></i>
+          <b>HOẶC</b>
+          <i></i>
+        </div>
+
+        <!-- Google button -->
+        <button class="btn-google" id="gBtn" type="button">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            <path fill="none" d="M0 0h48v48H0z"/>
+          </svg>
+          <span>Đăng nhập với Google</span>
+        </button>
+
+        <!-- Footer -->
+        <p class="card-footer-text" id="bottom">
+          <span id="footer-txt">Chưa có tài khoản? </span>
+          <a href="#" id="footer-link" onclick="switchTab('register');return false">Đăng ký miễn phí</a>
+        </p>
+
+        <!-- Terms (register) -->
+        <p class="terms-text" id="terms-txt">
+          Bằng cách đăng ký, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a> và <a href="#">Chính sách bảo mật</a> của chúng tôi.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Right: Video/Photo panel -->
+  <section class="photo" aria-label="Hình ảnh bể bơi Thành Minh">
+    <video class="photo-img photo-img--wide"
+      autoplay muted loop playsinline preload="auto"
+      aria-hidden="true">
+      <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260424_064411_9e9d7f84-9277-41f4-ab10-59172d89e6be.mp4" type="video/mp4">
+    </video>
+
+    <!-- Blue tinted overlay to fit pool theme -->
+    <div class="photo-overlay" aria-hidden="true"></div>
+
+    <!-- Floating bubbles -->
+    <div class="bubbles" aria-hidden="true">
+      <div class="bubble b1"></div>
+      <div class="bubble b2"></div>
+      <div class="bubble b3"></div>
+      <div class="bubble b4"></div>
+      <div class="bubble b5"></div>
+      <div class="bubble b6"></div>
+    </div>
+
+    <!-- Wave overlay bottom -->
+    <div class="waves-wrap" aria-hidden="true">
+      <div class="wave wave1">
+        <svg viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,60 C480,120 960,0 1440,60 C1920,120 2400,0 2880,60 L2880,120 L0,120 Z" fill="rgba(0,119,182,0.35)"/>
+        </svg>
+      </div>
+      <div class="wave wave2" style="bottom:8px">
+        <svg viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,80 C480,20 960,100 1440,50 C1920,0 2400,90 2880,40 L2880,120 L0,120 Z" fill="rgba(0,180,216,0.25)"/>
+        </svg>
+      </div>
+      <div class="wave wave3" style="bottom:0">
+        <svg viewBox="0 0 2880 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,40 C720,80 1440,0 2160,40 C2520,60 2700,20 2880,40 L2880,80 L0,80 Z" fill="rgba(144,224,239,0.2)"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Content overlay -->
+    <div class="photo-content">
+      <div class="photo-badge" id="photo-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        An toàn · Tiêu chuẩn · Chất lượng
+      </div>
+      <h2 class="photo-headline" id="photo-headline">
+        Trải nghiệm bơi lội<br>
+        <span>đẳng cấp</span> tại<br>
+        Thành Minh
+      </h2>
+      <p class="photo-sub" id="photo-sub">
+        Bể bơi hiện đại với camera AI giám sát an toàn 24/7, dịch vụ cho thuê phụ kiện và đồ ăn nhanh ngay tại chỗ.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ─── Tab switcher ───
+var isRegister = false;
+
+function switchTab(mode) {
+  isRegister = (mode === 'register');
+  var tabLogin = document.getElementById('tab-login');
+  var tabReg = document.getElementById('tab-register');
+  var title = document.getElementById('card-title');
+  var sub = document.getElementById('card-sub');
+  var btnLabel = document.getElementById('btn-label');
+  var gBtn = document.getElementById('gBtn');
+  var footerTxt = document.getElementById('footer-txt');
+  var footerLink = document.getElementById('footer-link');
+  var nameRow = document.getElementById('name-row');
+  var forgotRow = document.getElementById('forgot-row');
+  var pw2Group = document.getElementById('pw2-group');
+  var termsTxt = document.getElementById('terms-txt');
+
+  if (isRegister) {
+    tabReg.classList.add('active');
+    tabReg.setAttribute('aria-selected','true');
+    tabLogin.classList.remove('active');
+    tabLogin.setAttribute('aria-selected','false');
+    title.textContent = 'Tạo tài khoản';
+    sub.innerHTML = '<b>Đăng ký</b> để đặt vé và trải nghiệm đặc quyền thành viên.';
+    btnLabel.textContent = 'Đăng ký';
+    nameRow.style.display = 'flex';
+    forgotRow.style.display = 'none';
+    pw2Group.style.display = 'block';
+    termsTxt.style.display = 'block';
+    gBtn.querySelector('span').textContent = 'Đăng ký với Google';
+    footerTxt.textContent = 'Đã có tài khoản? ';
+    footerLink.textContent = 'Đăng nhập';
+    footerLink.onclick = function(){ switchTab('login'); return false; };
+  } else {
+    tabLogin.classList.add('active');
+    tabLogin.setAttribute('aria-selected','true');
+    tabReg.classList.remove('active');
+    tabReg.setAttribute('aria-selected','false');
+    title.textContent = 'Chào mừng trở lại!';
+    sub.innerHTML = '<b>Đăng nhập</b> để tiếp tục trải nghiệm bể bơi Thành Minh.';
+    btnLabel.textContent = 'Đăng nhập';
+    nameRow.style.display = 'none';
+    forgotRow.style.display = 'flex';
+    pw2Group.style.display = 'none';
+    termsTxt.style.display = 'none';
+    gBtn.querySelector('span').textContent = 'Đăng nhập với Google';
+    footerTxt.textContent = 'Chưa có tài khoản? ';
+    footerLink.textContent = 'Đăng ký miễn phí';
+    footerLink.onclick = function(){ switchTab('register'); return false; };
+  }
+}
+
+// ─── Toggle password ───
+function togglePw() {
+  var inp = document.getElementById('inp-pw');
+  var icon = document.getElementById('eye-icon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2"/>';
+  } else {
+    inp.type = 'password';
+    icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
+// ─── Entrance animation ───
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if (reduced || !Element.prototype.animate) return;
+
+  var ease = 'cubic-bezier(.16,1,.3,1)';
+  var soft = 'cubic-bezier(.22,1,.36,1)';
+  var anims = [];
+
+  function anim(el, delay, dur, easing, fromOpacity, fromTransform) {
+    if (!el) return;
+    var a = el.animate(
+      [{opacity: fromOpacity || 0, transform: fromTransform || 'translateY(8px)'},
+       {opacity: 1, transform: 'translateY(0)'}],
+      {delay: delay, duration: dur, easing: easing, fill: 'both'}
+    );
+    anims.push(a);
+  }
+
+  Promise.race([
+    document.fonts.ready,
+    new Promise(function(r){ setTimeout(r, 650); })
+  ]).then(function(){
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        anim(document.getElementById('card'), 40, 820, ease, 0, 'translateY(14px)');
+        anim(document.querySelector('.photo-badge'), 200, 480, soft, 0, 'translateY(8px)');
+        anim(document.querySelector('.photo-headline'), 340, 700, ease, 0, 'translateY(16px)');
+        anim(document.querySelector('.photo-sub'), 480, 560, ease, 0, 'translateY(10px)');
+
+        Promise.allSettled(anims.map(function(a){ return a.finished; })).then(function(){
+          anims.forEach(function(a){ a.cancel(); });
+          anims.length = 0;
+        });
+      });
+    });
+  });
+}());
+</script>
+</body>
+</html>
