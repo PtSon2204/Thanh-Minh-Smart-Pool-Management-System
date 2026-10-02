@@ -5,6 +5,7 @@ import AboutPage from './pages/AboutPage'
 import PricingPage from './pages/PricingPage'
 import ContactPage from './pages/ContactPage'
 import NotFoundPage from './pages/NotFoundPage'
+import AuthPage from './pages/AuthPage'
 import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
@@ -34,6 +35,10 @@ function App() {
             {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
+
+          {/* Auth Routes (full-screen, no Navbar/Footer) */}
+          <Route path="/dang-nhap" element={<AuthPage />} />
+          <Route path="/dang-ky" element={<AuthPage />} />
 
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>
