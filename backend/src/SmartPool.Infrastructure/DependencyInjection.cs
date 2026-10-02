@@ -93,6 +93,13 @@ namespace SmartPool.Infrastructure
             // Password hashing — ASP.NET Core Identity (salt và hash do PasswordHasher quản lý)
             services.AddScoped<IPasswordHasher, PasswordHasherService>();
 
+            // Access token generation for login
+            services.AddSingleton<IAccessTokenService, AccessTokenService>();
+
+            // Identity of the authenticated caller in the current HTTP request
+            services.AddHttpContextAccessor();
+            services.AddScoped<ICurrentUser, CurrentUser>();
+
             // SignalR — real-time notifications
             services.AddSignalR();
             services.AddScoped<INotificationService, SignalRNotificationService>();
