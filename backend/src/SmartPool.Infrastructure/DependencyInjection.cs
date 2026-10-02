@@ -14,6 +14,7 @@ using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
 using System.Text;
 
+
 namespace SmartPool.Infrastructure
 {
     /// <summary>
@@ -88,6 +89,9 @@ namespace SmartPool.Infrastructure
 
             // Email — MailKit
             services.AddScoped<IEmailService, EmailService>();
+
+            // Password hashing — ASP.NET Core Identity (salt và hash do PasswordHasher quản lý)
+            services.AddScoped<IPasswordHasher, PasswordHasherService>();
 
             // SignalR — real-time notifications
             services.AddSignalR();
