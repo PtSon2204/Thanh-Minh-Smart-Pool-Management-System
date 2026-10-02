@@ -7,6 +7,12 @@ import imgLocker from '../assets/tu-do-mien-phi.png'
 import imgShop from '../assets/dich-vu-cho-thue.png'
 import imgFood from '../assets/dich-vu-am-thuc.png'
 
+// Import why-us images
+import whyImg1 from '../assets/tai-sao-anh-1-dochothue.png'
+import whyImg2 from '../assets/tai-sao-anh-2-camera-giam-sat.png'
+import whyImg3 from '../assets/tai-sao-anh-3-tudedofree.png'
+import whyImg4 from '../assets/tai-sao-anh-4-doannhanh.png'
+
 const promoItems = [
   {
     id: 1,
@@ -34,39 +40,53 @@ const promoItems = [
   },
 ]
 
+const whyUsItems = [
+  {
+    id: 1,
+    title: 'Giá cả minh bạch',
+    tag: '01 ✦ TỐI ƯU CHI PHÍ',
+    desc: 'Bảng giá được niêm yết rõ ràng, không có phụ phí ẩn. Bạn hoàn toàn yên tâm tận hưởng dịch vụ với mức chi phí hợp lý và xứng đáng nhất.',
+    features: ['Giá niêm yết công khai trên toàn hệ thống', 'Đa dạng gói vé theo nhu cầu (vé lẻ, vé tháng)'],
+    img: null,
+  },
+  {
+    id: 2,
+    title: 'Tủ đồ cá nhân miễn phí',
+    tag: '02 ✦ AN TOÀN & TIỆN LỢI',
+    desc: 'Hệ thống tủ đồ cá nhân hiện đại, không gian rộng rãi và hoàn toàn miễn phí, giúp bạn an tâm tuyệt đối khi bảo quản tư trang trong suốt quá trình vui chơi.',
+    features: ['Tủ khóa an toàn, riêng tư', 'Không phát sinh phụ phí bảo quản đồ'],
+    img: whyImg3,
+  },
+  {
+    id: 3,
+    title: 'Đồ ăn nhanh tiện lợi',
+    tag: '03 ✦ NẠP NĂNG LƯỢNG',
+    desc: 'Quầy ẩm thực ngay tại khuôn viên cung cấp đa dạng các món ăn vặt, xúc xích, bim bim và nước giải khát, giúp bạn nạp lại năng lượng tức thì sau những giờ bơi lội.',
+    features: ['Thực đơn phong phú, đa dạng lựa chọn', 'Phục vụ nhanh chóng, hợp vệ sinh'],
+    img: whyImg4,
+  },
+  {
+    id: 4,
+    title: 'Camera AI giám sát an toàn',
+    tag: '04 ✦ CÔNG NGHỆ TIÊN PHONG',
+    desc: 'Thành Minh tự hào ứng dụng công nghệ Trí tuệ nhân tạo (AI) vào hệ thống camera giám sát. Hệ thống liên tục quét và tự động phát hiện, cảnh báo ngay lập tức các nguy cơ mất an toàn.',
+    features: ['Hỗ trợ phát hiện nguy cơ đuối nước sớm', 'Giám sát 24/7 bao quát toàn bộ khu vực'],
+    img: whyImg2,
+  },
+  {
+    id: 5,
+    title: 'Dịch vụ cho thuê phụ kiện',
+    tag: '05 ✦ TRANG BỊ ĐẦY ĐỦ',
+    desc: 'Quên mang theo phụ kiện bơi lội? Đừng lo! Chúng tôi cung cấp dịch vụ cho thuê phao bơi, kính bơi, khăn tắm sạch sẽ, chất lượng cao dành cho mọi lứa tuổi.',
+    features: ['Đa dạng mẫu mã và kích cỡ', 'Vệ sinh tiệt trùng cẩn thận sau mỗi lần thuê'],
+    img: whyImg1,
+  },
+]
+
 const services = [
   { img: imgLocker, title: 'Tủ đồ miễn phí', desc: 'Tủ đồ cá nhân an toàn, miễn phí cho mọi khách hàng' },
   { img: imgShop, title: 'Cho thuê phụ kiện', desc: 'Cung cấp đầy đủ phao, kính bơi, khăn tắm...' },
   { img: imgFood, title: 'Đồ ăn nhanh', desc: 'Phục vụ đa dạng: bim bim, nước giải khát, xúc xích...' },
-]
-
-const pricingPlans = [
-  {
-    icon: '👶',
-    name: 'Vé trẻ em',
-    desc: 'Dành cho khách cao dưới 1,4m',
-    price: '30.000đ',
-    unit: '/ lượt',
-    features: ['Bể bơi an toàn dành riêng cho trẻ', 'Camera AI giám sát an toàn 24/7', 'Sử dụng tủ đồ cá nhân miễn phí', 'Giá tiền minh bạch rõ ràng'],
-  },
-  {
-    icon: '🧑',
-    name: 'Vé người lớn',
-    desc: 'Dành cho khách cao từ 1,4m',
-    price: '50.000đ',
-    unit: '/ lượt',
-    featured: true,
-    badge: 'Phổ biến nhất',
-    features: ['Bể bơi lớn (Rộng 10m x Dài 23m)', 'Camera AI giám sát an toàn 24/7', 'Sử dụng tủ đồ cá nhân miễn phí', 'Giá tiền minh bạch rõ ràng'],
-  },
-  {
-    icon: '🎟️',
-    name: 'Thẻ tháng',
-    desc: 'Bơi thoả thích không giới hạn',
-    price: '800.000đ',
-    unit: '/ tháng',
-    features: ['Tiết kiệm chi phí tối đa', 'Được sử dụng toàn bộ tiện ích', 'Camera AI giám sát an toàn 24/7', 'Sử dụng tủ đồ cá nhân miễn phí'],
-  },
 ]
 
 export default function HomePage() {
@@ -110,6 +130,19 @@ export default function HomePage() {
     <main>
       {/* ===== HERO ===== */}
       <section className="hero">
+        <video 
+          className="hero-video-bg"
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          disableRemotePlayback
+          preload="auto"
+        >
+          <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260424_064411_9e9d7f84-9277-41f4-ab10-59172d89e6be.mp4" type="video/mp4" />
+        </video>
+        <div className="hero-video-overlay"></div>
+
         <div className="hero-waves">
           <svg className="wave wave1" viewBox="0 24 150 28" preserveAspectRatio="none">
             <defs>
@@ -155,7 +188,7 @@ export default function HomePage() {
             <div className="hero-visual">
               <div className="hero-card-main">
                 <div className="hero-card-title">HỆ THỐNG QUẢN LÝ</div>
-                <div className="hero-card-pool">🏊 Hồ bơi thông minh</div>
+                <div className="hero-card-pool">Hồ bơi thông minh</div>
 
                 <div className="hero-pool-stats">
                   <div className="hero-pool-stat">
@@ -174,10 +207,78 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ===== TẠI SAO CHỌN THÀNH MINH ===== */}
+      <section className="section-why-us">
+        <div className="container">
+          <div className="section-header reveal" style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <div style={{ marginBottom: '24px' }}>
+              <div className="why-us-badge" style={{ marginBottom: 0 }}>✨ GIÁ TRỊ TỐT NHẤT DÀNH CHO BẠN</div>
+            </div>
+            <h2 className="section-title">Tại sao lại chọn <span style={{ color: 'var(--accent)', fontStyle: 'italic', fontFamily: 'serif' }}>Bể bơi Thành Minh</span>?</h2>
+            <p className="section-subtitle">5 tiêu chuẩn hàng đầu giúp chúng tôi mang đến trải nghiệm bơi lội tuyệt vời nhất</p>
+          </div>
+
+          <div className="why-us-list">
+            {whyUsItems.map((item, i) => {
+              // Item 2 (i=1): Image Left (row)
+              // Item 3 (i=2): Image Right (row-reverse)
+              const isReverse = i % 2 === 0 && i !== 0; 
+              const hasImage = !!item.img;
+
+              return (
+                <div key={item.id} className={`why-us-card reveal ${isReverse ? 'row-reverse' : ''} ${!hasImage ? 'no-image' : ''}`}>
+                  {hasImage && (
+                    <div className="why-us-img-wrapper">
+                      <img src={item.img} alt={item.title} className="why-us-img" />
+                    </div>
+                  )}
+                  
+                  <div className="why-us-content">
+                    <div className="why-us-tag">
+                      {item.tag}
+                    </div>
+                    <h3 className="why-us-title">{item.title}</h3>
+                    <p className="why-us-desc">{item.desc}</p>
+                    <ul className="why-us-features">
+                      {item.features.map((f, j) => (
+                        <li key={j}>
+                          <span className="check-icon">✓</span> {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== CTA BANNER ===== */}
+      <section className="section-cta">
+        <div className="container">
+          <div className="cta-content reveal">
+            <h2 className="cta-title">🌊 Sẵn sàng cho một ngày vui trọn vẹn?</h2>
+            <p className="cta-desc">
+              Đặt vé ngay hôm nay để đảm bảo chỗ và nhận ưu đãi tốt nhất.
+              Hệ thống đặt vé online hoạt động 24/7 — nhanh chóng, tiện lợi, an toàn.
+            </p>
+            <div className="cta-actions">
+              <Link to="/dat-ve" className="btn-primary">
+                🎟️ Đặt vé online ngay
+              </Link>
+              <Link to="/bang-gia" className="btn-outline">
+                📋 Xem bảng giá
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ===== KHUYẾN MÃI – SỰ KIỆN ===== */}
       <section className="section-promo">
         <div className="container">
-          <div className="section-header reveal">
+          <div className="section-header reveal" style={{ textAlign: 'center' }}>
             <h2 className="section-title">Khuyến mãi – Sự kiện</h2>
             <p className="section-subtitle">Cập nhật những ưu đãi và sự kiện hấp dẫn mới nhất</p>
           </div>
@@ -202,7 +303,7 @@ export default function HomePage() {
       {/* ===== DỊCH VỤ ===== */}
       <section className="section-services">
         <div className="container">
-          <div className="section-header reveal">
+          <div className="section-header reveal" style={{ textAlign: 'center' }}>
             <h2 className="section-title">Dịch vụ tại Thanh Minh</h2>
             <p className="section-subtitle">Đa dạng dịch vụ tiện ích phục vụ trọn vẹn chuyến thăm của bạn</p>
           </div>
@@ -211,83 +312,36 @@ export default function HomePage() {
         {/* Infinite Marquee Slider */}
         <div className="services-marquee reveal">
           <div className="services-marquee-track">
-            {/* Render original list */}
-            {services.map((item, i) => (
-              <div key={`s1-${i}`} className="service-card">
-                <img src={item.img} alt={item.title} className="service-img" />
-                <div className="service-content">
-                  <div className="service-title">{item.title}</div>
-                  <div className="service-desc">{item.desc}</div>
+            {/* Group 1 */}
+            <div className="marquee-group">
+              {[...services, ...services, ...services].map((item, i) => (
+                <div key={`s1-${i}`} className="service-card">
+                  <div className="service-img-wrapper">
+                    <img src={item.img} alt={item.title} className="service-img" />
+                  </div>
+                  <div className="service-content">
+                    <div className="service-title">{item.title}</div>
+                    <div className="service-desc">{item.desc}</div>
+                    <div className="service-tag">Dịch vụ tiện ích</div>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {/* Duplicate list for infinite loop effect */}
-            {services.map((item, i) => (
-              <div key={`s2-${i}`} className="service-card">
-                <img src={item.img} alt={item.title} className="service-img" />
-                <div className="service-content">
-                  <div className="service-title">{item.title}</div>
-                  <div className="service-desc">{item.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== CTA BANNER ===== */}
-      <section className="section-cta">
-        <div className="container">
-          <div className="cta-content reveal">
-            <h2 className="cta-title">🌊 Sẵn sàng cho một ngày vui trọn vẹn?</h2>
-            <p className="cta-desc">
-              Đặt vé ngay hôm nay để đảm bảo chỗ và nhận ưu đãi tốt nhất.
-              Hệ thống đặt vé online hoạt động 24/7 — nhanh chóng, tiện lợi, an toàn.
-            </p>
-            <div className="cta-actions">
-              <Link to="/dat-ve" className="btn-white">
-                🎟️ Đặt vé online ngay
-              </Link>
-              <Link to="/bang-gia" className="btn-outline">
-                📋 Xem bảng giá
-              </Link>
+              ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== BẢNG GIÁ ===== */}
-      <section className="section-pricing">
-        <div className="container">
-          <div className="section-header reveal" style={{ textAlign: 'center' }}>
-            <h2 className="section-title">Bảng giá vé</h2>
-            <p className="section-subtitle">Giá vé rõ ràng, minh bạch — phù hợp mọi đối tượng</p>
-          </div>
-          <div className="pricing-cards">
-            {pricingPlans.map((plan, i) => (
-              <div key={i} className={`pricing-card reveal${plan.featured ? ' featured' : ''}`} style={{ transitionDelay: `${i * 150}ms` }}>
-                {plan.badge && <div className="pricing-badge">{plan.badge}</div>}
-                <div className="pricing-card-icon">{plan.icon}</div>
-                <div className="pricing-card-name">{plan.name}</div>
-                <div className="pricing-card-desc">{plan.desc}</div>
-                <div className="pricing-price">{plan.price}</div>
-                <div className="pricing-unit">{plan.unit}</div>
-                <ul className="pricing-features">
-                  {plan.features.map((f, j) => <li key={j}>{f}</li>)}
-                </ul>
-                <Link to="/dang-ky" className="pricing-btn">
-                  Đăng ký 
-                </Link>
-                <Link to="/dang-nhap" className="pricing-btn" style={{ marginTop: '10px' }}>
-                  Đăng nhập
-                </Link>
-              </div>
-            ))}
-          </div>
-          <div className="reveal" style={{ textAlign: 'center', transitionDelay: '450ms' }}>
-            <Link to="/bang-gia" className="btn-primary">
-              Xem bảng giá đầy đủ →
-            </Link>
+            {/* Group 2 (Duplicate) */}
+            <div className="marquee-group" aria-hidden="true">
+              {[...services, ...services, ...services].map((item, i) => (
+                <div key={`s2-${i}`} className="service-card">
+                  <div className="service-img-wrapper">
+                    <img src={item.img} alt={item.title} className="service-img" />
+                  </div>
+                  <div className="service-content">
+                    <div className="service-title">{item.title}</div>
+                    <div className="service-desc">{item.desc}</div>
+                    <div className="service-tag">Dịch vụ tiện ích</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

@@ -1,5 +1,22 @@
 /* AdminLayout.css */
 
+.admin-content {
+  margin: 24px;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .admin-content {
+    margin: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-sidebar .bubble {
+    animation: none;
+  }
+}
+
 .admin-sidebar {
   background: linear-gradient(180deg, #005f8e 0%, #00b4d8 100%) !important;
   position: relative;
@@ -7,6 +24,10 @@
 
 .admin-sidebar .ant-menu {
   background: transparent !important;
+}
+
+.admin-sidebar .admin-service-menu > .ant-menu-submenu-title {
+  color: rgba(0, 0, 0, 0.88);
 }
 
 .admin-sidebar .ant-menu-item {
