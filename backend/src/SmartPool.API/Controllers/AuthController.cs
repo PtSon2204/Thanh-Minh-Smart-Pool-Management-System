@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.Application.Features.Authentication.Commands.Login;
 using SmartPool.Application.Features.Authentication.Commands.Register;
 
 namespace SmartPool.API.Controllers;
@@ -14,6 +15,22 @@ public sealed class AuthController : ControllerBase
     public AuthController(ISender sender)
     {
         _sender = sender;
+    }
+
+    /// <summary>Đăng nhập bằng username, email hoặc số điện thoại và nhận access JWT.</summary>
+    /// <response code="200">Đăng nhập thành công; trả thông tin tài khoản và access token.</response>
+    /// <response code="400">Thiếu hoặc sai định dạng dữ liệu đăng nhập.</response>
+    /// <response code="401">Thông tin đăng nhập không hợp lệ hoặc tài khoản không khả dụng.</response>
+    [AllowAnonymous]
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public Task<IActionResult> Login(
+        [FromBody] LoginCommand command,
+        CancellationToken cancellationToken)
+    {
+        return _sender.Send(command, cancellationToken);
     }
 
     /// <summary>Đăng ký tài khoản khách hàng. Không tự động đăng nhập hoặc phát hành token.</summary>
