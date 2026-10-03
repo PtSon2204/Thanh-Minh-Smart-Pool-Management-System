@@ -58,7 +58,7 @@ export default function AdminLayout() {
     {
       key: '/admin/coupons',
       icon: <TagOutlined />,
-      label: <Link to="/admin/coupons">Quản lý mã giảm giá và khuyến mãi</Link>,
+      label: <Link to="/admin/coupons">Quản lý mã giảm giá</Link>,
     },
     {
       key: '/admin/equipment',
