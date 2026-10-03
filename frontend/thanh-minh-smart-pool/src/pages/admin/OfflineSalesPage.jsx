@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, DatePicker } from 'antd'
-import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined } from '@ant-design/icons'
+import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, DatePicker, Tag, Select } from 'antd'
+import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import dayjs from 'dayjs'
 import { useTicketTypes } from '../../features/tickets/hooks/useTicketTypes'
 import { useSellOfflineTicket, useCreatePendingOrder, useOrderStatus } from '../../features/tickets/hooks/useSellOfflineTicket'
+import { useVouchers } from '../../features/vouchers/hooks/useVouchers'
+
 
 const { Title } = Typography
 
@@ -14,6 +16,11 @@ export default function OfflineSalesPage() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [startDate, setStartDate] = useState(dayjs())
+
+  // Voucher state
+  const [voucherCode, setVoucherCode] = useState('')
+  const [appliedVoucher, setAppliedVoucher] = useState(null) // { id, code, discountType, discountValue, minOrderValue }
+  const [voucherError, setVoucherError] = useState('')
 
   // Modals
   const [paymentMethodVisible, setPaymentMethodVisible] = useState(false)
@@ -33,6 +40,13 @@ export default function OfflineSalesPage() {
     pageIndex: 1,
     pageSize: 100,
   })
+
+  const { data: voucherData, isLoading: vouchersLoading } = useVouchers({
+    isActive: true,
+    pageIndex: 1,
+    pageSize: 100,
+  })
+  const availableVouchers = voucherData?.items || []
   
   const ticketTypes = pagedData?.items || []
   
@@ -88,7 +102,62 @@ export default function OfflineSalesPage() {
   }
 
   const totalAmount = cart.reduce((sum, item) => sum + (item.ticketType.price * item.quantity), 0)
-  const formattedTotal = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)
+
+  // Tính discount theo Snapshot tại thời điểm áp mã
+  const discountAmount = (() => {
+    if (!appliedVoucher) return 0
+    if (appliedVoucher.minOrderValue && totalAmount < appliedVoucher.minOrderValue) return 0
+    if (appliedVoucher.discountType === 'PERCENTAGE') {
+      return Math.round(totalAmount * appliedVoucher.discountValue / 100)
+    }
+    return Math.min(appliedVoucher.discountValue, totalAmount)
+  })()
+
+  const finalAmount = totalAmount - discountAmount
+  const formattedTotal = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(finalAmount)
+
+  const handleApplyVoucher = async () => {
+    const code = voucherCode.trim().toUpperCase()
+    if (!code) return
+    setVoucherError('')
+    try {
+      const matched = availableVouchers.find(v => v.code === code)
+      if (!matched) {
+        setVoucherError('Mã giảm giá không tồn tại hoặc đã bị khóa.')
+        setAppliedVoucher(null)
+        return
+      }
+      // Kiểm tra hạn sử dụng
+      const now = new Date()
+      if (matched.startDate && new Date(matched.startDate) > now) {
+        setVoucherError('Mã giảm giá chưa đến thời gian sử dụng.')
+        setAppliedVoucher(null)
+        return
+      }
+      if (matched.endDate && new Date(matched.endDate) < now) {
+        setVoucherError('Mã giảm giá đã hết hạn.')
+        setAppliedVoucher(null)
+        return
+      }
+      // Kiểm tra đơn tối thiểu
+      if (matched.minOrderValue && totalAmount < matched.minOrderValue) {
+        setVoucherError(`Đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(matched.minOrderValue)}đ để dùng mã này.`)
+        setAppliedVoucher(null)
+        return
+      }
+      setAppliedVoucher(matched)
+      message.success(`Áp mã "${code}" thành công!`)
+    } catch {
+      setVoucherError('Không thể kiểm tra mã. Vui lòng thử lại.')
+    }
+  }
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null)
+    setVoucherCode('')
+    setVoucherError('')
+  }
+
 
   // VE_THANG: cần đăng ký TK để gắn QR + StartDate
   // VE_LUOT tại quầy: không cần đăng ký (trừ lượt ngay, không QR)
@@ -115,7 +184,8 @@ export default function OfflineSalesPage() {
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
       customerName: requiresRegistration ? customerName.trim() : null,
-      startDate: requiresRegistration ? startDate.toISOString() : null
+      startDate: requiresRegistration ? startDate.toISOString() : null,
+      voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
     sellTicket(
@@ -125,6 +195,9 @@ export default function OfflineSalesPage() {
           setSoldOrder({
             id: data.orderId,
             totalAmount: data.totalAmount,
+            discountAmount: data.discountAmount || 0,
+            finalAmount: data.finalAmount !== undefined ? data.finalAmount : data.totalAmount,
+            voucherCode: data.voucherCode,
             cartSummary: getOrderSummary(),
             customerName: requiresRegistration ? customerName.trim() : '',
             customerPhone: requiresRegistration ? customerPhone.trim() : ''
@@ -137,6 +210,8 @@ export default function OfflineSalesPage() {
           setCustomerName('')
           setCustomerPhone('')
           setStartDate(dayjs())
+          setAppliedVoucher(null)
+          setVoucherCode('')
         }
       }
     )
@@ -147,7 +222,8 @@ export default function OfflineSalesPage() {
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
       customerName: requiresRegistration ? customerName.trim() : null,
-      startDate: requiresRegistration ? startDate.toISOString() : null
+      startDate: requiresRegistration ? startDate.toISOString() : null,
+      voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
     createPendingOrder(
@@ -157,6 +233,9 @@ export default function OfflineSalesPage() {
           setSoldOrder({
             id: data.orderId,
             totalAmount: data.totalAmount,
+            discountAmount: data.discountAmount || 0,
+            finalAmount: data.finalAmount !== undefined ? data.finalAmount : data.totalAmount,
+            voucherCode: data.voucherCode,
             cartSummary: getOrderSummary(),
             customerName: requiresRegistration ? customerName.trim() : '',
             customerPhone: requiresRegistration ? customerPhone.trim() : ''
@@ -167,6 +246,8 @@ export default function OfflineSalesPage() {
           
           setPaymentMethodVisible(false)
           setQrModalVisible(true)
+          setAppliedVoucher(null)
+          setVoucherCode('')
         }
       }
     )
@@ -215,8 +296,9 @@ export default function OfflineSalesPage() {
   const accName = import.meta.env.VITE_VIETQR_ACCOUNT_NAME || 'PHAM THE SON';
   
   const vietQRUrl = transactionRef 
-    ? `https://img.vietqr.io/image/${bankId}-${accNo}-compact2.png?amount=${totalAmount}&addInfo=${transactionRef}&accountName=${encodeURIComponent(accName)}` 
+    ? `https://img.vietqr.io/image/${bankId}-${accNo}-compact2.png?amount=${finalAmount}&addInfo=${transactionRef}&accountName=${encodeURIComponent(accName)}` 
     : '';
+
 
   return (
     <>
@@ -339,6 +421,95 @@ export default function OfflineSalesPage() {
 
           <div style={{ marginTop: 16 }}>
             <Divider style={{ margin: '12px 0' }} />
+
+            {/* === KHU VỰC ÁP MÃ GIẢM GIÁ === */}
+            <div style={{ marginBottom: 14 }}>
+              {!appliedVoucher ? (
+                <div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Select
+                      showSearch
+                      allowClear
+                      loading={vouchersLoading}
+                      placeholder="Chọn mã giảm giá..."
+                      optionFilterProp="label"
+                      value={voucherCode || null}
+                      onChange={val => { setVoucherCode(val || ''); setVoucherError('') }}
+                      style={{ flex: 1, minWidth: 200 }}
+                      disabled={cart.length === 0}
+                      options={availableVouchers.map(v => ({
+                        value: v.code,
+                        label: `${v.code} - Giảm ${v.discountType === 'PERCENTAGE' ? v.discountValue + '%' : new Intl.NumberFormat('vi-VN').format(v.discountValue) + 'đ'}`
+                      }))}
+                    />
+                    <Button
+                      type="primary"
+                      ghost
+                      onClick={handleApplyVoucher}
+                      disabled={!voucherCode.trim() || cart.length === 0}
+                      style={{ borderRadius: 8, flexShrink: 0 }}
+                    >
+                      Áp mã
+                    </Button>
+                  </div>
+                  {voucherError && (
+                    <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CloseCircleOutlined /> {voucherError}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{
+                  background: 'linear-gradient(135deg, #f6ffed 0%, #e6fffb 100%)',
+                  border: '1px dashed #52c41a',
+                  borderRadius: 10, padding: '10px 14px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#135200', fontSize: 14 }}>
+                        {appliedVoucher.code}
+                      </span>
+                      <Tag color="success" bordered={false} style={{ fontSize: 11 }}>ĐÃ ÁP</Tag>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#52c41a', fontWeight: 600 }}>
+                      Giảm {appliedVoucher.discountType === 'PERCENTAGE'
+                        ? `${appliedVoucher.discountValue}%`
+                        : `${new Intl.NumberFormat('vi-VN').format(appliedVoucher.discountValue)}đ`
+                      }
+                      {' · Tiết kiệm: '}
+                      <strong style={{ color: '#cf1322' }}>
+                        -{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ
+                      </strong>
+                    </div>
+                  </div>
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<CloseCircleOutlined />}
+                    onClick={handleRemoveVoucher}
+                  >
+                    Xóa
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* === GIÁ TỔNG === */}
+            {appliedVoucher && discountAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#8c8c8c', fontSize: 14 }}>
+                <span>Tạm tính:</span>
+                <span>{new Intl.NumberFormat('vi-VN').format(totalAmount)}đ</span>
+              </div>
+            )}
+            {appliedVoucher && discountAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: '#52c41a', fontSize: 14 }}>
+                <span>Giảm giá:</span>
+                <span>-{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <span style={{ fontSize: 16, fontWeight: 600 }}>TỔNG TIỀN:</span>
               <span style={{ fontSize: 24, fontWeight: 800, color: '#ff4d4f' }}>
@@ -356,6 +527,7 @@ export default function OfflineSalesPage() {
               THANH TOÁN
             </Button>
           </div>
+
         </div>
       </div>
 
@@ -369,7 +541,21 @@ export default function OfflineSalesPage() {
         width={500}
       >
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <p style={{ fontSize: 18, marginBottom: 24 }}>Tổng số tiền cần thanh toán: <strong style={{ color: '#ff4d4f', fontSize: 24 }}>{formattedTotal}</strong></p>
+          {appliedVoucher && discountAmount > 0 ? (
+            <div style={{ marginBottom: 24, textAlign: 'center' }}>
+              <p style={{ fontSize: 15, color: '#8c8c8c', marginBottom: 4 }}>
+                Tạm tính: <span style={{ textDecoration: 'line-through' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)}</span>
+              </p>
+              <p style={{ fontSize: 14, color: '#52c41a', marginBottom: 4 }}>
+                Mã <strong>{appliedVoucher.code}</strong>: -{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ
+              </p>
+              <p style={{ fontSize: 18, marginBottom: 0 }}>
+                Thanh toán: <strong style={{ color: '#ff4d4f', fontSize: 26 }}>{formattedTotal}</strong>
+              </p>
+            </div>
+          ) : (
+            <p style={{ fontSize: 18, marginBottom: 24 }}>Tổng số tiền cần thanh toán: <strong style={{ color: '#ff4d4f', fontSize: 24 }}>{formattedTotal}</strong></p>
+          )}
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Button 
               type="primary" 
@@ -442,8 +628,17 @@ export default function OfflineSalesPage() {
           <div style={{ marginBottom: 16, fontSize: 14 }}>
             <div style={{ marginBottom: 8 }}>Chi tiết vé:</div>
             <div style={{ marginBottom: 12 }}>{soldOrder?.cartSummary}</div>
+            
             <div style={{ marginTop: 8 }}>
-              Tổng cộng: {soldOrder ? new Intl.NumberFormat('vi-VN').format(soldOrder.totalAmount) : 0} đ
+              Tạm tính: {soldOrder ? new Intl.NumberFormat('vi-VN').format(soldOrder.totalAmount) : 0} đ
+            </div>
+            {soldOrder?.discountAmount > 0 && (
+              <div style={{ marginTop: 4, color: '#ff4d4f' }}>
+                Mã giảm giá ({soldOrder?.voucherCode}): -{new Intl.NumberFormat('vi-VN').format(soldOrder.discountAmount)} đ
+              </div>
+            )}
+            <div style={{ marginTop: 4, fontWeight: 'bold', fontSize: 16 }}>
+              Tổng thanh toán: {soldOrder ? new Intl.NumberFormat('vi-VN').format(soldOrder.finalAmount) : 0} đ
             </div>
           </div>
           

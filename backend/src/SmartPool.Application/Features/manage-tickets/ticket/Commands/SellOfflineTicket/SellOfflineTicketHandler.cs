@@ -14,6 +14,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
         private readonly IRepository<Domain.Entities.OrderDetail> _orderDetailRepo;
         private readonly IRepository<Domain.Entities.User> _userRepo;
         private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
+        private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
         private readonly IUnitOfWork _unitOfWork;
 
         public SellOfflineTicketHandler(
@@ -23,6 +24,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             IRepository<Domain.Entities.OrderDetail> orderDetailRepo,
             IRepository<Domain.Entities.User> userRepo,
             IRepository<Domain.Entities.Payment> paymentRepo,
+            IRepository<Domain.Entities.Voucher> voucherRepo,
             IUnitOfWork unitOfWork)
         {
             _ticketRepo = ticketRepo;
@@ -31,6 +33,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             _orderDetailRepo = orderDetailRepo;
             _userRepo = userRepo;
             _paymentRepo = paymentRepo;
+            _voucherRepo = voucherRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -42,7 +45,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             Guid? customerUserId = null;
             AccountInfo? accountInfo = null;
 
-            // Xử lý Khách hàng nếu có SĐT
+            // 1. Xử lý Khách hàng nếu có SĐT
             if (!string.IsNullOrWhiteSpace(request.CustomerPhone))
             {
                 // Tìm theo Phone HOẶC Username (SĐT) để tránh UNIQUE constraint
@@ -81,24 +84,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 }
             }
 
-            // Khởi tạo Order
-            var order = new Domain.Entities.Order
-            {
-                Id = Guid.NewGuid(),
-                UserId = customerUserId,
-                CustomerName = request.CustomerName,
-                CustomerPhone = request.CustomerPhone,
-                Status = OrderStatusEnum.COMPLETED.ToString(),
-                CreatedAt = DateTime.UtcNow
-            };
-            await _orderRepo.AddAsync(order, cancellationToken);
-
+            // 2. Tính tổng tiền trước giảm giá
             decimal totalAmount = 0;
-            var response = new SellOfflineTicketResponse
-            {
-                OrderId = order.Id,
-                AccountInfo = accountInfo
-            };
+            var ticketTypesCache = new Dictionary<Guid, Domain.Entities.TicketType>();
 
             foreach (var item in request.Items)
             {
@@ -108,8 +96,74 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 if (ticketType.IsActive != true)
                     throw new InvalidOperationException($"Loại vé {ticketType.Name} đang bị khóa.");
 
+                ticketTypesCache[item.TicketTypeId] = ticketType;
+                totalAmount += ticketType.Price * item.Quantity;
+            }
+
+            // 3. Validate và áp dụng Voucher (nếu có)
+            decimal discountAmount = 0;
+            Guid? voucherId = null;
+
+            if (!string.IsNullOrWhiteSpace(request.VoucherCode))
+            {
+                var now = DateTime.UtcNow;
+                var voucher = await _voucherRepo.FirstOrDefaultAsync(
+                    v => v.Code == request.VoucherCode
+                         && v.IsDeleted != true
+                         && v.IsActive == true
+                         && (v.StartDate == null || v.StartDate <= now)
+                         && (v.EndDate == null || v.EndDate >= now),
+                    cancellationToken)
+                    ?? throw new InvalidOperationException($"Mã giảm giá '{request.VoucherCode}' không hợp lệ hoặc đã hết hạn.");
+
+                // Kiểm tra điều kiện tổng đơn tối thiểu
+                if (voucher.MinOrderValue.HasValue && totalAmount < voucher.MinOrderValue.Value)
+                    throw new InvalidOperationException(
+                        $"Đơn hàng tối thiểu {voucher.MinOrderValue:N0}đ để dùng mã này (hiện tại: {totalAmount:N0}đ).");
+
+                // Tính giảm giá
+                discountAmount = voucher.DiscountType == "PERCENTAGE"
+                    ? Math.Round(totalAmount * voucher.DiscountValue / 100, 0)
+                    : voucher.DiscountValue;
+
+                // Không được giảm nhiều hơn tổng tiền
+                discountAmount = Math.Min(discountAmount, totalAmount);
+                voucherId = voucher.Id;
+            }
+
+            decimal finalAmount = totalAmount - discountAmount;
+
+            // 4. Tạo Order
+            var order = new Domain.Entities.Order
+            {
+                Id = Guid.NewGuid(),
+                UserId = customerUserId,
+                VoucherId = voucherId,
+                CustomerName = request.CustomerName,
+                CustomerPhone = request.CustomerPhone,
+                TotalAmount = totalAmount,
+                DiscountAmount = discountAmount,
+                FinalAmount = finalAmount,
+                Status = OrderStatusEnum.COMPLETED.ToString(),
+                CreatedAt = DateTime.UtcNow
+            };
+            await _orderRepo.AddAsync(order, cancellationToken);
+
+            var response = new SellOfflineTicketResponse
+            {
+                OrderId = order.Id,
+                TotalAmount = totalAmount,
+                DiscountAmount = discountAmount,
+                FinalAmount = finalAmount,
+                VoucherCode = request.VoucherCode,
+                AccountInfo = accountInfo
+            };
+
+            // 5. Tạo OrderDetail và Ticket
+            foreach (var item in request.Items)
+            {
+                var ticketType = ticketTypesCache[item.TicketTypeId];
                 decimal itemTotal = ticketType.Price * item.Quantity;
-                totalAmount += itemTotal;
 
                 // Tạo Order Detail
                 var orderDetail = new Domain.Entities.OrderDetail
@@ -124,6 +178,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 };
                 await _orderDetailRepo.AddAsync(orderDetail, cancellationToken);
 
+                // VE_LUOT tại quầy: không tạo Ticket entity (không có QR)
                 if (ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString())
                     continue;
 
@@ -156,23 +211,18 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 }
             }
 
-            order.TotalAmount = totalAmount;
-            order.FinalAmount = totalAmount;
-            
-            // Create Payment record for CASH
+            // 6. Tạo Payment record (CASH - thu tiền FinalAmount sau khi đã trừ voucher)
             var payment = new Domain.Entities.Payment
             {
                 Id = Guid.NewGuid(),
                 OrderId = order.Id,
-                Amount = totalAmount,
+                Amount = finalAmount,
                 PaymentMethod = "CASH",
                 Status = PaymentStatusEnum.COMPLETED.ToString(),
                 PaymentTime = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
             };
             await _paymentRepo.AddAsync(payment, cancellationToken);
-
-            response.TotalAmount = totalAmount;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

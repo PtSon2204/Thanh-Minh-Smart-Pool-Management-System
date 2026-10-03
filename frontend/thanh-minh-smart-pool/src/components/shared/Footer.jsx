@@ -68,15 +68,11 @@ export default function Footer() {
             <h4>Liên hệ</h4>
             <div className="footer-contact-item">
               <span className="footer-contact-icon">📍</span>
-              <span>614 Lạc Long Quân, Phường Tây Hồ, Hà Nội</span>
+              <span>Đông Anh, Hà Nội</span>
             </div>
             <div className="footer-contact-item">
               <span className="footer-contact-icon">📞</span>
-              <span>(84-24) 37 184 222 / 37 100 957</span>
-            </div>
-            <div className="footer-contact-item">
-              <span className="footer-contact-icon">📠</span>
-              <span>Fax: (84-24) 37 184 190</span>
+              <span>+84 90 123 4567</span>
             </div>
             <div className="footer-contact-item">
               <span className="footer-contact-icon">📧</span>
@@ -84,7 +80,9 @@ export default function Footer() {
             </div>
             <div className="footer-contact-item">
               <span className="footer-contact-icon">🕐</span>
-              <span>Mở cửa: 8:00 – 18:00 hàng ngày</span>
+              <span>Mở cửa: <br />
+                Sáng: 6:00 - 10:00 <br />
+                Chiều: 15:00 - 20:00</span>
             </div>
           </div>
         </div>

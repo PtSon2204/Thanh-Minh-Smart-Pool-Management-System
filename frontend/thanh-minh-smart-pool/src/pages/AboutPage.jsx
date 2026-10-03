@@ -24,15 +24,66 @@ export default function AboutPage() {
     <div className="about-page">
       {/* ── 1. HERO ── */}
       <section className="about-hero">
-        <div className="container">
+        {/* Cinematic video background */}
+        <video
+          className="about-hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260619_191346_9d19d66e-86a4-47f7-8dc6-712c1788c3b2.mp4"
+            type="video/mp4"
+          />
+        </video>
+
+        {/* Dark cinematic overlay */}
+        <div className="about-hero-overlay" aria-hidden="true" />
+
+        {/* Blue-tinted gradient at bottom to blend into page */}
+        <div className="about-hero-fade" aria-hidden="true" />
+
+        {/* Animated wave at bottom — each track has 2 SVG copies for seamless loop */}
+        <div className="about-hero-waves" aria-hidden="true">
+          {/* Wave 1 — scrolls left */}
+          <div className="hero-wave-track hw1">
+            <svg viewBox="0 0 1440 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,55 C240,110 480,0 720,55 C960,110 1200,0 1440,55 L1440,110 L0,110 Z" fill="var(--bg,#FEF1E6)"/>
+            </svg>
+            <svg viewBox="0 0 1440 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,55 C240,110 480,0 720,55 C960,110 1200,0 1440,55 L1440,110 L0,110 Z" fill="var(--bg,#FEF1E6)"/>
+            </svg>
+          </div>
+          {/* Wave 2 — scrolls right, slight offset */}
+          <div className="hero-wave-track hw2">
+            <svg viewBox="0 0 1440 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,75 C360,20 720,110 1080,55 C1260,28 1380,80 1440,65 L1440,110 L0,110 Z" fill="rgba(0,119,182,0.18)"/>
+            </svg>
+            <svg viewBox="0 0 1440 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,75 C360,20 720,110 1080,55 C1260,28 1380,80 1440,65 L1440,110 L0,110 Z" fill="rgba(0,119,182,0.18)"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="container about-hero-content">
+          <div className="about-hero-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            Hơn 10 năm kinh nghiệm
+          </div>
           <h1>Về Bể bơi Thành Minh</h1>
           <p className="hero-subtitle">
-            Hơn 15 năm mang đến không gian bơi lội an toàn, chất lượng và thân thiện
-            cho mọi gia đình tại Thành phố Hồ Chí Minh.
+            Hơn 10 năm mang đến không gian bơi lội an toàn, chất lượng và thân thiện
+            cho mọi gia đình tại Đông Anh, Hà Nội.
           </p>
           <div className="hero-stats">
             <div className="hero-stat-item">
-              <span className="stat-number">15+</span>
+              <span className="stat-number">10+</span>
               <span className="stat-label">Năm hoạt động</span>
             </div>
             <div className="hero-stat-item">
@@ -59,9 +110,9 @@ export default function AboutPage() {
             <div className="story-text reveal">
               <h2>Câu chuyện của chúng tôi</h2>
               <p>
-                Bể bơi Thành Minh được thành lập năm 2010 với sứ mệnh mang đến
+                Bể bơi Thành Minh được thành lập năm 2016 với sứ mệnh mang đến
                 một môi trường bơi lội hiện đại, an toàn và thân thiện cho người
-                dân thành phố. Trải qua hơn 15 năm xây dựng và phát triển, chúng
+                dân thành phố. Trải qua hơn 10 năm xây dựng và phát triển, chúng
                 tôi đã không ngừng nâng cấp cơ sở vật chất, tích hợp công nghệ
                 hiện đại để bảo vệ an toàn cho mọi khách hàng.
               </p>
@@ -73,19 +124,7 @@ export default function AboutPage() {
               <p>
                 Ngoài ra, Thành Minh cung cấp đầy đủ các tiện ích như: dịch vụ trông xe chu đáo, tủ đồ miễn phí, cho thuê phao/kính bơi/khăn tắm, và khu vực đồ ăn nhanh (bim bim, nước, xúc xích...) giúp bạn có trải nghiệm trọn vẹn nhất.
               </p>
-            </div>
-
-            {/* Right: stat card */}
-            <div className="stat-card reveal">
-              <div className="stat-item">
-                <span className="stat-value">2010</span>
-                <span className="stat-label">Năm thành lập</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-value">2</span>
-                <span className="stat-label">Bể bơi hiện đại</span>
-              </div>
-            </div>
+            </div>            
           </div>
         </div>
       </section>
@@ -99,8 +138,8 @@ export default function AboutPage() {
               <div className="mission-icon">🎯</div>
               <h3>Tầm nhìn</h3>
               <p>
-                Trở thành trung tâm bơi lội hàng đầu khu vực, cung cấp dịch vụ
-                đạt chuẩn quốc tế, góp phần nâng cao sức khỏe cộng đồng và phát
+                Trở thành khu bơi lội cung cấp dịch vụ
+                đạt chuẩn, góp phần nâng cao sức khỏe cộng đồng và phát
                 triển phong trào bơi lội tại Việt Nam.
               </p>
             </div>
@@ -109,7 +148,7 @@ export default function AboutPage() {
               <h3>Sứ mệnh</h3>
               <p>
                 Mang đến môi trường bơi lội an toàn, sạch sẽ và chuyên nghiệp.
-                Chúng tôi cam kết đào tạo kỹ năng bơi lội, bảo vệ sức khỏe và
+                Bảo vệ sức khỏe và
                 tạo ra những trải nghiệm tuyệt vời cho mọi lứa tuổi.
               </p>
             </div>
@@ -153,7 +192,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── 5. ACHIEVEMENTS ── */}
+      {/* ── 5. ACHIEVEMENTS ── */} 
       <section className="about-achievements">
         <div className="container">
           <h2 className="section-title reveal">Thành tích nổi bật</h2>
