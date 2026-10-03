@@ -113,6 +113,8 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IServiceOperations, ServiceOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
+            services.AddScoped<IVoucherOperations, VoucherOperations>();
+            services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();
 
             return services;
         }
