@@ -110,7 +110,7 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
             throw new UniqueFieldConflictException(nameof(RegisterCommand.Phone));
 
         var customerRole = await _roles.FirstOrDefaultAsync(
-            role => role.Name == nameof(RoleEnum.CUSTOMER) && role.IsDeleted != true,
+            role => role.Name.ToUpper() == nameof(RoleEnum.CUSTOMER) && role.IsDeleted != true,
             cancellationToken);
         if (customerRole is null)
             throw new CustomerRoleNotConfiguredException();

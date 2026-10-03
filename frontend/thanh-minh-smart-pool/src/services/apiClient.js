@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getAccessToken } from '../features/auth/store/authStore'
 
 /**
  * Axios instance dùng chung toàn app.
@@ -10,6 +11,15 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+})
+
+apiClient.interceptors.request.use((config) => {
+  const isAuthRequest = ['/api/auth/login', '/api/auth/register'].includes(config.url)
+  const token = getAccessToken()
+  if (token && !isAuthRequest) {
+    config.headers.set('Authorization', `Bearer ${token}`)
+  }
+  return config
 })
 
 export default apiClient
