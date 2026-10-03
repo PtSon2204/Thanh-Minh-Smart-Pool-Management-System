@@ -7,11 +7,11 @@ import {
   FilterOutlined 
 } from '@ant-design/icons'
 import { 
-  Button, Empty, Pagination, Select, Spin, Table, Tag, Input, Space, Row, Col, Typography, Card, Badge, Tooltip 
+  Button, Empty, Pagination, Select, Spin, Table, Tag, Input, Space, Row, Col, Typography, Card, Badge 
 } from 'antd'
 import VoucherFormModal from '../../features/vouchers/components/VoucherFormModal'
 import { useVouchers } from '../../features/vouchers/hooks/useVouchers'
-import { DiscountTypeColors, DiscountTypeLabels, DiscountType } from '../../features/vouchers/types/voucher'
+import { DiscountTypeLabels, DiscountType } from '../../features/vouchers/types/voucher'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Alert, Button, Form, Input, InputNumber, Modal, Select, Switch, DatePicker, Row, Col, Typography, Space } from 'antd'
 import { GiftOutlined, TagOutlined, DollarOutlined, PercentageOutlined, CalendarOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { getVoucherErrorMessage, useCreateVoucher } from '../hooks/useVoucherMutations'
-import { DiscountType, DiscountTypeLabels } from '../types/voucher'
+import { DiscountType } from '../types/voucher'
 
 const { Text } = Typography
 
