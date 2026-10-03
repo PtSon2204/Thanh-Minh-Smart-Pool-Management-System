@@ -9,6 +9,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
         public Guid OrderId { get; set; }
         public List<TicketInfo> Tickets { get; set; } = new List<TicketInfo>();
         public decimal TotalAmount { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal FinalAmount { get; set; }
+        public string? VoucherCode { get; set; }
         public AccountInfo? AccountInfo { get; set; }
     }
 }

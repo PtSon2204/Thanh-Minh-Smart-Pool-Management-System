@@ -55,8 +55,39 @@ export default function ContactPage() {
     <div className="contact-page">
       {/* Hero Section */}
       <div className="contact-hero">
-        <h1>Liên hệ với chúng tôi</h1>
-        <p>Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn. Đừng ngần ngại liên hệ!</p>
+        {/* Video background */}
+        <video
+          className="contact-hero-video"
+          autoPlay muted loop playsInline preload="auto"
+          aria-hidden="true"
+        >
+          <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_094631_d30ab262-45ee-4b7d-99f3-5d5848c8ef13.mp4" type="video/mp4" />
+        </video>
+        <div className="contact-hero-overlay" aria-hidden="true" />
+        {/* Waves */}
+        <div className="contact-hero-waves" aria-hidden="true">
+          <div className="chw-track chw1">
+            <svg viewBox="0 0 1440 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,45 C240,90 480,0 720,45 C960,90 1200,0 1440,45 L1440,90 L0,90 Z" fill="var(--bg,#FEF1E6)"/>
+            </svg>
+            <svg viewBox="0 0 1440 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,45 C240,90 480,0 720,45 C960,90 1200,0 1440,45 L1440,90 L0,90 Z" fill="var(--bg,#FEF1E6)"/>
+            </svg>
+          </div>
+          <div className="chw-track chw2">
+            <svg viewBox="0 0 1440 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,65 C360,15 720,90 1080,45 C1260,22 1380,70 1440,55 L1440,90 L0,90 Z" fill="rgba(0,119,182,0.18)"/>
+            </svg>
+            <svg viewBox="0 0 1440 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,65 C360,15 720,90 1080,45 C1260,22 1380,70 1440,55 L1440,90 L0,90 Z" fill="rgba(0,119,182,0.18)"/>
+            </svg>
+          </div>
+        </div>
+        {/* Content */}
+        <div className="contact-hero-content">
+          <h1>Liên hệ với chúng tôi</h1>
+          <p>Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn. Đừng ngần ngại liên hệ!</p>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -71,7 +102,7 @@ export default function ContactPage() {
                 <div className="info-icon">📍</div>
                 <div className="info-text">
                   <h4>Địa chỉ</h4>
-                  <p>123 Đường Thành Minh, Phường Bến Nghé, Quận 1, TP.HCM</p>
+                  <p>Đông Anh, Hà Nội</p>
                 </div>
               </div>
 
@@ -79,7 +110,7 @@ export default function ContactPage() {
                 <div className="info-icon">📞</div>
                 <div className="info-text">
                   <h4>Điện thoại</h4>
-                  <p>(028) 1234 5678 - Zalo: 0901 234 567</p>
+                  <p> Zalo: 0901 234 567</p>
                 </div>
               </div>
 
@@ -95,7 +126,9 @@ export default function ContactPage() {
                 <div className="info-icon">🕐</div>
                 <div className="info-text">
                   <h4>Giờ hoạt động</h4>
-                  <p>Thứ 2 - Chủ nhật: 06:00 - 20:00 (kể cả ngày lễ)</p>
+                  <p>
+                Sáng: 6:00 - 10:00 <br />
+                Chiều: 15:00 - 20:00</p>
                 </div>
               </div>
 

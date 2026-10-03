@@ -2,253 +2,189 @@ import './PricingPage.css'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 
-const fallbackTickets = [
-  {
-    id: 1,
-    name: 'Vé Trẻ em',
-    description: 'Dành cho khách cao dưới 1,4m',
-    price: 30000,
-    applicableFor: 'Khách cao dưới 1,4m',
-    features: ['Bể an toàn dành riêng cho trẻ', 'Camera AI giám sát an toàn 24/7', 'Sử dụng tủ đồ cá nhân miễn phí', 'Giá tiền minh bạch rõ ràng'],
-  },
-  {
-    id: 2,
-    name: 'Vé Người lớn',
-    description: 'Dành cho khách cao từ 1,4m',
-    price: 50000,
-    applicableFor: 'Khách cao từ 1,4m',
-    features: [
-      'Bể lớn kích thước chuẩn 10x23m',
-      'Camera AI giám sát an toàn 24/7',
-      'Sử dụng tủ đồ cá nhân miễn phí',
-      'Giá tiền minh bạch rõ ràng',
-    ],
-  },
-  {
-    id: 3,
-    name: 'Thẻ tháng',
-    description: 'Bơi thoả thích không giới hạn',
-    price: 800000,
-    applicableFor: 'Mọi đối tượng khách hàng',
-    features: [
-      'Tiết kiệm chi phí tối đa',
-      'Được sử dụng toàn bộ 2 bể bơi',
-      'Camera AI giám sát an toàn 24/7',
-      'Sử dụng tủ đồ cá nhân miễn phí',
-    ],
-  },
-]
+// Hình ảnh placeholder theo loại vé
+const ticketImages = {
+  VE_THANG: 'https://images.unsplash.com/photo-1565204000516-f8f79dd1a7ac?w=400&q=80',
+  VE_LUOT:  'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&q=80',
+}
 
-const ticketIcons = ['👶', '🏊', '👨‍👩‍👧‍👦']
+// Màu & nhãn theo loại vé
+const categoryMeta = {
+  VE_THANG: { label: '🗓 VÉ THÁNG', color: '#005f8e', bg: '#e8f4fa' },
+  VE_LUOT:  { label: '🏊 VÉ LƯỢT',  color: '#d46b08', bg: '#fff7e6' },
+}
 
-const pricingPolicies = [
-  {
-    icon: '🔄',
-    title: 'Hoàn vé linh hoạt',
-    desc: 'Hoàn 100% nếu hủy trước 24 giờ. Hoàn 50% nếu hủy trong vòng 24 giờ trước giờ vào.',
-  },
-  {
-    icon: '🌧️',
-    title: 'Chính sách thời tiết',
-    desc: 'Miễn phí đổi vé hoặc hoàn tiền 100% nếu hồ bơi đóng cửa do thời tiết xấu.',
-  },
-  {
-    icon: '📋',
-    title: 'Điều khoản sử dụng',
-    desc: 'Vé chỉ có giá trị trong ngày mua. Không áp dụng đồng thời nhiều chương trình ưu đãi.',
-  },
-]
-
-const faqs = [
-  {
-    q: 'Tôi có thể mua vé trực tiếp tại quầy không?',
-    a: 'Có, bạn có thể mua vé trực tiếp tại quầy thu ngân của bể bơi Thành Minh. Chúng tôi chấp nhận cả tiền mặt và thẻ ngân hàng.',
-  },
-  {
-    q: 'Vé cuối tuần và vé ngày lễ có khác nhau không?',
-    a: 'Có. Giá vé cuối tuần (Thứ 7, Chủ nhật) tăng thêm 20% và giá vé ngày lễ tăng thêm 30% so với ngày thường.',
-  },
-  {
-    q: 'Trẻ em dưới bao nhiêu tuổi được miễn phí?',
-    a: 'Trẻ em dưới 3 tuổi được miễn phí hoàn toàn khi đi cùng người lớn có vé hợp lệ.',
-  },
-  {
-    q: 'Vé gia đình có thể áp dụng cho bao nhiêu người?',
-    a: 'Vé gia đình áp dụng cho 2 người lớn và tối đa 2 trẻ em dưới 10 tuổi. Nếu có thêm thành viên, vui lòng mua thêm vé lẻ.',
-  },
-  {
-    q: 'Tôi quên vé điện tử thì phải làm sao?',
-    a: 'Bạn có thể cung cấp mã đặt vé hoặc số điện thoại đăng ký để nhân viên tra cứu và xác nhận tại cổng vào.',
-  },
-]
-
-const getPriceByTab = (price, tab) => {
-  if (tab === 'weekend') return Math.round(price * 1.2)
-  if (tab === 'holiday') return Math.round(price * 1.3)
-  return price
+// Thông tin bổ sung hiển thị dưới dạng grid
+const getInfoGrid = (ticket) => {
+  const isThang = ticket.ticketCategory === 'VE_THANG'
+  return [
+    { icon: '📍', label: 'Địa điểm',   value: 'Bể bơi Thành Minh' },
+    { icon: '⏱',  label: 'Hiệu lực',   value: isThang ? `${ticket.durationDays || 30} ngày` : 'Sử dụng 1 lần' },
+    { icon: '🎯',  label: 'Đối tượng',  value: isThang ? 'Khách đăng ký tháng' : 'Mọi khách hàng' },
+    { icon: '🕘',  label: 'Giờ mở cửa', value: '5:30 – 21:00 hàng ngày' },
+  ]
 }
 
 export default function PricingPage() {
-  const [activeTab, setActiveTab] = useState('weekday')
-  const revealRefs = useRef([])
+  const [search, setSearch]     = useState('')
+  const [activeTab, setActiveTab] = useState('ALL')
 
   const { data: apiData, isLoading, isError } = useQuery({
-    queryKey: ['ticket-types'],
+    queryKey: ['ticket-types-public'],
     queryFn: async () => {
-      const res = await axios.get('/api/v1/ticket-types')
-      return res.data
+      const res = await axios.get('/api/ticket-types?isActive=true&pageIndex=1&pageSize=100')
+      return res.data.items || res.data
     },
     retry: 1,
   })
 
-  const tickets = apiData && apiData.length > 0 ? apiData : fallbackTickets
+  const tickets = apiData && apiData.length > 0 ? apiData : []
 
-  // Scroll reveal
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('active')
-          }
-        })
-      },
-      { threshold: 0.1 }
-    )
-    revealRefs.current.forEach((el) => {
-      if (el) observer.observe(el)
-    })
-    return () => observer.disconnect()
-  }, [tickets])
-
-  const addRevealRef = (el) => {
-    if (el && !revealRefs.current.includes(el)) {
-      revealRefs.current.push(el)
-    }
-  }
+  // Filter
+  const filtered = tickets.filter(t => {
+    const matchTab = activeTab === 'ALL' || t.ticketCategory === activeTab
+    const matchSearch = t.name.toLowerCase().includes(search.toLowerCase())
+    return matchTab && matchSearch
+  })
 
   return (
-    <div className="pricing-page">
+    <div className="pl-page">
       {/* Hero */}
-      <section className="pricing-hero">
-        <div className="container">
-          <h1>Bảng giá vé</h1>
-          <p>Minh bạch • Rõ ràng • Phù hợp mọi đối tượng</p>
-        </div>
+      <section className="pl-hero">
+        <h1>Bảng Giá Vé</h1>
+        <p>Minh bạch • Rõ ràng • Phù hợp mọi đối tượng</p>
       </section>
 
-      {/* Tabs */}
-      <section className="pricing-section">
-        <div className="container">
-          <div className="pricing-tabs">
-            <button
-              className={`tab-btn${activeTab === 'weekday' ? ' active' : ''}`}
-              onClick={() => setActiveTab('weekday')}
-            >
-              Ngày thường
-            </button>
-            <button
-              className={`tab-btn${activeTab === 'weekend' ? ' active' : ''}`}
-              onClick={() => setActiveTab('weekend')}
-            >
-              Cuối tuần +20%
-            </button>
-            <button
-              className={`tab-btn${activeTab === 'holiday' ? ' active' : ''}`}
-              onClick={() => setActiveTab('holiday')}
-            >
-              Ngày lễ +30%
-            </button>
+      <div className="pl-body">
+        {/* Toolbar: search + sort */}
+        <div className="pl-toolbar">
+          <div className="pl-search">
+            <span className="pl-search-icon">🔍</span>
+            <input
+              placeholder="Tìm tên vé, loại vé..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
           </div>
+        </div>
 
-          {/* Loading skeleton */}
-          {isLoading && (
-            <div className="pricing-grid">
-              <div className="skeleton-card" />
-              <div className="skeleton-card" />
-              <div className="skeleton-card" />
-            </div>
-          )}
+        {/* Filter chips */}
+        <div className="pl-filters">
+          <span className="pl-filter-label">LOẠI VÉ:</span>
+          {[
+            { key: 'ALL',      label: 'Tất cả' },
+            { key: 'VE_LUOT',  label: 'Vé lượt' },
+            { key: 'VE_THANG', label: 'Vé tháng' },
+          ].map(f => (
+            <button
+              key={f.key}
+              className={`pl-chip${activeTab === f.key ? ' active' : ''}`}
+              onClick={() => setActiveTab(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
-          {/* Error */}
-          {isError && !isLoading && (
-            <div className="error-msg">
-              ⚠️ Không thể tải dữ liệu vé từ máy chủ. Đang hiển thị dữ liệu mặc định.
-            </div>
-          )}
+        {/* Loading */}
+        {isLoading && (
+          <div className="pl-list">
+            {[1, 2, 3].map(i => <div key={i} className="pl-skeleton" />)}
+          </div>
+        )}
 
-          {/* Pricing cards */}
-          {!isLoading && (
-            <div className="pricing-grid">
-              {tickets.map((ticket, index) => (
-                <div
-                  key={ticket.id}
-                  className={`pricing-card${index === 1 ? ' featured' : ''} reveal`}
-                  ref={addRevealRef}
-                >
-                  {index === 1 && (
-                    <span className="pricing-badge">Phổ biến nhất</span>
-                  )}
-                  <div className="card-icon">{ticketIcons[index] || '🎫'}</div>
-                  <h3>{ticket.name}</h3>
-                  <p className="card-desc">{ticket.description}</p>
-                  <div className="price">
-                    {getPriceByTab(ticket.price, activeTab).toLocaleString('vi-VN')}đ
+        {/* Error */}
+        {isError && !isLoading && (
+          <div className="pl-error">
+            ⚠️ Không thể tải dữ liệu từ máy chủ. Vui lòng thử lại sau.
+          </div>
+        )}
+
+        {/* Empty */}
+        {!isLoading && !isError && filtered.length === 0 && (
+          <div className="pl-empty">Không tìm thấy loại vé phù hợp.</div>
+        )}
+
+        {/* Ticket cards */}
+        {!isLoading && !isError && (
+          <div className="pl-list">
+            {filtered.map((ticket, idx) => {
+              const meta = categoryMeta[ticket.ticketCategory] ?? categoryMeta.VE_LUOT
+              const img  = ticketImages[ticket.ticketCategory] ?? ticketImages.VE_LUOT
+              const info = getInfoGrid(ticket)
+              const isPopular = idx === 0
+
+              return (
+                <div className="pl-card" key={ticket.id}>
+                  <div className="pl-card-inner">
+                    {/* Image */}
+                    <div className="pl-card-img">
+                      <img src={img} alt={ticket.name} />
+                      <span className="pl-card-category-badge">{ticket.ticketCategory === 'VE_THANG' ? 'Vé tháng' : 'Vé lượt'}</span>
+                    </div>
+
+                    {/* Content */}
+                    <div className="pl-card-body">
+                      {/* Tags */}
+                      <div className="pl-card-tags">
+                        <span
+                          className="pl-tag"
+                          style={{ color: meta.color, background: meta.bg, border: `1px solid ${meta.color}` }}
+                        >
+                          {meta.label}
+                        </span>
+                        {isPopular && (
+                          <span className="pl-tag pl-tag-hot">🔥 BÁN CHẠY NHẤT</span>
+                        )}
+                      </div>
+
+                      {/* Title */}
+                      <h2 className="pl-card-title">{ticket.name}</h2>
+
+                      {/* Description */}
+                      <p className="pl-card-desc">
+                        {ticket.ticketCategory === 'VE_THANG'
+                          ? `Vé tháng ${ticket.durationDays || 30} ngày — Vào bể bơi 1 lần mỗi ngày, có mã QR riêng liên kết tài khoản khách hàng.`
+                          : 'Vé lượt tại quầy — Sử dụng ngay trong ngày, phù hợp khách vãng lai.'}
+                      </p>
+
+                      {/* Info grid */}
+                      <div className="pl-info-grid">
+                        {info.map((item, i) => (
+                          <div className="pl-info-cell" key={i}>
+                            <span className="pl-info-icon">{item.icon}</span>
+                            <span className="pl-info-label">{item.label}:</span>
+                            <span className="pl-info-value">{item.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Price + CTA */}
+                      <div className="pl-card-footer">
+                        <div className="pl-price">
+                          <span className="pl-price-current">
+                            {new Intl.NumberFormat('vi-VN').format(ticket.price)}đ
+                          </span>
+                        </div>
+                        <div className="pl-cta-group">
+                          <button className="pl-cta-btn pl-cta-cart" onClick={() => alert(`Đã thêm "${ticket.name}" vào giỏ hàng!`)}>
+                            🛒 Thêm giỏ hàng
+                          </button>
+                          <Link to="/dat-ve" className="pl-cta-btn pl-cta-order">
+                            Đặt vé ngay →
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <p className="applicable-for">
-                    <strong>Áp dụng:</strong> {ticket.applicableFor}
-                  </p>
-                  <ul className="features">
-                    {ticket.features.map((f, i) => (
-                      <li key={i}>{f}</li>
-                    ))}
-                  </ul>
-                  <Link to="/dat-ve" className="pricing-btn">
-                    Đặt vé ngay
-                  </Link>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Policy */}
-      <section className="pricing-policy">
-        <div className="container">
-          <h2 className="section-title">Chính sách vé</h2>
-          <div className="policy-grid">
-            {pricingPolicies.map((policy, index) => (
-              <div
-                key={index}
-                className="policy-card reveal"
-                ref={addRevealRef}
-              >
-                <div className="policy-icon">{policy.icon}</div>
-                <h3>{policy.title}</h3>
-                <p>{policy.desc}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="pricing-faq">
-        <div className="container">
-          <h2 className="section-title">Câu hỏi thường gặp</h2>
-          <div className="faq-list">
-            {faqs.map((faq, index) => (
-              <details key={index} className="reveal" ref={addRevealRef}>
-                <summary>{faq.q}</summary>
-                <p className="faq-answer">{faq.a}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
+        )}
+      </div>
     </div>
   )
 }

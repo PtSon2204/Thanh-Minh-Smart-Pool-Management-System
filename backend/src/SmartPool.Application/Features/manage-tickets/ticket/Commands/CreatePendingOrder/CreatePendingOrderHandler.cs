@@ -14,6 +14,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
         private readonly IRepository<Domain.Entities.OrderDetail> _orderDetailRepo;
         private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
         private readonly IRepository<Domain.Entities.User> _userRepo;
+        private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
@@ -23,6 +24,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             IRepository<Domain.Entities.OrderDetail> orderDetailRepo,
             IRepository<Domain.Entities.Payment> paymentRepo,
             IRepository<Domain.Entities.User> userRepo,
+            IRepository<Domain.Entities.Voucher> voucherRepo,
             IUnitOfWork unitOfWork,
             Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
         {
@@ -31,6 +33,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             _orderDetailRepo = orderDetailRepo;
             _paymentRepo = paymentRepo;
             _userRepo = userRepo;
+            _voucherRepo = voucherRepo;
             _unitOfWork = unitOfWork;
             _cache = cache;
         }
@@ -81,19 +84,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
 
             var transactionRef = "SP" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
 
-            var order = new Domain.Entities.Order
-            {
-                Id = Guid.NewGuid(),
-                UserId = customerUserId,
-                CustomerName = request.CustomerName,
-                CustomerPhone = request.CustomerPhone,
-                Status = OrderStatusEnum.PENDING.ToString(), 
-                CreatedAt = DateTime.UtcNow
-            };
-            await _orderRepo.AddAsync(order, cancellationToken);
-
             decimal totalAmount = 0;
-
             foreach (var item in request.Items)
             {
                 var ticketType = await _ticketTypeRepo.GetByIdAsync(item.TicketTypeId, cancellationToken)
@@ -104,29 +95,74 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
 
                 decimal itemTotal = ticketType.Price * item.Quantity;
                 totalAmount += itemTotal;
+            }
 
+            // Validate và áp dụng Voucher (nếu có)
+            decimal discountAmount = 0;
+            Guid? voucherId = null;
+
+            if (!string.IsNullOrWhiteSpace(request.VoucherCode))
+            {
+                var now = DateTime.UtcNow;
+                var voucher = await _voucherRepo.FirstOrDefaultAsync(
+                    v => v.Code == request.VoucherCode
+                         && v.IsDeleted != true
+                         && v.IsActive == true
+                         && (v.StartDate == null || v.StartDate <= now)
+                         && (v.EndDate == null || v.EndDate >= now),
+                    cancellationToken)
+                    ?? throw new InvalidOperationException($"Mã giảm giá '{request.VoucherCode}' không hợp lệ hoặc đã hết hạn.");
+
+                if (voucher.MinOrderValue.HasValue && totalAmount < voucher.MinOrderValue.Value)
+                    throw new InvalidOperationException(
+                        $"Đơn hàng tối thiểu {voucher.MinOrderValue:N0}đ để dùng mã này.");
+
+                discountAmount = voucher.DiscountType == "PERCENTAGE"
+                    ? Math.Round(totalAmount * voucher.DiscountValue / 100, 0)
+                    : voucher.DiscountValue;
+
+                discountAmount = Math.Min(discountAmount, totalAmount);
+                voucherId = voucher.Id;
+            }
+
+            decimal finalAmount = totalAmount - discountAmount;
+
+            var order = new Domain.Entities.Order
+            {
+                Id = Guid.NewGuid(),
+                UserId = customerUserId,
+                VoucherId = voucherId,
+                CustomerName = request.CustomerName,
+                CustomerPhone = request.CustomerPhone,
+                TotalAmount = totalAmount,
+                DiscountAmount = discountAmount,
+                FinalAmount = finalAmount,
+                Status = OrderStatusEnum.PENDING.ToString(), 
+                CreatedAt = DateTime.UtcNow
+            };
+            await _orderRepo.AddAsync(order, cancellationToken);
+
+            foreach (var item in request.Items)
+            {
                 var orderDetail = new Domain.Entities.OrderDetail
                 {
                     Id = Guid.NewGuid(),
                     OrderId = order.Id,
                     ItemType = "TICKET",
-                    ItemId = ticketType.Id,
+                    ItemId = item.TicketTypeId,
                     Quantity = item.Quantity,
-                    UnitPrice = ticketType.Price,
+                    UnitPrice = (await _ticketTypeRepo.GetByIdAsync(item.TicketTypeId, cancellationToken))!.Price,
                     CreatedAt = DateTime.UtcNow
                 };
                 await _orderDetailRepo.AddAsync(orderDetail, cancellationToken);
             }
 
-            order.TotalAmount = totalAmount;
-            order.FinalAmount = totalAmount;
-            
             // Create Payment record
             var payment = new Domain.Entities.Payment
             {
                 Id = Guid.NewGuid(),
                 OrderId = order.Id,
-                Amount = totalAmount,
+                Amount = finalAmount,
                 PaymentMethod = "BANK_TRANSFER",
                 TransactionRef = transactionRef,
                 Status = PaymentStatusEnum.PENDING.ToString(),
@@ -146,6 +182,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
                 OrderId = order.Id,
                 TransactionRef = transactionRef,
                 TotalAmount = totalAmount,
+                DiscountAmount = discountAmount,
+                FinalAmount = finalAmount,
+                VoucherCode = request.VoucherCode,
                 AccountInfo = accountInfo
             };
         }

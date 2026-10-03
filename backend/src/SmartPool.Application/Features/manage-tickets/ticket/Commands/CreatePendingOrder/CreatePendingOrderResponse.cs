@@ -8,6 +8,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
         public Guid OrderId { get; set; }
         public string TransactionRef { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal FinalAmount { get; set; }
+        public string? VoucherCode { get; set; }
         public AccountInfo? AccountInfo { get; set; }
     }
 }

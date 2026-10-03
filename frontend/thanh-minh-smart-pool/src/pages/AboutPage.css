@@ -24,41 +24,143 @@
 }
 
 /* ============================================================
-   1. HERO
+   1. HERO — Cinematic Video Background
    ============================================================ */
 .about-hero {
-  background: linear-gradient(135deg, #005f8e 0%, #0077b6 50%, #00b4d8 100%);
-  padding: 120px 0;
-  color: #ffffff;
   position: relative;
+  min-height: 72vh;
+  display: flex;
+  align-items: flex-end;
+  color: #ffffff;
+  overflow: hidden;
+  background: #010101;
+}
+
+/* Video fills entire hero — brighten with filter */
+.about-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+  z-index: 0;
+  filter: brightness(1.6) saturate(1.3) contrast(0.9);
+}
+
+/* Tint xanh biển rất nhẹ — chỉ để tạo cảm giác bể bơi, không tối */
+.about-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 150, 220, 0.08) 0%,
+    rgba(0, 100, 180, 0.06) 100%
+  );
+  z-index: 1;
+}
+
+/* Bottom fade mỏng để chữ và sóng đọc được */
+.about-hero-fade {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 200px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 119, 182, 0.08) 45%,
+    var(--bg, #FEF1E6) 100%
+  );
+  z-index: 2;
+}
+
+/* Animated SVG waves — width 200% so they scroll continuously */
+.about-hero-waves {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 110px;
+  z-index: 3;
+  pointer-events: none;
   overflow: hidden;
 }
 
-.about-hero::before {
-  content: '';
+/* Each wave track is a wrapper that is 200% wide and animates translateX */
+.hero-wave-track {
   position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 70% 50%, rgba(255, 255, 255, 0.06) 0%, transparent 60%);
-  pointer-events: none;
+  bottom: 0;
+  width: 200%;
+  height: 110px;
+  display: flex;
+}
+.hero-wave-track svg {
+  flex: 1;
+  height: 110px;
+  display: block;
 }
 
-.about-hero .container {
+.hw1 {
+  animation: hero-wave-scroll 7s linear infinite;
+}
+.hw2 {
+  animation: hero-wave-scroll 11s linear infinite reverse;
+  opacity: 0.55;
+  bottom: 4px;
+}
+
+@keyframes hero-wave-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Content sits above overlay + waves */
+.about-hero-content {
   position: relative;
-  z-index: 1;
+  z-index: 4;
+  padding-top: 120px;
+  padding-bottom: 80px;
+}
+
+/* Badge pill */
+.about-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  padding: 6px 16px 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0, 119, 182, 0.2);
 }
 
 .about-hero h1 {
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.1;
   margin-bottom: 20px;
+  color: #fff;
+  text-shadow:
+    0 0 24px rgba(0, 80, 160, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .hero-subtitle {
-  font-size: clamp(1rem, 2vw, 1.2rem);
-  max-width: 600px;
-  opacity: 0.9;
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  max-width: 580px;
+  opacity: 1;
   line-height: 1.7;
+  color: #fff;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.6),
+    0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
 /* Hero stats row */
@@ -81,12 +183,14 @@
   font-size: 2rem;
   font-weight: 800;
   line-height: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 
 .hero-stat-item .stat-label {
   font-size: 0.9rem;
   opacity: 0.8;
 }
+
 
 /* ============================================================
    2. STORY

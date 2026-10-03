@@ -9,5 +9,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }
         public DateTime? StartDate { get; set; }
+        public string? VoucherCode { get; set; }
     }
 }
