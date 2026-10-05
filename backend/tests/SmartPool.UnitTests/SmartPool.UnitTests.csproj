@@ -22,6 +22,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SmartPool.Application\SmartPool.Application.csproj" />
     <ProjectReference Include="..\..\src\SmartPool.Domain\SmartPool.Domain.csproj" />
+    <ProjectReference Include="..\..\src\SmartPool.API\SmartPool.API.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>
