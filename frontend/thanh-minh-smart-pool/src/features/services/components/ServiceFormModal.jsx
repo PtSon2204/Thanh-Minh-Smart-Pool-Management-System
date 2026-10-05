@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Alert, Button, Form, Input, InputNumber, Modal, Select, Switch } from 'antd'
+import { Alert, Button, Form, Input, InputNumber, Modal, Select } from 'antd'
 import { getServiceErrorMessage, useCreateService, useUpdateService } from '../hooks/useServiceMutations'
 
 const serviceTypeOptions = [
@@ -26,13 +26,12 @@ export default function ServiceFormModal({ open, onClose, service }) {
         name: service.name,
         type: service.type,
         price: service.price,
-        isActive: service.isActive,
         stockQuantity: undefined,
       })
       return
     }
 
-    form.setFieldsValue({ name: undefined, type: undefined, price: undefined, stockQuantity: undefined, isActive: true })
+    form.setFieldsValue({ name: undefined, type: undefined, price: undefined, stockQuantity: undefined })
   }, [form, open, service])
 
   const handleFinish = (values) => {
@@ -43,7 +42,6 @@ export default function ServiceFormModal({ open, onClose, service }) {
       name: values.name.trim(),
       type: values.type,
       price: values.price,
-      isActive: values.isActive,
     }
 
     if (isEditing) {
@@ -53,7 +51,7 @@ export default function ServiceFormModal({ open, onClose, service }) {
     }
 
     createServiceMutation.reset()
-    createServiceMutation.mutate({ ...payload, stockQuantity: values.stockQuantity ?? null }, { onSuccess: onClose, onSettled: () => { submitting.current = false } })
+    createServiceMutation.mutate({ ...payload, isActive: true, stockQuantity: values.stockQuantity ?? null }, { onSuccess: onClose, onSettled: () => { submitting.current = false } })
   }
 
   const handleCancel = () => {
@@ -68,6 +66,7 @@ export default function ServiceFormModal({ open, onClose, service }) {
     <Modal
       title={isEditing ? 'Cập nhật dịch vụ' : 'Thêm dịch vụ'}
       open={open}
+      forceRender
       onCancel={handleCancel}
       onOk={() => form.submit()}
       okText="Lưu"
@@ -75,12 +74,11 @@ export default function ServiceFormModal({ open, onClose, service }) {
       confirmLoading={isPending}
       cancelButtonProps={{ disabled: isPending }}
       closable={!isPending}
-      destroyOnHidden
       keyboard={!isPending}
       mask={{ closable: !isPending }}
       width={560}
     >
-      <Form form={form} layout="vertical" onFinish={handleFinish} preserve={false} initialValues={{ isActive: true }}>
+      <Form form={form} layout="vertical" onFinish={handleFinish} preserve={false}>
         {mutationError && <Alert className="service-inline-error" type="error" showIcon message="Không thể lưu dịch vụ" description={getServiceErrorMessage(mutationError, 'Máy chủ không thể lưu dịch vụ.')} action={<Button size="small" danger onClick={() => form.submit()} disabled={isPending}>Thử lại</Button>} />}
         <Form.Item label="Tên dịch vụ" name="name" rules={[{ required: true, whitespace: true, message: 'Nhập tên dịch vụ.' }, { max: 255, message: 'Tên không vượt quá 255 ký tự.' }]}>
           <Input placeholder="Ví dụ: Khăn tắm" />
@@ -98,9 +96,6 @@ export default function ServiceFormModal({ open, onClose, service }) {
             <InputNumber min={0} precision={0} className="service-full-width" placeholder="Để trống nếu không theo dõi tồn kho" />
           </Form.Item>
         )}
-        <Form.Item label="Trạng thái" name="isActive" valuePropName="checked" extra="Bật: hoạt động. Tắt: tạm dừng.">
-          <Switch checkedChildren="Hoạt động" unCheckedChildren="Tạm dừng" />
-        </Form.Item>
       </Form>
     </Modal>
   )
