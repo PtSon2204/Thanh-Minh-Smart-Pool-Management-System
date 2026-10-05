@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Badge } from 'antd';
 import {
   MenuFoldOutlined,
@@ -16,13 +16,31 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { notificationService } from '../../features/notifications/services/notificationService';
 import './AdminLayout.css';
 
 const { Header, Sider, Content } = Layout;
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await notificationService.getNotifications({ page: 1, pageSize: 1 });
+        if (res && typeof res.unreadCount === 'number') {
+          setUnreadCount(res.unreadCount);
+        }
+      } catch {
+        // Ignored in layout if fails or not logged in
+      }
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   const menuItems = [
     {
@@ -97,6 +115,11 @@ export default function AdminLayout() {
         { key: '/admin/statistics/incidents', label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link> },
         { key: '/admin/statistics/operations-costs', label: <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link> },
       ],
+    },
+    {
+      key: '/admin/notifications',
+      icon: <BellOutlined />,
+      label: <Link to="/admin/notifications">Thông báo hệ thống</Link>,
     },
   ];
 
@@ -187,9 +210,11 @@ export default function AdminLayout() {
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <Badge count={5} size="small">
-              <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 18 }} />} />
-            </Badge>
+            <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
+              <Badge count={unreadCount} size="small" overflowCount={99}>
+                <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 18 }} />} />
+              </Badge>
+            </Link>
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#005f8e' }} icon={<UserOutlined />} />
