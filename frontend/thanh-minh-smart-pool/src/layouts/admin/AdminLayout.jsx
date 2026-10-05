@@ -74,6 +74,7 @@ export default function AdminLayout() {
       children: [
         { key: '/admin/services', label: <Link to="/admin/services">Danh mục dịch vụ</Link> },
         { key: '/admin/inventory', label: <Link to="/admin/inventory">Tồn kho và lịch sử</Link> },
+        { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },
     {
@@ -146,7 +147,7 @@ export default function AdminLayout() {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['/admin/services', '/admin/inventory'].includes(location.pathname) ? ['services'] : []}
+          defaultOpenKeys={['/admin/services', '/admin/inventory', '/admin/rentals'].includes(location.pathname) ? ['services'] : []}
           items={menuItems}
           style={{ 
             borderRight: 0, 

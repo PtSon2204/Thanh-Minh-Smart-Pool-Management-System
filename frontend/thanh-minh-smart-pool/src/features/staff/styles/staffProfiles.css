@@ -1,0 +1,147 @@
+.staff-profiles-toolbar {
+  align-items: end;
+}
+
+.staff-profiles-filters {
+  display: grid;
+  flex: 1;
+  gap: var(--space-3);
+  grid-template-columns: minmax(14rem, 1.6fr) repeat(2, minmax(11rem, 1fr));
+  max-width: 980px;
+}
+
+.staff-profiles-filters .service-filter-control,
+.staff-profiles-filters .ant-select,
+.staff-profiles-filters .ant-input-affix-wrapper {
+  min-width: 0;
+  width: 100%;
+}
+
+.staff-profiles-table .ant-table-tbody > tr > td {
+  vertical-align: middle;
+}
+
+.staff-profiles-mobile-list {
+  display: none;
+}
+
+.staff-identity-cell {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.staff-identity-cell strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.staff-identity-cell > span {
+  color: var(--list-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.staff-identity-cell .staff-username {
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+.staff-salary-cell {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.staff-profiles-drawer .ant-drawer-body,
+.staff-employment-drawer .ant-drawer-body {
+  padding: var(--space-6);
+}
+
+.staff-profiles-drawer .ant-descriptions,
+.staff-profiles-drawer .ant-tabs,
+.staff-employment-drawer .ant-form {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .staff-profiles-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+    width: 100%;
+  }
+
+  .staff-profiles-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1024px) {
+  .staff-profiles-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-profiles-search {
+    grid-column: auto;
+  }
+
+  .staff-profiles-page .admin-action-group {
+    justify-content: flex-start;
+  }
+
+  .staff-profiles-table {
+    display: none;
+  }
+
+  .staff-profiles-mobile-list {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .staff-profile-mobile-card {
+    background: var(--admin-surface);
+    border: 1px solid var(--list-divider);
+    border-radius: var(--list-radius);
+    display: grid;
+    gap: var(--space-3);
+    min-width: 0;
+    padding: var(--space-4);
+  }
+
+  .staff-profile-mobile-heading {
+    align-items: start;
+    display: flex;
+    gap: var(--space-2);
+    justify-content: space-between;
+  }
+
+  .staff-profile-mobile-card dl {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .staff-profile-mobile-card dl > div {
+    min-width: 0;
+  }
+
+  .staff-profile-mobile-card dt {
+    color: var(--list-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .staff-profile-mobile-card dd {
+    margin: var(--space-1) 0 0;
+    overflow-wrap: anywhere;
+  }
+
+  .staff-profile-mobile-card .admin-action-group > .ant-btn {
+    flex: 1;
+  }
+
+  .staff-profiles-drawer .ant-drawer-body,
+  .staff-employment-drawer .ant-drawer-body {
+    padding: var(--space-4);
+  }
+}
