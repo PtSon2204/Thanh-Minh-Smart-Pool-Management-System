@@ -8,7 +8,7 @@ const categories = [
 ]
 
 export function ServiceListHeader({ title, tabs, action }) {
-  return <header className="service-list-header"><h1>{title}</h1>{tabs}<div className="service-list-primary-action">{action}</div></header>
+  return <header className={`service-list-header${tabs ? '' : ' service-list-header-compact'}`}><h1>{title}</h1>{tabs}<div className="service-list-primary-action">{action}</div></header>
 }
 
 export function ServiceNameCell({ name, type }) {

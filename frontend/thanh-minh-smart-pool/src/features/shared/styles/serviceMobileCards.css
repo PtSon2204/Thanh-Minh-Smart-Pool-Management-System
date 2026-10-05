@@ -1,0 +1,63 @@
+.service-mobile-list,
+.inventory-mobile-list {
+  display: none;
+}
+
+.service-mobile-card,
+.inventory-mobile-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--list-divider);
+  border-radius: var(--list-radius);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.service-mobile-card-heading {
+  align-items: start;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.service-mobile-card-details {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.service-mobile-card-details > div {
+  min-width: 0;
+}
+
+.service-mobile-card-details dt {
+  color: var(--list-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.service-mobile-card-details dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1024px) {
+  .service-catalogue-list .service-desktop-table,
+  .service-list-table .inventory-desktop-table {
+    display: none;
+  }
+
+  .service-catalogue-list .service-mobile-list,
+  .service-list-table .inventory-mobile-list {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .service-mobile-card .admin-action-group > .ant-btn,
+  .inventory-mobile-card .admin-action-group > .ant-btn {
+    flex: 1;
+  }
+}
