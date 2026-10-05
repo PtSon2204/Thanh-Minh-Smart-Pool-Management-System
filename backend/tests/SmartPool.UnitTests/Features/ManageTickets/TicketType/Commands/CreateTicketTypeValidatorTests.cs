@@ -46,5 +46,34 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
             Assert.False(result.IsValid);
             Assert.Contains(result.Errors, e => e.PropertyName == "Name");
         }
+
+        [Theory]
+        [InlineData(TicketCategoryEnum.VE_THANG)]
+        [InlineData(TicketCategoryEnum.VE_LUOT)]
+        public void Validate_SupportedTicketCategory_ShouldBeAccepted(TicketCategoryEnum category)
+        {
+            var result = _validator.Validate(new CreateTicketTypeCommand
+            {
+                Name = "Vé Test",
+                Price = 100000,
+                TicketCategory = category
+            });
+
+            Assert.True(result.IsValid);
+        }
+
+        [Fact]
+        public void Validate_UnsupportedTicketCategory_ShouldReturnError()
+        {
+            var result = _validator.Validate(new CreateTicketTypeCommand
+            {
+                Name = "Vé Test",
+                Price = 100000,
+                TicketCategory = (TicketCategoryEnum)2
+            });
+
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Errors, error => error.PropertyName == "TicketCategory");
+        }
     }
 }

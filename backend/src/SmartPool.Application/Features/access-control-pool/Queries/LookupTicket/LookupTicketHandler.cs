@@ -26,7 +26,7 @@ namespace SmartPool.Application.Features.AccessControlPool.Queries.LookupTicket
                 return PoolAccessValidationResult<LookupTicketResponse>.Failure(failure.PropertyName, failure.ErrorMessage);
             }
 
-            var result = await _operations.LookupAsync(code!, DateTime.UtcNow, cancellationToken);
+            var result = await _operations.LookupAsync(code!, cancellationToken);
             return PoolAccessValidationResult<LookupTicketResponse>.Success(result);
         }
     }

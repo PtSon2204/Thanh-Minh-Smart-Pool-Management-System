@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using SmartPool.Application.Common.Models;
+using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry;
 using SmartPool.Application.Features.AccessControlPool.Contracts;
 using SmartPool.Application.Features.AccessControlPool.Queries.GetDailyEntrySummary;
@@ -16,18 +17,20 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
 {
     public sealed class PoolAccessOperations : IPoolAccessOperations
     {
-        private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
         private readonly SmartPoolDbContext _context;
         private readonly IMapper _mapper;
+        private readonly TimeProvider _timeProvider;
 
-        public PoolAccessOperations(SmartPoolDbContext context, IMapper mapper)
+        public PoolAccessOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider timeProvider)
         {
             _context = context;
             _mapper = mapper;
+            _timeProvider = timeProvider;
         }
 
-        public async Task<LookupTicketResponse> LookupAsync(string code, DateTime utcNow, CancellationToken cancellationToken)
+        public async Task<LookupTicketResponse> LookupAsync(string code, CancellationToken cancellationToken)
         {
+            var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
             var ticket = await _context.Tickets.AsNoTracking()
                 .Include(item => item.TicketType)
                 .SingleOrDefaultAsync(item => item.QrCode == code, cancellationToken);
@@ -36,7 +39,15 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 return CreateLookupResponse(false, false, "TicketNotFound", null);
             }
 
-            var allowed = IsAllowed(ticket, utcNow, out var reason, out _);
+            var allowed = IsAllowed(ticket, utcNow, out var reason, out var category);
+            if (allowed
+                && category == TicketCategoryEnum.VE_THANG
+                && await HasAllowedEntryTodayAsync(ticket.Id, utcNow, cancellationToken))
+            {
+                reason = "AlreadyEnteredToday";
+                allowed = false;
+            }
+
             return CreateLookupResponse(true, allowed, reason, ticket);
         }
 
@@ -50,7 +61,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
             var ticket = await _context.Tickets.FromSqlInterpolated(
                     $"SELECT * FROM smart_pool.tickets WHERE qr_code = {code} FOR UPDATE")
                 .SingleOrDefaultAsync(cancellationToken);
-            var utcNow = DateTime.UtcNow;
+            var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
 
             if (ticket is null)
             {
@@ -65,9 +76,9 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
             }
 
             if (category == TicketCategoryEnum.VE_THANG
-                && await HasRecentAllowedEntryAsync(ticket.Id, utcNow, cancellationToken))
+                && await HasAllowedEntryTodayAsync(ticket.Id, utcNow, cancellationToken))
             {
-                return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, "DuplicateScan", transaction, cancellationToken);
+                return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, "AlreadyEnteredToday", transaction, cancellationToken);
             }
 
             if (category == TicketCategoryEnum.VE_LUOT)
@@ -88,7 +99,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
 
             if (query.Status is not null)
             {
-                entryLogs = entryLogs.Where(item => item.Status == query.Status);
+                entryLogs = entryLogs.Where(item => item.Status.ToLower() == query.Status.ToLower());
             }
 
             if (query.TicketId is { } ticketId)
@@ -114,7 +125,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
         public async Task<GetDailyEntrySummaryResponse> GetDailySummaryAsync(DateOnly date, CancellationToken cancellationToken)
         {
             var acceptedEntries = await ApplyLocalDate(_context.EntryLogs.AsNoTracking(), date)
-                .CountAsync(item => item.Status == PoolAccessValues.Allowed, cancellationToken);
+                .CountAsync(item => item.Status.ToLower() == PoolAccessValues.Allowed.ToLower(), cancellationToken);
             return new GetDailyEntrySummaryResponse
             {
                 Date = date,
@@ -122,13 +133,18 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
             };
         }
 
-        private async Task<bool> HasRecentAllowedEntryAsync(Guid ticketId, DateTime utcNow, CancellationToken cancellationToken)
+        private async Task<bool> HasAllowedEntryTodayAsync(Guid ticketId, DateTime utcNow, CancellationToken cancellationToken)
         {
+            var vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+            var vietnamDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(utcNow, vietnamZone));
+            var (startUtc, endUtc) = VietnamTimeBoundary.GetUtcDayBounds(vietnamDate);
+
             return await _context.EntryLogs.AnyAsync(
                 item => item.TicketId == ticketId
-                    && item.Status == PoolAccessValues.Allowed
-                    && item.ScanTime >= utcNow.AddSeconds(-5)
-                    && item.ScanTime <= utcNow,
+                    && (item.Status == PoolAccessValues.Allowed
+                        || item.Status.ToLower() == PoolAccessValues.Allowed.ToLower())
+                    && item.ScanTime >= startUtc
+                    && item.ScanTime < endUtc,
                 cancellationToken);
         }
 
@@ -174,7 +190,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 return false;
             }
 
-            if (ticket.Status != PoolAccessValues.Active || ticket.IsDeleted != false)
+            if (!PoolAccessValues.IsActive(ticket.Status) || ticket.IsDeleted != false)
             {
                 reason = "TicketInactive";
                 return false;
@@ -186,7 +202,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 return false;
             }
 
-            if (ticket.IssueDate is { } issueDate && issueDate > utcNow)
+            if (!VietnamTimeBoundary.HasStarted(ticket.IssueDate, utcNow))
             {
                 reason = "IssueDateInFuture";
                 return false;
@@ -198,7 +214,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 return false;
             }
 
-            if (ticket.ExpiryDate is { } expiry && expiry <= utcNow)
+            if (!VietnamTimeBoundary.HasNotExpired(ticket.ExpiryDate, utcNow))
             {
                 reason = "TicketExpired";
                 return false;
@@ -254,6 +270,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 "TicketExpired" => "Vé đã hết hạn.",
                 "InsufficientEntries" => "Vé lượt không còn lượt vào bể.",
                 "DuplicateScan" => "Vé vừa được quét. Vui lòng không quét lại ngay.",
+                "AlreadyEnteredToday" => "Vé tháng đã được xác nhận vào bể hôm nay.",
                 "UnsupportedCategory" => "Phân loại vé không được hỗ trợ.",
                 _ => "Không thể xác nhận lượt vào bể."
             };
@@ -268,10 +285,8 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
 
         private static IQueryable<EntryLog> ApplyLocalDate(IQueryable<EntryLog> query, DateOnly date)
         {
-            var localStart = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
-            var utcStart = TimeZoneInfo.ConvertTimeToUtc(localStart, VietnamTimeZone);
-            var utcEnd = TimeZoneInfo.ConvertTimeToUtc(localStart.AddDays(1), VietnamTimeZone);
-            return query.Where(item => item.ScanTime >= utcStart && item.ScanTime < utcEnd);
+            var (startUtc, endUtc) = VietnamTimeBoundary.GetUtcDayBounds(date);
+            return query.Where(item => item.ScanTime >= startUtc && item.ScanTime < endUtc);
         }
     }
 }
