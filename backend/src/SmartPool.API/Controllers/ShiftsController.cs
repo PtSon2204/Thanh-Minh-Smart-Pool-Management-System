@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
@@ -10,6 +12,7 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/shifts")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class ShiftsController : ControllerBase
     {
         private readonly ISender _sender;
@@ -29,6 +32,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo ca làm việc.</summary>
         [HttpPost]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
         [ProducesResponseType(typeof(SaveShiftResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateShift([FromBody] SaveShiftCommand command, CancellationToken cancellationToken)
         {
@@ -37,6 +41,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật ca làm việc.</summary>
         [HttpPut("{id:guid}")]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
         [ProducesResponseType(typeof(SaveShiftResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateShift(Guid id, [FromBody] SaveShiftCommand command, CancellationToken cancellationToken)
         {
