@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
-import HomePage from './pages/HomePage'
-import AboutPage from './pages/AboutPage'
-import PricingPage from './pages/PricingPage'
-import ContactPage from './pages/ContactPage'
-import NotFoundPage from './pages/NotFoundPage'
-import AuthPage from './pages/AuthPage'
+import HomePage from './pages/HomePage/HomePage'
+import AboutPage from './pages/AboutPage/AboutPage'
+import PricingPage from './pages/PricingPage/PricingPage'
+import ContactPage from './pages/ContactPage/ContactPage'
+import NotFoundPage from './pages/NotFoundPage/NotFoundPage'
+import AuthPage from './pages/AuthPage/AuthPage'
+import ProfilePage from './pages/ProfilePage/ProfilePage'
 import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
@@ -35,6 +36,7 @@ function App() {
             <Route path="/gioi-thieu" element={<AboutPage />} />
             <Route path="/bang-gia" element={<PricingPage />} />
             <Route path="/lien-he" element={<ContactPage />} />
+            <Route path="/ho-so" element={<ProfilePage />} />
             {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>

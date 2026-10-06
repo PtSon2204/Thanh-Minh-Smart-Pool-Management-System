@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './AboutPage.css';
-import imgBeBoi from '../assets/anh-be-boi.jpg';
+import imgBeBoi from '../../assets/anh-be-boi.jpg';
 
 export default function AboutPage() {
   useEffect(() => {

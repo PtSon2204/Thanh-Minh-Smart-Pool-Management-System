@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom'
-import AuthBranding from '../features/auth/components/AuthBranding'
-import AuthForm from '../features/auth/components/AuthForm'
-import AuthPhoto from '../features/auth/components/AuthPhoto'
+import AuthBranding from '../../features/auth/components/AuthBranding'
+import AuthForm from '../../features/auth/components/AuthForm'
+import AuthPhoto from '../../features/auth/components/AuthPhoto'
 import './AuthPage.css'
 
 export default function AuthPage() {

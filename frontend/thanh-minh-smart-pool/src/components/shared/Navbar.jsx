@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Avatar, Dropdown } from 'antd'
+import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { useQuery } from '@tanstack/react-query'
 import './Navbar.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
 import VoltageButton from './VoltageButton'
+import { useAuthStore } from '../../features/auth/store/authStore'
+import CartIcon from '../../features/cart/components/CartIcon'
+import profileService from '../../features/profiles/services/profileService'
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
@@ -15,7 +21,16 @@ const navItems = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  
   const location = useLocation()
+  const navigate = useNavigate()
+
+  const { session, setSession } = useAuthStore()
+  const { data: profileData } = useQuery({
+    queryKey: ['myProfile'],
+    queryFn: profileService.getMyProfile,
+    enabled: !!session
+  })
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50)
@@ -27,6 +42,38 @@ export default function Navbar() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuOpen(false)
   }, [location])
+
+  const userMenu = {
+    items: [
+      {
+        key: '1',
+        icon: <EditOutlined />,
+        label: 'Hồ sơ cá nhân',
+        onClick: () => navigate('/ho-so')
+      },
+      {
+        key: '2',
+        icon: <LogoutOutlined />,
+        label: 'Đổi mật khẩu',
+        danger: true,
+        onClick: () => setSession(null)
+      },
+      {
+        key: '3',
+        icon: <ShoppingOutlined />,
+        label: 'Lịch sử mua vé',
+        danger: true,
+        onClick: () => setSession(null)
+      },
+      {
+        key: '4',
+        icon: <LogoutOutlined />,
+        label: 'Đăng xuất',
+        danger: true,
+        onClick: () => setSession(null)
+      }
+    ]
+  }
 
   return (
     <nav className={`navbar${scrolled ? ' navbar-scrolled' : ''}`}>
@@ -49,7 +96,7 @@ export default function Navbar() {
                   className={`nav-link${location.pathname === item.to ? ' active' : ''}`}
                 >
                   {item.label}
-                  {item.children && <span style={{ fontSize: '0.65rem' }}>▾</span>}
+                  {item.children && <span style={{ fontSize: '0.65rem' }}>▼</span>}
                 </Link>
                 {item.children && (
                   <div className="nav-dropdown">
@@ -64,13 +111,29 @@ export default function Navbar() {
             ))}
           </ul>
 
-          <div className="navbar-cta" style={{ display: 'flex', gap: '12px' }}>
-            <VoltageButton to="/dang-ky" variant="outline">
-              Đăng ký
-            </VoltageButton>
-            <VoltageButton to="/dang-nhap" variant="solid">
-              Đăng nhập
-            </VoltageButton>
+          <div className="navbar-cta" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {session ? (
+              <>
+                {session.role === 'CUSTOMER' && <CartIcon />}
+                <div style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '4px 8px', borderRadius: '24px', background: 'transparent', transition: 'background 0.2s' }} className="user-dropdown-trigger">
+                      <Avatar src={profileData?.avatarUrl} style={{ backgroundColor: '#f97316' }} icon={<UserOutlined />} />
+                      <span style={{ fontWeight: 600, color: '#002c8c' }}>{profileData?.fullName || session.username}</span>
+                    </div>
+                  </Dropdown>
+                </div>
+              </>
+            ) : (
+              <>
+                <VoltageButton to="/dang-ky" variant="outline">
+                  Đăng ký
+                </VoltageButton>
+                <VoltageButton to="/dang-nhap" variant="solid">
+                  Đăng nhập
+                </VoltageButton>
+              </>
+            )}
           </div>
 
           <button
