@@ -46,6 +46,12 @@ export default function Navbar() {
   const userMenu = {
     items: [
       {
+        key: '0',
+        icon: <UserOutlined />,
+        label: 'Thẻ của tôi',
+        onClick: () => navigate('/the-cua-toi')
+      },
+      {
         key: '1',
         icon: <EditOutlined />,
         label: 'Hồ sơ cá nhân',

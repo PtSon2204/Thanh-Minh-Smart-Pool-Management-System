@@ -8,10 +8,6 @@ import { useAuthStore } from '../../features/auth/store/authStore'
 import { useCartStore } from '../../features/cart/store/cartStore'
 import profileService from '../../features/profiles/services/profileService'
 
-const ticketImages = {
-  VE_THANG: 'https://images.unsplash.com/photo-1565204000516-f8f79dd1a7ac?w=400&q=80',
-  VE_LUOT:  'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&q=80',
-}
 
 const categoryMeta = {
   VE_THANG: { label: 'VÉ THÁNG', color: '#005f8e', bg: '#e8f4fa' },
@@ -73,7 +69,7 @@ export default function PricingPage() {
         id: ticket.id,
         name: ticket.name,
         price: ticket.price,
-        image: ticketImages[ticket.ticketCategory] || ticketImages.VE_LUOT
+        
       })
     })
   }
@@ -142,17 +138,14 @@ export default function PricingPage() {
           <div className="pl-list">
             {filtered.map((ticket, idx) => {
               const meta = categoryMeta[ticket.ticketCategory] ?? categoryMeta.VE_LUOT
-              const img  = ticketImages[ticket.ticketCategory] ?? ticketImages.VE_LUOT
+
               const info = getInfoGrid(ticket)
               const isPopular = idx === 0
 
               return (
                 <div className="pl-card" key={ticket.id}>
                   <div className="pl-card-inner">
-                    <div className="pl-card-img">
-                      <img src={img} alt={ticket.name} />
-                      <span className="pl-card-category-badge">{ticket.ticketCategory === 'VE_THANG' ? 'Vé tháng' : 'Vé lượt'}</span>
-                    </div>
+                    
 
                     <div className="pl-card-body">
                       <div className="pl-card-tags">

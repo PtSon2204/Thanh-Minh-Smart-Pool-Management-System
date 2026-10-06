@@ -7,6 +7,7 @@ import ContactPage from './pages/ContactPage/ContactPage'
 import NotFoundPage from './pages/NotFoundPage/NotFoundPage'
 import AuthPage from './pages/AuthPage/AuthPage'
 import ProfilePage from './pages/ProfilePage/ProfilePage'
+import MyCardPage from './pages/MyCardPage/MyCardPage'
 import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
@@ -37,6 +38,7 @@ function App() {
             <Route path="/bang-gia" element={<PricingPage />} />
             <Route path="/lien-he" element={<ContactPage />} />
             <Route path="/ho-so" element={<ProfilePage />} />
+            <Route path="/the-cua-toi" element={<MyCardPage />} />
             {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
