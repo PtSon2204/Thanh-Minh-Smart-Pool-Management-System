@@ -3,15 +3,15 @@ import { Link } from 'react-router-dom'
 import './HomePage.css'
 
 // Import service images
-import imgLocker from '../assets/tu-do-mien-phi.png'
-import imgShop from '../assets/dich-vu-cho-thue.png'
-import imgFood from '../assets/dich-vu-am-thuc.png'
+import imgLocker from '../../assets/tu-do-mien-phi.png'
+import imgShop from '../../assets/dich-vu-cho-thue.png'
+import imgFood from '../../assets/dich-vu-am-thuc.png'
 
 // Import why-us images
-import whyImg1 from '../assets/tai-sao-anh-1-dochothue.png'
-import whyImg2 from '../assets/tai-sao-anh-2-camera-giam-sat.png'
-import whyImg3 from '../assets/tai-sao-anh-3-tudedofree.png'
-import whyImg4 from '../assets/tai-sao-anh-4-doannhanh.png'
+import whyImg1 from '../../assets/tai-sao-anh-1-dochothue.png'
+import whyImg2 from '../../assets/tai-sao-anh-2-camera-giam-sat.png'
+import whyImg3 from '../../assets/tai-sao-anh-3-tudedofree.png'
+import whyImg4 from '../../assets/tai-sao-anh-4-doannhanh.png'
 
 const promoItems = [
   {

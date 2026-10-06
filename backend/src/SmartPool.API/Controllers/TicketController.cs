@@ -1,5 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using SmartPool.API.Extensions;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOfflineTicket;
 
 namespace SmartPool.API.Controllers
@@ -63,5 +65,43 @@ namespace SmartPool.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        /// <summary>Thanh toán và tạo vé online (Cho Customer).</summary>
+        [HttpPost("checkout")]
+        [Authorize(Roles = "CUSTOMER")]
+        [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutOnline.CheckoutOnlineResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CheckoutOnline([FromBody] SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutOnline.CheckoutOnlineCommand command, CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+            command.UserId = userId;
+            try
+            {
+                var result = await _sender.Send(command, cancellationToken);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Lấy danh sách vé đã mua của tôi.</summary>
+        [HttpGet("me")]
+        [Authorize(Roles = "CUSTOMER")]
+        public async Task<IActionResult> GetMyTickets(CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+            var query = new SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyTickets.GetMyTicketsQuery { UserId = userId };
+            try
+            {
+                var result = await _sender.Send(query, cancellationToken);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }
+
