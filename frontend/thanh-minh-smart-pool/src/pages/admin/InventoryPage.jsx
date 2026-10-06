@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react'
-import { HistoryOutlined, ReloadOutlined } from '@ant-design/icons'
+import { EditOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons'
 import { Alert, Button, DatePicker, Drawer, Empty, Form, Input, InputNumber, Pagination, Radio, Select, Spin, Table, Tag, Tooltip, Typography } from 'antd'
 import dayjs from 'dayjs'
 import { ServiceCategoryTabs, ServiceListHeader, ServiceListToolbar, ServiceNameCell } from '../../features/services/components/ServiceListChrome'
 import { getServiceErrorMessage, useAdjustStock } from '../../features/services/hooks/useServiceMutations'
 import { useInventoryHistory, useServices } from '../../features/services/hooks/useServices'
 import '../../features/services/styles/serviceManagement.css'
+import '../../features/shared/styles/adminActions.css'
+import '../../features/shared/styles/serviceMobileCards.css'
 
 function RetryEmpty({ description, onRetry }) {
   return <Empty description={description}><Button icon={<ReloadOutlined />} onClick={onRetry}>Thử lại</Button></Empty>
@@ -14,6 +16,25 @@ function RetryEmpty({ description, onRetry }) {
 function formatUtcDate(value) {
   if (!value) return '-'
   return `${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(value))} UTC`
+}
+
+function InventoryMobileCards({ services, disabled, onAdjust, onHistory }) {
+  return <div className="inventory-mobile-list">{services.map((service) => {
+    const stockTracked = service.stockQuantity != null
+    return <article className="inventory-mobile-card" key={service.id}>
+      <ServiceNameCell name={service.name} type={service.type} />
+      <dl className="service-mobile-card-details">
+        <div><dt>Tồn hiện tại</dt><dd className="service-number-cell">{service.stockQuantity ?? 'Không theo dõi'}</dd></div>
+        <div><dt>Trạng thái</dt><dd><Tag color={service.isActive ? 'success' : 'error'}>{service.isActive ? 'Hoạt động' : 'Tạm dừng'}</Tag></dd></div>
+      </dl>
+      <div className="admin-action-group">
+        <Tooltip title={stockTracked ? undefined : 'Dịch vụ này không theo dõi tồn kho'}>
+          <Button className="admin-action-button admin-action-button--primary" icon={<EditOutlined />} disabled={!stockTracked || disabled} aria-label={`Điều chỉnh tồn kho ${service.name}`} onClick={() => onAdjust(service)}>Điều chỉnh tồn kho</Button>
+        </Tooltip>
+        <Button className="admin-action-button admin-action-button--view" icon={<HistoryOutlined />} disabled={disabled} aria-label={`Lịch sử tồn kho ${service.name}`} onClick={() => onHistory(service)}>Lịch sử</Button>
+      </div>
+    </article>
+  })}</div>
 }
 
 export default function InventoryPage() {
@@ -90,7 +111,7 @@ export default function InventoryPage() {
     {
       title: 'Thao tác', key: 'action', align: 'right', render: (_, service) => {
         const stockTracked = service.stockQuantity != null
-        return <div className="inventory-row-actions"><Tooltip title={stockTracked ? undefined : 'Dịch vụ này không theo dõi tồn kho'}><Button type="text" disabled={!stockTracked || isAdjusting} aria-label={`Điều chỉnh tồn kho ${service.name}`} onClick={() => chooseForAdjustment(service)}>Điều chỉnh tồn kho</Button></Tooltip><Button type="text" icon={<HistoryOutlined />} disabled={isAdjusting} aria-label={`Lịch sử tồn kho ${service.name}`} onClick={() => openHistory(service)}>Lịch sử</Button></div>
+        return <div className="admin-action-group inventory-row-actions"><Tooltip title={stockTracked ? undefined : 'Dịch vụ này không theo dõi tồn kho'}><Button className="admin-action-button admin-action-button--primary" icon={<EditOutlined />} disabled={!stockTracked || isAdjusting} aria-label={`Điều chỉnh tồn kho ${service.name}`} onClick={() => chooseForAdjustment(service)}>Điều chỉnh tồn kho</Button></Tooltip><Button className="admin-action-button admin-action-button--view" icon={<HistoryOutlined />} disabled={isAdjusting} aria-label={`Lịch sử tồn kho ${service.name}`} onClick={() => openHistory(service)}>Lịch sử</Button></div>
       },
     },
   ]
@@ -109,7 +130,10 @@ export default function InventoryPage() {
       <section className="service-list-table" aria-label="Danh sách tồn kho">
         {servicesQuery.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
         {servicesQuery.isError && <RetryEmpty description="Không thể tải danh mục tồn kho." onRetry={servicesQuery.refetch} />}
-        {!servicesQuery.isLoading && !servicesQuery.isError && <Table rowKey="id" columns={serviceColumns} dataSource={servicesQuery.data?.items || []} pagination={false} scroll={{ x: true }} locale={{ emptyText: 'Không tìm thấy dịch vụ phù hợp.' }} />}
+        {!servicesQuery.isLoading && !servicesQuery.isError && <>
+          <Table className="inventory-desktop-table" rowKey="id" columns={serviceColumns} dataSource={servicesQuery.data?.items || []} pagination={false} scroll={{ x: true }} locale={{ emptyText: 'Không tìm thấy dịch vụ phù hợp.' }} />
+          <InventoryMobileCards services={servicesQuery.data?.items || []} disabled={isAdjusting} onAdjust={chooseForAdjustment} onHistory={openHistory} />
+        </>}
         {!servicesQuery.isLoading && !servicesQuery.isError && (servicesQuery.data?.totalCount || 0) > 0 && <div className="admin-management-pagination"><Pagination current={pageIndex} pageSize={pageSize} total={servicesQuery.data.totalCount} disabled={isAdjusting} showSizeChanger pageSizeOptions={['10', '20', '50', '100']} onChange={(page, size) => { setPageIndex(page); setPageSize(size) }} showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} dịch vụ`} /></div>}
       </section>
       <Drawer title={`Lịch sử tồn kho: ${selectedService?.name || ''}`} open={historyOpen} onClose={() => !isAdjusting && setHistoryOpen(false)} closable={!isAdjusting} mask={{ closable: !isAdjusting }} size="large">

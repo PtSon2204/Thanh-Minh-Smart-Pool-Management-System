@@ -645,13 +645,13 @@ export default function OfflineSalesPage() {
           <Divider style={{ margin: '12px 0', borderColor: '#000', borderStyle: 'dashed' }} />
           
           {/* IN THẺ CHO VÉ THÁNG / VÉ LƯỢT */}
-          {soldTickets.filter(t => t.ticketCategory !== 'VE_THUONG').map(t => (
+          {soldTickets.map(t => (
             <div key={t.id} style={{ marginBottom: 24, pageBreakInside: 'avoid', border: '2px solid #000', padding: 12, borderRadius: 8 }}>
               {/* MẶT TRƯỚC (Thông tin thẻ) */}
               <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: 8, marginBottom: 8 }}>
                 <h3 style={{ margin: 0, fontSize: 18, textTransform: 'uppercase', color: '#d81b60' }}>THÀNH MINH POOL</h3>
                 <h2 style={{ margin: '4px 0', fontSize: 20, backgroundColor: '#d81b60', color: 'black', padding: '4px 0', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                  {t.ticketCategory === 'VE_THANG' ? 'THẺ VÉ THÁNG' : 'THẺ VÉ LƯỢT'}
+                  {t.ticketCategory === 'VE_THANG' ? 'THẺ VÉ THÁNG' : t.ticketCategory === 'VE_LUOT' ? 'THẺ VÉ LƯỢT' : t.ticketCategory}
                 </h2>
                 <div style={{ textAlign: 'left', fontSize: 13, marginTop: 8 }}>
                   <p style={{ margin: '4px 0' }}><strong>Khách hàng:</strong> {soldOrder?.customerName || '....................'}</p>

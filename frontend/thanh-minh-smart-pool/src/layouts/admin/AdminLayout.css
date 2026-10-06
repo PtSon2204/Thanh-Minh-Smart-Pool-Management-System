@@ -43,6 +43,11 @@
   color: #fff !important;
 }
 
+.admin-sidebar.ant-layout-sider-collapsed .ant-menu-title-content {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .admin-logo {
   color: #fff !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;

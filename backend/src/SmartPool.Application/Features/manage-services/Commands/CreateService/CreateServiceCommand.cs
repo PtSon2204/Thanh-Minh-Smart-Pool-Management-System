@@ -8,6 +8,6 @@ namespace SmartPool.Application.Features.ManageServices.Commands.CreateService
         public string Type { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public int? StockQuantity { get; set; }
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

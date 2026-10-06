@@ -1,6 +1,8 @@
-using System.Security.Claims;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
+using SmartPool.API.Extensions;
 using SmartPool.Application.Features.AccessControlPool.Contracts;
 using SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry;
 using SmartPool.Application.Features.AccessControlPool.Queries.GetDailyEntrySummary;
@@ -11,6 +13,7 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/pool-access")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class PoolAccessController : ControllerBase
     {
         private readonly ISender _sender;
@@ -70,7 +73,7 @@ namespace SmartPool.API.Controllers
 
         private Guid? GetOperatorId()
         {
-            return Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var operatorId)
+            return User.TryGetUserId(out var operatorId)
                 ? operatorId
                 : null;
         }

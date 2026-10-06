@@ -19,6 +19,8 @@ namespace SmartPool.Application
         {
             var assembly = Assembly.GetExecutingAssembly();
 
+            services.AddSingleton<TimeProvider>(TimeProvider.System);
+
             // MediatR — tự scan toàn bộ Handlers trong Assembly này
             // Mỗi thành viên chỉ cần tạo Handler class, không cần đăng ký thủ công
             services.AddMediatR(cfg =>

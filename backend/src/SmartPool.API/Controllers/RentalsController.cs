@@ -1,17 +1,22 @@
-using System.Security.Claims;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
+using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
+using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
+using SmartPool.Application.Features.ManageServices.Queries.GetRentalDetails;
 
 namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/rentals")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class RentalsController : ControllerBase
     {
         private readonly ISender _sender;
@@ -27,6 +32,15 @@ namespace SmartPool.API.Controllers
         public async Task<IActionResult> GetRentals([FromQuery] GetRentalsQuery query, CancellationToken cancellationToken)
         {
             return await SendAsync(query, cancellationToken);
+        }
+
+        /// <summary>Đọc đầy đủ các lượt thuê của một sản phẩm trong đơn hàng.</summary>
+        [HttpGet("orders/{orderId:guid}/products/{productId:guid}")]
+        [ProducesResponseType(typeof(GetRentalDetailsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetRentalDetails(Guid orderId, Guid productId, CancellationToken cancellationToken)
+        {
+            return await SendAsync(new GetRentalDetailsQuery { OrderId = orderId, ProductId = productId }, cancellationToken);
         }
 
         /// <summary>Tạo đơn thuê và trừ tồn kho theo giao dịch nguyên tử.</summary>
@@ -72,9 +86,29 @@ namespace SmartPool.API.Controllers
             return await SendAsync(new ReturnRentalCommand { RentalId = rentalId, OperatorId = operatorId }, cancellationToken);
         }
 
+        /// <summary>Trả một số lượng lượt thuê đã chọn theo giao dịch nguyên tử.</summary>
+        [HttpPost("orders/{orderId:guid}/products/{productId:guid}/returns")]
+        [ProducesResponseType(typeof(ReturnRentalQuantityResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ReturnQuantity(
+            Guid orderId,
+            Guid productId,
+            [FromBody] ReturnRentalQuantityCommand command,
+            CancellationToken cancellationToken)
+        {
+            if (!TryGetOperatorId(out var operatorId))
+            {
+                return Forbid();
+            }
+
+            command.OrderId = orderId;
+            command.ProductId = productId;
+            command.OperatorId = operatorId;
+            return await SendAsync(command, cancellationToken);
+        }
+
         private bool TryGetOperatorId(out Guid operatorId)
         {
-            return Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out operatorId);
+            return User.TryGetUserId(out operatorId);
         }
 
         private async Task<IActionResult> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)
