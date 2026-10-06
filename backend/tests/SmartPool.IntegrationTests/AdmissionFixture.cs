@@ -1,8 +1,6 @@
 using AutoMapper;
-using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Npgsql;
 using SmartPool.Application.Features.AccessControlPool.Contracts;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
@@ -39,24 +37,7 @@ internal sealed class AdmissionFixture : IAsyncDisposable
 
     public static async Task<AdmissionFixture> CreateAsync()
     {
-        LoadPrivateDatabaseConfiguration();
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("Integration tests require the private backend database configuration.");
-        }
-
-        var connection = new NpgsqlConnectionStringBuilder(connectionString);
-        if (!string.Equals(connection.Host, "localhost", StringComparison.OrdinalIgnoreCase)
-            || connection.Port != 5432
-            || !string.Equals(connection.Database, "smartpool_dev", StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Integration test database guard rejected the configured target.");
-        }
-
-        var options = new DbContextOptionsBuilder<SmartPoolDbContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        var options = await IntegrationTestDatabase.CreateOptionsAsync();
         var fixture = new AdmissionFixture(options) { Context = new SmartPoolDbContext(options) };
         try
         {
@@ -214,23 +195,6 @@ internal sealed class AdmissionFixture : IAsyncDisposable
         IsDeleted = false
     };
 
-    private static void LoadPrivateDatabaseConfiguration()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "src", "SmartPool.API", ".env");
-            if (File.Exists(candidate))
-            {
-                Env.Load(candidate);
-                return;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Private backend .env configuration is unavailable.");
-    }
 }
 
 internal sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider

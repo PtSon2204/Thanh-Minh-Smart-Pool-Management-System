@@ -1,8 +1,6 @@
 using AutoMapper;
-using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Npgsql;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Mapping;
 using SmartPool.Domain.Entities;
@@ -50,22 +48,7 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
 
     public static async Task<StaffEmploymentFixture> CreateAsync()
     {
-        var configuredPath = Environment.GetEnvironmentVariable("SMARTPOOL_TEST_ENV_PATH");
-        if (string.IsNullOrWhiteSpace(configuredPath) || !File.Exists(configuredPath))
-            throw new InvalidOperationException("SMARTPOOL_TEST_ENV_PATH must identify the private backend configuration.");
-
-        Env.Load(configuredPath);
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
-        if (string.IsNullOrWhiteSpace(connectionString))
-            throw new InvalidOperationException("Private database configuration is unavailable.");
-
-        var connection = new NpgsqlConnectionStringBuilder(connectionString);
-        if (!string.Equals(connection.Host, "localhost", StringComparison.OrdinalIgnoreCase)
-            || connection.Port != 5432
-            || !string.Equals(connection.Database, "smartpool_dev", StringComparison.Ordinal))
-            throw new InvalidOperationException("Staff integration database guard rejected the target.");
-
-        var options = new DbContextOptionsBuilder<SmartPoolDbContext>().UseNpgsql(connectionString).Options;
+        var options = await IntegrationTestDatabase.CreateOptionsAsync();
         await using var setupContext = new SmartPoolDbContext(options);
         var roles = await setupContext.Roles.AsNoTracking()
             .Where(role => role.IsDeleted != true)

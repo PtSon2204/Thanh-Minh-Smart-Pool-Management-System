@@ -1,8 +1,6 @@
 using AutoMapper;
-using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Npgsql;
 using System.Text.Json;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
@@ -510,17 +508,7 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
 
     public static async Task<RentalReturnFixture> CreateAsync(int rentalCount, int stockQuantity)
     {
-        var envPath = FindPrivateEnvPath();
-        Env.Load(envPath);
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
-        if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Private database configuration is unavailable.");
-        var connection = new NpgsqlConnectionStringBuilder(connectionString);
-        if (!string.Equals(connection.Host, "localhost", StringComparison.OrdinalIgnoreCase)
-            || connection.Port != 5432
-            || !string.Equals(connection.Database, "smartpool_dev", StringComparison.Ordinal))
-            throw new InvalidOperationException("Rental integration database guard rejected the target.");
-
-        var options = new DbContextOptionsBuilder<SmartPoolDbContext>().UseNpgsql(connectionString).Options;
+        var options = await IntegrationTestDatabase.CreateOptionsAsync();
         await using var context = new SmartPoolDbContext(options);
         var operatorId = await context.Users.AsNoTracking().Select(user => user.Id).FirstOrDefaultAsync();
         if (operatorId == Guid.Empty) throw new InvalidOperationException("Guarded database requires an existing operator foreign key.");
@@ -652,22 +640,4 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
         await _context.DisposeAsync();
     }
 
-    private static string FindPrivateEnvPath()
-    {
-        var configuredPath = Environment.GetEnvironmentVariable("SMARTPOOL_TEST_ENV_PATH");
-        if (!string.IsNullOrWhiteSpace(configuredPath) && File.Exists(configuredPath)) return configuredPath;
-
-        foreach (var start in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
-        {
-            var directory = new DirectoryInfo(start);
-            while (directory is not null)
-            {
-                var candidate = Path.Combine(directory.FullName, "src", "SmartPool.API", ".env");
-                if (File.Exists(candidate)) return candidate;
-                directory = directory.Parent;
-            }
-        }
-
-        throw new InvalidOperationException("Private backend configuration is unavailable.");
-    }
 }
