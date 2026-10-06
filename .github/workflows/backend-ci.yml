@@ -2,34 +2,53 @@ name: Backend CI
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'backend/**'
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
     paths:
-      - 'backend/**'
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: smartpool_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d smartpool_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=smartpool_test;Username=postgres;Password=postgres
+      SMARTPOOL_TEST_BOOTSTRAP: "true"
     defaults:
       run:
         working-directory: ./backend
 
     steps:
-    - uses: actions/checkout@v3
-    
+      - uses: actions/checkout@v3
+
     - name: Setup .NET 8
-      uses: actions/setup-dotnet@v3
-      with:
+        uses: actions/setup-dotnet@v3
+        with:
         dotnet-version: '8.0.x'
-        
-    - name: Restore dependencies
-      run: dotnet restore SmartPoolManagementSystem.sln
-      
-    - name: Build
-      run: dotnet build SmartPoolManagementSystem.sln --no-restore
-      
-    - name: Test
-      run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal
+
+      - name: Restore dependencies
+        run: dotnet restore SmartPoolManagementSystem.sln
+
+      - name: Build
+        run: dotnet build SmartPoolManagementSystem.sln --no-restore
+
+      - name: Test
+        run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal
