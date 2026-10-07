@@ -33,6 +33,17 @@ export function useUpdateService() {
   })
 }
 
+export function useSetServiceStatus() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, isActive }) => serviceService.setStatus(id, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY })
+    },
+  })
+}
+
 export function useAdjustStock() {
   const queryClient = useQueryClient()
 

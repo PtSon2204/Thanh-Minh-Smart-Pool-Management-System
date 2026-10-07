@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.UpdateService;
+using SmartPool.Application.Features.ManageServices.Commands.SetServiceStatus;
 using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories
@@ -26,11 +27,24 @@ public sealed partial class ServiceOperations
         product.Name = command.Name.Trim();
         product.Type = command.Type;
         product.Price = command.Price;
-        product.IsActive = command.IsActive;
         product.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return _mapper.Map<UpdateServiceResponse>(product);
+    }
+
+    public async Task<SetServiceStatusResponse> SetServiceStatusAsync(SetServiceStatusCommand command, CancellationToken cancellationToken)
+    {
+        var updatedAt = DateTime.UtcNow;
+        var changed = await _context.Products
+            .Where(product => product.Id == command.Id && product.IsDeleted != true)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(product => product.IsActive, (bool?)command.IsActive)
+                .SetProperty(product => product.UpdatedAt, (DateTime?)updatedAt), cancellationToken);
+
+        if (changed == 0) throw new KeyNotFoundException("Không tìm thấy dịch vụ.");
+
+        return new SetServiceStatusResponse { Id = command.Id, IsActive = command.IsActive, UpdatedAt = updatedAt };
     }
 }
 }

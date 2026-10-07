@@ -4,6 +4,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
 using Microsoft.Extensions.Caching.Memory;
+using SmartPool.Application.Common.Time;
 
 namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPendingOrder
 {
@@ -16,6 +17,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
         private readonly IRepository<Domain.Entities.Ticket> _ticketRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMemoryCache _memoryCache;
+        private readonly TimeProvider _timeProvider;
 
         public ConfirmPendingOrderHandler(
             IRepository<Domain.Entities.TicketType> ticketTypeRepo,
@@ -24,7 +26,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             IRepository<Domain.Entities.Payment> paymentRepo,
             IRepository<Domain.Entities.Ticket> ticketRepo,
             IUnitOfWork unitOfWork,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            TimeProvider timeProvider)
         {
             _ticketTypeRepo = ticketTypeRepo;
             _orderRepo = orderRepo;
@@ -33,6 +36,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             _ticketRepo = ticketRepo;
             _unitOfWork = unitOfWork;
             _memoryCache = memoryCache;
+            _timeProvider = timeProvider;
         }
 
         public async Task<ConfirmPendingOrderResponse> Handle(ConfirmPendingOrderCommand request, CancellationToken cancellationToken)
@@ -84,7 +88,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
             var orderDetails = await _orderDetailRepo.FindAsync(od => od.OrderId == order.Id, cancellationToken);
             
-            DateTime issueDate = DateTime.UtcNow;
+            DateTime issueDate = _timeProvider.GetUtcNow().UtcDateTime;
             if (_memoryCache.TryGetValue($"OrderStartDate_{order.Id}", out DateTime cachedStartDate))
             {
                 issueDate = cachedStartDate.ToUniversalTime();
@@ -97,10 +101,10 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
                 for (int i = 0; i < detail.Quantity; i++)
                 {
-                    // VE_LUOT online: hết hạn cuối ngày phát hành (23:59:59 UTC)
+                    // VE_LUOT online: exclusive end of the effective Vietnam issue date.
                     // VE_THANG: hết hạn sau DurationDays tính từ ngày bắt đầu
                     DateTime expiryDate = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString()
-                        ? issueDate.Date.AddDays(1).AddTicks(-1)
+                        ? VietnamTimeBoundary.GetNextUtcDayBoundary(issueDate)
                         : issueDate.AddDays(ticketType.DurationDays ?? 30);
 
                     var ticket = new Domain.Entities.Ticket

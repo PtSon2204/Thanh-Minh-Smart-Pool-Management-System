@@ -1,0 +1,78 @@
+.admin-action-group {
+  --action-success-text: #237804;
+  --action-warning-text: #ad6800;
+  --action-danger-text: #cf1322;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.admin-action-group .ant-btn.admin-action-button {
+  align-items: center;
+  border-radius: var(--list-radius);
+  display: inline-flex;
+  font-weight: 600;
+  gap: var(--space-1);
+  height: 36px;
+  justify-content: center;
+  padding-inline: var(--space-3);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  white-space: nowrap;
+}
+
+.admin-action-group .ant-btn.admin-action-button--view,
+.admin-action-group .ant-btn.admin-action-button--edit,
+.admin-action-group .ant-btn.admin-action-button--primary {
+  background: color-mix(in srgb, var(--primary) 9%, white);
+  border-color: color-mix(in srgb, var(--primary) 24%, white);
+  color: var(--primary-dark);
+}
+
+.admin-action-group .ant-btn.admin-action-button--positive {
+  background: color-mix(in srgb, var(--status-success) 12%, white);
+  border-color: color-mix(in srgb, var(--status-success) 28%, white);
+  color: var(--action-success-text);
+}
+
+.admin-action-group .ant-btn.admin-action-button--warning {
+  background: color-mix(in srgb, var(--accent) 12%, white);
+  border-color: color-mix(in srgb, var(--accent) 30%, white);
+  color: var(--action-warning-text);
+}
+
+.admin-action-group .ant-btn.admin-action-button--danger {
+  background: color-mix(in srgb, var(--status-error) 10%, white);
+  border-color: color-mix(in srgb, var(--status-error) 25%, white);
+  color: var(--action-danger-text);
+}
+
+.admin-action-group .ant-btn.admin-action-button:not(:disabled):hover {
+  filter: saturate(1.12);
+  transform: translateY(-1px);
+}
+
+.admin-action-group .ant-btn.admin-action-button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.admin-action-group .ant-btn.admin-action-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.admin-action-group .ant-btn.admin-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-action-group .ant-btn.admin-action-button {
+    transition: none;
+  }
+
+  .admin-action-group .ant-btn.admin-action-button:not(:disabled):hover,
+  .admin-action-group .ant-btn.admin-action-button:not(:disabled):active {
+    transform: none;
+  }
+}

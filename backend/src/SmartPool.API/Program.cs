@@ -32,6 +32,7 @@ namespace SmartPool.API
 
             builder.Services.AddApplicationServices(builder.Configuration);     // Application/DependencyInjection.cs
             builder.Services.AddInfrastructureServices(builder.Configuration);  // Infrastructure/DependencyInjection.cs
+            builder.Services.AddApiAuthorization();
 
             // API layer services
             builder.Services.AddControllers();

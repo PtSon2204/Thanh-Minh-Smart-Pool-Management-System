@@ -9,5 +9,6 @@ namespace SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs
         public int PageSize { get; set; } = 20;
         public string? SearchTerm { get; set; }
         public string? Status { get; set; }
+        public string? RoleName { get; set; }
     }
 }

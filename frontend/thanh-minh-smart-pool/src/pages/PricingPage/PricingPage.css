@@ -31,7 +31,7 @@
 
 /* ---- Body container ---- */
 .pl-body {
-  max-width: 960px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 16px 64px;
 }
@@ -123,9 +123,9 @@
 
 /* ---- Card list ---- */
 .pl-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
 }
 
 /* ---- Skeleton ---- */
@@ -197,17 +197,18 @@
   position: relative;
   z-index: 1;
   display: flex;
+  flex-direction: column;
   width: 100%;
   background: #fff;
-  border-radius: 16px; /* slightly smaller than outer radius */
-  overflow: hidden; /* clip the image to the inner radius */
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 /* ---- Card image ---- */
 .pl-card-img {
   position: relative;
-  flex-shrink: 0;
-  width: 280px;
+  width: 100%;
+  height: 220px;
 }
 .pl-card-img img {
   width: 100%;

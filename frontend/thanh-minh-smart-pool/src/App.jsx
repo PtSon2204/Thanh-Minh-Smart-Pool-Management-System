@@ -1,20 +1,24 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
-import HomePage from './pages/HomePage'
-import AboutPage from './pages/AboutPage'
-import PricingPage from './pages/PricingPage'
-import ContactPage from './pages/ContactPage'
-import NotFoundPage from './pages/NotFoundPage'
-import AuthPage from './pages/AuthPage'
+import HomePage from './pages/HomePage/HomePage'
+import AboutPage from './pages/AboutPage/AboutPage'
+import PricingPage from './pages/PricingPage/PricingPage'
+import ContactPage from './pages/ContactPage/ContactPage'
+import NotFoundPage from './pages/NotFoundPage/NotFoundPage'
+import AuthPage from './pages/AuthPage/AuthPage'
+import ProfilePage from './pages/ProfilePage/ProfilePage'
+import MyCardPage from './pages/MyCardPage/MyCardPage'
 import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
 import TicketTypePage from './pages/admin/TicketTypePage'
 import ServicePage from './pages/admin/ServicePage'
 import InventoryPage from './pages/admin/InventoryPage'
+import RentalPage from './pages/admin/RentalPage'
 import VoucherPage from './pages/admin/VoucherPage'
 import NotificationPage from './pages/admin/NotificationPage'
 import CustomerStatisticsPage from './pages/admin/statistics/CustomerStatisticsPage'
+import StaffProfilesPage from './pages/admin/StaffProfilesPage'
 
 import { ConfigProvider } from 'antd'
 
@@ -35,6 +39,8 @@ function App() {
             <Route path="/gioi-thieu" element={<AboutPage />} />
             <Route path="/bang-gia" element={<PricingPage />} />
             <Route path="/lien-he" element={<ContactPage />} />
+            <Route path="/ho-so" element={<ProfilePage />} />
+            <Route path="/the-cua-toi" element={<MyCardPage />} />
             {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
@@ -50,9 +56,11 @@ function App() {
             <Route path="tickets/types" element={<TicketTypePage />} />
             <Route path="services" element={<ServicePage />} />
             <Route path="inventory" element={<InventoryPage />} />
+            <Route path="rentals" element={<RentalPage />} />
             <Route path="coupons" element={<VoucherPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="statistics/user-count" element={<CustomerStatisticsPage />} />
+            <Route path="staff/profiles" element={<StaffProfilesPage />} />
             {/* Future admin routes go here */}
           </Route>
         </Routes>

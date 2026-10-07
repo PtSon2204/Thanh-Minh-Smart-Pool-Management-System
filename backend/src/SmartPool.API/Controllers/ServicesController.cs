@@ -1,11 +1,14 @@
-using System.Security.Claims;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
+using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.AdjustStock;
 using SmartPool.Application.Features.ManageServices.Commands.CreateService;
+using SmartPool.Application.Features.ManageServices.Commands.SetServiceStatus;
 using SmartPool.Application.Features.ManageServices.Commands.UpdateService;
 using SmartPool.Application.Features.ManageServices.Queries.GetInventoryHistory;
 using SmartPool.Application.Features.ManageServices.Queries.GetServices;
@@ -14,6 +17,7 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/services")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class ServicesController : ControllerBase
     {
         private readonly ISender _sender;
@@ -33,6 +37,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo mới dịch vụ.</summary>
         [HttpPost]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
         [ProducesResponseType(typeof(CreateServiceResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateService([FromBody] CreateServiceCommand command, CancellationToken cancellationToken)
         {
@@ -49,8 +54,19 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật thông tin dịch vụ, không thay đổi tồn kho.</summary>
         [HttpPut("{serviceId:guid}")]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
         [ProducesResponseType(typeof(UpdateServiceResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateService(Guid serviceId, [FromBody] UpdateServiceCommand command, CancellationToken cancellationToken)
+        {
+            command.Id = serviceId;
+            return await SendAsync(command, cancellationToken);
+        }
+
+        /// <summary>Thay đổi riêng trạng thái hoạt động của dịch vụ.</summary>
+        [HttpPatch("{serviceId:guid}/status")]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [ProducesResponseType(typeof(SetServiceStatusResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> SetServiceStatus(Guid serviceId, [FromBody] SetServiceStatusCommand command, CancellationToken cancellationToken)
         {
             command.Id = serviceId;
             return await SendAsync(command, cancellationToken);
@@ -82,7 +98,7 @@ namespace SmartPool.API.Controllers
 
         private bool TryGetOperatorId(out Guid operatorId)
         {
-            return Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out operatorId);
+            return User.TryGetUserId(out operatorId);
         }
 
         private async Task<IActionResult> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)

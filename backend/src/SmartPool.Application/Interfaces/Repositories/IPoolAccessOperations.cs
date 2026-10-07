@@ -9,7 +9,7 @@ namespace SmartPool.Application.Interfaces.Repositories
 
 public interface IPoolAccessOperations
 {
-    Task<LookupTicketResponse> LookupAsync(string code, DateTime utcNow, CancellationToken cancellationToken);
+    Task<LookupTicketResponse> LookupAsync(string code, CancellationToken cancellationToken);
 
     Task<ConfirmEntryResponse> ConfirmAsync(
         string code,

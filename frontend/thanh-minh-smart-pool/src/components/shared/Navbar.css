@@ -263,3 +263,11 @@ nav .voltage-button.btn-login .v-btn:hover {
   .navbar-cta { display: none; }
   .navbar-top .container { flex-direction: column; gap: 4px; }
 }
+
+.user-dropdown-trigger:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+.navbar-scrolled .user-dropdown-trigger:hover {
+  background: #e6e8eb !important;
+}
+
