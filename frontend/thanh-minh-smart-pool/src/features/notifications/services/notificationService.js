@@ -22,4 +22,23 @@ export const notificationService = {
    */
   createNotification: (data) =>
     apiClient.post(BASE, data).then((res) => res.data),
+
+  /**
+   * Gửi email thông báo tự động tới khách hàng
+   * @param {Object} data - { toEmail, recipientName, subject, templateType, content, metadata }
+   */
+  sendEmailNotification: (data) =>
+    apiClient.post(`${BASE}/email/send`, data).then((res) => res.data),
+
+  /**
+   * Xem trước nội dung HTML mẫu email
+   */
+  previewEmail: (data) =>
+    apiClient.post(`${BASE}/email/preview`, data, { responseType: 'text' }).then((res) => res.data),
+
+  /**
+   * Lấy lịch sử email đã gửi
+   */
+  getEmailHistory: (limit = 50) =>
+    apiClient.get(`${BASE}/email/history`, { params: { limit } }).then((res) => res.data),
 };

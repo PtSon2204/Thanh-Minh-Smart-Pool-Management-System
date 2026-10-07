@@ -17,6 +17,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
 
+    optimizeDeps: {
+      noDiscovery: true,
+      include: ['cookie'],
+    },
+
     // Dev Server
     server: {
       port: 5173,
@@ -41,6 +46,25 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,             // Bật proxy cho WebSocket (SignalR cần)
+        },
+      },
+    },
+
+    // Preview
+    preview: {
+      port: 5173,
+      proxy: {
+        '/api': {
+          target: backendUrl,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path,
+        },
+        '/hubs': {
+          target: signalrUrl,
+          changeOrigin: true,
+          secure: false,
+          ws: true,
         },
       },
     },

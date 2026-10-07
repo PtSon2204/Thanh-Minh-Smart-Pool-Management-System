@@ -52,4 +52,30 @@ public sealed class NotificationsController : ControllerBase
         var id = await _sender.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetNotifications), new { id }, new { id });
     }
+
+    /// <summary>Gửi email thông báo tự động tới khách hàng.</summary>
+    [HttpPost("email/send")]
+    [ProducesResponseType(typeof(SmartPool.Application.Features.Notifications.Commands.SendEmailNotification.SendEmailResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SendEmail([FromBody] SmartPool.Application.Features.Notifications.Commands.SendEmailNotification.SendEmailNotificationCommand command, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(command, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Xem trước nội dung HTML của mẫu email.</summary>
+    [HttpPost("email/preview")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewEmail([FromBody] SmartPool.Application.Features.Notifications.Queries.PreviewEmail.PreviewEmailQuery query, CancellationToken cancellationToken)
+    {
+        var html = await _sender.Send(query, cancellationToken);
+        return Content(html, "text/html; charset=utf-8");
+    }
+
+    /// <summary>Lấy danh sách lịch sử các email đã gửi.</summary>
+    [HttpGet("email/history")]
+    public async Task<IActionResult> GetEmailHistory([FromQuery] int limit = 50, CancellationToken cancellationToken = default)
+    {
+        var history = await _sender.Send(new SmartPool.Application.Features.Notifications.Queries.GetEmailHistory.GetEmailHistoryQuery(limit), cancellationToken);
+        return Ok(history);
+    }
 }
