@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Row, Col, Statistic, Radio, Button, Table, Tag, Typography,
-  Space, Spin, message as antMessage, Tooltip
+  Space, Spin, message as antMessage
 } from 'antd';
 import {
   UserOutlined, UserAddOutlined, IdcardOutlined, CheckCircleOutlined,
@@ -35,8 +35,22 @@ export default function CustomerStatisticsPage() {
   }, [period]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    let ignore = false;
+    reportService.getCustomerStatistics({ period })
+      .then((res) => {
+        if (!ignore) setData(res);
+      })
+      .catch(() => {
+        if (!ignore) antMessage.error('Không thể tải dữ liệu thống kê khách hàng.');
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [period]);
 
   const topColumns = [
     {
