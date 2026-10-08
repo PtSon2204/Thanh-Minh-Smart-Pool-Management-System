@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
+using SmartPool.Infrastructure.Persistence.DbContext;
 using System.Security.Claims;
 using System.Text;
 
@@ -14,9 +16,11 @@ public sealed class AccessTokenService : IAccessTokenService
     private readonly string _audience;
     private readonly int _expirationMinutes;
     private readonly SigningCredentials _signingCredentials;
+    private readonly SmartPoolDbContext _context;
 
-    public AccessTokenService(IConfiguration configuration)
+    public AccessTokenService(IConfiguration configuration, SmartPoolDbContext context)
     {
+        _context = context;
         var secret = configuration["JwtSettings:SecretKey"];
         if (string.IsNullOrWhiteSpace(secret) || Encoding.UTF8.GetByteCount(secret) < 32)
             throw new InvalidOperationException("JwtSettings:SecretKey must contain at least 32 UTF-8 bytes.");
@@ -60,5 +64,17 @@ public sealed class AccessTokenService : IAccessTokenService
             SigningCredentials = _signingCredentials
         };
         return new AccessTokenResult(new JsonWebTokenHandler().CreateToken(descriptor), expiresAtUtc);
+    }
+
+    public Task<bool> IsCurrentAsync(Guid userId, string tokenRole, CancellationToken cancellationToken)
+    {
+        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(tokenRole))
+            return Task.FromResult(false);
+
+        return _context.Users.AsNoTracking().AnyAsync(user =>
+            user.Id == userId && user.IsDeleted != true &&
+            user.Status != null && EF.Functions.ILike(user.Status, "ACTIVE") &&
+            user.Role != null && user.Role.IsDeleted != true &&
+            EF.Functions.ILike(user.Role.Name, tokenRole), cancellationToken);
     }
 }

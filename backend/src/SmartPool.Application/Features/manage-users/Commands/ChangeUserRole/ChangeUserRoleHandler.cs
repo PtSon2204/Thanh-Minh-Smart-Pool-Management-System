@@ -64,10 +64,7 @@ public sealed class ChangeUserRoleHandler : IRequestHandler<ChangeUserRoleComman
         }
     }
 
-    public sealed class RoleChangeConflictException : Exception
-    {
-        public RoleChangeConflictException(string message) : base(message) { }
-    }
-
-    public sealed class RoleChangeForbiddenException : Exception { }
 }
+
+public sealed class RoleChangeConflictException(string message) : Exception(message);
+public sealed class RoleChangeForbiddenException : Exception { }

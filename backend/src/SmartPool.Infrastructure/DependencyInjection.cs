@@ -12,6 +12,7 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
+using System.Security.Claims;
 using System.Text;
 
 
@@ -67,6 +68,23 @@ namespace SmartPool.Infrastructure
                             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                                 context.Token = accessToken;
                             return Task.CompletedTask;
+                        },
+                        OnTokenValidated = async context =>
+                        {
+                            var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                            var tokenRole = context.Principal?.FindFirstValue(ClaimTypes.Role);
+                            if (!Guid.TryParse(userIdValue, out var userId) || userId == Guid.Empty ||
+                                string.IsNullOrWhiteSpace(tokenRole))
+                            {
+                                context.Fail("Token identity is invalid.");
+                                return;
+                            }
+
+                            var validator = context.HttpContext.RequestServices
+                                .GetRequiredService<IAccessTokenService>();
+                            if (!await validator.IsCurrentAsync(userId, tokenRole,
+                                context.HttpContext.RequestAborted))
+                                context.Fail("Account role or status changed.");
                         }
                     };
                 });
@@ -94,7 +112,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IPasswordHasher, PasswordHasherService>();
 
             // Access token generation for login
-            services.AddSingleton<IAccessTokenService, AccessTokenService>();
+            services.AddScoped<IAccessTokenService, AccessTokenService>();
 
             // Identity of the authenticated caller in the current HTTP request
             services.AddHttpContextAccessor();
@@ -109,6 +127,7 @@ namespace SmartPool.Infrastructure
 
             // Repository & Unit of Work
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            services.AddScoped<IUserOperations, UserOperations>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
