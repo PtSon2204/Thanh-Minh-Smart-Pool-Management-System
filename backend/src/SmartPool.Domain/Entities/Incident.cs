@@ -16,6 +16,8 @@ public partial class Incident
     public Guid? ReportedBy { get; set; }
 
     public DateTime? IncidentTime { get; set; }
+    //sonpt thêm field image_incident - 10/10/2026
+    public string? ImageIncidents { get; set; }
 
     public string? Status { get; set; }
 
