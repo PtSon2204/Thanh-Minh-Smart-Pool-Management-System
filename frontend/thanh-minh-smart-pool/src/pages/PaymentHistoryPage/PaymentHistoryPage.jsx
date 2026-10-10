@@ -1,5 +1,4 @@
-import React from 'react';
-import { Table, Tag, Button, Space, Typography, Card, Badge } from 'antd';
+import { Table, Button, Space, Typography, Card, Badge } from 'antd';
 import { EyeOutlined, CreditCardOutlined, MoneyCollectOutlined } from '@ant-design/icons';
 import './PaymentHistoryPage.css';
 
@@ -159,7 +158,7 @@ export default function PaymentHistoryPage() {
       key: 'action',
       width: '5%',
       align: 'center',
-      render: (_, record) => (
+      render: () => (
         <Button 
           type="primary" 
           shape="circle"
