@@ -17,6 +17,8 @@ import ServicePage from './pages/admin/ServicePage'
 import InventoryPage from './pages/admin/InventoryPage'
 import RentalPage from './pages/admin/RentalPage'
 import VoucherPage from './pages/admin/VoucherPage'
+import NotificationPage from './pages/admin/NotificationPage'
+import CustomerStatisticsPage from './pages/admin/statistics/CustomerStatisticsPage'
 import StaffProfilesPage from './pages/admin/StaffProfilesPage'
 
 import { ConfigProvider } from 'antd'
@@ -58,6 +60,8 @@ function App() {
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="rentals" element={<RentalPage />} />
             <Route path="coupons" element={<VoucherPage />} />
+            <Route path="notifications" element={<NotificationPage />} />
+            <Route path="statistics/user-count" element={<CustomerStatisticsPage />} />
             <Route path="staff/profiles" element={<StaffProfilesPage />} />
             <Route path="payments/invoices" element={<PaymentHistoryPage />} />
             {/* Future admin routes go here */}
