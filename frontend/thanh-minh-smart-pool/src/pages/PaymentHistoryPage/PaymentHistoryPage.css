@@ -1,0 +1,65 @@
+.payment-history-page {
+  padding: 24px;
+  background-color: transparent;
+  min-height: 100%;
+}
+
+.payment-history-header {
+  margin-bottom: 24px;
+}
+
+.payment-table-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.payment-table-card .ant-table-thead > tr > th {
+  background-color: #f8fafc !important; /* light slate */
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 16px 24px;
+}
+
+.payment-table-card .ant-table-tbody > tr > td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.payment-table-row:hover > td {
+  background-color: #f0f9ff !important; /* sky-50, pool vibe */
+}
+
+/* Custom badge styling for a softer look */
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-success {
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.status-failed {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+/* Fix ant badge dot alignment */
+.status-badge .ant-badge-status-dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+}
+
+.payment-table-card .ant-table-pagination {
+  margin: 16px 24px !important;
+}
+
+.payment-table-card .ant-btn-ghost:hover {
+  background-color: #e0f2fe !important; /* sky-100 */
+}
