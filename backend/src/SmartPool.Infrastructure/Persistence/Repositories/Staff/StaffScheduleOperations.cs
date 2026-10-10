@@ -30,7 +30,10 @@ public sealed partial class StaffOperations
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({request.EmployeeId.ToString()}, 0))", cancellationToken);
-        var employee = await context.Employees.AsNoTracking().FirstOrDefaultAsync(item => item.UserId == request.EmployeeId && item.Status == "Working", cancellationToken);
+        var employee = await context.Employees.AsNoTracking().FirstOrDefaultAsync(item =>
+            item.UserId == request.EmployeeId && item.Status == "Working" &&
+            item.User.IsDeleted != true && item.User.Status != null &&
+            EF.Functions.ILike(item.User.Status, "ACTIVE"), cancellationToken);
         if (employee is null) throw new KeyNotFoundException("Không tìm thấy nhân viên đang làm việc.");
         var shift = await context.Shifts.FirstOrDefaultAsync(item => item.Id == request.ShiftId && item.IsActive == true, cancellationToken);
         if (shift is null) throw new KeyNotFoundException("Không tìm thấy ca làm việc đang hoạt động.");

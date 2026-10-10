@@ -1,6 +1,6 @@
-namespace SmartPool.Application.Features.ManageUsers.Queries.GetUserById;
+namespace SmartPool.Application.Features.ManageUsers.Queries.GetUsers;
 
-public sealed class GetUserByIdResponse
+public sealed class GetUsersResponse
 {
     public Guid Id { get; init; }
     public string? Username { get; init; }
@@ -8,11 +8,8 @@ public sealed class GetUserByIdResponse
     public string? Phone { get; init; }
     public string? FullName { get; init; }
     public string? AvatarUrl { get; init; }
-    public string? Address { get; init; }
-    public DateOnly? DateOfBirth { get; init; }
     public Guid? RoleId { get; init; }
     public string? Role { get; init; }
     public string? Status { get; init; }
     public DateTime? CreatedAt { get; init; }
-    public DateTime? UpdatedAt { get; init; }
 }

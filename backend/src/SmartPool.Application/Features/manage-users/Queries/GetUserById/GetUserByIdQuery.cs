@@ -1,12 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
 
-namespace SmartPool.Application.Features.Users.Queries.GetUserById
+namespace SmartPool.Application.Features.ManageUsers.Queries.GetUserById;
+
+public sealed class GetUserByIdQuery : IRequest<IActionResult>
 {
-    public class GetUserByIdQuery
-    {
-    }
+    public Guid Id { get; init; }
 }
