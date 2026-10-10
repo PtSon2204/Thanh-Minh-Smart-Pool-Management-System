@@ -180,6 +180,7 @@ export default function OfflineSalesPage() {
   const getOrderSummary = () => cart.map(c => `${c.ticketType.name} x${c.quantity}`).join(', ')
 
   const handlePayCash = () => {
+    if (isSellingCash) return;
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
@@ -218,6 +219,7 @@ export default function OfflineSalesPage() {
   }
 
   const handlePayTransfer = () => {
+    if (isCreatingOrder) return;
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,

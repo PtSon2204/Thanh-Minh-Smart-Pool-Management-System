@@ -8,6 +8,7 @@ import NotFoundPage from './pages/NotFoundPage/NotFoundPage'
 import AuthPage from './pages/AuthPage/AuthPage'
 import ProfilePage from './pages/ProfilePage/ProfilePage'
 import MyCardPage from './pages/MyCardPage/MyCardPage'
+import PaymentHistoryPage from './pages/PaymentHistoryPage/PaymentHistoryPage'
 import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
@@ -39,6 +40,7 @@ function App() {
             <Route path="/lien-he" element={<ContactPage />} />
             <Route path="/ho-so" element={<ProfilePage />} />
             <Route path="/the-cua-toi" element={<MyCardPage />} />
+            <Route path="/lich-su-thanh-toan" element={<PaymentHistoryPage />} />
             {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
@@ -57,6 +59,7 @@ function App() {
             <Route path="rentals" element={<RentalPage />} />
             <Route path="coupons" element={<VoucherPage />} />
             <Route path="staff/profiles" element={<StaffProfilesPage />} />
+            <Route path="payments/invoices" element={<PaymentHistoryPage />} />
             {/* Future admin routes go here */}
           </Route>
         </Routes>

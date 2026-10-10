@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Dropdown } from 'antd'
 import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined } from '@ant-design/icons'
@@ -64,13 +64,7 @@ export default function Navbar() {
         danger: true,
         onClick: () => setSession(null)
       },
-      {
-        key: '3',
-        icon: <ShoppingOutlined />,
-        label: 'Lịch sử mua vé',
-        danger: true,
-        onClick: () => setSession(null)
-      },
+      { key: '3', icon: <ShoppingOutlined />, label: 'Lịch sử thanh toán', onClick: () => navigate('/lich-su-thanh-toan') },
       {
         key: '4',
         icon: <LogoutOutlined />,
@@ -156,3 +150,5 @@ export default function Navbar() {
     </nav>
   )
 }
+
+

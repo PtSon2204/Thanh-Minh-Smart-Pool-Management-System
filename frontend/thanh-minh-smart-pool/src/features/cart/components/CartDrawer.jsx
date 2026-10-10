@@ -50,6 +50,7 @@ export default function CartDrawer() {
   const [checkingOut, setCheckingOut] = useState(false)
 
   const handleCheckout = async () => {
+    if (checkingOut) return;
     try {
       setCheckingOut(true)
       const payload = {
