@@ -89,6 +89,7 @@ namespace SmartPool.Infrastructure
 
             // Email — MailKit
             services.AddScoped<IEmailService, EmailService>();
+            services.AddSingleton<IEmailHistoryStore, EmailHistoryStore>();
 
             // Password hashing — ASP.NET Core Identity (salt và hash do PasswordHasher quản lý)
             services.AddScoped<IPasswordHasher, PasswordHasherService>();
