@@ -297,8 +297,13 @@ export default function OfflineSalesPage() {
   const accNo = import.meta.env.VITE_VIETQR_ACCOUNT_NO || '';
   const accName = import.meta.env.VITE_VIETQR_ACCOUNT_NAME || 'PHAM THE SON';
   
+  // Nếu khách chuyển thiếu (PARTIAL), mã QR tự cập nhật theo số tiền còn thiếu (remainingAmount)
+  const currentQrAmount = (orderStatusData?.status === 'PARTIAL' && orderStatusData?.remainingAmount !== undefined)
+    ? orderStatusData.remainingAmount
+    : finalAmount;
+
   const vietQRUrl = transactionRef 
-    ? `https://img.vietqr.io/image/${bankId}-${accNo}-compact2.png?amount=${finalAmount}&addInfo=${transactionRef}&accountName=${encodeURIComponent(accName)}` 
+    ? `https://img.vietqr.io/image/${bankId}-${accNo}-compact2.png?amount=${currentQrAmount}&addInfo=${transactionRef}&accountName=${encodeURIComponent(accName)}` 
     : '';
 
 
@@ -600,6 +605,30 @@ export default function OfflineSalesPage() {
       >
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: 16 }}>Vui lòng yêu cầu khách quét mã bên dưới để thanh toán.</p>
+
+          {/* Cảnh báo chuyển khoản thiếu */}
+          {orderStatusData?.status === 'PARTIAL' && (
+            <div style={{
+              background: '#fff7e6',
+              border: '1px solid #ffa940',
+              borderRadius: 8,
+              padding: '10px 14px',
+              marginBottom: 14,
+              textAlign: 'left'
+            }}>
+              <div style={{ fontWeight: 700, color: '#d46b08', marginBottom: 4 }}>⚠️ Khách chuyển thiếu tiền!</div>
+              <div style={{ fontSize: 13, color: '#555' }}>
+                Đã nhận: <strong>{new Intl.NumberFormat('vi-VN').format(orderStatusData.paidAmount)} đ</strong>
+              </div>
+              <div style={{ fontSize: 13, color: '#555' }}>
+                Còn thiếu: <strong style={{ color: '#f97316' }}>{new Intl.NumberFormat('vi-VN').format(orderStatusData.remainingAmount)} đ</strong>
+              </div>
+              <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                Mã QR bên dưới đã tự cập nhật số tiền còn thiếu để khách quét nốt.
+              </div>
+            </div>
+          )}
+
           <div style={{ background: '#f0f2f5', padding: 16, borderRadius: 12, display: 'inline-block', marginBottom: 16 }}>
             {vietQRUrl ? (
               <img src={vietQRUrl} alt="VietQR" style={{ width: '100%', maxWidth: 300, borderRadius: 8 }} />
@@ -607,11 +636,16 @@ export default function OfflineSalesPage() {
               <Spin size="large" />
             )}
           </div>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 15, display: 'block' }}>
+              Số tiền: <strong style={{ color: '#f97316', fontSize: 16 }}>{new Intl.NumberFormat('vi-VN').format(currentQrAmount)} đ</strong>
+            </span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1890ff', fontSize: 16, fontWeight: 'bold' }}>
             <LoadingOutlined style={{ marginRight: 8 }} /> Đang chờ thanh toán...
           </div>
           <p style={{ color: '#8c8c8c', marginTop: 12, fontSize: 12 }}>
-            Hệ thống sẽ tự động in vé ngay khi nhận được tiền.<br/>Mã đơn hàng: {transactionRef}
+            Hệ thống sẽ tự động in vé ngay khi nhận đủ tiền.<br/>Mã đơn hàng: {transactionRef}
           </p>
         </div>
       </Modal>

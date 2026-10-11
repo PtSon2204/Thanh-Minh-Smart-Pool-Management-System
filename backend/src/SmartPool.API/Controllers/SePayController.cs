@@ -41,7 +41,8 @@ namespace SmartPool.API.Controllers
             var command = new ConfirmPendingOrderCommand 
             { 
                 TransactionRef = transactionRef.ToUpper(),
-                ActualAmount = payload.transferAmount
+                ActualAmount = payload.transferAmount,
+                BankReferenceCode = payload.referenceCode
             };
             
             var result = await _sender.Send(command);

@@ -18,7 +18,8 @@ export default function CartDrawer() {
   // Payment Modal State
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState(null)
-  const [paymentStatus, setPaymentStatus] = useState('pending') // pending | success
+  const [paymentStatus, setPaymentStatus] = useState('pending') // pending | partial | success
+  const [partialInfo, setPartialInfo] = useState(null) // { paidAmount, remainingAmount }
 
   const { data: vouchersData } = useQuery({
     queryKey: ['vouchers'],
@@ -77,13 +78,20 @@ export default function CartDrawer() {
   useEffect(() => {
     let intervalId = null
     
-    if (paymentModalOpen && paymentStatus === 'pending' && paymentInfo?.orderId) {
+    if (paymentModalOpen && paymentStatus !== 'success' && paymentInfo?.orderId) {
       intervalId = setInterval(async () => {
         try {
           const res = await apiClient.get(`/api/tickets/orders/${paymentInfo.orderId}/status`)
-          if (res.data.status === 'COMPLETED') {
+          const data = res.data
+
+          if (data.status === 'COMPLETED') {
             setPaymentStatus('success')
             clearInterval(intervalId)
+          } else if (data.status === 'PARTIAL') {
+            // Cập nhật QR với số tiền còn thiếu
+            setPartialInfo({ paidAmount: data.paidAmount, remainingAmount: data.remainingAmount })
+            setPaymentInfo(prev => ({ ...prev, amount: data.remainingAmount }))
+            setPaymentStatus('partial')
           }
         } catch (error) {
           console.error("Lỗi khi kiểm tra trạng thái", error)
@@ -229,11 +237,31 @@ export default function CartDrawer() {
         width={360}
         destroyOnClose
       >
-        {paymentStatus === 'pending' && paymentInfo && (
+        {(paymentStatus === 'pending' || paymentStatus === 'partial') && paymentInfo && (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <Title level={5} style={{ marginBottom: 16 }}>
               Quét mã QR để thanh toán
             </Title>
+
+            {/* Cảnh báo chuyển khoản thiếu */}
+            {paymentStatus === 'partial' && partialInfo && (
+              <div style={{
+                background: '#fff7e6',
+                border: '1px solid #ffa940',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                marginBottom: '14px',
+                textAlign: 'left'
+              }}>
+                <div style={{ fontWeight: 700, color: '#d46b08', marginBottom: 4 }}>⚠️ Chuyển khoản thiếu</div>
+                <div style={{ fontSize: 13, color: '#555' }}>
+                  Đã nhận: <strong>{new Intl.NumberFormat('vi-VN').format(partialInfo.paidAmount)} đ</strong>
+                </div>
+                <div style={{ fontSize: 13, color: '#555' }}>
+                  Vui lòng quét mã bên dưới để thanh toán nốt: <strong style={{ color: '#f97316' }}>{new Intl.NumberFormat('vi-VN').format(partialInfo.remainingAmount)} đ</strong>
+                </div>
+              </div>
+            )}
             
             {/* Sử dụng VietQR với tài khoản giả lập MB Bank. Nếu có bank thực tế thay vào */}
             <div style={{ background: '#f5f5f5', padding: '16px', borderRadius: '12px', display: 'inline-block', marginBottom: '16px' }}>

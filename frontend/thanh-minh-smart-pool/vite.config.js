@@ -17,10 +17,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
 
-    optimizeDeps: {
-      noDiscovery: true,
-      include: ['cookie'],
-    },
 
     // Dev Server
     server: {

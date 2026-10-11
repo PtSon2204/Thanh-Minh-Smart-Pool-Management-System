@@ -9,13 +9,16 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderSt
     public class GetOrderStatusHandler : IRequestHandler<GetOrderStatusQuery, GetOrderStatusResponse>
     {
         private readonly IRepository<Order> _orderRepo;
+        private readonly IRepository<Payment> _paymentRepo;
         private readonly IMemoryCache _memoryCache;
 
         public GetOrderStatusHandler(
             IRepository<Order> orderRepo,
+            IRepository<Payment> paymentRepo,
             IMemoryCache memoryCache)
         {
             _orderRepo = orderRepo;
+            _paymentRepo = paymentRepo;
             _memoryCache = memoryCache;
         }
 
@@ -25,9 +28,20 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderSt
             if (order == null)
                 throw new KeyNotFoundException("Order not found.");
 
+            // Tính tổng số tiền đã nhận qua các giao dịch thực tế (status = COMPLETED)
+            // Bỏ qua Payment gốc PENDING được tạo lúc đặt hàng (TransactionRef bắt đầu bằng "SP")
+            var payments = await _paymentRepo.FindAsync(
+                p => p.OrderId == order.Id && p.Status == "COMPLETED",
+                cancellationToken);
+
+            decimal paidAmount = payments.Sum(p => p.Amount);
+            decimal remainingAmount = Math.Max(0, order.FinalAmount - paidAmount);
+
             var response = new GetOrderStatusResponse
             {
-                Status = order.Status ?? "PENDING"
+                Status = order.Status ?? "PENDING",
+                PaidAmount = paidAmount,
+                RemainingAmount = remainingAmount
             };
 
             if (response.Status == "COMPLETED")
@@ -42,3 +56,4 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderSt
         }
     }
 }
+
