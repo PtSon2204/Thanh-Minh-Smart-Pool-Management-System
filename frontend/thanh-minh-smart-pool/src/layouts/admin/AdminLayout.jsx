@@ -59,7 +59,8 @@ export default function AdminLayout() {
       label: 'Quản lý nhân viên',
       children: [
         { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Chấm công hàng ngày</Link> },
-        { key: '/admin/staff/schedule', label: <Link to="/admin/staff/schedule">Xem lịch và ca làm việc</Link> },
+        { key: '/admin/staff/shifts', label: <Link to="/admin/staff/shifts">Ca làm việc</Link> },
+        { key: '/admin/staff/schedule', label: <Link to="/admin/staff/schedule">Lịch làm việc</Link> },
         { key: '/admin/staff/profiles', label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link> },
       ],
     },

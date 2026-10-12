@@ -81,6 +81,12 @@ Use existing 4px tokens: `--space-1` 4px, `--space-2` 8px, `--space-3` 12px, `--
 - **States:** Hidden when there are no results; page and page-size changes request the matching server page.
 - **Layout:** Scroll or wrap within the content area on narrow screens.
 
+### Shift and schedule lists
+- **Structure:** Reuse the staff list header, filter toolbar, white table rows, and compact mobile detail cards. The shift drawer uses existing Ant Design focus management.
+- **States:** Loading, empty, recoverable error, denied access, disabled save, active/inactive, and overnight time indicator.
+- **Data boundary:** Shift creation creates a reusable time template only. Schedule pages remain read-only and use the server-selected staff scope.
+- **Accessibility:** Controls have visible labels. Status text remains visible with tags. Cards and tables preserve readable time and date values at narrow widths.
+
 ## 6. Motion & Interaction
 
 - Keep existing Ant Design transition behavior.

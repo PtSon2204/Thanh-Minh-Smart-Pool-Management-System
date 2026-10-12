@@ -8,6 +8,7 @@ const staffService = {
   create: (data) => apiClient.post(BASE, data).then((response) => response.data),
   update: (userId, data) => apiClient.put(`${BASE}/${userId}`, data).then((response) => response.data),
   getSchedule: (params) => apiClient.get(`${BASE}/schedule`, { params }).then((response) => response.data),
+  getMySchedule: (params) => apiClient.get(`${BASE}/me/schedule`, { params }).then((response) => response.data),
   getSalaries: (params) => apiClient.get(`${BASE}/salaries`, { params }).then((response) => response.data),
 }
 

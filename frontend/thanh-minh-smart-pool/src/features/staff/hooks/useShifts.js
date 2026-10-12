@@ -1,0 +1,20 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import shiftService from '../services/shiftService'
+
+export const SHIFTS_QUERY_KEY = ['shifts']
+
+export function useShifts(params, enabled) {
+  return useQuery({
+    queryKey: [...SHIFTS_QUERY_KEY, params],
+    queryFn: () => shiftService.getAll(params),
+    enabled,
+  })
+}
+
+export function useCreateShift() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: shiftService.create,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY }),
+  })
+}

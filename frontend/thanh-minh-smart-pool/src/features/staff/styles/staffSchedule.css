@@ -1,0 +1,120 @@
+.staff-schedule-count {
+  color: var(--list-muted);
+  font-size: 14px;
+  font-weight: 500;
+  margin-left: var(--space-2);
+  white-space: nowrap;
+}
+
+.staff-schedule-toolbar {
+  align-items: end;
+}
+
+.staff-schedule-filters {
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.staff-schedule-overnight {
+  color: var(--list-muted);
+  display: block;
+  font-size: 12px;
+  margin-top: var(--space-1);
+}
+
+.staff-schedule-cards {
+  display: none;
+}
+
+.staff-shift-drawer-note {
+  color: var(--list-muted);
+  margin-bottom: var(--space-5);
+}
+
+.staff-shift-time-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.staff-shift-time-picker {
+  width: 100%;
+}
+
+.staff-shift-drawer .ant-drawer-body {
+  padding: var(--space-6);
+}
+
+.staff-schedule-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--list-divider);
+  border-radius: var(--list-radius);
+  box-shadow: var(--list-shadow);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.staff-schedule-card > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.staff-schedule-card span {
+  color: var(--list-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.staff-schedule-card strong {
+  color: var(--text);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.staff-schedule-card .ant-tag {
+  justify-self: start;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .staff-schedule-toolbar .service-list-filters,
+  .staff-schedule-toolbar .service-filter-control,
+  .staff-schedule-toolbar .ant-picker,
+  .staff-schedule-toolbar .ant-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .staff-schedule-toolbar .admin-action-group {
+    width: 100%;
+  }
+
+  .staff-schedule-toolbar .admin-action-button {
+    width: 100%;
+  }
+
+  .staff-schedule-desktop {
+    display: none;
+  }
+
+  .staff-schedule-cards {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .staff-schedule-count {
+    display: block;
+    margin: var(--space-1) 0 0;
+  }
+
+  .staff-shift-time-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-shift-drawer .ant-drawer-body {
+    padding: var(--space-4);
+  }
+}
