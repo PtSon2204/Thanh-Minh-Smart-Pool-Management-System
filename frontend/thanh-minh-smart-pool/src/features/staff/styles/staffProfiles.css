@@ -17,39 +17,192 @@
   width: 100%;
 }
 
-.staff-profiles-table .ant-table-tbody > tr > td {
-  vertical-align: middle;
+.staff-profiles-count {
+  color: var(--list-muted);
+  font-size: 14px;
+  font-weight: 500;
+  margin-left: var(--space-2);
+  white-space: nowrap;
 }
 
-.staff-profiles-mobile-list {
-  display: none;
+.staff-profiles-content {
+  background: var(--list-canvas);
+  container-name: staff-profiles;
+  container-type: inline-size;
+  min-width: 0;
+  padding: 0 var(--space-6) var(--space-6);
+  width: 100%;
 }
 
-.staff-identity-cell {
+.staff-profiles-grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container staff-profiles (min-width: 600px) {
+  .staff-profiles-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container staff-profiles (min-width: 900px) {
+  .staff-profiles-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.staff-profile-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--list-divider);
+  border-radius: var(--radius);
+  box-shadow: var(--list-shadow);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.staff-profile-card-identity {
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.staff-profile-card-topline {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  min-height: 52px;
+}
+
+.staff-profile-avatar.ant-avatar {
+  background: color-mix(in srgb, var(--primary-light) 35%, var(--admin-surface));
+  border: 2px solid var(--admin-surface);
+  box-shadow: 0 0 0 1px var(--list-divider);
+  color: var(--primary-dark);
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.staff-profile-menu-trigger.ant-btn {
+  align-items: center;
+  color: var(--text);
+  display: inline-flex;
+  font-size: 20px;
+  height: 36px;
+  justify-content: center;
+  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-1)) 0 0;
+  width: 36px;
+}
+
+.staff-profile-menu-trigger.ant-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.staff-profile-card-name-block {
   display: grid;
   gap: var(--space-1);
+  margin-top: var(--space-2);
   min-width: 0;
 }
 
-.staff-identity-cell strong {
+.staff-profile-card-name {
   color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 
-.staff-identity-cell > span {
+.staff-profile-role.ant-tag {
+  color: var(--primary-dark);
+  justify-self: start;
+  margin: 0;
+}
+
+.staff-profile-username {
+  color: var(--list-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.staff-profile-status {
+  align-items: center;
+  color: var(--list-muted);
+  display: inline-flex;
+  font-size: 14px;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-profile-status.is-working {
+  color: var(--text);
+}
+
+.staff-profile-status.is-inactive {
+  color: var(--text);
+}
+
+.staff-profile-status-dot {
+  background: var(--list-muted);
+  border-radius: 50%;
+  flex: 0 0 8px;
+  height: 8px;
+}
+
+.staff-profile-status.is-working .staff-profile-status-dot {
+  background: var(--status-success);
+}
+
+.staff-profile-status.is-inactive .staff-profile-status-dot {
+  background: var(--status-error);
+}
+
+.staff-profile-card-details {
+  background: var(--list-canvas);
+  border-top: 1px solid var(--list-divider);
+  display: grid;
+  gap: var(--space-3) var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.staff-profile-detail {
+  min-width: 0;
+}
+
+.staff-profile-detail dt {
   color: var(--list-muted);
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.staff-profile-detail dd {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+  margin: var(--space-1) 0 0;
   overflow-wrap: anywhere;
 }
 
-.staff-identity-cell .staff-username {
-  color: var(--primary-dark);
+.staff-profile-detail-join-date dd,
+.staff-profile-detail-salary dd {
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
-.staff-salary-cell {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.staff-profile-detail-contact {
+  grid-column: 1 / -1;
+}
+
+.staff-profiles-page .admin-management-state {
+  min-height: 240px;
 }
 
 .staff-profiles-drawer .ant-drawer-body,
@@ -63,7 +216,7 @@
   min-width: 0;
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 641px) and (max-width: 1024px) {
   .staff-profiles-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: none;
@@ -73,75 +226,42 @@
   .staff-profiles-search {
     grid-column: 1 / -1;
   }
+
+  .staff-profiles-toolbar {
+    flex-wrap: wrap;
+  }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 640px) {
   .staff-profiles-filters {
     grid-template-columns: minmax(0, 1fr);
+    width: 100%;
   }
 
   .staff-profiles-search {
     grid-column: auto;
   }
 
-  .staff-profiles-page .admin-action-group {
-    justify-content: flex-start;
+  .staff-profiles-content {
+    padding: 0 var(--space-4) var(--space-4);
   }
 
-  .staff-profiles-table {
-    display: none;
+  .staff-profiles-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .staff-profiles-mobile-list {
-    display: grid;
-    gap: var(--space-3);
-  }
-
-  .staff-profile-mobile-card {
-    background: var(--admin-surface);
-    border: 1px solid var(--list-divider);
-    border-radius: var(--list-radius);
-    display: grid;
-    gap: var(--space-3);
-    min-width: 0;
-    padding: var(--space-4);
-  }
-
-  .staff-profile-mobile-heading {
-    align-items: start;
-    display: flex;
-    gap: var(--space-2);
-    justify-content: space-between;
-  }
-
-  .staff-profile-mobile-card dl {
-    display: grid;
-    gap: var(--space-3);
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin: 0;
-  }
-
-  .staff-profile-mobile-card dl > div {
-    min-width: 0;
-  }
-
-  .staff-profile-mobile-card dt {
-    color: var(--list-muted);
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .staff-profile-mobile-card dd {
+  .staff-profiles-count {
+    display: block;
     margin: var(--space-1) 0 0;
-    overflow-wrap: anywhere;
-  }
-
-  .staff-profile-mobile-card .admin-action-group > .ant-btn {
-    flex: 1;
   }
 
   .staff-profiles-drawer .ant-drawer-body,
   .staff-employment-drawer .ant-drawer-body {
     padding: var(--space-4);
+  }
+
+  .staff-profiles-page .admin-management-pagination {
+    justify-content: flex-start;
+    overflow-x: auto;
   }
 }
