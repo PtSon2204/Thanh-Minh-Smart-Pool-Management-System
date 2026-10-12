@@ -27,6 +27,16 @@ export function useStaffSchedule(employeeId, params, enabled) {
   })
 }
 
+export function useStaffSchedulePage({ scope, sessionUserId, params, enabled }) {
+  const isAllScope = scope === 'all'
+  const queryParams = isAllScope ? params : { pageIndex: params.pageIndex, pageSize: params.pageSize, date: params.date }
+  return useQuery({
+    queryKey: ['staff-schedule-page', scope, sessionUserId, queryParams],
+    queryFn: () => isAllScope ? staffService.getSchedule(queryParams) : staffService.getMySchedule(queryParams),
+    enabled: Boolean(enabled && sessionUserId),
+  })
+}
+
 export function useStaffSalaries(employeeId, params, enabled) {
   return useQuery({
     queryKey: ['staff-salaries', employeeId, params],

@@ -17,7 +17,7 @@ public sealed partial class StaffOperations
     {
         if (request.RequireEmployee && (request.EmployeeId is null || !await context.Employees.AsNoTracking().AnyAsync(item => item.UserId == request.EmployeeId, cancellationToken)))
             throw new StaffForbiddenException("Bạn không có quyền xem lịch làm việc này.");
-        var query = context.EmployeeShifts.AsNoTracking().Include(item => item.Shift).AsQueryable();
+        var query = context.EmployeeShifts.AsNoTracking().Include(item => item.Shift).Include(item => item.Employee).ThenInclude(employee => employee.User).ThenInclude(user => user.UserProfile).AsQueryable();
         if (request.EmployeeId is not null) query = query.Where(item => item.EmployeeId == request.EmployeeId);
         if (request.Date is not null) query = query.Where(item => item.WorkDate == request.Date);
         if (!string.IsNullOrWhiteSpace(request.Status)) query = query.Where(item => item.Status == request.Status);
