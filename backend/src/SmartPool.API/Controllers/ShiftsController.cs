@@ -12,7 +12,6 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/shifts")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class ShiftsController : ControllerBase
     {
         private readonly ISender _sender;
@@ -24,6 +23,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách ca làm việc có phân trang và lọc.</summary>
         [HttpGet]
+        [RequirePermission("shifts", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetShiftsResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetShifts([FromQuery] GetShiftsQuery query, CancellationToken cancellationToken)
         {
@@ -32,7 +32,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo ca làm việc.</summary>
         [HttpPost]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("shifts", "create")]
         [ProducesResponseType(typeof(SaveShiftResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateShift([FromBody] SaveShiftCommand command, CancellationToken cancellationToken)
         {
@@ -41,7 +41,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật ca làm việc.</summary>
         [HttpPut("{id:guid}")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("shifts", "update")]
         [ProducesResponseType(typeof(SaveShiftResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateShift(Guid id, [FromBody] SaveShiftCommand command, CancellationToken cancellationToken)
         {

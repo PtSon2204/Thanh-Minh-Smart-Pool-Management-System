@@ -6,6 +6,7 @@ namespace SmartPool.Domain.Enums;
 public enum RoleEnum
 {
     CUSTOMER,
-    STAFF,
-    ADMIN
+    ADMIN,
+    LIFEGUARD,
+    SALES
 }

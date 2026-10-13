@@ -5,6 +5,7 @@ import {
   MenuUnfoldOutlined,
   DashboardOutlined,
   UserOutlined,
+  SafetyCertificateOutlined,
   TeamOutlined,
   IdcardOutlined,
   TagOutlined,
@@ -52,6 +53,11 @@ export default function AdminLayout() {
       key: '/admin/users',
       icon: <UserOutlined />,
       label: <Link to="/admin/users">Quản lý người dùng</Link>,
+    },
+    {
+      key: '/admin/roles/permissions',
+      icon: <SafetyCertificateOutlined />,
+      label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
     },
     {
       key: 'staff',

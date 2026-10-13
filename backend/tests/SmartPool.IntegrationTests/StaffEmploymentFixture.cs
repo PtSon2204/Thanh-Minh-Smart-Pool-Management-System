@@ -55,7 +55,7 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
             .Select(role => new RoleLookup(role.Id, role.Name))
             .ToListAsync();
         var roleIds = new RoleIds(
-            FindRoleId(roles, RoleEnum.STAFF),
+            FindRoleId(roles, RoleEnum.SALES),
             FindRoleId(roles, RoleEnum.ADMIN),
             FindRoleId(roles, RoleEnum.CUSTOMER));
         var fixture = new StaffEmploymentFixture(options);
@@ -65,15 +65,15 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
             var now = DateTime.UtcNow;
             var users = new[]
             {
-                fixture.CreateUser(fixture.EligibleStaffUserId, roleIds.Staff, false, "eligible-staff", now),
+                fixture.CreateUser(fixture.EligibleStaffUserId, roleIds.Sales, false, "eligible-staff", now),
                 fixture.CreateUser(fixture.EligibleAdminUserId, roleIds.Admin, false, "eligible-admin", now),
                 fixture.CreateUser(fixture.CustomerUserId, roleIds.Customer, false, "customer", now),
                 fixture.CreateUser(fixture.SoftDeletedRoleUserId, fixture.SoftDeletedRoleId, false, "soft-deleted-role", now),
-                fixture.CreateUser(fixture.DeletedStaffUserId, roleIds.Staff, true, "deleted-staff", now),
-                fixture.CreateUser(fixture.AttachedStaffUserId, roleIds.Staff, false, "attached-staff", now),
-                fixture.CreateUser(fixture.ConcurrentStaffUserId, roleIds.Staff, false, "concurrent-staff", now)
+                fixture.CreateUser(fixture.DeletedStaffUserId, roleIds.Sales, true, "deleted-staff", now),
+                fixture.CreateUser(fixture.AttachedStaffUserId, roleIds.Sales, false, "attached-staff", now),
+                fixture.CreateUser(fixture.ConcurrentStaffUserId, roleIds.Sales, false, "concurrent-staff", now)
             };
-            setupContext.Roles.Add(new Role { Id = fixture.SoftDeletedRoleId, Name = RoleEnum.STAFF.ToString(), IsDeleted = true });
+            setupContext.Roles.Add(new Role { Id = fixture.SoftDeletedRoleId, Name = RoleEnum.SALES.ToString(), IsDeleted = true });
             setupContext.Users.AddRange(users);
             setupContext.UserProfiles.AddRange(users.Select(user => fixture.CreateProfile(user.Id, user.Username!, now)));
             setupContext.Employees.Add(new Employee
@@ -205,7 +205,7 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
     }
 }
 
-internal sealed record RoleIds(Guid Staff, Guid Admin, Guid Customer);
+internal sealed record RoleIds(Guid Sales, Guid Admin, Guid Customer);
 
 internal sealed record RoleLookup(Guid Id, string Name);
 

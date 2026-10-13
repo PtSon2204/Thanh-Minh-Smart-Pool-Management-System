@@ -135,7 +135,7 @@ internal static class IntegrationTestDatabase
             await context.Database.ExecuteSqlRawAsync(
                 "ALTER TABLE smart_pool.tickets ADD COLUMN IF NOT EXISTS remaining_entries integer NULL");
 
-            foreach (var roleName in new[] { "ADMIN", "STAFF", "CUSTOMER" })
+            foreach (var roleName in new[] { "ADMIN", "LIFEGUARD", "SALES", "CUSTOMER" })
             {
                 var roleId = Guid.NewGuid();
                 await context.Database.ExecuteSqlInterpolatedAsync($"""

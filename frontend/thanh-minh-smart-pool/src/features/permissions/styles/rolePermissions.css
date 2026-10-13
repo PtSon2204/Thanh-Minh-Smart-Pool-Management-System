@@ -1,0 +1,28 @@
+.rp-role-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.rp-role-picker .ant-select {
+  width: min(100%, 260px);
+}
+
+.rp-notice {
+  margin-bottom: 18px;
+}
+
+.rp-module-name {
+  color: #17324d;
+  font-weight: 600;
+}
+
+.rp-footnote {
+  margin-top: 18px;
+}
+
+@media (max-width: 700px) {
+  .rp-role-picker .ant-select { width: 100%; }
+}

@@ -16,7 +16,6 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/rentals")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class RentalsController : ControllerBase
     {
         private readonly ISender _sender;
@@ -28,6 +27,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách lượt thuê có phân trang và lọc.</summary>
         [HttpGet]
+        [RequirePermission("rentals", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetRentalsResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetRentals([FromQuery] GetRentalsQuery query, CancellationToken cancellationToken)
         {
@@ -36,6 +36,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Đọc đầy đủ các lượt thuê của một sản phẩm trong đơn hàng.</summary>
         [HttpGet("orders/{orderId:guid}/products/{productId:guid}")]
+        [RequirePermission("rentals", "read")]
         [ProducesResponseType(typeof(GetRentalDetailsResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetRentalDetails(Guid orderId, Guid productId, CancellationToken cancellationToken)
@@ -45,6 +46,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo đơn thuê và trừ tồn kho theo giao dịch nguyên tử.</summary>
         [HttpPost]
+        [RequirePermission("rentals", "create")]
         [ProducesResponseType(typeof(CheckoutRentalResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> Checkout([FromBody] CheckoutRentalCommand command, CancellationToken cancellationToken)
         {
@@ -75,6 +77,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Trả một đơn vị thuê và cộng tồn kho theo giao dịch nguyên tử.</summary>
         [HttpPost("{rentalId:guid}/return")]
+        [RequirePermission("rentals", "update")]
         [ProducesResponseType(typeof(ReturnRentalResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> Return(Guid rentalId, CancellationToken cancellationToken)
         {
@@ -88,6 +91,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Trả một số lượng lượt thuê đã chọn theo giao dịch nguyên tử.</summary>
         [HttpPost("orders/{orderId:guid}/products/{productId:guid}/returns")]
+        [RequirePermission("rentals", "update")]
         [ProducesResponseType(typeof(ReturnRentalQuantityResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> ReturnQuantity(
             Guid orderId,
