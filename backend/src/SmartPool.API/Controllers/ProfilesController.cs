@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartPool.Application.Features.Profiles.Queries.GetMyProfile;
 using SmartPool.Application.Features.Profiles.Commands.UpdateMyProfile;
 using SmartPool.API.Extensions; // Assuming User.TryGetUserId is here or similar
+using SmartPool.API.Authorization;
 
 namespace SmartPool.API.Controllers;
 
@@ -22,6 +23,7 @@ public sealed class ProfilesController : ControllerBase
 
     /// <summary>Lấy thông tin hồ sơ của người dùng đang đăng nhập.</summary>
     [HttpGet("me")]
+    [RequirePermission("profiles", "read")]
     [ProducesResponseType(typeof(GetMyProfileResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyProfile(CancellationToken cancellationToken)
     {
@@ -40,6 +42,7 @@ public sealed class ProfilesController : ControllerBase
 
     /// <summary>Cập nhật hồ sơ cá nhân.</summary>
     [HttpPut("me")]
+    [RequirePermission("profiles", "update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileCommand command, CancellationToken cancellationToken)
     {
@@ -51,6 +54,7 @@ public sealed class ProfilesController : ControllerBase
 
     /// <summary>Upload avatar</summary>
     [HttpPost("me/avatar")]
+    [RequirePermission("profiles", "update")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> UploadAvatar([FromForm] SmartPool.Application.Features.Profiles.Commands.UploadAvatar.UploadAvatarCommand command, CancellationToken cancellationToken)

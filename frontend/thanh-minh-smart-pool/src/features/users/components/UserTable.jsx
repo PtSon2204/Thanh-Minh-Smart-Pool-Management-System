@@ -1,8 +1,6 @@
 import { Avatar, Button, Space, Table, Tag, Tooltip } from 'antd'
 import { EditOutlined, EyeOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
-import { USER_ROLES } from '../userManagement'
-
-const roleColors = { ADMIN: 'purple', STAFF: 'blue', CUSTOMER: 'cyan' }
+import { USER_ROLES, USER_ROLE_COLORS } from '../userManagement'
 
 function userName(user) {
   return user.fullName || user.username
@@ -33,7 +31,7 @@ export default function UserTable({ users, loading, total, pageIndex, pageSize, 
       title: 'Vai trò',
       dataIndex: 'role',
       key: 'role',
-      render: (value) => <Tag color={roleColors[value]}>
+      render: (value) => <Tag color={USER_ROLE_COLORS[value]}>
         {USER_ROLES.find((item) => item.value === value)?.label || value || 'Chưa phân vai trò'}
       </Tag>,
     },

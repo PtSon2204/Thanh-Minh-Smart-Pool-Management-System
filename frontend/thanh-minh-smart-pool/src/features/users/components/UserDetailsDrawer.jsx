@@ -1,5 +1,5 @@
 import { Alert, Avatar, Button, Descriptions, Drawer, Space, Spin, Tag } from 'antd'
-import { USER_ROLES, getUserError } from '../userManagement'
+import { USER_ROLES, USER_ROLE_COLORS, getUserError } from '../userManagement'
 import { useUserDetail } from '../hooks/useUsers'
 
 function formatDate(value) {
@@ -40,7 +40,7 @@ export default function UserDetailsDrawer({ userId, onClose }) {
         <Descriptions.Item label="Số điện thoại">{user.phone || '—'}</Descriptions.Item>
         <Descriptions.Item label="Ngày sinh">{formatDate(user.dateOfBirth)}</Descriptions.Item>
         <Descriptions.Item label="Địa chỉ">{user.address || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Vai trò"><Tag color={user.role === 'ADMIN' ? 'purple' : user.role === 'STAFF' ? 'blue' : 'cyan'}>{role}</Tag></Descriptions.Item>
+        <Descriptions.Item label="Vai trò"><Tag color={USER_ROLE_COLORS[user.role]}>{role}</Tag></Descriptions.Item>
         <Descriptions.Item label="Trạng thái"><Tag color={user.status === 'ACTIVE' ? 'success' : user.status === 'LOCKED' ? 'default' : 'warning'}>{status}</Tag></Descriptions.Item>
         <Descriptions.Item label="Ngày tạo">{formatDateTime(user.createdAt)}</Descriptions.Item>
         <Descriptions.Item label="Cập nhật lần cuối">{formatDateTime(user.updatedAt)}</Descriptions.Item>

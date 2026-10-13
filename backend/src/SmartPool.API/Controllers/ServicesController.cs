@@ -17,7 +17,6 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/services")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class ServicesController : ControllerBase
     {
         private readonly ISender _sender;
@@ -29,6 +28,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách dịch vụ có phân trang, tìm kiếm và lọc.</summary>
         [HttpGet]
+        [RequirePermission("services", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetServicesResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetServices([FromQuery] GetServicesQuery query, CancellationToken cancellationToken)
         {
@@ -37,7 +37,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo mới dịch vụ.</summary>
         [HttpPost]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("services", "create")]
         [ProducesResponseType(typeof(CreateServiceResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateService([FromBody] CreateServiceCommand command, CancellationToken cancellationToken)
         {
@@ -54,7 +54,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật thông tin dịch vụ, không thay đổi tồn kho.</summary>
         [HttpPut("{serviceId:guid}")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("services", "update")]
         [ProducesResponseType(typeof(UpdateServiceResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateService(Guid serviceId, [FromBody] UpdateServiceCommand command, CancellationToken cancellationToken)
         {
@@ -64,7 +64,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Thay đổi riêng trạng thái hoạt động của dịch vụ.</summary>
         [HttpPatch("{serviceId:guid}/status")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("services", "update")]
         [ProducesResponseType(typeof(SetServiceStatusResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> SetServiceStatus(Guid serviceId, [FromBody] SetServiceStatusCommand command, CancellationToken cancellationToken)
         {
@@ -74,6 +74,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Điều chỉnh tồn kho dịch vụ.</summary>
         [HttpPost("{serviceId:guid}/stock-adjustments")]
+        [RequirePermission("inventory", "update")]
         [ProducesResponseType(typeof(AdjustStockResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> AdjustStock(Guid serviceId, [FromBody] AdjustStockCommand command, CancellationToken cancellationToken)
         {
@@ -89,6 +90,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy lịch sử thay đổi tồn kho của dịch vụ.</summary>
         [HttpGet("{serviceId:guid}/inventory-history")]
+        [RequirePermission("inventory", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetInventoryHistoryResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetInventoryHistory(Guid serviceId, [FromQuery] GetInventoryHistoryQuery query, CancellationToken cancellationToken)
         {

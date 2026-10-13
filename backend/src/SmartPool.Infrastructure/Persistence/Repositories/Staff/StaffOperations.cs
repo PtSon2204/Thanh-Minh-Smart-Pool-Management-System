@@ -45,7 +45,9 @@ public sealed partial class StaffOperations : IStaffOperations
     {
         var users = await context.Users.AsNoTracking()
             .Where(user => user.IsDeleted != true && user.Employee == null && user.Role != null && user.Role.IsDeleted != true &&
-                (EF.Functions.ILike(user.Role.Name, RoleEnum.STAFF.ToString()) || EF.Functions.ILike(user.Role.Name, RoleEnum.ADMIN.ToString())))
+                (EF.Functions.ILike(user.Role.Name, RoleEnum.LIFEGUARD.ToString()) ||
+                 EF.Functions.ILike(user.Role.Name, RoleEnum.SALES.ToString()) ||
+                 EF.Functions.ILike(user.Role.Name, RoleEnum.ADMIN.ToString())))
             .Include(user => user.UserProfile).OrderBy(user => user.Username).ToListAsync(cancellationToken);
         return new GetStaffOptionsResponse { Users = mapper.Map<List<EligibleUserResponse>>(users) };
     }
@@ -57,7 +59,7 @@ public sealed partial class StaffOperations : IStaffOperations
         var user = await context.Users.Include(item => item.Employee).Include(item => item.UserProfile).Include(item => item.Role).FirstOrDefaultAsync(item => item.Id == request.UserId && item.IsDeleted != true, cancellationToken);
         if (user is null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
         if (user.Employee is not null) throw new StaffConflictException("Tài khoản đã được gắn với nhân viên.");
-        if (user.Role?.IsDeleted == true || !IsEligibleEmploymentRole(user.Role?.Name)) throw new StaffConflictException("Tài khoản phải có vai trò STAFF hoặc ADMIN.");
+        if (user.Role?.IsDeleted == true || !IsEligibleEmploymentRole(user.Role?.Name)) throw new StaffConflictException("Tài khoản phải có vai trò nhân viên hoặc ADMIN.");
         var employee = new Employee { UserId = user.Id, BaseSalary = request.BaseSalary, JoinDate = request.JoinDate, Status = request.Status, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, User = user };
         context.Employees.Add(employee);
         await context.SaveChangesAsync(cancellationToken);
@@ -93,7 +95,9 @@ public sealed partial class StaffOperations : IStaffOperations
         return mapper.Map<SaveShiftResponse>(shift);
     }
 
-    private static bool IsEligibleEmploymentRole(string? roleName) => string.Equals(roleName, RoleEnum.STAFF.ToString(), StringComparison.OrdinalIgnoreCase) || string.Equals(roleName, RoleEnum.ADMIN.ToString(), StringComparison.OrdinalIgnoreCase);
+    private static bool IsEligibleEmploymentRole(string? roleName) =>
+        new[] { RoleEnum.LIFEGUARD, RoleEnum.SALES, RoleEnum.ADMIN }
+            .Any(role => string.Equals(roleName, role.ToString(), StringComparison.OrdinalIgnoreCase));
     private static (int Page, int PageSize) Normalize(int page, int pageSize) => (Math.Max(1, page), Math.Clamp(pageSize, 1, 100));
 }
 }

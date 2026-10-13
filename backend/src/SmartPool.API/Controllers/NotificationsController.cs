@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
 using SmartPool.Application.Features.Notifications.Commands.CreateNotification;
 using SmartPool.Application.Features.Notifications.Commands.MarkNotificationAsRead;
 using SmartPool.Application.Features.Notifications.Queries.GetNotifications;
@@ -20,6 +21,7 @@ public sealed class NotificationsController : ControllerBase
 
     /// <summary>Lấy danh sách thông báo dành cho Admin (có phân trang, lọc theo type, isRead).</summary>
     [HttpGet]
+    [RequirePermission("notifications", "read")]
     [ProducesResponseType(typeof(GetNotificationsResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNotifications([FromQuery] GetNotificationsQuery query, CancellationToken cancellationToken)
     {
@@ -29,6 +31,7 @@ public sealed class NotificationsController : ControllerBase
 
     /// <summary>Đánh dấu một thông báo là đã đọc.</summary>
     [HttpPatch("{id:guid}/read")]
+    [RequirePermission("notifications", "update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
@@ -46,6 +49,7 @@ public sealed class NotificationsController : ControllerBase
 
     /// <summary>Tạo mới một thông báo (dùng nội bộ hoặc test).</summary>
     [HttpPost]
+    [RequirePermission("notifications", "create")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateNotification([FromBody] CreateNotificationCommand command, CancellationToken cancellationToken)
     {
@@ -55,6 +59,7 @@ public sealed class NotificationsController : ControllerBase
 
     /// <summary>Gửi email thông báo tự động tới khách hàng.</summary>
     [HttpPost("email/send")]
+    [RequirePermission("notifications", "create")]
     [ProducesResponseType(typeof(SmartPool.Application.Features.Notifications.Commands.SendEmailNotification.SendEmailResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> SendEmail([FromBody] SmartPool.Application.Features.Notifications.Commands.SendEmailNotification.SendEmailNotificationCommand command, CancellationToken cancellationToken)
     {
@@ -64,6 +69,7 @@ public sealed class NotificationsController : ControllerBase
 
     /// <summary>Xem trước nội dung HTML của mẫu email.</summary>
     [HttpPost("email/preview")]
+    [RequirePermission("notifications", "read")]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     public async Task<IActionResult> PreviewEmail([FromBody] SmartPool.Application.Features.Notifications.Queries.PreviewEmail.PreviewEmailQuery query, CancellationToken cancellationToken)
     {
@@ -73,6 +79,7 @@ public sealed class NotificationsController : ControllerBase
 
     /// <summary>Lấy danh sách lịch sử các email đã gửi.</summary>
     [HttpGet("email/history")]
+    [RequirePermission("notifications", "read")]
     public async Task<IActionResult> GetEmailHistory([FromQuery] int limit = 50, CancellationToken cancellationToken = default)
     {
         var history = await _sender.Send(new SmartPool.Application.Features.Notifications.Queries.GetEmailHistory.GetEmailHistoryQuery(limit), cancellationToken);

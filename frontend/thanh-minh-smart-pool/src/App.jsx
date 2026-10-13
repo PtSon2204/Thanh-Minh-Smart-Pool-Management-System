@@ -1,37 +1,39 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import MainLayout from './layouts/MainLayout'
-import HomePage from './pages/HomePage/HomePage'
-import AboutPage from './pages/AboutPage/AboutPage'
-import PricingPage from './pages/PricingPage/PricingPage'
-import ContactPage from './pages/ContactPage/ContactPage'
-import NotFoundPage from './pages/NotFoundPage/NotFoundPage'
-import AuthPage from './pages/AuthPage/AuthPage'
-import ProfilePage from './pages/ProfilePage/ProfilePage'
-import MyCardPage from './pages/MyCardPage/MyCardPage'
-import PaymentHistoryPage from './pages/PaymentHistoryPage/PaymentHistoryPage'
-import AdminLayout from './layouts/admin/AdminLayout'
-import DashboardPage from './pages/admin/DashboardPage'
-import OfflineSalesPage from './pages/admin/OfflineSalesPage'
-import TicketTypePage from './pages/admin/TicketTypePage'
-import ServicePage from './pages/admin/ServicePage'
-import InventoryPage from './pages/admin/InventoryPage'
-import RentalPage from './pages/admin/RentalPage'
-import VoucherPage from './pages/admin/VoucherPage'
-import NotificationPage from './pages/admin/NotificationPage'
-import CustomerStatisticsPage from './pages/admin/statistics/CustomerStatisticsPage'
-import StaffProfilesPage from './pages/admin/StaffProfilesPage'
-import ShiftManagementPage from './pages/admin/ShiftManagementPage'
-import StaffSchedulePage from './pages/admin/StaffSchedulePage'
-import UserManagementPage from './pages/admin/UserManagementPage'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import MainLayout from "./layouts/MainLayout";
+import HomePage from "./pages/HomePage/HomePage";
+import AboutPage from "./pages/AboutPage/AboutPage";
+import PricingPage from "./pages/PricingPage/PricingPage";
+import ContactPage from "./pages/ContactPage/ContactPage";
+import NotFoundPage from "./pages/NotFoundPage/NotFoundPage";
+import AuthPage from "./pages/AuthPage/AuthPage";
+import ProfilePage from "./pages/ProfilePage/ProfilePage";
+import MyCardPage from "./pages/MyCardPage/MyCardPage";
+import PaymentHistoryPage from "./pages/PaymentHistoryPage/PaymentHistoryPage";
+import AdminLayout from "./layouts/admin/AdminLayout";
+import DashboardPage from "./pages/admin/DashboardPage";
+import OfflineSalesPage from "./pages/admin/OfflineSalesPage";
+import TicketTypePage from "./pages/admin/TicketTypePage";
+import ServicePage from "./pages/admin/ServicePage";
+import InventoryPage from "./pages/admin/InventoryPage";
+import RentalPage from "./pages/admin/RentalPage";
+import VoucherPage from "./pages/admin/VoucherPage";
+import NotificationPage from "./pages/admin/NotificationPage";
+import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsPage";
+import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
+import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
+import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
+import UserManagementPage from "./pages/admin/UserManagementPage";
+import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
 
-import { ConfigProvider } from 'antd'
+import { ConfigProvider } from "antd";
 
 function App() {
   return (
     <ConfigProvider
       theme={{
         token: {
-          fontFamily: "'Open Sans', system-ui, -apple-system, Roboto, sans-serif",
+          fontFamily:
+            "'Open Sans', system-ui, -apple-system, Roboto, sans-serif",
         },
       }}
     >
@@ -45,7 +47,10 @@ function App() {
             <Route path="/lien-he" element={<ContactPage />} />
             <Route path="/ho-so" element={<ProfilePage />} />
             <Route path="/the-cua-toi" element={<MyCardPage />} />
-            <Route path="/lich-su-thanh-toan" element={<PaymentHistoryPage />} />
+            <Route
+              path="/lich-su-thanh-toan"
+              element={<PaymentHistoryPage />}
+            />
             {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
@@ -64,18 +69,23 @@ function App() {
             <Route path="rentals" element={<RentalPage />} />
             <Route path="coupons" element={<VoucherPage />} />
             <Route path="notifications" element={<NotificationPage />} />
-            <Route path="statistics/user-count" element={<CustomerStatisticsPage />} />
+            <Route
+              path="statistics/user-count"
+              element={<CustomerStatisticsPage />}
+            />
             <Route path="staff/profiles" element={<StaffProfilesPage />} />
             <Route path="staff/shifts" element={<ShiftManagementPage />} />
             <Route path="staff/schedule" element={<StaffSchedulePage />} />
             <Route path="users" element={<UserManagementPage />} />
             <Route path="payments/invoices" element={<PaymentHistoryPage />} />
+            <Route path="users" element={<UserManagementPage />} />
+            <Route path="roles/permissions" element={<RolePermissionsPage />} />
             {/* Future admin routes go here */}
           </Route>
         </Routes>
       </BrowserRouter>
     </ConfigProvider>
-  )
+  );
 }
 
-export default App
+export default App;
