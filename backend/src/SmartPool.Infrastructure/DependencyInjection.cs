@@ -10,6 +10,7 @@ using SmartPool.Infrastructure.Caching;
 using SmartPool.Infrastructure.Persistence;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
+using SmartPool.Infrastructure.Persistence.Repositories.Roles;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
 using System.Security.Claims;
@@ -118,6 +119,7 @@ namespace SmartPool.Infrastructure
             // Identity of the authenticated caller in the current HTTP request
             services.AddHttpContextAccessor();
             services.AddScoped<ICurrentUser, CurrentUser>();
+            services.AddScoped<IRolePermissionReader, RolePermissionReader>();
 
             // SignalR — real-time notifications
             services.AddSignalR();
@@ -129,6 +131,7 @@ namespace SmartPool.Infrastructure
             // Repository & Unit of Work
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IUserOperations, UserOperations>();
+            services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
