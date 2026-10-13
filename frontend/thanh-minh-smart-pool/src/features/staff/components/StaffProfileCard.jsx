@@ -1,6 +1,7 @@
 import { Avatar, Button, Dropdown, Tag } from 'antd'
 import { EllipsisOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { USER_ROLES, USER_ROLE_COLORS } from '../../users/userManagement'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
 
@@ -18,9 +19,9 @@ function StaffStatus({ status }) {
 
 function StaffRoleTag({ roleName }) {
   const role = roleName?.toUpperCase()
-  const label = role === 'ADMIN' ? 'Quản trị viên' : role === 'STAFF' ? 'Nhân viên' : roleName || 'Chưa có vai trò'
+  const label = USER_ROLES.find((item) => item.value === role)?.label || roleName || 'Chưa có vai trò'
 
-  return <Tag color={role === 'STAFF' ? 'cyan' : 'blue'} className="staff-profile-role" style={{ color: 'var(--primary-dark)' }}>{label}</Tag>
+  return <Tag color={USER_ROLE_COLORS[role]} className="staff-profile-role" style={{ color: 'var(--primary-dark)' }}>{label}</Tag>
 }
 
 export default function StaffProfileCard({ staff, onDetails, onEdit }) {

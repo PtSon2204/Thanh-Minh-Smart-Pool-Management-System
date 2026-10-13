@@ -56,7 +56,7 @@ export default function StaffSchedulePage() {
   const session = useAuthStore((state) => state.session)
   const role = session?.role?.toUpperCase()
   const isAdmin = role === 'ADMIN'
-  const isStaff = role === 'STAFF'
+  const isStaff = ['LIFEGUARD', 'SALES'].includes(role)
   const canRead = isAdmin || isStaff
   const [date, setDate] = useState(vietnamToday)
   const [status, setStatus] = useState()

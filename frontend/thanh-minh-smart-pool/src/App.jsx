@@ -23,6 +23,7 @@ import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
 import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
+import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
 
 import { ConfigProvider } from "antd";
 
@@ -77,6 +78,7 @@ function App() {
             <Route path="staff/schedule" element={<StaffSchedulePage />} />
             <Route path="payments/invoices" element={<PaymentHistoryPage />} />
             <Route path="users" element={<UserManagementPage />} />
+            <Route path="roles/permissions" element={<RolePermissionsPage />} />
             {/* Future admin routes go here */}
           </Route>
         </Routes>
