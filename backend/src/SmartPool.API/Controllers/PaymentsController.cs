@@ -27,6 +27,7 @@ namespace SmartPool.API.Controllers
 
         /// Lấy danh sách lịch sử giao dịch thanh toán
         [HttpGet]
+        [RequirePermission("payments", "read")]
         [ProducesResponseType(typeof(PagedResponse<PaymentSummaryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllPayments([FromQuery] GetAllPaymentsQuery query, CancellationToken cancellationToken)
         {
@@ -43,6 +44,7 @@ namespace SmartPool.API.Controllers
 
         /// Lấy thông tin chi tiết giao dịch thanh toán
         [HttpGet("{id:guid}")]
+        [RequirePermission("payments", "read")]
         [ProducesResponseType(typeof(PaymentDetailDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetPaymentById([FromRoute] Guid id, CancellationToken cancellationToken)

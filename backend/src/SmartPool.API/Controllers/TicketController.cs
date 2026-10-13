@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SmartPool.API.Extensions;
+using SmartPool.API.Authorization;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOfflineTicket;
 
 namespace SmartPool.API.Controllers
@@ -19,6 +20,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Bán vé trực tiếp tại quầy (Tiền mặt).</summary>
         [HttpPost("sell-offline")]
+        [RequirePermission("ticket_sales", "create")]
         [ProducesResponseType(typeof(SellOfflineTicketResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> SellOffline([FromBody] SellOfflineTicketCommand command, CancellationToken cancellationToken)
@@ -36,6 +38,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo đơn bán vé tại quầy (Chờ chuyển khoản).</summary>
         [HttpPost("create-pending-order")]
+        [RequirePermission("ticket_sales", "create")]
         [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePendingOrder.CreatePendingOrderResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> CreatePendingOrder([FromBody] SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePendingOrder.CreatePendingOrderCommand command, CancellationToken cancellationToken)
         {
@@ -52,6 +55,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Hàm này sẽ được fe gọi 3s 1 lần để kiểm tra xem trạng thái thanh toán đã đổi chưa.</summary>
         [HttpGet("orders/{orderId}/status")]
+        [RequirePermission("ticket_sales", "read")]
         [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderStatus.GetOrderStatusResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetOrderStatus(Guid orderId, CancellationToken cancellationToken)
         {
@@ -68,7 +72,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Thanh toán và tạo vé online (Cho Customer).</summary>
         [HttpPost("checkout")]
-        [Authorize(Roles = "CUSTOMER")]
+        [RequirePermission("customer_tickets", "create")]
         [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutOnline.CheckoutOnlineResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> CheckoutOnline([FromBody] SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutOnline.CheckoutOnlineCommand command, CancellationToken cancellationToken)
         {
@@ -87,7 +91,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách vé đã mua của tôi.</summary>
         [HttpGet("me")]
-        [Authorize(Roles = "CUSTOMER")]
+        [RequirePermission("customer_tickets", "read")]
         public async Task<IActionResult> GetMyTickets(CancellationToken cancellationToken)
         {
             if (!User.TryGetUserId(out var userId)) return Forbid();

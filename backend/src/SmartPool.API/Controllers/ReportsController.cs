@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
 using SmartPool.Application.Features.ManageReports.Queries.GetCustomerStatistics;
 
 namespace SmartPool.API.Controllers;
@@ -24,6 +25,7 @@ public sealed class ReportsController : ControllerBase
     /// <param name="query">Các tiêu chí lọc (period: today, 7days, 30days, month, custom...)</param>
     /// <param name="cancellationToken"></param>
     [HttpGet("customer-statistics")]
+    [RequirePermission("reports", "read")]
     [ProducesResponseType(typeof(CustomerStatisticsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCustomerStatistics([FromQuery] GetCustomerStatisticsQuery query, CancellationToken cancellationToken)
     {
