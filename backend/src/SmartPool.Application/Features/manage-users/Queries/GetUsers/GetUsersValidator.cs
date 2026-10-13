@@ -17,7 +17,7 @@ public sealed class GetUsersValidator : AbstractValidator<GetUsersQuery>
         RuleFor(query => query.Role)
             .Must(value => string.IsNullOrWhiteSpace(value) || Enum.GetNames<RoleEnum>().Any(name =>
                 string.Equals(name, value.Trim(), StringComparison.OrdinalIgnoreCase)))
-            .WithMessage("Vai trò phải là CUSTOMER, STAFF hoặc ADMIN.");
+            .WithMessage("Vai trò phải là CUSTOMER, LIFEGUARD, SALES hoặc ADMIN.");
         RuleFor(query => query.Status)
             .Must(value => string.IsNullOrWhiteSpace(value) ||
                 string.Equals(value.Trim(), nameof(UserStatusEnum.ACTIVE), StringComparison.OrdinalIgnoreCase) ||
