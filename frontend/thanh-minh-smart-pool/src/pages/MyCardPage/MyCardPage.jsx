@@ -1,18 +1,23 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '../../services/apiClient'
-import { Avatar, Skeleton, Modal } from 'antd'
-import { QrcodeOutlined, UserOutlined } from '@ant-design/icons'
+import { Avatar, Skeleton, Modal, Input, message } from 'antd'
+import { QrcodeOutlined, UserOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import dayjs from 'dayjs'
 import './MyCardPage.css'
 import { useAuthStore } from '../../features/auth/store/authStore'
 import profileService from '../../features/profiles/services/profileService'
+import ticketService from '../../features/tickets/services/ticketService'
 
 export default function MyCardPage() {
   const { session } = useAuthStore()
+  const queryClient = useQueryClient()
   const [selectedTicket, setSelectedTicket] = useState(null)
-  
+  // State cho chỉnh sửa mã: ticketId đang được edit
+  const [editingId, setEditingId] = useState(null)
+  const [editValue, setEditValue] = useState('')
+
   const { data: profile } = useQuery({
     queryKey: ['myProfile'],
     queryFn: profileService.getMyProfile,
@@ -27,6 +32,39 @@ export default function MyCardPage() {
     },
     enabled: !!session
   })
+
+  // Mutation cập nhật mã vé
+  const updateCodeMutation = useMutation({
+    mutationFn: ({ ticketId, code }) => ticketService.updateCode(ticketId, code),
+    onSuccess: (data) => {
+      message.success(data.message || 'Cập nhật mã thành công!')
+      queryClient.invalidateQueries({ queryKey: ['myTickets'] })
+      setEditingId(null)
+      setEditValue('')
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.message || 'Cập nhật thất bại. Vui lòng thử lại.'
+      message.error(msg)
+    }
+  })
+
+  const handleStartEdit = (ticket) => {
+    setEditingId(ticket.id)
+    setEditValue(ticket.qrCode)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditValue('')
+  }
+
+  const handleSaveCode = (ticketId) => {
+    if (!/^\d{6}$/.test(editValue)) {
+      message.warning('Mã vé phải là đúng 6 chữ số (0–9).')
+      return
+    }
+    updateCodeMutation.mutate({ ticketId, code: editValue })
+  }
 
   return (
     <div className="mc-page">
@@ -91,7 +129,55 @@ export default function MyCardPage() {
                       {ticket.ticketName}
                       <span className="mc-ticket-badge">{ticket.ticketCategory === 'VE_THANG' ? 'Vé tháng' : 'Vé lượt'}</span>
                     </div>
-                    <div className="mc-ticket-code">Mã: {ticket.qrCode}</div>
+
+                    {/* Mã vé — hiển thị hoặc chỉnh sửa */}
+                    {editingId === ticket.id ? (
+                      <div className="mc-code-edit-row">
+                        <Input
+                          value={editValue}
+                          onChange={(e) => {
+                            // Chỉ nhận số, tối đa 6 ký tự
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+                            setEditValue(val)
+                          }}
+                          maxLength={6}
+                          placeholder="6 chữ số"
+                          size="small"
+                          style={{ width: 100, fontFamily: 'monospace', letterSpacing: 2 }}
+                          autoFocus
+                        />
+                        <button
+                          className="mc-code-action-btn mc-code-save-btn"
+                          onClick={() => handleSaveCode(ticket.id)}
+                          disabled={updateCodeMutation.isPending}
+                          title="Lưu mã"
+                        >
+                          <CheckOutlined />
+                        </button>
+                        <button
+                          className="mc-code-action-btn mc-code-cancel-btn"
+                          onClick={handleCancelEdit}
+                          disabled={updateCodeMutation.isPending}
+                          title="Hủy"
+                        >
+                          <CloseOutlined />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mc-ticket-code-row">
+                        <span className="mc-ticket-code">Mã: {ticket.qrCode}</span>
+                        {ticket.status === 'ACTIVE' && (
+                          <button
+                            className="mc-code-edit-icon"
+                            onClick={() => handleStartEdit(ticket)}
+                            title="Đổi mã vé"
+                          >
+                            <EditOutlined />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     <div className="mc-ticket-dates">
                       {ticket.ticketCategory === 'VE_THANG' 
                         ? `${dayjs(ticket.issueDate).format('DD/MM/YYYY')} ➔ ${dayjs(ticket.expiryDate).format('DD/MM/YYYY')}`
@@ -137,8 +223,10 @@ export default function MyCardPage() {
                 level="H"
                 includeMargin
               />
-
-              <div style={{ marginTop: '8px', color: '#666' }}>
+              <div style={{ marginTop: '12px', fontSize: 28, fontWeight: 700, letterSpacing: 6, fontFamily: 'monospace', color: '#1a7a4a' }}>
+                {selectedTicket.qrCode}
+              </div>
+              <div style={{ marginTop: '6px', color: '#666', fontSize: 13 }}>
                 Đưa mã này cho nhân viên để quét khi qua cổng.
               </div>
             </>

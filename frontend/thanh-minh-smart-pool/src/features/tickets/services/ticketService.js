@@ -11,6 +11,9 @@ const ticketService = {
 
   /** Kiểm tra trạng thái đơn hàng */
   checkOrderStatus: (orderId) => apiClient.get(`${BASE}/orders/${orderId}/status`).then((res) => res.data),
+
+  /** Cập nhật mã ngắn 6 chữ số của vé */
+  updateCode: (ticketId, code) => apiClient.put(`${BASE}/${ticketId}/code`, { code }).then((res) => res.data),
 }
 
 export default ticketService

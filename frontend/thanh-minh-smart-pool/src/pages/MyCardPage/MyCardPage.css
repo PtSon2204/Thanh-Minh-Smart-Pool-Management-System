@@ -311,3 +311,83 @@
   color: #999;
   font-size: 14px;
 }
+/* === EDIT CODE ROW === */
+.mc-ticket-code-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.mc-ticket-code {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a5f42;
+  background: #e8f7f1;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  letter-spacing: 2px;
+  font-family: 'Courier New', monospace;
+}
+
+.mc-code-edit-icon {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.mc-code-edit-icon:hover {
+  color: #1a5f42;
+  background: #e8f7f1;
+}
+
+.mc-code-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.mc-code-action-btn {
+  border: none;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.mc-code-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mc-code-save-btn {
+  background-color: #1a5f42;
+  color: white;
+}
+
+.mc-code-save-btn:hover:not(:disabled) {
+  background-color: #0d4d34;
+}
+
+.mc-code-cancel-btn {
+  background-color: #f0f0f0;
+  color: #555;
+}
+
+.mc-code-cancel-btn:hover:not(:disabled) {
+  background-color: #e0e0e0;
+}

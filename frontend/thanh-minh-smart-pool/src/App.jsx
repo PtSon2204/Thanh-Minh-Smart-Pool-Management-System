@@ -22,6 +22,7 @@ import CustomerStatisticsPage from './pages/admin/statistics/CustomerStatisticsP
 import StaffProfilesPage from './pages/admin/StaffProfilesPage'
 import ShiftManagementPage from './pages/admin/ShiftManagementPage'
 import StaffSchedulePage from './pages/admin/StaffSchedulePage'
+import UserManagementPage from './pages/admin/UserManagementPage'
 
 import { ConfigProvider } from 'antd'
 
@@ -67,6 +68,7 @@ function App() {
             <Route path="staff/profiles" element={<StaffProfilesPage />} />
             <Route path="staff/shifts" element={<ShiftManagementPage />} />
             <Route path="staff/schedule" element={<StaffSchedulePage />} />
+            <Route path="users" element={<UserManagementPage />} />
             <Route path="payments/invoices" element={<PaymentHistoryPage />} />
             {/* Future admin routes go here */}
           </Route>
