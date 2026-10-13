@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getAccessToken } from '../features/auth/store/authStore'
+import { getAccessToken, useAuthStore } from '../features/auth/store/authStore'
 
 /**
  * Axios instance dùng chung toàn app.
@@ -21,5 +21,18 @@ apiClient.interceptors.request.use((config) => {
   }
   return config
 })
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      const url = error.config?.url || ''
+      if (!url.includes('/api/auth/login')) {
+        useAuthStore.getState().setSession(null)
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
 export default apiClient

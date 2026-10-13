@@ -16,7 +16,8 @@ import {
   BellOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
 import './AdminLayout.css';
 
@@ -43,18 +44,30 @@ export default function AdminLayout() {
     return () => clearInterval(interval);
   }, [location.pathname]);
 
+  const { session, setSession } = useAuthStore();
+  const navigate = useNavigate();
+  const role = session?.role?.toUpperCase();
+  const isAdmin = role === 'ADMIN';
+
+  const roleLabelMap = {
+    ADMIN: 'Quản trị viên',
+    LIFEGUARD: 'Nhân viên cứu hộ',
+    SALES: 'Nhân viên bán hàng',
+  };
+  const roleDisplay = roleLabelMap[role] || (isAdmin ? 'Quản trị viên' : 'Nhân viên');
+
   const menuItems = [
     {
       key: '/admin',
       icon: <DashboardOutlined />,
       label: <Link to="/admin">Bảng điều khiển</Link>,
     },
-    {
+    isAdmin && {
       key: '/admin/users',
       icon: <UserOutlined />,
       label: <Link to="/admin/users">Quản lý người dùng</Link>,
     },
-    {
+    isAdmin && {
       key: '/admin/roles/permissions',
       icon: <SafetyCertificateOutlined />,
       label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
@@ -70,7 +83,7 @@ export default function AdminLayout() {
         { key: '/admin/staff/profiles', label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link> },
       ],
     },
-    {
+    (isAdmin || role === 'SALES') && {
       key: '/admin/tickets',
       icon: <IdcardOutlined />,
       label: 'Quản lý vé',
@@ -81,17 +94,17 @@ export default function AdminLayout() {
         { key: '/admin/tickets/pos', label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link> },
       ],
     },
-    {
+    (isAdmin || role === 'SALES') && {
       key: '/admin/coupons',
       icon: <TagOutlined />,
       label: <Link to="/admin/coupons">Quản lý mã giảm giá</Link>,
     },
-    {
+    isAdmin && {
       key: '/admin/equipment',
       icon: <ToolOutlined />,
       label: <Link to="/admin/equipment">Quản lý thiết bị</Link>,
     },
-    {
+    (isAdmin || role === 'SALES') && {
       key: 'services',
       className: 'admin-service-menu',
       icon: <AppstoreOutlined />,
@@ -102,7 +115,7 @@ export default function AdminLayout() {
         { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },
-    {
+    (isAdmin || role === 'SALES') && {
       key: 'payments',
       icon: <TransactionOutlined />,
       label: 'Thanh toán và giao dịch',
@@ -110,7 +123,7 @@ export default function AdminLayout() {
         { key: '/admin/payments/invoices', label: <Link to="/admin/payments/invoices">Lịch sử thanh toán</Link> },
       ],
     },
-    {
+    isAdmin && {
       key: 'statistics',
       icon: <BarChartOutlined />,
       label: 'Thống kê',
@@ -129,7 +142,16 @@ export default function AdminLayout() {
       icon: <BellOutlined />,
       label: <Link to="/admin/notifications">Thông báo hệ thống</Link>,
     },
-  ];
+  ].filter(Boolean);
+
+  const handleUserMenuClick = ({ key }) => {
+    if (key === 'profile') {
+      navigate('/ho-so');
+    } else if (key === 'logout') {
+      setSession(null);
+      navigate('/dang-nhap');
+    }
+  };
 
   const userMenu = {
     items: [
@@ -145,8 +167,10 @@ export default function AdminLayout() {
         key: 'logout',
         icon: <LogoutOutlined />,
         label: 'Đăng xuất',
+        danger: true,
       },
     ],
+    onClick: handleUserMenuClick,
   };
 
   return (
@@ -226,7 +250,7 @@ export default function AdminLayout() {
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#005f8e' }} icon={<UserOutlined />} />
-                <span style={{ fontWeight: 600 }}>Quản trị viên</span>
+                <span style={{ fontWeight: 600 }}>{session?.username ? `${session.username} (${roleDisplay})` : roleDisplay}</span>
               </div>
             </Dropdown>
           </div>
