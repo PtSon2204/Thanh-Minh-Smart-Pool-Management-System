@@ -109,7 +109,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật mã ngắn (6 chữ số) của vé — chỉ chủ vé được phép.</summary>
         [HttpPut("{ticketId}/code")]
-        [Authorize(Roles = "CUSTOMER")]
+        [RequirePermission("customer_tickets", "update")]
         [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Commands.UpdateTicketCode.UpdateTicketCodeResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpdateTicketCode(Guid ticketId, [FromBody] UpdateTicketCodeRequest body, CancellationToken cancellationToken)
