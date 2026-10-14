@@ -11,6 +11,14 @@ export function useShifts(params, enabled) {
   })
 }
 
+export function useActiveShifts(enabled) {
+  return useQuery({
+    queryKey: [...SHIFTS_QUERY_KEY, 'active', 'complete'],
+    queryFn: ({ signal }) => shiftService.getAllActive(signal),
+    enabled,
+  })
+}
+
 export function useCreateShift() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
+import AdminLayout from './layouts/admin/AdminLayout'
 import HomePage from './pages/HomePage/HomePage'
 import AboutPage from './pages/AboutPage/AboutPage'
 import PricingPage from './pages/PricingPage/PricingPage'
@@ -9,7 +11,6 @@ import AuthPage from './pages/AuthPage/AuthPage'
 import ProfilePage from './pages/ProfilePage/ProfilePage'
 import MyCardPage from './pages/MyCardPage/MyCardPage'
 import PaymentHistoryPage from './pages/PaymentHistoryPage/PaymentHistoryPage'
-import AdminLayout from './layouts/admin/AdminLayout'
 import DashboardPage from './pages/admin/DashboardPage'
 import OfflineSalesPage from './pages/admin/OfflineSalesPage'
 import TicketTypePage from './pages/admin/TicketTypePage'
@@ -22,58 +23,18 @@ import CustomerStatisticsPage from './pages/admin/statistics/CustomerStatisticsP
 import StaffProfilesPage from './pages/admin/StaffProfilesPage'
 import ShiftManagementPage from './pages/admin/ShiftManagementPage'
 import StaffSchedulePage from './pages/admin/StaffSchedulePage'
+import UserManagementPage from './pages/admin/UserManagementPage'
 
-import { ConfigProvider } from 'antd'
+const router = createBrowserRouter([
+  { element: <MainLayout />, children: [
+    { path: '/', element: <HomePage /> }, { path: '/gioi-thieu', element: <AboutPage /> }, { path: '/bang-gia', element: <PricingPage /> }, { path: '/lien-he', element: <ContactPage /> }, { path: '/ho-so', element: <ProfilePage /> }, { path: '/the-cua-toi', element: <MyCardPage /> }, { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage /> }, { path: '*', element: <NotFoundPage /> },
+  ] },
+  { path: '/dang-nhap', element: <AuthPage /> }, { path: '/dang-ky', element: <AuthPage /> },
+  { path: '/admin', element: <AdminLayout />, children: [
+    { index: true, element: <DashboardPage /> }, { path: 'tickets/pos', element: <OfflineSalesPage /> }, { path: 'tickets/types', element: <TicketTypePage /> }, { path: 'services', element: <ServicePage /> }, { path: 'inventory', element: <InventoryPage /> }, { path: 'rentals', element: <RentalPage /> }, { path: 'coupons', element: <VoucherPage /> }, { path: 'notifications', element: <NotificationPage /> }, { path: 'statistics/user-count', element: <CustomerStatisticsPage /> }, { path: 'staff/profiles', element: <StaffProfilesPage /> }, { path: 'staff/shifts', element: <ShiftManagementPage /> }, { path: 'staff/schedule', element: <StaffSchedulePage /> }, { path: 'payments/invoices', element: <PaymentHistoryPage /> }, { path: 'users', element: <UserManagementPage /> },
+  ] },
+])
 
-function App() {
-  return (
-    <ConfigProvider
-      theme={{
-        token: {
-          fontFamily: "'Open Sans', system-ui, -apple-system, Roboto, sans-serif",
-        },
-      }}
-    >
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/gioi-thieu" element={<AboutPage />} />
-            <Route path="/bang-gia" element={<PricingPage />} />
-            <Route path="/lien-he" element={<ContactPage />} />
-            <Route path="/ho-so" element={<ProfilePage />} />
-            <Route path="/the-cua-toi" element={<MyCardPage />} />
-            <Route path="/lich-su-thanh-toan" element={<PaymentHistoryPage />} />
-            {/* <Route path="/dat-ve" element={<TicketPage />} /> */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-
-          {/* Auth Routes (full-screen, no Navbar/Footer) */}
-          <Route path="/dang-nhap" element={<AuthPage />} />
-          <Route path="/dang-ky" element={<AuthPage />} />
-
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="tickets/pos" element={<OfflineSalesPage />} />
-            <Route path="tickets/types" element={<TicketTypePage />} />
-            <Route path="services" element={<ServicePage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="rentals" element={<RentalPage />} />
-            <Route path="coupons" element={<VoucherPage />} />
-            <Route path="notifications" element={<NotificationPage />} />
-            <Route path="statistics/user-count" element={<CustomerStatisticsPage />} />
-            <Route path="staff/profiles" element={<StaffProfilesPage />} />
-            <Route path="staff/shifts" element={<ShiftManagementPage />} />
-            <Route path="staff/schedule" element={<StaffSchedulePage />} />
-            <Route path="payments/invoices" element={<PaymentHistoryPage />} />
-            {/* Future admin routes go here */}
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </ConfigProvider>
-  )
+export default function App() {
+  return <ConfigProvider theme={{ token: { fontFamily: "'Open Sans', system-ui, -apple-system, Roboto, sans-serif" } }}><RouterProvider router={router} /></ConfigProvider>
 }
-
-export default App
