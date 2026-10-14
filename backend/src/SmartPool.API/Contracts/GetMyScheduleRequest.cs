@@ -5,5 +5,7 @@ namespace SmartPool.API.Contracts
         public int PageIndex { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public DateOnly? Date { get; set; }
+        public DateOnly? FromDate { get; set; }
+        public DateOnly? ToDate { get; set; }
     }
 }

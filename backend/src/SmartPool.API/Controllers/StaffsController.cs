@@ -8,6 +8,7 @@ using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
+using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
@@ -15,6 +16,7 @@ using SmartPool.Application.Features.ManageStaffs.Commands.SaveSalary;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSalaries;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
 using SmartPool.Domain.Enums;
@@ -79,11 +81,30 @@ namespace SmartPool.API.Controllers
             return await SendAsync(query, cancellationToken);
         }
 
+        /// <summary>Lấy danh sách nhân viên có thể được phân ca.</summary>
+        [HttpGet("schedule/employees")]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [ProducesResponseType(typeof(IReadOnlyList<GetScheduleEmployeeResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetScheduleEmployees(CancellationToken cancellationToken)
+        {
+            return await SendAsync(new GetScheduleEmployeesQuery(), cancellationToken);
+        }
+
         /// <summary>Phân công ca làm việc cho nhân viên.</summary>
         [HttpPost("schedule")]
         [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
         [ProducesResponseType(typeof(AssignShiftResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> AssignShift([FromBody] AssignShiftCommand command, CancellationToken cancellationToken)
+        {
+            return await SendAsync(command, cancellationToken, StatusCodes.Status201Created);
+        }
+
+        /// <summary>Phân công nhiều ca làm việc trong một giao dịch.</summary>
+        [HttpPost("schedule/batch")]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [ProducesResponseType(typeof(IReadOnlyList<AssignShiftResponse>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> AssignShiftBatch([FromBody] AssignShiftBatchCommand command, CancellationToken cancellationToken)
         {
             return await SendAsync(command, cancellationToken, StatusCodes.Status201Created);
         }
@@ -128,6 +149,8 @@ namespace SmartPool.API.Controllers
                 PageIndex = request.PageIndex,
                 PageSize = request.PageSize,
                 Date = request.Date,
+                FromDate = request.FromDate,
+                ToDate = request.ToDate,
                 EmployeeId = userId,
                 RequireEmployee = true
             };
@@ -198,6 +221,17 @@ namespace SmartPool.API.Controllers
             catch (KeyNotFoundException exception)
             {
                 return NotFound(new { message = exception.Message });
+            }
+            catch (AssignShiftBatchConflictException exception)
+            {
+                var problem = new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Không thể phân công ca làm việc.",
+                    Detail = exception.Message
+                };
+                problem.Extensions["conflicts"] = exception.Conflicts;
+                return Conflict(problem);
             }
             catch (StaffConflictException exception)
             {
