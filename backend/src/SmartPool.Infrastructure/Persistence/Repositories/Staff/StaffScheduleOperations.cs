@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
@@ -20,27 +21,36 @@ public sealed partial class StaffOperations
         var query = context.EmployeeShifts.AsNoTracking().Include(item => item.Shift).Include(item => item.Employee).ThenInclude(employee => employee.User).ThenInclude(user => user.UserProfile).AsQueryable();
         if (request.EmployeeId is not null) query = query.Where(item => item.EmployeeId == request.EmployeeId);
         if (request.Date is not null) query = query.Where(item => item.WorkDate == request.Date);
+        if (request.FromDate is not null) query = query.Where(item => item.WorkDate >= request.FromDate);
+        if (request.ToDate is not null) query = query.Where(item => item.WorkDate <= request.ToDate);
         if (!string.IsNullOrWhiteSpace(request.Status)) query = query.Where(item => item.Status == request.Status);
         var total = await query.CountAsync(cancellationToken); var page = Normalize(request.PageIndex, request.PageSize);
-        var rows = await query.OrderBy(item => item.WorkDate).ThenBy(item => item.Shift.StartTime).Skip((page.Page - 1) * page.PageSize).Take(page.PageSize).ToListAsync(cancellationToken);
+        var rows = await query.OrderBy(item => item.WorkDate).ThenBy(item => item.Shift.StartTime).ThenBy(item => item.EmployeeId).ThenBy(item => item.ShiftId).ThenBy(item => item.Id).Skip((page.Page - 1) * page.PageSize).Take(page.PageSize).ToListAsync(cancellationToken);
         return new PagedResponse<GetScheduleResponse> { Items = mapper.Map<List<GetScheduleResponse>>(rows), TotalCount = total, PageIndex = page.Page, PageSize = page.PageSize };
     }
 
     public async Task<AssignShiftResponse> AssignShiftAsync(AssignShiftCommand request, CancellationToken cancellationToken)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({request.EmployeeId.ToString()}, 0))", cancellationToken);
-        var employee = await context.Employees.AsNoTracking().FirstOrDefaultAsync(item =>
-            item.UserId == request.EmployeeId && item.Status == "Working" &&
-            item.User.IsDeleted != true && item.User.Status != null &&
-            EF.Functions.ILike(item.User.Status, "ACTIVE"), cancellationToken);
+        await LockEmployeesAsync([request.EmployeeId], cancellationToken);
+        var employee = await EligibleEmployees().AsNoTracking()
+            .FirstOrDefaultAsync(item => item.UserId == request.EmployeeId, cancellationToken);
         if (employee is null) throw new KeyNotFoundException("Không tìm thấy nhân viên đang làm việc.");
         var shift = await context.Shifts.FirstOrDefaultAsync(item => item.Id == request.ShiftId && item.IsActive == true, cancellationToken);
         if (shift is null) throw new KeyNotFoundException("Không tìm thấy ca làm việc đang hoạt động.");
         var assignments = await context.EmployeeShifts.Include(item => item.Shift).Where(item => item.EmployeeId == request.EmployeeId && item.WorkDate >= request.WorkDate.AddDays(-1) && item.WorkDate <= request.WorkDate.AddDays(1) && item.Status != "Cancelled").ToListAsync(cancellationToken);
         if (assignments.Any(item => Overlaps(request.WorkDate, shift, item.WorkDate, item.Shift))) throw new StaffConflictException("Ca làm việc bị trùng với lịch đã phân công.");
         var assignment = new EmployeeShift { Id = Guid.NewGuid(), EmployeeId = request.EmployeeId, ShiftId = request.ShiftId, WorkDate = request.WorkDate, Status = "Scheduled", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, Shift = shift };
-        context.EmployeeShifts.Add(assignment); await context.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken);
+        context.EmployeeShifts.Add(assignment);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsExactTupleViolation(exception))
+        {
+            throw new StaffConflictException("Phân công này đã tồn tại.");
+        }
+        await transaction.CommitAsync(cancellationToken);
         return mapper.Map<AssignShiftResponse>(assignment);
     }
 
@@ -71,6 +81,18 @@ public sealed partial class StaffOperations
     }
 
     private async Task<EmployeeShift?> GetAssignmentAsync(Guid id, CancellationToken cancellationToken) => await context.EmployeeShifts.AsNoTracking().Include(item => item.Shift).FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+    private IQueryable<Employee> EligibleEmployees() => context.Employees.Where(item =>
+        item.Status == "Working" && item.User.IsDeleted != true && item.User.Status != null &&
+        EF.Functions.ILike(item.User.Status, "ACTIVE"));
+    private async Task LockEmployeesAsync(IEnumerable<Guid> employeeIds, CancellationToken cancellationToken)
+    {
+        foreach (var employeeId in employeeIds.Distinct().Order())
+            await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({employeeId.ToString()}, 0))", cancellationToken);
+    }
+    private static bool IsExactTupleViolation(DbUpdateException exception) =>
+        exception.InnerException is PostgresException postgresException &&
+        postgresException.SqlState == PostgresErrorCodes.UniqueViolation &&
+        postgresException.ConstraintName == "ux_employee_shifts_employee_id_shift_id_work_date";
     private static bool Overlaps(DateOnly firstDate, Shift firstShift, DateOnly secondDate, Shift secondShift) { var first = Interval(firstDate, firstShift); var second = Interval(secondDate, secondShift); return first.Start < second.End && second.Start < first.End; }
     private static (DateTime Start, DateTime End) Interval(DateOnly date, Shift shift)
     {
