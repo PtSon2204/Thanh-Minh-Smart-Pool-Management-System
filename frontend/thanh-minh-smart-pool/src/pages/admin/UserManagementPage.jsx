@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Col, Input, Modal, Row, Select, Space, Statistic, Typography, message } from 'antd'
-import { PlusOutlined, ReloadOutlined, SearchOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined, SafetyCertificateOutlined, SearchOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
 import UserFormModal from '../../features/users/components/UserFormModal'
 import UserDetailsDrawer from '../../features/users/components/UserDetailsDrawer'
 import UserTable from '../../features/users/components/UserTable'
@@ -100,6 +101,7 @@ export default function UserManagementPage() {
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => usersQuery.refetch()}>Tải lại</Button>
+          <Button icon={<SafetyCertificateOutlined />}><Link to="/admin/roles/permissions">Phân quyền</Link></Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditor({ record: null })}>Thêm tài khoản</Button>
         </Space>
       </div>

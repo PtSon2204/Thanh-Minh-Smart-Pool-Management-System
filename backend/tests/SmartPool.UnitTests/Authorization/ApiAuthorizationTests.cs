@@ -4,9 +4,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using SmartPool.API.Authorization;
 using SmartPool.API.Controllers;
 using SmartPool.API.Extensions;
+using SmartPool.Application.Common.Authorization;
+using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Enums;
 
 namespace SmartPool.UnitTests.Authorization;
@@ -16,12 +19,12 @@ public sealed class ApiAuthorizationTests
     [Theory]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ADMIN", AuthorizationPolicies.AdminOnly, true)]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "admin", AuthorizationPolicies.AdminOnly, true)]
-    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "STAFF", AuthorizationPolicies.AdminOnly, false)]
-    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "staff", AuthorizationPolicies.AdminOrStaff, true)]
+    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "SALES", AuthorizationPolicies.AdminOnly, false)]
+    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "LIFEGUARD", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "00000000-0000-0000-0000-000000000000", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "not-a-guid", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
-    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "CUSTOMER", AuthorizationPolicies.AdminOrStaff, false)]
+    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "CUSTOMER", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(false, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
     public async Task AuthorizeAsync_RequiresAuthenticatedCallerWithValidIdAndPermittedRole(
         bool isAuthenticated,
@@ -32,6 +35,7 @@ public sealed class ApiAuthorizationTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton(Mock.Of<IRolePermissionReader>());
         services.AddApiAuthorization();
         using var provider = services.BuildServiceProvider();
         var authorization = provider.GetRequiredService<IAuthorizationService>();
@@ -47,7 +51,8 @@ public sealed class ApiAuthorizationTests
     [Theory]
     [InlineData("ADMIN", RoleEnum.ADMIN, true)]
     [InlineData("admin", RoleEnum.ADMIN, true)]
-    [InlineData("Staff", RoleEnum.STAFF, true)]
+    [InlineData("Sales", RoleEnum.SALES, true)]
+    [InlineData("Lifeguard", RoleEnum.LIFEGUARD, true)]
     [InlineData("CUSTOMER", RoleEnum.ADMIN, false)]
     public void HasRole_UsesCaseInsensitiveRoleClaims(string role, RoleEnum expectedRole, bool expected)
     {
@@ -75,49 +80,49 @@ public sealed class ApiAuthorizationTests
     }
 
     [Fact]
-    public void ProtectedControllers_ApplyBaselinePolicyAndAdminOverridesToAll30Actions()
+    public void OperationalEndpoints_RequirePermissions()
     {
-        var expectedAdminOnly = new HashSet<string>(StringComparer.Ordinal)
-        {
-            nameof(ServicesController.CreateService),
-            nameof(ServicesController.UpdateService),
-            nameof(ServicesController.SetServiceStatus),
-            nameof(StaffsController.GetStaffs),
-            nameof(StaffsController.CreateStaff),
-            nameof(StaffsController.GetOptions),
-            nameof(StaffsController.UpdateStaff),
-            nameof(StaffsController.GetSchedule),
-            nameof(StaffsController.AssignShift),
-            nameof(StaffsController.CancelShift),
-            nameof(StaffsController.GetSalaries),
-            nameof(StaffsController.CreateSalary),
-            nameof(StaffsController.UpdateSalary),
-            nameof(ShiftsController.CreateShift),
-            nameof(ShiftsController.UpdateShift)
-        };
         var controllers = new[]
         {
             typeof(ServicesController), typeof(StaffsController), typeof(ShiftsController),
-            typeof(RentalsController), typeof(PoolAccessController)
+            typeof(RentalsController), typeof(PoolAccessController), typeof(TicketController),
+            typeof(NotificationsController), typeof(PaymentsController), typeof(ReportsController),
+            typeof(ProfilesController)
         };
         var actions = controllers.SelectMany(controller => controller.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
             .Where(method => method.GetCustomAttributes<HttpMethodAttribute>().Any())
             .Select(method => (Controller: controller, Method: method)))
             .ToArray();
 
-        Assert.Equal(31, actions.Length);
-        foreach (var controller in controllers)
-        {
-            Assert.Contains(controller.GetCustomAttributes<AuthorizeAttribute>(), attribute =>
-                attribute.Policy == AuthorizationPolicies.AdminOrStaff);
-        }
-
         foreach (var action in actions)
         {
-            var isAdminOnly = expectedAdminOnly.Contains(action.Method.Name);
-            Assert.Equal(isAdminOnly, action.Method.GetCustomAttributes<AuthorizeAttribute>()
-                .Any(attribute => attribute.Policy == AuthorizationPolicies.AdminOnly));
+            var policies = action.Method.GetCustomAttributes<AuthorizeAttribute>().Select(attribute => attribute.Policy);
+            Assert.Contains(policies, policy => policy?.StartsWith("permission:", StringComparison.Ordinal) == true ||
+                policy == AuthorizationPolicies.AdminOnly);
         }
+    }
+
+    [Fact]
+    public void TicketLookupGrant_DoesNotImplyEntryConfirmationOrHistory()
+    {
+        Assert.Equal(PermissionCatalog.Policy("ticket_lookup", "read"),
+            typeof(PoolAccessController).GetMethod(nameof(PoolAccessController.Lookup))!
+                .GetCustomAttribute<RequirePermissionAttribute>()!.Policy);
+        Assert.Equal(PermissionCatalog.Policy("pool_entry", "create"),
+            typeof(PoolAccessController).GetMethod(nameof(PoolAccessController.Confirm))!
+                .GetCustomAttribute<RequirePermissionAttribute>()!.Policy);
+        Assert.Equal(PermissionCatalog.Policy("pool_entry", "read"),
+            typeof(PoolAccessController).GetMethod(nameof(PoolAccessController.GetHistory))!
+                .GetCustomAttribute<RequirePermissionAttribute>()!.Policy);
+    }
+
+    [Fact]
+    public void PermissionManagement_RequiresAdmin()
+    {
+        var policy = Assert.Single(typeof(RolesController).GetCustomAttributes<AuthorizeAttribute>());
+        Assert.Equal(AuthorizationPolicies.AdminOnly, policy.Policy);
+        Assert.False(PermissionCatalog.IsValid("users", "create"));
+        Assert.True(PermissionCatalog.IsValid("ticket_lookup", "read"));
     }
 
     private static ClaimsPrincipal CreatePrincipal(bool isAuthenticated, string userId, string role)

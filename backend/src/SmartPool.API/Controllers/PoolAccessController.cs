@@ -13,7 +13,6 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/pool-access")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class PoolAccessController : ControllerBase
     {
         private readonly ISender _sender;
@@ -25,6 +24,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tra cứu thông tin và điều kiện vào bể của vé.</summary>
         [HttpPost("lookup")]
+        [RequirePermission("ticket_lookup", "read")]
         [ProducesResponseType(typeof(LookupTicketResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Lookup([FromBody] LookupTicketQuery query, CancellationToken cancellationToken)
@@ -35,6 +35,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Xác nhận một lượt vào bể.</summary>
         [HttpPost("entries")]
+        [RequirePermission("pool_entry", "create")]
         [ProducesResponseType(typeof(ConfirmEntryResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -53,6 +54,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy lịch sử lượt vào bể có phân trang.</summary>
         [HttpGet("entries")]
+        [RequirePermission("pool_entry", "read")]
         [ProducesResponseType(typeof(SmartPool.Application.Common.Models.PagedResponse<GetEntryHistoryResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetHistory([FromQuery] GetEntryHistoryQuery query, CancellationToken cancellationToken)
@@ -63,6 +65,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy tổng số lượt vào bể đã được chấp nhận trong ngày.</summary>
         [HttpGet("summary")]
+        [RequirePermission("pool_entry", "read")]
         [ProducesResponseType(typeof(GetDailyEntrySummaryResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetSummary([FromQuery] GetDailyEntrySummaryQuery query, CancellationToken cancellationToken)

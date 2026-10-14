@@ -31,8 +31,9 @@ function ScheduleList({ items, pageIndex, pageSize, onPageChange, total, isAdmin
 
 export default function StaffSchedulePage() {
   const session = useAuthStore((state) => state.session)
-  const isAdmin = session?.role?.toUpperCase() === 'ADMIN'
-  const canRead = isAdmin || session?.role?.toUpperCase() === 'STAFF'
+  const role = session?.role?.toUpperCase()
+  const isAdmin = role === 'ADMIN'
+  const canRead = isAdmin || ['LIFEGUARD', 'SALES'].includes(role)
   const [monday, setMonday] = useState(() => mondayFor(vietnamToday()))
   const [view, setView] = useState('Tuần')
   const [pageIndex, setPageIndex] = useState(1)

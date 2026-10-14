@@ -2,12 +2,13 @@ using DotNetEnv;
 using SmartPool.API.Extensions;
 using SmartPool.Application;
 using SmartPool.Infrastructure;
+using SmartPool.Infrastructure.Seeding;
 
 namespace SmartPool.API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             // Load .env (gitignored — secrets của từng máy)
             var envFilePath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
@@ -54,6 +55,10 @@ namespace SmartPool.API
             app.UseAuthorization();
             app.MapControllers();
             app.MapHubs();                          // SignalR Hubs — xem API/Extensions/HubExtensions.cs
+
+            // Tự động sync role permissions vào DB khi app khởi động.
+            // Thêm tính năng mới? Sửa RolePermissionSeeder.cs là đủ.
+            await RolePermissionSeeder.SeedAsync(app.Services);
 
             app.Run();
         }

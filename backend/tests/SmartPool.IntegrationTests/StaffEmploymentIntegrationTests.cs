@@ -76,7 +76,7 @@ public sealed class StaffEmploymentIntegrationTests
     }
 
     [Fact]
-    public async Task GivenSoftDeletedStaffRole_WhenReadingOptionsAndCreatingEmployment_ThenAccountIsExcludedAndRejected()
+    public async Task GivenSoftDeletedSalesRole_WhenReadingOptionsAndCreatingEmployment_ThenAccountIsExcludedAndRejected()
     {
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         try

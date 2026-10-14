@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageVouchers;
 using SmartPool.Application.Features.ManageVouchers.Commands.CreateVoucher;
@@ -33,6 +34,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo mới một voucher.</summary>
         [HttpPost]
+        [RequirePermission("vouchers", "create")]
         [ProducesResponseType(typeof(CreateVoucherResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateVoucher([FromBody] CreateVoucherCommand command, CancellationToken cancellationToken)
         {
@@ -41,6 +43,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật thông tin voucher.</summary>
         [HttpPut("{id:guid}")]
+        [RequirePermission("vouchers", "update")]
         [ProducesResponseType(typeof(UpdateVoucherResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateVoucher([FromRoute] Guid id, [FromBody] UpdateVoucherCommand command, CancellationToken cancellationToken)
         {
@@ -50,6 +53,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Khóa / mở khóa voucher (toggle IsActive).</summary>
         [HttpPut("{id:guid}/toggle-lock")]
+        [RequirePermission("vouchers", "update")]
         [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
         public async Task<IActionResult> ToggleLock([FromRoute] Guid id, CancellationToken cancellationToken)
         {
@@ -58,6 +62,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Xóa mềm voucher (soft delete).</summary>
         [HttpDelete("{id:guid}")]
+        [RequirePermission("vouchers", "delete")]
         [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
         public async Task<IActionResult> DeleteVoucher([FromRoute] Guid id, CancellationToken cancellationToken)
         {

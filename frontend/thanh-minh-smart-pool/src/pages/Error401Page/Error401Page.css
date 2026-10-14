@@ -1,0 +1,156 @@
+.error-401-container {
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(180deg, #dcf6fd 0%, #b8effc 45%, #90e0ef 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #032b43;
+  box-sizing: border-box;
+  text-align: center;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle water ripples background effect */
+.error-401-container::before {
+  content: "";
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 140%;
+  height: 120px;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.error-401-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.error-401-title {
+  font-size: clamp(3.2rem, 7vw, 4.8rem);
+  font-weight: 500;
+  color: #032b43;
+  margin: 0 0 1.25rem 0;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0, 119, 182, 0.08);
+}
+
+.error-401-subtitle {
+  font-size: clamp(1.35rem, 3.2vw, 1.85rem);
+  font-weight: 400;
+  color: #054466;
+  margin: 0 0 0.85rem 0;
+  line-height: 1.3;
+}
+
+.error-401-desc {
+  font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+  font-weight: 400;
+  color: #0d5982;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.4;
+}
+
+.error-401-action {
+  font-size: 1.05rem;
+  color: #054466;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-401-signin-link {
+  color: #0077b6;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+  transition: color 0.2s ease, opacity 0.2s ease;
+  cursor: pointer;
+}
+
+.error-401-signin-link:hover {
+  color: #005f8e;
+  text-decoration-thickness: 2px;
+}
+
+.error-401-home-link {
+  display: inline-block;
+  margin-top: -0.75rem;
+  margin-bottom: 2rem;
+  color: #005f8e;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.4rem 1.2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 119, 182, 0.22);
+  box-shadow: 0 2px 6px rgba(0, 119, 182, 0.08);
+  transition: all 0.2s ease;
+}
+
+.error-401-home-link:hover {
+  background: #ffffff;
+  color: #032b43;
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.16);
+  transform: translateY(-1px);
+}
+
+.error-401-duck-wrapper {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+.error-401-duck {
+  width: 240px;
+  max-width: 75vw;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 119, 182, 0.15));
+  animation: duckFloat 4s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes duckFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+  75% {
+    transform: translateY(-6px) rotate(1deg);
+  }
+}

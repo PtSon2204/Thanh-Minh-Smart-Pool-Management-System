@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.API.Authorization;
 using SmartPool.Application.Features.ManageTickets.TicketType.Commands.CreateTicketType;
 using SmartPool.Application.Features.ManageTickets.TicketType.Commands.UpdateTicketType;
 using SmartPool.Application.Features.ManageTickets.TicketType.Commands.ToggleLockTicketType;
@@ -47,6 +48,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo mới loại vé.</summary>
         [HttpPost]
+        [RequirePermission("ticket_types", "create")]
         [ProducesResponseType(typeof(CreateTicketTypeResponse), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create(
@@ -59,6 +61,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật loại vé.</summary>
         [HttpPut("{id:guid}")]
+        [RequirePermission("ticket_types", "update")]
         [ProducesResponseType(typeof(UpdateTicketTypeResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -81,6 +84,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Khóa / Mở khóa loại vé </summary>
         [HttpPut("{id:guid}/toggle-lock")]
+        [RequirePermission("ticket_types", "update")]
         [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> ToggleLock(Guid id, CancellationToken cancellationToken)
@@ -98,6 +102,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Xóa mềm loại vé (Soft Delete).</summary>
         [HttpDelete("{id:guid}")]
+        [RequirePermission("ticket_types", "delete")]
         [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

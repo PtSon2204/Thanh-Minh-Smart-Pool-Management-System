@@ -78,6 +78,9 @@ public sealed class ConfirmPendingOrderHandlerTests
         ticketRepo.Setup(repo => repo.AddAsync(It.IsAny<Ticket>(), It.IsAny<CancellationToken>()))
             .Callback<Ticket, CancellationToken>((ticket, _) => createdTicket = ticket)
             .Returns(Task.CompletedTask);
+        // GenerateUniqueCodeAsync: trả về null = mã chưa tồn tại → dùng ngay
+        ticketRepo.Setup(repo => repo.FirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ticket, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Ticket?)null);
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
@@ -97,7 +100,7 @@ public sealed class ConfirmPendingOrderHandlerTests
 
         Assert.True(result.Success);
         var ticket = Assert.IsType<Ticket>(createdTicket);
-        Assert.StartsWith("TKT-", ticket.QrCode);
+        Assert.Matches(@"^\d{6}$", ticket.QrCode);
         Assert.Equal("ACTIVE", ticket.Status);
         Assert.Single(result.Tickets);
         Assert.Equal(category, result.Tickets[0].TicketCategory);

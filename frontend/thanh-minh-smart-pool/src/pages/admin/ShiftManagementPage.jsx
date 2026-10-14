@@ -22,7 +22,7 @@ function isOvernight(shift) {
 export default function ShiftManagementPage() {
   const role = useAuthStore((state) => state.session?.role)
   const isAdmin = role?.toUpperCase() === 'ADMIN'
-  const canRead = isAdmin || role?.toUpperCase() === 'STAFF'
+  const canRead = isAdmin || ['LIFEGUARD', 'SALES'].includes(role?.toUpperCase())
   const [isActive, setIsActive] = useState()
   const [pageIndex, setPageIndex] = useState(1)
   const [pageSize, setPageSize] = useState(10)

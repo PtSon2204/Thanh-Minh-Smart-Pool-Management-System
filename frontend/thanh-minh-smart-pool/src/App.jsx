@@ -1,38 +1,87 @@
 import { ConfigProvider } from 'antd'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import MainLayout from './layouts/MainLayout'
-import AdminLayout from './layouts/admin/AdminLayout'
-import HomePage from './pages/HomePage/HomePage'
-import AboutPage from './pages/AboutPage/AboutPage'
-import PricingPage from './pages/PricingPage/PricingPage'
-import ContactPage from './pages/ContactPage/ContactPage'
-import NotFoundPage from './pages/NotFoundPage/NotFoundPage'
-import AuthPage from './pages/AuthPage/AuthPage'
-import ProfilePage from './pages/ProfilePage/ProfilePage'
-import MyCardPage from './pages/MyCardPage/MyCardPage'
-import PaymentHistoryPage from './pages/PaymentHistoryPage/PaymentHistoryPage'
-import DashboardPage from './pages/admin/DashboardPage'
-import OfflineSalesPage from './pages/admin/OfflineSalesPage'
-import TicketTypePage from './pages/admin/TicketTypePage'
-import ServicePage from './pages/admin/ServicePage'
-import InventoryPage from './pages/admin/InventoryPage'
-import RentalPage from './pages/admin/RentalPage'
-import VoucherPage from './pages/admin/VoucherPage'
-import NotificationPage from './pages/admin/NotificationPage'
-import CustomerStatisticsPage from './pages/admin/statistics/CustomerStatisticsPage'
-import StaffProfilesPage from './pages/admin/StaffProfilesPage'
-import ShiftManagementPage from './pages/admin/ShiftManagementPage'
-import StaffSchedulePage from './pages/admin/StaffSchedulePage'
-import UserManagementPage from './pages/admin/UserManagementPage'
+import MainLayout from "./layouts/MainLayout";
+import HomePage from "./pages/HomePage/HomePage";
+import AboutPage from "./pages/AboutPage/AboutPage";
+import PricingPage from "./pages/PricingPage/PricingPage";
+import ContactPage from "./pages/ContactPage/ContactPage";
+import NotFoundPage from "./pages/NotFoundPage/NotFoundPage";
+import AuthPage from "./pages/AuthPage/AuthPage";
+import ProfilePage from "./pages/ProfilePage/ProfilePage";
+import MyCardPage from "./pages/MyCardPage/MyCardPage";
+import PaymentHistoryPage from "./pages/PaymentHistoryPage/PaymentHistoryPage";
+import Error401Page from "./pages/Error401Page/Error401Page";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import AdminLayout from "./layouts/admin/AdminLayout";
+import DashboardPage from "./pages/admin/DashboardPage";
+import OfflineSalesPage from "./pages/admin/OfflineSalesPage";
+import TicketTypePage from "./pages/admin/TicketTypePage";
+import ServicePage from "./pages/admin/ServicePage";
+import InventoryPage from "./pages/admin/InventoryPage";
+import RentalPage from "./pages/admin/RentalPage";
+import VoucherPage from "./pages/admin/VoucherPage";
+import NotificationPage from "./pages/admin/NotificationPage";
+import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsPage";
+import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
+import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
+import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
+import UserManagementPage from "./pages/admin/UserManagementPage";
+import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
 
 const router = createBrowserRouter([
-  { element: <MainLayout />, children: [
-    { path: '/', element: <HomePage /> }, { path: '/gioi-thieu', element: <AboutPage /> }, { path: '/bang-gia', element: <PricingPage /> }, { path: '/lien-he', element: <ContactPage /> }, { path: '/ho-so', element: <ProfilePage /> }, { path: '/the-cua-toi', element: <MyCardPage /> }, { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage /> }, { path: '*', element: <NotFoundPage /> },
-  ] },
-  { path: '/dang-nhap', element: <AuthPage /> }, { path: '/dang-ky', element: <AuthPage /> },
-  { path: '/admin', element: <AdminLayout />, children: [
-    { index: true, element: <DashboardPage /> }, { path: 'tickets/pos', element: <OfflineSalesPage /> }, { path: 'tickets/types', element: <TicketTypePage /> }, { path: 'services', element: <ServicePage /> }, { path: 'inventory', element: <InventoryPage /> }, { path: 'rentals', element: <RentalPage /> }, { path: 'coupons', element: <VoucherPage /> }, { path: 'notifications', element: <NotificationPage /> }, { path: 'statistics/user-count', element: <CustomerStatisticsPage /> }, { path: 'staff/profiles', element: <StaffProfilesPage /> }, { path: 'staff/shifts', element: <ShiftManagementPage /> }, { path: 'staff/schedule', element: <StaffSchedulePage /> }, { path: 'payments/invoices', element: <PaymentHistoryPage /> }, { path: 'users', element: <UserManagementPage /> },
-  ] },
+  {
+    element: <MainLayout />,
+    children: [
+      { path: '/', element: <HomePage /> },
+      { path: '/gioi-thieu', element: <AboutPage /> },
+      { path: '/bang-gia', element: <PricingPage /> },
+      { path: '/lien-he', element: <ContactPage /> },
+      {
+        element: <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["CUSTOMER", "ADMIN", "LIFEGUARD", "SALES"]} />,
+        children: [
+          { path: '/ho-so', element: <ProfilePage /> },
+          { path: '/the-cua-toi', element: <MyCardPage /> },
+          { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage /> },
+        ],
+      },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+  { path: '/401', element: <Error401Page /> },
+  { path: '/unauthorized', element: <Error401Page /> },
+  { path: '/dang-nhap', element: <AuthPage /> },
+  { path: '/dang-ky', element: <AuthPage /> },
+  {
+    element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />,
+    children: [
+      {
+        path: '/admin',
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: 'tickets/pos', element: <OfflineSalesPage /> },
+          { path: 'tickets/types', element: <TicketTypePage /> },
+          { path: 'services', element: <ServicePage /> },
+          { path: 'inventory', element: <InventoryPage /> },
+          { path: 'rentals', element: <RentalPage /> },
+          { path: 'coupons', element: <VoucherPage /> },
+          { path: 'notifications', element: <NotificationPage /> },
+          { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
+          { path: 'staff/profiles', element: <StaffProfilesPage /> },
+          { path: 'staff/shifts', element: <ShiftManagementPage /> },
+          { path: 'staff/schedule', element: <StaffSchedulePage /> },
+          { path: 'payments/invoices', element: <PaymentHistoryPage /> },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+            children: [
+              { path: 'users', element: <UserManagementPage /> },
+              { path: 'roles/permissions', element: <RolePermissionsPage /> },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ])
 
 export default function App() {

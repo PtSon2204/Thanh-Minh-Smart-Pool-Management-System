@@ -25,7 +25,6 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/staffs")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOrStaff)]
     public sealed class StaffsController : ControllerBase
     {
         private readonly ISender _sender;
@@ -37,7 +36,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách nhân viên có phân trang và lọc.</summary>
         [HttpGet]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetStaffsResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetStaffs([FromQuery] GetStaffsQuery query, CancellationToken cancellationToken)
         {
@@ -46,7 +45,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo hồ sơ nhân viên từ tài khoản đủ điều kiện.</summary>
         [HttpPost]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff", "create")]
         [ProducesResponseType(typeof(CreateStaffResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateStaff([FromBody] CreateStaffCommand command, CancellationToken cancellationToken)
         {
@@ -55,7 +54,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy tài khoản và vai trò có thể dùng để tạo nhân viên.</summary>
         [HttpGet("options")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff", "read")]
         [ProducesResponseType(typeof(GetStaffOptionsResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetOptions(CancellationToken cancellationToken)
         {
@@ -64,7 +63,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật hồ sơ nhân viên.</summary>
         [HttpPut("{userId:guid}")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff", "update")]
         [ProducesResponseType(typeof(UpdateStaffResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateStaff(Guid userId, [FromBody] UpdateStaffCommand command, CancellationToken cancellationToken)
         {
@@ -74,7 +73,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy lịch làm việc có phân trang và lọc.</summary>
         [HttpGet("schedule")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff_schedule", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetScheduleResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetSchedule([FromQuery] GetScheduleQuery query, CancellationToken cancellationToken)
         {
@@ -83,7 +82,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách nhân viên có thể được phân ca.</summary>
         [HttpGet("schedule/employees")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff_schedule", "create")]
         [ProducesResponseType(typeof(IReadOnlyList<GetScheduleEmployeeResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetScheduleEmployees(CancellationToken cancellationToken)
         {
@@ -92,7 +91,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Phân công ca làm việc cho nhân viên.</summary>
         [HttpPost("schedule")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff_schedule", "create")]
         [ProducesResponseType(typeof(AssignShiftResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> AssignShift([FromBody] AssignShiftCommand command, CancellationToken cancellationToken)
         {
@@ -101,7 +100,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Phân công nhiều ca làm việc trong một giao dịch.</summary>
         [HttpPost("schedule/batch")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff_schedule", "create")]
         [ProducesResponseType(typeof(IReadOnlyList<AssignShiftResponse>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> AssignShiftBatch([FromBody] AssignShiftBatchCommand command, CancellationToken cancellationToken)
@@ -111,7 +110,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Hủy phân công ca làm việc.</summary>
         [HttpDelete("schedule/{id:guid}")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("staff_schedule", "delete")]
         [ProducesResponseType(typeof(CancelShiftAssignmentResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> CancelShift(Guid id, CancellationToken cancellationToken)
         {
@@ -120,6 +119,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Ghi nhận giờ vào ca.</summary>
         [HttpPost("schedule/{id:guid}/check-in")]
+        [RequirePermission("attendance", "update")]
         [ProducesResponseType(typeof(RecordAttendanceResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> CheckIn(Guid id, CancellationToken cancellationToken)
         {
@@ -128,6 +128,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Ghi nhận giờ ra ca.</summary>
         [HttpPost("schedule/{id:guid}/check-out")]
+        [RequirePermission("attendance", "update")]
         [ProducesResponseType(typeof(RecordAttendanceResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> CheckOut(Guid id, CancellationToken cancellationToken)
         {
@@ -136,6 +137,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy lịch làm việc của người dùng đang đăng nhập.</summary>
         [HttpGet("me/schedule")]
+        [RequirePermission("staff_schedule", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetScheduleResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMySchedule([FromQuery] GetMyScheduleRequest request, CancellationToken cancellationToken)
         {
@@ -159,7 +161,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách bảng lương có phân trang và lọc.</summary>
         [HttpGet("salaries")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("salaries", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetSalariesResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetSalaries([FromQuery] GetSalariesQuery query, CancellationToken cancellationToken)
         {
@@ -168,7 +170,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Tạo bảng lương cho nhân viên.</summary>
         [HttpPost("{userId:guid}/salaries")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("salaries", "create")]
         [ProducesResponseType(typeof(SaveSalaryResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateSalary(Guid userId, [FromBody] SaveSalaryCommand command, CancellationToken cancellationToken)
         {
@@ -178,7 +180,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Cập nhật bảng lương của nhân viên.</summary>
         [HttpPut("{userId:guid}/salaries/{id:guid}")]
-        [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+        [RequirePermission("salaries", "update")]
         [ProducesResponseType(typeof(SaveSalaryResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateSalary(Guid userId, Guid id, [FromBody] SaveSalaryCommand command, CancellationToken cancellationToken)
         {
