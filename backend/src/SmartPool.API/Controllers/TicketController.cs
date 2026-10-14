@@ -106,6 +106,37 @@ namespace SmartPool.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-    }
-}
 
+        /// <summary>Cập nhật mã ngắn (6 chữ số) của vé — chỉ chủ vé được phép.</summary>
+        [HttpPut("{ticketId}/code")]
+        [RequirePermission("customer_tickets", "update")]
+        [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Commands.UpdateTicketCode.UpdateTicketCodeResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UpdateTicketCode(Guid ticketId, [FromBody] UpdateTicketCodeRequest body, CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+
+            var command = new SmartPool.Application.Features.ManageTickets.Ticket.Commands.UpdateTicketCode.UpdateTicketCodeCommand
+            {
+                TicketId = ticketId,
+                UserId = userId,
+                Code = body.Code
+            };
+
+            try
+            {
+                var result = await _sender.Send(command, cancellationToken);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+    }
+
+    /// <summary>Body request cho endpoint cập nhật mã vé.</summary>
+    public record UpdateTicketCodeRequest(string Code);
+}

@@ -1,4 +1,5 @@
 using MediatR;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
@@ -192,7 +193,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                         Id = Guid.NewGuid(),
                         TicketTypeId = ticketType.Id,
                         UserId = customerUserId,
-                        QrCode = $"TKT-{Guid.NewGuid().ToString("N").ToUpper()}",
+                        QrCode = await GenerateUniqueCodeAsync(cancellationToken),
                         IssueDate = issueDate,
                         ExpiryDate = expiryDate,
                         Status = TicketStatusEnum.ACTIVE.ToString(),
@@ -227,6 +228,19 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return response;
+        }
+
+        /// <summary>Sinh mã 6 chữ số duy nhất, retry tối đa 10 lần nếu trùng.</summary>
+        private async Task<string> GenerateUniqueCodeAsync(CancellationToken cancellationToken)
+        {
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                var code = TicketCodeGenerator.Generate();
+                var exists = await _ticketRepo.FirstOrDefaultAsync(t => t.QrCode == code, cancellationToken);
+                if (exists == null)
+                    return code;
+            }
+            throw new InvalidOperationException("Không thể sinh mã vé duy nhất sau 10 lần thử. Vui lòng thử lại.");
         }
 
         /// <summary>Sinh mật khẩu ngẫu nhiên đủ mạnh: 8 ký tự, có HOA + thường + số + đặc biệt.</summary>

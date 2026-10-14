@@ -1,4 +1,5 @@
 using MediatR;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
@@ -41,7 +42,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
         public async Task<ConfirmPendingOrderResponse> Handle(ConfirmPendingOrderCommand request, CancellationToken cancellationToken)
         {
-            // ── 1. Tìm Payment gốc (PENDING) dựa vào TransactionRef (SPxxxxxx) ──────────────
             var pendingPayment = await _paymentRepo.FirstOrDefaultAsync(
                 p => p.TransactionRef == request.TransactionRef,
                 cancellationToken);
@@ -56,10 +56,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             {
                 return new ConfirmPendingOrderResponse { Success = false, Message = "Order not found." };
             }
-
-            // ── 2. Idempotency: Kiểm tra mã giao dịch ngân hàng đã được xử lý chưa ─────────
-            // BankReferenceCode là mã giao dịch duy nhất từ ngân hàng (qua SePay).
-            // Nếu SePay retry gọi Webhook nhiều lần cho cùng 1 giao dịch, ta chặn ở đây.
             if (!string.IsNullOrEmpty(request.BankReferenceCode))
             {
                 var duplicate = await _paymentRepo.FirstOrDefaultAsync(
@@ -68,7 +64,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
                 if (duplicate != null)
                 {
-                    // Giao dịch này đã được ghi nhận rồi → trả về thành công, không làm gì thêm
                     return new ConfirmPendingOrderResponse
                     {
                         Success = true,
@@ -78,8 +73,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 }
             }
 
-            // ── 3. Lưu lịch sử giao dịch thực tế từ ngân hàng vào bảng Payment ─────────────
-            // Mỗi lần SePay gọi Webhook = 1 lần chuyển khoản riêng biệt → 1 record Payment mới
             var newPayment = new Domain.Entities.Payment
             {
                 Id = Guid.NewGuid(),
@@ -93,15 +86,12 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             };
             await _paymentRepo.AddAsync(newPayment, cancellationToken);
 
-            // ── 4. Cộng dồn tổng tiền đã nhận (bao gồm lần chuyển vừa rồi) ──────────────────
-            // Lấy tất cả Payment COMPLETED của đơn này (không tính Payment PENDING gốc)
             var completedPayments = await _paymentRepo.FindAsync(
                 p => p.OrderId == order.Id && p.Status == PaymentStatusEnum.COMPLETED.ToString(),
                 cancellationToken);
 
             decimal totalPaid = completedPayments.Sum(p => p.Amount) + request.ActualAmount;
 
-            // ── 5a. Chuyển khoản thiếu (Underpayment) ────────────────────────────────────────
             if (totalPaid < order.FinalAmount)
             {
                 order.Status = "PARTIAL";
@@ -114,11 +104,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 };
             }
 
-            // ── 5b. Đã đủ tiền → kiểm tra order đã COMPLETED chưa (tránh sinh vé 2 lần) ─────
             if (order.Status == OrderStatusEnum.COMPLETED.ToString())
             {
-                // Đơn hàng đã hoàn tất trước đó (có thể do Webhook đến trễ sau khi đã xử lý xong)
-                // Không sinh vé thêm, chỉ trả về thành công
                 return new ConfirmPendingOrderResponse
                 {
                     Success = true,
@@ -127,7 +114,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 };
             }
 
-            // ── 5c. Lần đầu đủ tiền → cập nhật trạng thái và sinh vé ─────────────────────────
             pendingPayment.Status = PaymentStatusEnum.COMPLETED.ToString();
             pendingPayment.PaymentTime = DateTime.UtcNow;
 
@@ -164,7 +150,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                         Id = Guid.NewGuid(),
                         TicketTypeId = ticketType.Id,
                         UserId = order.UserId,
-                        QrCode = $"TKT-{Guid.NewGuid().ToString("N").ToUpper()}",
+                        QrCode = await GenerateUniqueCodeAsync(cancellationToken),
                         IssueDate = issueDate,
                         ExpiryDate = expiryDate,
                         Status = TicketStatusEnum.ACTIVE.ToString(),
@@ -185,10 +171,22 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Lưu vé vào cache 10 phút để Frontend polling lấy được
             _memoryCache.Set($"OrderTickets_{order.Id}", response.Tickets, TimeSpan.FromMinutes(10));
 
             return response;
+        }
+
+        /// <summary>Sinh mã 6 chữ số duy nhất, retry tối đa 10 lần nếu trùng.</summary>
+        private async Task<string> GenerateUniqueCodeAsync(CancellationToken cancellationToken)
+        {
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                var code = TicketCodeGenerator.Generate();
+                var exists = await _ticketRepo.FirstOrDefaultAsync(t => t.QrCode == code, cancellationToken);
+                if (exists == null)
+                    return code;
+            }
+            throw new InvalidOperationException("Không thể sinh mã vé duy nhất sau 10 lần thử. Vui lòng thử lại.");
         }
     }
 }

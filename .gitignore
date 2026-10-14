@@ -160,3 +160,6 @@ MigrationBackup/
 *.tmp
 *.bak
 *.swp
+
+#bỏ file codebase.md
+codebase.md

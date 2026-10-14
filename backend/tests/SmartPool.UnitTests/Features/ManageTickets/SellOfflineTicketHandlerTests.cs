@@ -32,6 +32,9 @@ public sealed class SellOfflineTicketHandlerTests
         ticketRepo.Setup(repo => repo.AddAsync(It.IsAny<Ticket>(), It.IsAny<CancellationToken>()))
             .Callback<Ticket, CancellationToken>((ticket, _) => tickets.Add(ticket))
             .Returns(Task.CompletedTask);
+        // GenerateUniqueCodeAsync: trả về null = mã chưa tồn tại → dùng ngay
+        ticketRepo.Setup(repo => repo.FirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ticket, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Ticket?)null);
         var ticketTypeRepo = new Mock<IRepository<TicketTypeEntity>>();
         ticketTypeRepo.Setup(repo => repo.GetByIdAsync(typeId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ticketType);
@@ -81,13 +84,13 @@ public sealed class SellOfflineTicketHandlerTests
             Assert.Equal(quantity, response.Tickets.Count);
             Assert.All(tickets, ticket =>
             {
-                Assert.StartsWith("TKT-", ticket.QrCode);
+                Assert.Matches(@"^\d{6}$", ticket.QrCode);
                 Assert.Equal(typeId, ticket.TicketTypeId);
                 Assert.Equal("ACTIVE", ticket.Status);
             });
             Assert.All(response.Tickets, info =>
             {
-                Assert.StartsWith("TKT-", info.QrCode);
+                Assert.Matches(@"^\d{6}$", info.QrCode);
                 Assert.Equal("VE_THANG", info.TicketCategory);
             });
         }

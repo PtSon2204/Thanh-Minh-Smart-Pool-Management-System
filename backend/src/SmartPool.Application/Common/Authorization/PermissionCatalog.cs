@@ -13,7 +13,7 @@ public static class PermissionCatalog
         ["ticket_lookup"] = ["read"],
         ["pool_entry"] = ["read", "create"],
         ["ticket_sales"] = ["read", "create"],
-        ["customer_tickets"] = ["read", "create"],
+        ["customer_tickets"] = ["read", "create", "update"],
         ["ticket_types"] = ["read", "create", "update", "delete"],
         ["services"] = ["read", "create", "update"],
         ["inventory"] = ["read", "update"],
