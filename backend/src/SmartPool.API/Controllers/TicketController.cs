@@ -29,7 +29,7 @@ namespace SmartPool.API.Controllers
             {
                 var result = await _sender.Send(command, cancellationToken);
                 return Ok(result);
-            }
+            }   
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });

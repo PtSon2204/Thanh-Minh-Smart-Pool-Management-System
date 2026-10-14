@@ -35,7 +35,7 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
         {
             var command = new CreateTicketTypeCommand 
             { 
-                Name = new string('A', 256), // Tên dài 256 ký tự (vượt quá 255)
+                Name = new string('A', 31), // Vượt giới hạn 30 ký tự
                 Price = 100000, 
                 TicketCategory = TicketCategoryEnum.VE_THANG 
             };
