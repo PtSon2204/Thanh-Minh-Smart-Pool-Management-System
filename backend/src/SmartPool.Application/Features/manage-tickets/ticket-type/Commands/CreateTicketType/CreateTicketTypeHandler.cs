@@ -28,7 +28,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
                 Price          = request.Price,
                 DurationDays   = request.DurationDays,
             };
-
+                
             await _repo.AddAsync(entity, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

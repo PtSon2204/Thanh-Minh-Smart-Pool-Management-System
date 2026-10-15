@@ -11,7 +11,8 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
 
             RuleFor(x => x.Name)
                 .NotEmpty().WithMessage("Tên loại vé không được để trống.")
-                .MaximumLength(255).WithMessage("Tên loại vé không được vượt quá 255 ký tự.");
+                .MaximumLength(30).WithMessage("Tên loại vé không được vượt quá 30 ký tự.")
+                .Matches(@"\A[\p{L}\p{M}\p{Nd} ]+\z").WithMessage("Tên loại vé chỉ được chứa chữ, số và khoảng trắng.");
 
             RuleFor(x => x.TicketCategory)
                 .IsInEnum().WithMessage("Phân loại vé không hợp lệ.");
