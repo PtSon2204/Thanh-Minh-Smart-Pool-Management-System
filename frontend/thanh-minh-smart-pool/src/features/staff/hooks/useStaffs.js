@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import staffService from '../services/staffService'
 
 export const STAFFS_QUERY_KEY = ['staffs']
@@ -28,12 +28,32 @@ export function useStaffSchedule(employeeId, params, enabled) {
 }
 
 export function useStaffSchedulePage({ scope, sessionUserId, params, enabled }) {
-  const isAllScope = scope === 'all'
-  const queryParams = isAllScope ? params : { pageIndex: params.pageIndex, pageSize: params.pageSize, date: params.date }
   return useQuery({
-    queryKey: ['staff-schedule-page', scope, sessionUserId, queryParams],
-    queryFn: () => isAllScope ? staffService.getSchedule(queryParams) : staffService.getMySchedule(queryParams),
+    queryKey: ['staff-schedule-page', scope, sessionUserId, params.fromDate, params.toDate, params.employeeId, params.status, params.pageIndex, params.pageSize],
+    queryFn: ({ signal }) => staffService.getCompleteSchedule(scope, params, signal),
     enabled: Boolean(enabled && sessionUserId),
+  })
+}
+
+export function useScheduleEmployees(enabled) {
+  return useQuery({
+    queryKey: ['staff-schedule-employees'],
+    queryFn: ({ signal }) => staffService.getScheduleEmployees(signal),
+    enabled,
+  })
+}
+
+export function useAssignShiftBatch() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: staffService.assignShiftBatch,
+    retry: false,
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] }),
+      queryClient.invalidateQueries({ queryKey: ['shifts'] }),
+    ]),
   })
 }
 
