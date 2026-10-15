@@ -28,6 +28,7 @@ const shiftService = {
   getAll: (params, signal) => apiClient.get(BASE, { params, signal }).then((response) => response.data),
   getAllActive: (signal) => readAllActivePages(signal),
   create: (data) => apiClient.post(BASE, data).then((response) => response.data),
+  update: (id, data) => apiClient.put(`${BASE}/${id}`, data).then((response) => response.data),
 }
 
 export default shiftService

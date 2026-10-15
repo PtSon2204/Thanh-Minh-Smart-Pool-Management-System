@@ -54,6 +54,7 @@ const staffService = {
   },
   getScheduleEmployees: (signal) => apiClient.get(`${BASE}/schedule/employees`, { signal }).then((response) => response.data),
   assignShiftBatch: (assignments) => apiClient.post(`${BASE}/schedule/batch`, { assignments }).then((response) => response.data),
+  cancelSchedule: (id) => apiClient.delete(`${BASE}/schedule/${id}`).then((response) => response.data),
   getSalaries: (params) => apiClient.get(`${BASE}/salaries`, { params }).then((response) => response.data),
 }
 

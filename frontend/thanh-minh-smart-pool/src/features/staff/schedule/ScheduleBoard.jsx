@@ -2,7 +2,7 @@ import { Button, Collapse, Empty, Tag } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { formatDate, formatTime, isOvernight, statusColor, statusLabel, weekDates } from './scheduleUtils'
 
-function AssignmentTag({ assignment, pending, onRemove }) {
+function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, cancelPending, actionsDisabled }) {
   const label = pending ? assignment.employeeName : assignment.employeeName || 'Nhân viên'
   return <div className="staff-week-assignment">
     <div className="staff-week-assignment-identity">
@@ -10,24 +10,37 @@ function AssignmentTag({ assignment, pending, onRemove }) {
       <Tag color={pending ? 'cyan' : statusColor(assignment.status)}>{pending ? 'Chưa lưu' : statusLabel(assignment.status)}</Tag>
     </div>
     {pending && <Button type="text" size="small" aria-label={`Bỏ phân công ${label}`} onClick={() => onRemove(assignment.localId)}>Bỏ</Button>}
+    {!pending && isAdmin && assignment.status === 'Scheduled' && <Button type="text" size="small" danger aria-label={`Hủy phân công ${label}`} onClick={() => onCancel(assignment)} loading={cancelPending} disabled={actionsDisabled}>Hủy</Button>}
   </div>
 }
 
-function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove }) {
+function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
+  const isActive = activeShiftsStatus === 'ready' && activeShiftIds.has(shift.shiftId)
+  const isInactive = activeShiftsStatus === 'ready' && !isActive
+  const addDisabled = actionsDisabled || !isActive
+  const addExplanation = isInactive
+    ? 'Ca đã ngừng hoạt động. Lịch đã phân vẫn được giữ; không thể thêm nhân viên.'
+    : activeShiftsStatus === 'loading'
+      ? 'Đang tải trạng thái ca. Không thể thêm nhân viên.'
+      : activeShiftsStatus === 'unavailable'
+        ? 'Không thể xác minh trạng thái ca. Không thể thêm nhân viên.'
+        : null
+
   return <article className="staff-week-shift-card">
     <header className="staff-week-shift-heading">
-      <strong>{shift.shiftName || shift.name}</strong>
+      <strong>{shift.shiftName || shift.name}{isInactive && <Tag>Không hoạt động</Tag>}</strong>
       <span>{formatTime(shift.startTime)} - {formatTime(shift.endTime)}{isOvernight(shift) ? ' · ngày sau' : ''}</span>
     </header>
+    {isAdmin && addExplanation && <span className="staff-schedule-overnight">{addExplanation}</span>}
     <div className="staff-week-assignment-list">
-      {assignments.map((assignment) => <AssignmentTag assignment={assignment} key={assignment.id} />)}
+      {assignments.map((assignment) => <AssignmentTag assignment={assignment} isAdmin={isAdmin} onCancel={onCancel} cancelPending={cancelId === assignment.id} actionsDisabled={actionsDisabled} key={assignment.id} />)}
       {drafts.map((assignment) => <AssignmentTag assignment={assignment} pending onRemove={onRemove} key={assignment.localId} />)}
     </div>
-    {isAdmin && <Button className="staff-week-add" type="link" icon={<PlusOutlined />} onClick={() => onAdd(shift)}>Thêm nhân viên</Button>}
+    {isAdmin && <Button className="staff-week-add" type="link" icon={<PlusOutlined />} onClick={() => isActive && !actionsDisabled && onAdd(shift)} disabled={addDisabled}>Thêm nhân viên</Button>}
   </article>
 }
 
-export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onRemove }) {
+export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
   const dates = weekDates(monday)
   const assignedCount = (employeeId) => assignments.filter((item) => item.employeeId === employeeId && item.status !== 'Cancelled').length
   return <>
@@ -44,7 +57,7 @@ export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, em
         })
         return <section className="staff-week-day" key={workDate}>
           <header><strong>{dayjsLabel(workDate)}</strong><span>{formatDate(workDate)}</span></header>
-          {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.id} onAdd={(shift) => onAdd({ ...shift, workDate })} onRemove={onRemove} />)}
+          {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.id} onAdd={(shift) => onAdd({ ...shift, workDate })} onRemove={onRemove} onCancel={onCancel} cancelId={cancelId} actionsDisabled={actionsDisabled} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
         </section>
       })}
     </section>
