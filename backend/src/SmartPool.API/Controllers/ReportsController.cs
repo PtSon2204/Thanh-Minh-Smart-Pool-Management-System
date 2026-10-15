@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
 using SmartPool.Application.Features.ManageReports.Queries.GetCustomerStatistics;
+using SmartPool.Application.Features.ManageReports.Queries.GetTicketRevenueStatistics;
 
 namespace SmartPool.API.Controllers;
 
@@ -32,4 +33,19 @@ public sealed class ReportsController : ControllerBase
         var result = await _sender.Send(query, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Lấy dữ liệu thống kê doanh thu bán vé theo loại vé và thời gian.
+    /// </summary>
+    /// <param name="query">Các tiêu chí lọc (period: today, 7days, 30days, month, custom...)</param>
+    /// <param name="cancellationToken"></param>
+    [HttpGet("ticket-revenue")]
+    [RequirePermission("reports", "read")]
+    [ProducesResponseType(typeof(TicketRevenueStatisticsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTicketRevenueStatistics([FromQuery] GetTicketRevenueStatisticsQuery query, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
 }
+

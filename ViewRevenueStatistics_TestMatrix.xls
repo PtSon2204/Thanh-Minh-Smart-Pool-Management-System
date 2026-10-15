@@ -1,0 +1,166 @@
+﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style>
+  table { border-collapse: collapse; font-family: Segoe UI, Tahoma, sans-serif; font-size: 11pt; }
+  th, td { border: 1px solid #7f7f7f; padding: 4px 8px; }
+  .header-main { background-color: #002060; color: #ffffff; font-weight: bold; text-align: center; }
+  .header-sub { background-color: #d9e1f2; font-weight: bold; }
+  .center { text-align: center; font-weight: bold; }
+  .category { background-color: #002060; color: #ffffff; font-weight: bold; vertical-align: top; }
+</style>
+</head>
+<body>
+<table>
+  <tr>
+    <th class="header-main" colspan="3">Phân loại / Tiêu chí kiểm thử</th>
+    <th class="header-main">UTCID01</th>
+    <th class="header-main">UTCID02</th>
+    <th class="header-main">UTCID03</th>
+    <th class="header-main">UTCID04</th>
+    <th class="header-main">UTCID05</th>
+    <th class="header-main">UTCID06</th>
+    <th class="header-main">UTCID07</th>
+    <th class="header-main">UTCID08</th>
+    <th class="header-main">UTCID09</th>
+    <th class="header-main">UTCID10</th>
+    <th class="header-main">UTCID11</th>
+    <th class="header-main">UTCID12</th>
+    <th class="header-main">UTCID13</th>
+    <th class="header-main">UTCID14</th>
+    <th class="header-main">UTCID15</th>
+  </tr>
+  <tr>
+    <td class="category" rowspan="7">Condition</td>
+    <td class="header-sub" rowspan="7">Precondition</td>
+    <td>Database rỗng (chưa có đơn hàng)</td>
+    <td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Repositories trả về danh sách đơn hàng hợp lệ</td>
+    <td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td><td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td>
+  </tr>
+  <tr>
+    <td>Đơn hàng có chi tiết vé (ItemType = "TICKET")</td>
+    <td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td>Đơn hàng có chi tiết khác vé (ItemType = "Product")</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Đơn hàng bị đánh dấu xóa mềm (IsDeleted = true)</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Kỳ trước có phát sinh doanh thu</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Kỳ trước doanh thu bằng 0</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td>
+  </tr>
+  <tr>
+    <td class="category" rowspan="6">Condition</td>
+    <td class="header-sub" rowspan="6">Input</td>
+    <td>Period = "today"</td>
+    <td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td><td></td><td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td>Period = "7days"</td>
+    <td class="center">O</td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Period = "30days"</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Period = "custom" kèm FromDate, ToDate</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Có đơn hàng nằm ngoài khoảng thời gian lọc</td>
+    <td></td><td></td><td></td><td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Có đơn hàng không nhập tên khách (CustomerName = null)</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td class="category" rowspan="8">Confirm</td>
+    <td class="header-sub" rowspan="8">Return</td>
+    <td>Response trả về dữ liệu mẫu (4 loại vé)</td>
+    <td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>TotalRevenue tính đúng theo tổng đơn hàng hợp lệ</td>
+    <td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td>TotalTicketsSold tính đúng tổng số lượng vé bán</td>
+    <td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td>AverageOrderValue tính đúng = Doanh thu / Số đơn</td>
+    <td></td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>RevenueGrowthRate tính đúng tỷ lệ tăng trưởng (%)</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>RevenueGrowthRate = 100% khi kỳ trước bằng 0</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>Phân loại doanh thu theo đúng 4 loại vé thực tế</td>
+    <td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td>
+  </tr>
+  <tr>
+    <td>Bảng giao dịch map đúng thông tin khách và thanh toán</td>
+    <td class="center">O</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="center">O</td><td></td>
+  </tr>
+  <tr>
+    <td class="category">Confirm</td>
+    <td class="header-sub">Exception</td>
+    <td>none (Không phát sinh ngoại lệ)</td>
+    <td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td class="category" rowspan="4">Confirm</td>
+    <td class="header-sub" rowspan="4">Interaction</td>
+    <td>Gọi OrderRepository.GetAllAsync()</td>
+    <td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td>Gọi OrderDetailRepository.GetAllAsync()</td>
+    <td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td>Gọi TicketTypeRepository.GetAllAsync()</td>
+    <td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td>Gọi PaymentRepository.GetAllAsync()</td>
+    <td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td><td class="center">O</td>
+  </tr>
+  <tr>
+    <td class="category" rowspan="4">Result</td>
+    <td class="header-sub" colspan="2">Type(N : Normal, A : Abnormal, B : Boundary)</td>
+    <td class="center">N</td><td class="center">N</td><td class="center">N</td><td class="center">N</td><td class="center">N</td><td class="center">N</td><td class="center">N</td><td class="center">N</td><td class="center">A</td><td class="center">A</td><td class="center">N</td><td class="center">N</td><td class="center">B</td><td class="center">N</td><td class="center">A</td>
+  </tr>
+  <tr>
+    <td class="header-sub" colspan="2">Passed/Failed</td>
+    <td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td><td class="center">P</td>
+  </tr>
+  <tr>
+    <td class="header-sub" colspan="2">Executed Date</td>
+    <td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td><td class="center">10/15</td>
+  </tr>
+  <tr>
+    <td class="header-sub" colspan="2">Defect ID</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+</table>
+</body>
+</html>

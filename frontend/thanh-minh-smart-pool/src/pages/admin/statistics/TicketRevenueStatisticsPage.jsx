@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Row, Col, Statistic, Radio, Button, Table, Tag, Typography,
-  Space, Spin, message as antMessage, Tooltip
+  Space, Spin, message as antMessage
 } from 'antd';
 import {
   ShoppingCartOutlined, DollarOutlined, BarChartOutlined,
   ReloadOutlined, RiseOutlined, FallOutlined, TagOutlined,
-  PieChartOutlined, LineChartOutlined, UnorderedListOutlined,
-  CreditCardOutlined
+  PieChartOutlined, LineChartOutlined, UnorderedListOutlined
 } from '@ant-design/icons';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -25,6 +24,28 @@ const formatCompactVND = (value) => {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}tr`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
   return `${value}`;
+};
+
+// Custom Tooltip cho biểu đồ doanh thu (khai báo ngoài component theo chuẩn React)
+const RevenueChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #cbd5e1',
+      borderRadius: 8, padding: '10px 14px',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+    }}>
+      <Text strong style={{ color: '#0f172a' }}>{label}</Text>
+      {payload.map((p, i) => (
+        <div key={i} style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
+          <Text style={{ fontSize: 13 }}>
+            {p.name}: {p.name.includes('Doanh thu') ? formatVND(p.value) : `${p.value} vé`}
+          </Text>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 export default function TicketRevenueStatisticsPage() {
@@ -46,7 +67,6 @@ export default function TicketRevenueStatisticsPage() {
 
   useEffect(() => {
     let ignore = false;
-    setLoading(true);
     reportService.getTicketRevenueStatistics({ period })
       .then((res) => {
         if (!ignore) setData(res);
@@ -152,27 +172,6 @@ export default function TicketRevenueStatisticsPage() {
     },
   ];
 
-  // Custom Tooltip cho biểu đồ doanh thu
-  const RevenueChartTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div style={{
-        background: '#fff', border: '1px solid #cbd5e1',
-        borderRadius: 8, padding: '10px 14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-      }}>
-        <Text strong style={{ color: '#0f172a' }}>{label}</Text>
-        {payload.map((p, i) => (
-          <div key={i} style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
-            <Text style={{ fontSize: 13 }}>
-              {p.name}: {p.name.includes('Doanh thu') ? formatVND(p.value) : `${p.value} vé`}
-            </Text>
-          </div>
-        ))}
-      </div>
-    );
-  };
 
   return (
     <div style={{ padding: 24, minHeight: '100vh', background: '#f8fafc' }}>
