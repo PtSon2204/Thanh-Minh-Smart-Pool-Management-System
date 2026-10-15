@@ -21,6 +21,7 @@ import RentalPage from "./pages/admin/RentalPage";
 import VoucherPage from "./pages/admin/VoucherPage";
 import NotificationPage from "./pages/admin/NotificationPage";
 import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsPage";
+import TicketRevenueStatisticsPage from "./pages/admin/statistics/TicketRevenueStatisticsPage";
 import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
 import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
@@ -94,6 +95,10 @@ function App() {
               <Route
                 path="statistics/user-count"
                 element={<CustomerStatisticsPage />}
+              />
+              <Route
+                path="statistics/ticket-revenue"
+                element={<TicketRevenueStatisticsPage />}
               />
               <Route path="staff/profiles" element={<StaffProfilesPage />} />
               <Route path="staff/shifts" element={<ShiftManagementPage />} />
