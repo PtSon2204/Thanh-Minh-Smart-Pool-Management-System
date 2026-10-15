@@ -89,6 +89,9 @@ public sealed partial class StaffOperations : IStaffOperations
     {
         var shift = request.Id is null ? new Shift { Id = Guid.NewGuid() } : await context.Shifts.FindAsync([request.Id.Value], cancellationToken);
         if (shift is null) throw new KeyNotFoundException("Không tìm thấy ca làm việc.");
+        if (request.Id is not null && (shift.StartTime != request.StartTime || shift.EndTime != request.EndTime) &&
+            await context.EmployeeShifts.AnyAsync(item => item.ShiftId == shift.Id, cancellationToken))
+            throw new StaffConflictException("Không thể thay đổi thời gian của ca đã từng được phân công.");
         shift.Name = request.Name; shift.StartTime = request.StartTime; shift.EndTime = request.EndTime; shift.IsActive = request.IsActive;
         if (request.Id is null) context.Shifts.Add(shift);
         await context.SaveChangesAsync(cancellationToken);
