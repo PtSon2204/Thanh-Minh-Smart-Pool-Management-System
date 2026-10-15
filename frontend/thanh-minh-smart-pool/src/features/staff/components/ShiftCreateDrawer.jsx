@@ -26,12 +26,8 @@ export default function ShiftCreateDrawer({ open, onClose, shift = null }) {
   useEffect(() => {
     if (!open) {
       form.resetFields()
-      setSaveError(null)
-      createMutation.reset()
-      updateMutation.reset()
       return
     }
-    setSaveError(null)
     if (shift) {
       form.setFieldsValue({
         name: shift.name,
@@ -41,16 +37,25 @@ export default function ShiftCreateDrawer({ open, onClose, shift = null }) {
     } else {
       form.resetFields()
     }
-  }, [createMutation.reset, form, open, shift, updateMutation.reset])
+  }, [form, open, shift])
+
+  const resetSaveFeedback = () => {
+    setSaveError(null)
+    createMutation.reset()
+    updateMutation.reset()
+  }
 
   const close = () => {
-    if (!mutation.isPending) onClose()
+    if (mutation.isPending) return
+    form.resetFields()
+    resetSaveFeedback()
+    onClose()
   }
 
   const handleFinish = (values) => {
     if (submitting.current || mutation.isPending) return
     submitting.current = true
-    setSaveError(null)
+    resetSaveFeedback()
     const data = {
       name: values.name.trim(),
       startTime: values.startTime.format('HH:mm:ss'),
@@ -60,6 +65,7 @@ export default function ShiftCreateDrawer({ open, onClose, shift = null }) {
     mutation.mutate(shift ? { id: shift.id, data } : data, {
       onSuccess: () => {
         form.resetFields()
+        resetSaveFeedback()
         onClose()
       },
       onError: (error) => {
