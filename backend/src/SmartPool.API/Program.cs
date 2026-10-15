@@ -29,6 +29,7 @@ namespace SmartPool.API
                     .WithOrigins(allowedOrigins)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
+                    .WithExposedHeaders("Retry-After")
                     .AllowCredentials()));
 
             builder.Services.AddApplicationServices(builder.Configuration);     // Application/DependencyInjection.cs

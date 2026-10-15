@@ -13,6 +13,7 @@ using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Persistence.Repositories.Roles;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
+using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text;
 
@@ -96,6 +97,11 @@ namespace SmartPool.Infrastructure
                 options.Configuration = configuration.GetConnectionString("Redis");
                 options.InstanceName  = "SmartPool:";
             });
+            // Registration OTP uses Redis scripts for atomic state transitions.
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(
+                configuration.GetConnectionString("Redis")
+                ?? throw new InvalidOperationException("ConnectionStrings:Redis is not configured.")));
+            services.AddScoped<IRegistrationOtpStore, RegistrationOtpStore>();
 
             // Cloudinary — lưu trữ ảnh
             var cloudinaryUrl = $"cloudinary://" +
