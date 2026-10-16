@@ -7,6 +7,7 @@ import PricingPage from "./pages/PricingPage/PricingPage";
 import ContactPage from "./pages/ContactPage/ContactPage";
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage";
 import AuthPage from "./pages/AuthPage/AuthPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage/ChangePasswordPage";
 import ProfilePage from "./pages/ProfilePage/ProfilePage";
 import MyCardPage from "./pages/MyCardPage/MyCardPage";
 import PaymentHistoryPage from "./pages/PaymentHistoryPage/PaymentHistoryPage";
@@ -44,6 +45,7 @@ const router = createBrowserRouter([
         element: <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["CUSTOMER", "ADMIN", "LIFEGUARD", "SALES"]} />,
         children: [
           { path: '/ho-so', element: <ProfilePage /> },
+          { path: '/doi-mat-khau', element: <ChangePasswordPage /> },
           { path: '/the-cua-toi', element: <MyCardPage /> },
           { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage /> },
         ],
@@ -55,6 +57,10 @@ const router = createBrowserRouter([
   { path: '/unauthorized', element: <Error401Page /> },
   { path: '/dang-nhap', element: <AuthPage /> },
   { path: '/dang-ky', element: <AuthPage /> },
+  { path: '/quen-mat-khau', element: <AuthPage /> },
+  { path: '/xac-nhan-otp/dang-ky', element: <AuthPage /> },
+  { path: '/xac-nhan-otp/quen-mat-khau', element: <AuthPage /> },
+  { path: '/dat-lai-mat-khau', element: <AuthPage /> },
   {
     element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />,
     children: [
@@ -63,6 +69,7 @@ const router = createBrowserRouter([
         element: <AdminLayout />,
         children: [
           { index: true, element: <DashboardPage /> },
+          { path: 'doi-mat-khau', element: <ChangePasswordPage /> },
           { path: 'tickets/pos', element: <OfflineSalesPage /> },
           { path: 'tickets/types', element: <TicketTypePage /> },
           { path: 'services', element: <ServicePage /> },

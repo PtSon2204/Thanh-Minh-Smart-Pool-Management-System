@@ -22,6 +22,26 @@ public sealed class UserOperations : IUserOperations
         _context = context;
     }
 
+    public async Task<bool> TryUpdatePasswordAsync(Guid userId, string expectedEmail,
+        string expectedPasswordHash, string newPasswordHash, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedEmail);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedPasswordHash);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newPasswordHash);
+        if (string.Equals(expectedPasswordHash, newPasswordHash, StringComparison.Ordinal))
+            throw new ArgumentException("The new password hash must differ from the current hash.", nameof(newPasswordHash));
+        var now = DateTime.UtcNow;
+        var changed = await _context.Users
+            .Where(user => user.Id == userId && user.IsDeleted != true &&
+                user.Status != null && user.Status.ToLower() == "active" &&
+                user.Email != null && user.Email.ToLower() == expectedEmail &&
+                user.PasswordHash == expectedPasswordHash)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(user => user.PasswordHash, newPasswordHash)
+                .SetProperty(user => user.UpdatedAt, now), cancellationToken);
+        return changed == 1;
+    }
+
     public async Task<PagedResponse<GetUsersResponse>> GetUsersAsync(
         GetUsersQuery request, CancellationToken cancellationToken)
     {

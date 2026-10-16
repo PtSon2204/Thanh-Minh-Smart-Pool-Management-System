@@ -14,7 +14,8 @@ const apiClient = axios.create({
 })
 
 apiClient.interceptors.request.use((config) => {
-  const isAuthRequest = ['/api/auth/login', '/api/auth/register'].includes(config.url)
+  const isAuthRequest = ['/api/auth/login', '/api/auth/register', '/api/auth/register/verify', '/api/auth/register/resend'].includes(config.url)
+    || config.url?.startsWith('/api/auth/password-reset/')
   const token = getAccessToken()
   if (token && !isAuthRequest) {
     config.headers.set('Authorization', `Bearer ${token}`)
@@ -27,7 +28,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401) {
       const url = error.config?.url || ''
-      if (!url.includes('/api/auth/login')) {
+      if (!url.includes('/api/auth/login') && !url.startsWith('/api/auth/password-reset/')) {
         useAuthStore.getState().setSession(null)
       }
     }

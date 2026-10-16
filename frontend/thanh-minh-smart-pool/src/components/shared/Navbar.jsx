@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Dropdown } from 'antd'
-import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined, LockOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import './Navbar.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
@@ -59,10 +59,9 @@ export default function Navbar() {
       },
       {
         key: '2',
-        icon: <LogoutOutlined />,
+        icon: <LockOutlined />,
         label: 'Đổi mật khẩu',
-        danger: true,
-        onClick: () => setSession(null)
+        onClick: () => navigate('/doi-mat-khau')
       },
       { key: '3', icon: <ShoppingOutlined />, label: 'Lịch sử thanh toán', onClick: () => navigate('/lich-su-thanh-toan') },
       {
