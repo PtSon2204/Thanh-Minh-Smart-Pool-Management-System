@@ -16,5 +16,12 @@ export const reportService = {
    */
   getTicketRevenueStatistics: (params = {}) =>
     apiClient.get(`${BASE}/ticket-revenue`, { params }).then((res) => res.data),
+
+  /**
+   * Lấy dữ liệu báo cáo thống kê vé tháng & hội viên
+   * @param {Object} params - { filter: 'all' | 'active' | 'expiring_soon' | 'expired' }
+   */
+  getMonthlyTicketStatistics: (params = {}) =>
+    apiClient.get(`${BASE}/monthly-tickets`, { params }).then((res) => res.data),
 };
 

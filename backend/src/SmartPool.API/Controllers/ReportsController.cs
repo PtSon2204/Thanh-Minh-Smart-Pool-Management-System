@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
 using SmartPool.Application.Features.ManageReports.Queries.GetCustomerStatistics;
 using SmartPool.Application.Features.ManageReports.Queries.GetTicketRevenueStatistics;
+using SmartPool.Application.Features.ManageReports.Queries.GetMonthlyTicketStatistics;
 
 namespace SmartPool.API.Controllers;
 
@@ -43,6 +44,20 @@ public sealed class ReportsController : ControllerBase
     [RequirePermission("reports", "read")]
     [ProducesResponseType(typeof(TicketRevenueStatisticsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTicketRevenueStatistics([FromQuery] GetTicketRevenueStatisticsQuery query, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy dữ liệu báo cáo thống kê vé tháng, hội viên và danh sách cảnh báo hạn thẻ.
+    /// </summary>
+    /// <param name="query">Bộ lọc trạng thái thẻ (all, active, expiring_soon, expired)</param>
+    /// <param name="cancellationToken"></param>
+    [HttpGet("monthly-tickets")]
+    [RequirePermission("reports", "read")]
+    [ProducesResponseType(typeof(MonthlyTicketStatisticsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMonthlyTicketStatistics([FromQuery] GetMonthlyTicketStatisticsQuery query, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(query, cancellationToken);
         return Ok(result);
