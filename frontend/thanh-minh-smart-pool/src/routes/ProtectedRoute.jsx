@@ -2,9 +2,11 @@ import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../features/auth/store/authStore'
 
-export default function ProtectedRoute({ allowedRoles, redirectTo = '/401', children }) {
+export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
   const session = useAuthStore((state) => state.session)
   const location = useLocation()
+  const unauthenticatedRedirectTo = redirectTo ?? '/dang-nhap'
+  const forbiddenRedirectTo = redirectTo ?? '/401'
 
   // 1. Kiểm tra trạng thái đăng nhập
   const hasToken = Boolean(session?.accessToken)
@@ -18,7 +20,7 @@ export default function ProtectedRoute({ allowedRoles, redirectTo = '/401', chil
   if (!hasToken) {
     return (
       <Navigate
-        to={redirectTo}
+        to={unauthenticatedRedirectTo}
         replace
         state={{
           from: location,
@@ -36,7 +38,7 @@ export default function ProtectedRoute({ allowedRoles, redirectTo = '/401', chil
     if (!normalizedAllowedRoles.includes(userRole)) {
       return (
         <Navigate
-          to={redirectTo}
+          to={forbiddenRedirectTo}
           replace
           state={{
             from: location,
