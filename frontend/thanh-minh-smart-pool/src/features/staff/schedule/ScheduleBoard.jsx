@@ -1,5 +1,5 @@
 import { Button, Collapse, Empty, Tag } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { CalendarOutlined, PlusOutlined } from '@ant-design/icons'
 import { formatDate, formatTime, isOvernight, statusColor, statusLabel, weekDates } from './scheduleUtils'
 
 function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, cancelPending, actionsDisabled }) {
@@ -14,7 +14,7 @@ function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, cance
   </div>
 }
 
-function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
+function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onAttendance, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
   const isActive = activeShiftsStatus === 'ready' && activeShiftIds.has(shift.shiftId)
   const isInactive = activeShiftsStatus === 'ready' && !isActive
   const addDisabled = actionsDisabled || !isActive
@@ -30,6 +30,7 @@ function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onCan
     <header className="staff-week-shift-heading">
       <strong>{shift.shiftName || shift.name}{isInactive && <Tag>Không hoạt động</Tag>}</strong>
       <span>{formatTime(shift.startTime)} - {formatTime(shift.endTime)}{isOvernight(shift) ? ' · ngày sau' : ''}</span>
+      {isAdmin && assignments.length > 0 && <div className="admin-action-group staff-week-attendance-actions"><Button className="admin-action-button admin-action-button--primary staff-week-attendance" icon={<CalendarOutlined />} onClick={() => onAttendance(assignments[0])}>Chấm công</Button></div>}
     </header>
     {isAdmin && addExplanation && <span className="staff-schedule-overnight">{addExplanation}</span>}
     <div className="staff-week-assignment-list">
@@ -40,7 +41,7 @@ function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onCan
   </article>
 }
 
-export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
+export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onAttendance, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
   const dates = weekDates(monday)
   const assignedCount = (employeeId) => assignments.filter((item) => item.employeeId === employeeId && item.status !== 'Cancelled').length
   return <>
@@ -57,7 +58,7 @@ export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, em
         })
         return <section className="staff-week-day" key={workDate}>
           <header><strong>{dayjsLabel(workDate)}</strong><span>{formatDate(workDate)}</span></header>
-          {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.id} onAdd={(shift) => onAdd({ ...shift, workDate })} onRemove={onRemove} onCancel={onCancel} cancelId={cancelId} actionsDisabled={actionsDisabled} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
+          {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.id} onAdd={(shift) => onAdd({ ...shift, workDate })} onAttendance={onAttendance} onRemove={onRemove} onCancel={onCancel} cancelId={cancelId} actionsDisabled={actionsDisabled} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
         </section>
       })}
     </section>

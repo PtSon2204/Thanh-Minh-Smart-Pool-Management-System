@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { LeftOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons'
 import { Alert, Button, DatePicker, Empty, Modal, Pagination, Segmented, Spin, Table, Tag, message } from 'antd'
 import dayjs from 'dayjs'
-import { useBlocker, useBeforeUnload } from 'react-router-dom'
+import { useBlocker, useBeforeUnload, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../features/auth/store/authStore'
 import { useAssignShiftBatch, useCancelSchedule, useScheduleEmployees, useStaffSchedulePage } from '../../features/staff/hooks/useStaffs'
 import { useActiveShifts } from '../../features/staff/hooks/useShifts'
@@ -14,7 +14,7 @@ import '../../features/services/styles/serviceManagement.css'
 import '../../features/shared/styles/adminActions.css'
 import '../../features/staff/styles/staffSchedule.css'
 
-function ScheduleList({ items, pageIndex, pageSize, onPageChange, total, isAdmin, onCancel, cancelId, actionsDisabled }) {
+function ScheduleList({ items, pageIndex, pageSize, onPageChange, total, isAdmin, onAttendance, onCancel, cancelId, actionsDisabled }) {
   const columns = [
     ...(isAdmin ? [{ title: 'Nhân viên', dataIndex: 'employeeName', render: (value) => value || '-' }] : []),
     { title: 'Ngày làm', dataIndex: 'workDate', render: formatDate },
@@ -22,7 +22,7 @@ function ScheduleList({ items, pageIndex, pageSize, onPageChange, total, isAdmin
     { title: 'Bắt đầu', dataIndex: 'startTime', render: formatTime },
     { title: 'Kết thúc', dataIndex: 'endTime', render: formatTime },
     { title: 'Trạng thái', dataIndex: 'status', render: (value) => <Tag color={statusColor(value)}>{statusLabel(value)}</Tag> },
-    ...(isAdmin ? [{ title: 'Thao tác', key: 'actions', render: (_, assignment) => assignment.status === 'Scheduled' ? <Button type="link" danger size="small" onClick={() => onCancel(assignment)} loading={cancelId === assignment.id} disabled={actionsDisabled}>Hủy</Button> : null }] : []),
+    ...(isAdmin ? [{ title: 'Thao tác', key: 'actions', render: (_, assignment) => <><Button type="link" size="small" onClick={() => onAttendance(assignment)}>Chấm công</Button>{assignment.status === 'Scheduled' && <Button type="link" danger size="small" onClick={() => onCancel(assignment)} loading={cancelId === assignment.id} disabled={actionsDisabled}>Hủy</Button>}</> }] : []),
   ]
   const start = (pageIndex - 1) * pageSize
   return <><Table rowKey="id" scroll={{ x: 760 }} columns={columns} dataSource={items.slice(start, start + pageSize)} pagination={false} locale={{ emptyText: 'Chưa có lịch làm việc phù hợp.' }} />
@@ -32,6 +32,7 @@ function ScheduleList({ items, pageIndex, pageSize, onPageChange, total, isAdmin
 
 export default function StaffSchedulePage() {
   const session = useAuthStore((state) => state.session)
+  const navigate = useNavigate()
   const role = session?.role?.toUpperCase()
   const isAdmin = role === 'ADMIN'
   const canRead = isAdmin || ['LIFEGUARD', 'SALES'].includes(role)
@@ -74,6 +75,11 @@ export default function StaffSchedulePage() {
   const requestChange = (apply) => {
     if (!draftsDirty || isSaving) return apply()
     Modal.confirm({ title: 'Bỏ thay đổi chưa lưu?', content: 'Các phân công đang chờ sẽ bị xóa.', okText: 'Bỏ thay đổi', cancelText: 'Ở lại', onOk: () => { setDrafts([]); apply() } })
+  }
+
+  const openAttendance = (assignment) => {
+    const search = new URLSearchParams({ date: assignment.workDate, shiftId: assignment.shiftId })
+    requestChange(() => navigate(`/admin/staff/attendance?${search}`))
   }
 
   const addDrafts = (rows) => {
@@ -146,15 +152,15 @@ export default function StaffSchedulePage() {
 
   if (!canRead) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên và nhân viên mới có thể xem lịch làm việc." /></div>
 
-  return <div className="service-list-page staff-schedule-page">
+  return <div className="service-list-page staff-schedule-page staff-schedule-page--wide">
     <ServiceListHeader title={<>Lịch làm việc <span className="staff-schedule-count">{schedule.isLoading ? 'Đang tải…' : `${visibleItems.length} lịch trong tuần`}</span></>} action={isAdmin ? <Button type="primary" onClick={() => setModalContext({ workDate: monday })} disabled={isSaving}>Phân ca</Button> : null} />
     <section className="service-list-toolbar staff-schedule-toolbar" aria-label="Điều khiển lịch làm việc"><div className="service-list-filters staff-schedule-filters"><Button aria-label="Tuần trước" icon={<LeftOutlined />} onClick={() => requestChange(() => setMonday(dayjs(monday).subtract(7, 'day').format('YYYY-MM-DD')))} disabled={isSaving} /><label className="service-filter-control"><span>Tuần chứa ngày</span><DatePicker value={dayjs(monday)} format="DD/MM/YYYY" onChange={(value) => value && requestChange(() => setMonday(mondayFor(value.format('YYYY-MM-DD'))))} disabled={isSaving} /></label><Button aria-label="Tuần sau" icon={<RightOutlined />} onClick={() => requestChange(() => setMonday(dayjs(monday).add(7, 'day').format('YYYY-MM-DD')))} disabled={isSaving} /><Segmented value={view} options={['Tuần', 'Danh sách']} onChange={(value) => requestChange(() => setView(value))} disabled={isSaving} /><Button icon={<ReloadOutlined />} onClick={() => { schedule.refetch(); shifts.refetch() }} disabled={isSaving}>Làm mới</Button></div></section>
     {draftsDirty && isAdmin && <section className="staff-draft-controls"><span>{drafts.length} phân công chưa lưu{saveState === 'partial' ? ' · một phần đã tồn tại' : ''}</span><Button onClick={() => requestChange(() => setDrafts([]))} disabled={isSaving}>Hủy thay đổi</Button><Button type="primary" onClick={save} loading={isSaving} disabled={saveState === 'partial' || saveState === 'unavailable'}>Lưu phân ca</Button></section>}
     <section className="service-list-table staff-schedule-table" aria-label="Lịch làm việc">
       {schedule.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
       {schedule.isError && <Empty description="Không thể tải lịch làm việc."><Button onClick={() => schedule.refetch()}>Thử lại</Button></Empty>}
-      {!schedule.isLoading && !schedule.isError && view === 'Tuần' && <ScheduleBoard monday={monday} assignments={visibleItems} drafts={drafts} isAdmin={isAdmin} employees={roster.data || []} onAdd={setModalContext} onRemove={(localId) => setDrafts((current) => current.filter((draft) => draft.localId !== localId))} onCancel={confirmCancellation} cancelId={cancellation.isPending ? cancellation.variables : null} actionsDisabled={actionsDisabled} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />}
-      {!schedule.isLoading && !schedule.isError && view === 'Danh sách' && <ScheduleList items={visibleItems} pageIndex={pageIndex} pageSize={pageSize} total={visibleItems.length} isAdmin={isAdmin} onPageChange={(page, size) => { setPageIndex(page); setPageSize(size) }} onCancel={confirmCancellation} cancelId={cancellation.isPending ? cancellation.variables : null} actionsDisabled={actionsDisabled} />}
+      {!schedule.isLoading && !schedule.isError && view === 'Tuần' && <ScheduleBoard monday={monday} assignments={visibleItems} drafts={drafts} isAdmin={isAdmin} employees={roster.data || []} onAdd={setModalContext} onRemove={(localId) => setDrafts((current) => current.filter((draft) => draft.localId !== localId))} onAttendance={openAttendance} onCancel={confirmCancellation} cancelId={cancellation.isPending ? cancellation.variables : null} actionsDisabled={actionsDisabled} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />}
+      {!schedule.isLoading && !schedule.isError && view === 'Danh sách' && <ScheduleList items={visibleItems} pageIndex={pageIndex} pageSize={pageSize} total={visibleItems.length} isAdmin={isAdmin} onPageChange={(page, size) => { setPageIndex(page); setPageSize(size) }} onAttendance={openAttendance} onCancel={confirmCancellation} cancelId={cancellation.isPending ? cancellation.variables : null} actionsDisabled={actionsDisabled} />}
     </section>
     {roster.isError && <Alert className="staff-schedule-alert" type="error" showIcon message="Không thể tải danh sách nhân viên đủ điều kiện." />}
     {shifts.isError && <Alert className="staff-schedule-alert" type="error" showIcon message="Không thể tải ca đang hoạt động." />}

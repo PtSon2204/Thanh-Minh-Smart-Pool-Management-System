@@ -22,9 +22,13 @@ import RentalPage from "./pages/admin/RentalPage";
 import VoucherPage from "./pages/admin/VoucherPage";
 import NotificationPage from "./pages/admin/NotificationPage";
 import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsPage";
+import TicketRevenueStatisticsPage from "./pages/admin/statistics/TicketRevenueStatisticsPage";
+import MonthlyTicketsPage from "./pages/admin/statistics/MonthlyTicketsPage";
 import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
 import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
+import StaffAttendancePage from "./pages/admin/StaffAttendancePage";
+import StaffQrAttendancePage from "./pages/admin/StaffQrAttendancePage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
 
@@ -67,6 +71,8 @@ const router = createBrowserRouter([
           { path: 'coupons', element: <VoucherPage /> },
           { path: 'notifications', element: <NotificationPage /> },
           { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
+          { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
+          { path: 'statistics/monthly-tickets', element: <MonthlyTicketsPage /> },
           { path: 'staff/profiles', element: <StaffProfilesPage /> },
           { path: 'staff/shifts', element: <ShiftManagementPage /> },
           { path: 'staff/schedule', element: <StaffSchedulePage /> },
@@ -74,6 +80,8 @@ const router = createBrowserRouter([
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
+              { path: 'staff/attendance', element: <StaffAttendancePage /> },
+              { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },
               { path: 'users', element: <UserManagementPage /> },
               { path: 'roles/permissions', element: <RolePermissionsPage /> },
             ],
@@ -85,5 +93,16 @@ const router = createBrowserRouter([
 ])
 
 export default function App() {
-  return <ConfigProvider theme={{ token: { fontFamily: "'Open Sans', system-ui, -apple-system, Roboto, sans-serif" } }}><RouterProvider router={router} /></ConfigProvider>
+  return (
+    <ConfigProvider
+      theme={{
+        token: {
+          fontFamily:
+            "'Open Sans', system-ui, -apple-system, Roboto, sans-serif",
+        },
+      }}
+    >
+      <RouterProvider router={router} />
+    </ConfigProvider>
+  );
 }
