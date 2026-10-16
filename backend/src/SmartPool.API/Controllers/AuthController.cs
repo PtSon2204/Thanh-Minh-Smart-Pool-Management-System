@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartPool.Application.Features.Authentication.Commands.ChangePassword;
 using SmartPool.Application.Features.Authentication.Commands.Login;
 using SmartPool.Application.Features.Authentication.Commands.PasswordReset;
 using SmartPool.Application.Features.Authentication.Commands.Register;
@@ -184,5 +185,14 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         return _sender.Send(command, cancellationToken);
+    }
+
+    [Authorize]
+    [HttpPut("change-password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        return await _sender.Send(command, cancellationToken);
     }
 }
