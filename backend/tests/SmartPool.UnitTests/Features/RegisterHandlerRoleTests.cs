@@ -1,7 +1,10 @@
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Net;
 using SmartPool.Application.Features.Authentication.Commands.Register;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
@@ -12,11 +15,11 @@ namespace SmartPool.UnitTests.Features;
 public sealed class RegisterHandlerRoleTests
 {
     [Theory]
-    [InlineData("CUSTOMER", false, 201)]
-    [InlineData("Customer", false, 201)]
-    [InlineData("customer", false, 201)]
-    [InlineData("cUsToMeR", false, 201)]
-    [InlineData("Customer", null, 201)]
+    [InlineData("CUSTOMER", false, 202)]
+    [InlineData("Customer", false, 202)]
+    [InlineData("customer", false, 202)]
+    [InlineData("cUsToMeR", false, 202)]
+    [InlineData("Customer", null, 202)]
     [InlineData("CUSTOMER", true, 500)]
     [InlineData("Customer", true, 500)]
     [InlineData("customer", true, 500)]
@@ -26,28 +29,38 @@ public sealed class RegisterHandlerRoleTests
     {
         var role = new Role { Id = Guid.NewGuid(), Name = roleName, IsDeleted = isDeleted };
         var users = new Mock<IRepository<User>>();
-        var profiles = new Mock<IRepository<UserProfile>>();
         var roles = new Mock<IRepository<Role>>();
-        var unitOfWork = new Mock<IUnitOfWork>();
         var passwordHasher = new Mock<IPasswordHasher>();
+        var otpStore = new Mock<IRegistrationOtpStore>();
+        var emailService = new Mock<IEmailService>();
+        var httpContext = new DefaultHttpContext();
+        httpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
+        var accessor = new HttpContextAccessor { HttpContext = httpContext };
+        var codeService = new RegistrationOtpCodeService(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?> { ["RegistrationOtp:HmacKey"] = Convert.ToBase64String(new byte[32]) }).Build());
 
         users.Setup(repository => repository.ExistsAsync(
                 It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        users.Setup(repository => repository.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        profiles.Setup(repository => repository.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
         roles.Setup(repository => repository.FirstOrDefaultAsync(
                 It.IsAny<Expression<Func<Role, bool>>>(), It.IsAny<CancellationToken>()))
             .Returns((Expression<Func<Role, bool>> predicate, CancellationToken _) =>
                 Task.FromResult<Role?>(predicate.Compile()(role) ? role : null));
-        unitOfWork.Setup(work => work.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(2);
         passwordHasher.Setup(hasher => hasher.HashPassword(It.IsAny<User>(), It.IsAny<string>()))
             .Returns("test-password-hash");
+        otpStore.Setup(store => store.TryConsumeStartQuotaAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RegistrationOtpStoreResult(RegistrationOtpStoreStatus.Success));
+        var now = DateTimeOffset.UtcNow;
+        otpStore.Setup(store => store.TryStartAsync(It.IsAny<PendingRegistration>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RegistrationOtpStoreResult(RegistrationOtpStoreStatus.Success,
+                now.AddMinutes(5), now.AddMinutes(30), now.AddMinutes(1)));
+        emailService.Setup(service => service.SendAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        var handler = new RegisterHandler(users.Object, profiles.Object, roles.Object,
-            unitOfWork.Object, passwordHasher.Object, new RegisterValidator(),
+        var handler = new RegisterHandler(users.Object, roles.Object, passwordHasher.Object,
+            otpStore.Object, codeService, emailService.Object, accessor, new RegisterValidator(),
             NullLogger<RegisterHandler>.Instance);
         var request = new RegisterCommand
         {
@@ -62,8 +75,8 @@ public sealed class RegisterHandlerRoleTests
         var result = Assert.IsType<ObjectResult>(await handler.Handle(request, CancellationToken.None));
 
         Assert.Equal(expectedStatus, result.StatusCode);
-        users.Verify(repository => repository.AddAsync(
-                It.Is<User>(user => user.RoleId == role.Id), It.IsAny<CancellationToken>()),
-            expectedStatus == 201 ? Times.Once() : Times.Never());
+        users.Verify(repository => repository.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never());
+        otpStore.Verify(store => store.TryStartAsync(It.IsAny<PendingRegistration>(), It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), expectedStatus == 202 ? Times.Once() : Times.Never());
     }
 }
