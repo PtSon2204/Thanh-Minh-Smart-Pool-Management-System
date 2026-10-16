@@ -9,6 +9,7 @@ using SmartPool.Application.Features.Authentication.Commands.Register;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
+using SmartPool.Application.Features.Authentication.Commands.Register.VerifyOTP;
 
 namespace SmartPool.UnitTests.Features;
 
