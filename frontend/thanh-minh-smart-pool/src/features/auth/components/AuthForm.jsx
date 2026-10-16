@@ -144,7 +144,7 @@ export default function AuthForm({ isRegister }) {
         {isRegister && <AuthField id="inp-pw2" label="Xác nhận mật khẩu" error={errorFor('confirmPassword')}>
           {(errorId) => <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M9 12l2 2 4-4" /><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg><input type="password" id="inp-pw2" placeholder="Nhập lại mật khẩu" autoComplete="new-password" disabled={pending} aria-invalid={Boolean(errorFor('confirmPassword'))} aria-describedby={errorFor('confirmPassword') ? errorId : undefined} {...registerForm.register('confirmPassword')} /></>}
         </AuthField>}
-        {!isRegister && <div className="auth-forgot-row"><Link to="#" className="auth-forgot-link">Quên mật khẩu?</Link></div>}
+        {!isRegister && <div className="auth-forgot-row"><Link to="/quen-mat-khau" className="auth-forgot-link">Quên mật khẩu?</Link></div>}
         {feedback && <p className={`auth-feedback${errorMessage ? ' auth-feedback-error' : ''}`} role="alert">{feedback}</p>}
         <button className="auth-btn-main" id="loginBtn" type="submit" disabled={pending}><span>{pending ? 'Đang xử lý...' : isRegister ? 'Đăng ký' : 'Đăng nhập'}</span><svg viewBox="0 0 22 22" fill="none" width="18" height="18"><path d="M3 11h15.4M11 3.3l7.7 7.7-7.7 7.7" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
       </form>
