@@ -3,6 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useLogin, useRegister } from '../hooks/useAuthMutations'
+import { savePendingRegistration } from '../services/registrationSession'
+import { beginOtpRequest } from '../services/otpRequest'
 import { getAuthError, loginFormSchema, registerFormSchema } from '../types/authSchemas'
 
 function AuthField({ id, label, error, children }) {
@@ -34,7 +36,7 @@ export default function AuthForm({ isRegister }) {
     defaultValues: { username: '', phone: '', familyName: '', givenName: '', email: '', password: '', confirmPassword: '' },
   })
   const form = isRegister ? registerForm : loginForm
-  const feedback = isRegister ? errorMessage : errorMessage || location.state?.registrationSuccess
+  const feedback = isRegister ? errorMessage : errorMessage || location.state?.registrationSuccess || location.state?.resetSuccess
   const errorFor = (name) => form.formState.errors[name]?.message
 
   function clearPasswords() {
@@ -73,31 +75,30 @@ export default function AuthForm({ isRegister }) {
     }
   }
 
-  async function submitRegister(values) {
+  function submitRegister(values) {
     if (submittingRef.current) return
     submittingRef.current = true
     setErrorMessage('')
-    try {
-      await register.mutateAsync({
+    const email = values.email.trim()
+    const username = values.username.trim()
+    const request = register.mutateAsync({
         username: values.username,
         email: values.email,
         phone: values.phone,
         password: values.password,
         confirmPassword: values.confirmPassword,
         fullName: `${values.familyName} ${values.givenName}`.trim(),
+      }).then((pendingRegistration) => {
+        const session = { ...pendingRegistration, email, username }
+        savePendingRegistration(session)
+        return session
       })
-      clearPasswords()
-      navigate('/dang-nhap', {
-        replace: true,
-        state: { registeredUsername: values.username, registrationSuccess: 'Đăng ký thành công. Hãy đăng nhập để tiếp tục.' },
-      })
-    } catch (error) {
-      const authError = getAuthError(error)
-      applyServerErrors(authError.fieldErrors)
-      setErrorMessage(authError.message)
-    } finally {
-      submittingRef.current = false
-    }
+    const requestId = beginOtpRequest('register', email, request)
+    clearPasswords()
+    navigate('/xac-nhan-otp/dang-ky', {
+      replace: true,
+      state: { email, requestId },
+    })
   }
 
   function onSubmit(event) {
