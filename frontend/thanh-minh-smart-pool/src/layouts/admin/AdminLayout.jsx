@@ -23,10 +23,19 @@ import './AdminLayout.css';
 
 const { Header, Sider, Content } = Layout;
 
+function openKeysForPath(pathname) {
+  if (pathname.startsWith('/admin/staff/attendance')) return ['staff', 'staff-attendance'];
+  if (pathname.startsWith('/admin/staff/')) return ['staff'];
+  if (pathname.startsWith('/admin/services') || pathname.startsWith('/admin/inventory') || pathname.startsWith('/admin/rentals')) return ['services'];
+  if (pathname.startsWith('/admin/payments')) return ['payments'];
+  if (pathname.startsWith('/admin/statistics')) return ['statistics'];
+  return [];
+}
+
 export default function AdminLayout() {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const location = useLocation();
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -77,11 +86,18 @@ export default function AdminLayout() {
       icon: <TeamOutlined />,
       label: 'Quản lý nhân viên',
       children: [
-        { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Chấm công hàng ngày</Link> },
+        isAdmin && {
+          key: 'staff-attendance',
+          label: 'Chấm công hôm nay',
+          children: [
+            { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Chấm công thủ công</Link> },
+            { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
+          ],
+        },
         { key: '/admin/staff/shifts', label: <Link to="/admin/staff/shifts">Ca làm việc</Link> },
         { key: '/admin/staff/schedule', label: <Link to="/admin/staff/schedule">Lịch làm việc</Link> },
         { key: '/admin/staff/profiles', label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link> },
-      ],
+      ].filter(Boolean),
     },
     (isAdmin || role === 'SALES') && {
       key: '/admin/tickets',
@@ -149,7 +165,7 @@ export default function AdminLayout() {
       navigate('/ho-so');
     } else if (key === 'logout') {
       setSession(null);
-      navigate('/dang-nhap');
+      navigate('/dang-nhap', { replace: true });
     }
   };
 
@@ -201,7 +217,7 @@ export default function AdminLayout() {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['/admin/services', '/admin/inventory', '/admin/rentals'].includes(location.pathname) ? ['services'] : []}
+          defaultOpenKeys={openKeysForPath(location.pathname)}
           items={menuItems}
           style={{ 
             borderRight: 0, 

@@ -10,6 +10,15 @@
   align-items: end;
 }
 
+.staff-schedule-page--wide .service-list-header,
+.staff-schedule-page--wide .service-list-toolbar {
+  padding-inline: var(--space-4);
+}
+
+.staff-schedule-page--wide .service-list-table {
+  padding-inline: var(--space-4);
+}
+
 .staff-schedule-filters {
   align-items: end;
   flex-wrap: wrap;
@@ -27,11 +36,11 @@
 }
 
 .staff-week-board {
-  --schedule-day-min: 17rem;
+  --schedule-day-min: 11rem;
   align-items: stretch;
   display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(min(var(--schedule-day-min), 100%), 1fr));
+  gap: var(--space-2);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-top: var(--space-4);
 }
 
@@ -41,9 +50,9 @@
   border-radius: var(--list-radius);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
-  padding: var(--space-3);
+  padding: var(--space-2);
 }
 
 .staff-week-day > header,
@@ -78,9 +87,9 @@
   border: 1px solid var(--list-divider);
   border-radius: var(--list-radius);
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
-  padding: var(--space-3);
+  padding: var(--space-2);
 }
 
 .staff-week-shift-heading {
@@ -96,6 +105,15 @@
 
 .staff-week-shift-heading span {
   font-variant-numeric: tabular-nums;
+}
+
+.staff-week-attendance-actions {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.staff-week-attendance-actions .staff-week-attendance {
+  width: 100%;
 }
 
 .staff-week-assignment-list {
@@ -184,8 +202,15 @@
 }
 
 .staff-schedule-table {
+  container-type: inline-size;
   max-width: 100%;
   overflow-x: auto;
+}
+
+@container (max-width: 81.5rem) {
+  .staff-week-board {
+    grid-template-columns: repeat(7, minmax(var(--schedule-day-min), 1fr));
+  }
 }
 
 .staff-full-width {
@@ -219,10 +244,6 @@
 }
 
 @media (max-width: 640px) {
-  .staff-week-board {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .staff-schedule-toolbar .service-list-filters,
   .staff-schedule-toolbar .service-filter-control,
   .staff-schedule-toolbar .ant-picker,

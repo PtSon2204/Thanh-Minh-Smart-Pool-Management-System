@@ -25,6 +25,8 @@ import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsP
 import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
 import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
+import StaffAttendancePage from "./pages/admin/StaffAttendancePage";
+import StaffQrAttendancePage from "./pages/admin/StaffQrAttendancePage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
 
@@ -74,6 +76,8 @@ const router = createBrowserRouter([
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
+              { path: 'staff/attendance', element: <StaffAttendancePage /> },
+              { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },
               { path: 'users', element: <UserManagementPage /> },
               { path: 'roles/permissions', element: <RolePermissionsPage /> },
             ],

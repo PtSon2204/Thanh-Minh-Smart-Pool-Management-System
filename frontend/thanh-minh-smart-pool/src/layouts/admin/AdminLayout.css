@@ -5,6 +5,10 @@
   min-width: 0;
 }
 
+.admin-content:has(.staff-schedule-page--wide) {
+  margin: 12px;
+}
+
 @media (max-width: 640px) {
   .admin-content {
     margin: 12px;
