@@ -5,9 +5,10 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using SmartPool.Application.Features.Authentication.Commands.Register.VerifyOTP;
 using SmartPool.Application.Interfaces.Services;
 
-namespace SmartPool.Application.Features.Authentication.Commands.Register;
+namespace SmartPool.Application.Features.Authentication.Commands.Register.ResendOTP;
 
 public sealed class ResendRegistrationHandler : IRequestHandler<ResendRegistrationCommand, IActionResult>
 {

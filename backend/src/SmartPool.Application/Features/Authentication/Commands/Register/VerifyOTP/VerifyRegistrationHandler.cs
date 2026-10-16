@@ -11,7 +11,7 @@ using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 
-namespace SmartPool.Application.Features.Authentication.Commands.Register;
+namespace SmartPool.Application.Features.Authentication.Commands.Register.VerifyOTP;
 
 public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrationCommand, IActionResult>
 {

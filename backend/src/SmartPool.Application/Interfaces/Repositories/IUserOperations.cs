@@ -9,6 +9,10 @@ namespace SmartPool.Application.Interfaces.Repositories;
 
 public interface IUserOperations
 {
+    // Atomic compare-and-swap: the password, email and account eligibility must still match.
+    Task<bool> TryUpdatePasswordAsync(Guid userId, string expectedEmail,
+        string expectedPasswordHash, string newPasswordHash, CancellationToken cancellationToken);
+
     Task<PagedResponse<GetUsersResponse>> GetUsersAsync(GetUsersQuery query, CancellationToken cancellationToken);
     Task<GetUserByIdResponse?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken);
 

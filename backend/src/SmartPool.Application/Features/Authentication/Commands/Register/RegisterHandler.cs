@@ -9,6 +9,7 @@ using SmartPool.Domain.Enums;
 using FluentValidation;
 using System.Text.Json;
 using System.Globalization;
+using SmartPool.Application.Features.Authentication.Commands.Register.VerifyOTP;
 
 namespace SmartPool.Application.Features.Authentication.Commands.Register;
 
