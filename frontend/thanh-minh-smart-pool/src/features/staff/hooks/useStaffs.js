@@ -35,6 +35,14 @@ export function useStaffSchedulePage({ scope, sessionUserId, params, enabled }) 
   })
 }
 
+export function useAttendanceSchedule(sessionUserId, date, enabled) {
+  return useQuery({
+    queryKey: ['staff-attendance', sessionUserId, date],
+    queryFn: ({ signal }) => staffService.getCompleteSchedule('all', { fromDate: date, toDate: date }, signal),
+    enabled: Boolean(enabled && sessionUserId && date),
+  })
+}
+
 export function useScheduleEmployees(enabled) {
   return useQuery({
     queryKey: ['staff-schedule-employees'],
@@ -49,6 +57,7 @@ export function useAssignShiftBatch() {
     mutationFn: staffService.assignShiftBatch,
     retry: false,
     onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] }),
@@ -63,11 +72,33 @@ export function useCancelSchedule() {
     mutationFn: staffService.cancelSchedule,
     retry: false,
     onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] }),
     ]),
   })
+}
+
+function useAttendanceMutation(mutationFn) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    retry: false,
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
+    ]),
+  })
+}
+
+export function useCheckIn() {
+  return useAttendanceMutation(staffService.checkIn)
+}
+
+export function useCheckOut() {
+  return useAttendanceMutation(staffService.checkOut)
 }
 
 export function useStaffSalaries(employeeId, params, enabled) {

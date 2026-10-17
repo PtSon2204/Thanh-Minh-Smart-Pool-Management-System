@@ -95,12 +95,14 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
         <Form.Item
           label="Tên loại vé"
           name="name"
+          normalize={(value) => value.normalize('NFC').replace(/[^\p{L}\p{M}\p{Nd} ]/gu, '').slice(0, 30)}
           rules={[
-            { required: true, message: 'Vui lòng nhập tên loại vé.' },
-            { max: 255, message: 'Tên không vượt quá 255 ký tự.' },
+            { required: true, whitespace: true, message: 'Vui lòng nhập tên loại vé.' },
+            { max: 30, message: 'Tên loại vé không được vượt quá 30 ký tự.' },
+            { pattern: /^[\p{L}\p{M}\p{Nd} ]+$/u, message: 'Tên loại vé chỉ được chứa chữ, số và khoảng trắng.' },
           ]}
         >
-          <Input placeholder="Ví dụ: Vé tháng (30 ngày)" />
+          <Input placeholder="Ví dụ: Vé tháng 30 ngày" maxLength={30} showCount />
         </Form.Item>
 
         {/* Phân loại */}
