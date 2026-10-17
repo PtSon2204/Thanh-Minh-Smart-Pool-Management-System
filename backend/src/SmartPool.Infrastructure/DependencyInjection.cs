@@ -15,6 +15,9 @@ using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.DataProtection;
+using SmartPool.Infrastructure.Cameras;
+using System.Security.Cryptography.X509Certificates;
 
 
 namespace SmartPool.Infrastructure
@@ -29,6 +32,21 @@ namespace SmartPool.Infrastructure
             this IServiceCollection services,
             IConfiguration configuration)
         {
+            services.Configure<CameraOptions>(configuration.GetSection("CameraSettings"));
+            var keyRingPath = configuration["CameraSettings:KeyRingPath"] ?? Path.Combine(AppContext.BaseDirectory, "camera-keys");
+            var protection = services.AddDataProtection().SetApplicationName("SmartPool.Camera")
+                .PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
+            if (OperatingSystem.IsWindows()) protection.ProtectKeysWithDpapi();
+            else if (!string.IsNullOrWhiteSpace(configuration["CameraSettings:KeyEncryptionCertificatePath"]))
+                protection.ProtectKeysWithCertificate(new X509Certificate2(configuration["CameraSettings:KeyEncryptionCertificatePath"]!, configuration["CameraSettings:KeyEncryptionCertificatePassword"]));
+            else if (configuration.GetSection("CameraSettings:AllowedEndpoints").GetChildren().Any())
+                throw new InvalidOperationException("Camera key encryption requires a certificate on this operating system.");
+            services.AddSingleton<CameraAddressPolicy>();
+            services.AddSingleton<ICameraFrameDecoder, CameraFrameDecoder>();
+            services.AddSingleton<CameraService>();
+            services.AddSingleton<ICameraService>(provider => provider.GetRequiredService<CameraService>());
+            services.AddHostedService<CameraSupervisor>();
+
             // Database — Entity Framework Core + PostgreSQL (Npgsql)
             services.AddDbContext<SmartPoolDbContext>(options =>
                 options.UseNpgsql(
@@ -134,6 +152,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
+            services.AddScoped<IEquipmentOperations, EquipmentOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();

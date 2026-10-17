@@ -1,0 +1,7 @@
+.equipment-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 20px 0; }
+.equipment-toolbar label { display: flex; flex: 1 1 170px; min-width: 0; flex-direction: column; gap: 6px; color: #475569; font-weight: 600; }
+.equipment-toolbar .equipment-search { flex: 2 1 260px; }
+.equipment-toolbar .ant-select { width: 100%; }
+.equipment-specification { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.equipment-list-page > .ant-alert { margin-bottom: 16px; }
+@media (max-width: 600px) { .equipment-toolbar label { flex-basis: 100%; } .equipment-toolbar > button { width: 100%; } }

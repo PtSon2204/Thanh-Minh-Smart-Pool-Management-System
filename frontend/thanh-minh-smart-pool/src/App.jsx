@@ -27,6 +27,7 @@ import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
+import EquipmentPage from "./pages/admin/EquipmentPage";
 
 const router = createBrowserRouter([
   {
@@ -74,6 +75,7 @@ const router = createBrowserRouter([
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
+              { path: 'equipment', element: <EquipmentPage /> },
               { path: 'users', element: <UserManagementPage /> },
               { path: 'roles/permissions', element: <RolePermissionsPage /> },
             ],
