@@ -15,6 +15,7 @@ import {
   BarChartOutlined,
   BellOutlined,
   LogoutOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
@@ -163,6 +164,8 @@ export default function AdminLayout() {
   const handleUserMenuClick = ({ key }) => {
     if (key === 'profile') {
       navigate('/ho-so');
+    } else if (key === 'change-password') {
+      navigate('/admin/doi-mat-khau');
     } else if (key === 'logout') {
       setSession(null);
       navigate('/dang-nhap', { replace: true });
@@ -175,6 +178,11 @@ export default function AdminLayout() {
         key: 'profile',
         icon: <UserOutlined />,
         label: 'Hồ sơ cá nhân',
+      },
+      {
+        key: 'change-password',
+        icon: <LockOutlined />,
+        label: 'Đổi mật khẩu',
       },
       {
         type: 'divider',

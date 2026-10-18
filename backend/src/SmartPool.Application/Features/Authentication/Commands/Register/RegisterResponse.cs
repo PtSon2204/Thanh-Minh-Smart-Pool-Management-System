@@ -4,7 +4,7 @@ namespace SmartPool.Application.Features.Authentication.Commands.Register;
 
 /// <summary>
 /// Kết quả trả về sau khi tạo tài khoản thành công.
-/// Register không phát hành access token hoặc refresh token.
+/// Xác minh OTP đăng ký không phát hành access token hoặc refresh token.
 /// </summary>
 public sealed class RegisterResponse
 {
