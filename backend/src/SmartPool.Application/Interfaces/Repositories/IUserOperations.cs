@@ -13,6 +13,9 @@ public interface IUserOperations
     Task<bool> TryUpdatePasswordAsync(Guid userId, string expectedEmail,
         string expectedPasswordHash, string newPasswordHash, CancellationToken cancellationToken);
 
+    Task<bool> TryChangePasswordAsync(Guid userId, string expectedPasswordHash,
+        string newPasswordHash, CancellationToken cancellationToken);
+
     Task<PagedResponse<GetUsersResponse>> GetUsersAsync(GetUsersQuery query, CancellationToken cancellationToken);
     Task<GetUserByIdResponse?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken);
 

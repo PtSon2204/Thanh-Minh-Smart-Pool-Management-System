@@ -18,6 +18,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
     private readonly IRepository<Role> _roles;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAccessTokenService _accessTokenService;
+    private readonly IRefreshTokenService _refreshTokenService;
     private readonly IValidator<LoginCommand> _validator;
 
     public LoginHandler(
@@ -25,12 +26,14 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         IRepository<Role> roles,
         IPasswordHasher passwordHasher,
         IAccessTokenService accessTokenService,
+        IRefreshTokenService refreshTokenService,
         IValidator<LoginCommand> validator)
     {
         _users = users;
         _roles = roles;
         _passwordHasher = passwordHasher;
         _accessTokenService = accessTokenService;
+        _refreshTokenService = refreshTokenService;
         _validator = validator;
     }
 
@@ -88,13 +91,19 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
             return InvalidCredentials();
 
         var token = _accessTokenService.CreateToken(authenticatedUser, role.Name);
+        var refreshToken = await _refreshTokenService.CreateAsync(authenticatedUser.Id,
+            authenticatedUser.PasswordHash!, cancellationToken);
+        if (refreshToken is null)
+            return InvalidCredentials();
         return new OkObjectResult(new LoginResponse
         {
             Id = authenticatedUser.Id,
             Username = authenticatedUser.Username ?? string.Empty,
             Role = role.Name,
             AccessToken = token.Token,
-            ExpiresAtUtc = token.ExpiresAtUtc
+            ExpiresAtUtc = token.ExpiresAtUtc,
+            RefreshToken = refreshToken.Token,
+            RefreshTokenExpiresAtUtc = refreshToken.ExpiresAtUtc
         });
     }
 

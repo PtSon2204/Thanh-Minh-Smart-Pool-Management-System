@@ -66,7 +66,11 @@ export const loginResponseSchema = z.object({
   role: z.string().min(1),
   accessToken: z.string().min(1),
   expiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Thời hạn phiên không hợp lệ.'),
+  refreshToken: z.string().min(1),
+  refreshTokenExpiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Thời hạn đăng nhập không hợp lệ.'),
 })
+
+export const refreshResponseSchema = loginResponseSchema
 
 const registrationDeadlinesSchema = z.object({
   otpExpiresAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời hạn OTP không hợp lệ.'),

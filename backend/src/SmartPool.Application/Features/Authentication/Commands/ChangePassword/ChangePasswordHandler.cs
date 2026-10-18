@@ -13,20 +13,20 @@ public sealed class ChangePasswordHandler
     : IRequestHandler<ChangePasswordCommand, IActionResult>
 {
     private readonly IRepository<User> _users;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserOperations _userOperations;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IValidator<ChangePasswordCommand> _validator;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ChangePasswordHandler(
         IRepository<User> users,
-        IUnitOfWork unitOfWork,
+        IUserOperations userOperations,
         IPasswordHasher passwordHasher,
         IValidator<ChangePasswordCommand> validator,
         IHttpContextAccessor httpContextAccessor)
     {
         _users = users;
-        _unitOfWork = unitOfWork;
+        _userOperations = userOperations;
         _passwordHasher = passwordHasher;
         _validator = validator;
         _httpContextAccessor = httpContextAccessor;
@@ -89,16 +89,15 @@ public sealed class ChangePasswordHandler
         }
 
         // 5. Hash mật khẩu mới, không lưu mật khẩu dạng văn bản.
-        user.PasswordHash = _passwordHasher.HashPassword(
+        var newHash = _passwordHasher.HashPassword(
             user,
             request.NewPassword);
 
-        user.UpdatedAt = DateTime.UtcNow;
-
-        // 6. Đánh dấu entity cập nhật và lưu vào database.
-        _users.Update(user);
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // 6. Chỉ cập nhật nếu mật khẩu chưa bị đổi bởi yêu cầu khác; thu hồi mọi
+        // refresh token trong cùng transaction với lần cập nhật này.
+        if (!await _userOperations.TryChangePasswordAsync(user.Id, user.PasswordHash,
+            newHash, cancellationToken))
+            return new ConflictResult();
 
         // 7. Đổi mật khẩu thành công.
         return new NoContentResult();

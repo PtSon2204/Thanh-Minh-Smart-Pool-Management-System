@@ -1,8 +1,12 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-function hasValidSession(session) {
+export function hasValidAccessToken(session) {
   return Boolean(session?.accessToken) && Date.parse(session.expiresAtUtc) > Date.now()
+}
+
+export function hasValidRefreshToken(session) {
+  return Boolean(session?.refreshToken) && Date.parse(session.refreshTokenExpiresAtUtc) > Date.now()
 }
 
 export const useAuthStore = create(
@@ -21,5 +25,5 @@ export const useAuthStore = create(
 
 export function getAccessToken() {
   const { session } = useAuthStore.getState()
-  return hasValidSession(session) ? session.accessToken : null
+  return hasValidAccessToken(session) ? session.accessToken : null
 }

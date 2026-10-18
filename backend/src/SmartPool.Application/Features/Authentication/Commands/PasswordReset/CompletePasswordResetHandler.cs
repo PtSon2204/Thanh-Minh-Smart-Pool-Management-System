@@ -101,6 +101,7 @@ public sealed class CompletePasswordResetHandler : IRequestHandler<CompletePassw
                 return PasswordChanged();
 
             var newHash = _hasher.HashPassword(user, request.NewPassword);
+            // The user operation updates the password and revokes refresh tokens atomically.
             saved = await _userOperations.TryUpdatePasswordAsync(user.Id, identity.Email,
                 user.PasswordHash, newHash, cancellationToken);
             if (!saved)
