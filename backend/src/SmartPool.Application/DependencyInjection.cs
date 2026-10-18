@@ -3,6 +3,9 @@ using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartPool.Application.Behaviors;
+using SmartPool.Application.Features.Authentication.Commands.PasswordReset;
+using SmartPool.Application.Features.Authentication.Commands.Register;
+using SmartPool.Application.Features.Authentication.Commands.Register.VerifyOTP;
 using System.Reflection;
 
 namespace SmartPool.Application
@@ -20,6 +23,8 @@ namespace SmartPool.Application
             var assembly = Assembly.GetExecutingAssembly();
 
             services.AddSingleton<TimeProvider>(TimeProvider.System);
+            services.AddSingleton<RegistrationOtpCodeService>();
+            services.AddSingleton<PasswordResetCodeService>();
 
             // MediatR — tự scan toàn bộ Handlers trong Assembly này
             // Mỗi thành viên chỉ cần tạo Handler class, không cần đăng ký thủ công

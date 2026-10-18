@@ -13,6 +13,7 @@ using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Persistence.Repositories.Roles;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
+using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
@@ -92,8 +93,9 @@ namespace SmartPool.Infrastructure
                         {
                             var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
                             var tokenRole = context.Principal?.FindFirstValue(ClaimTypes.Role);
+                            var passwordVersion = context.Principal?.FindFirstValue(AccessTokenService.PasswordVersionClaim);
                             if (!Guid.TryParse(userIdValue, out var userId) || userId == Guid.Empty ||
-                                string.IsNullOrWhiteSpace(tokenRole))
+                                string.IsNullOrWhiteSpace(tokenRole) || string.IsNullOrWhiteSpace(passwordVersion))
                             {
                                 context.Fail("Token identity is invalid.");
                                 return;
@@ -101,9 +103,9 @@ namespace SmartPool.Infrastructure
 
                             var validator = context.HttpContext.RequestServices
                                 .GetRequiredService<IAccessTokenService>();
-                            if (!await validator.IsCurrentAsync(userId, tokenRole,
+                            if (!await validator.IsCurrentAsync(userId, tokenRole, passwordVersion,
                                 context.HttpContext.RequestAborted))
-                                context.Fail("Account role or status changed.");
+                                context.Fail("Account role, status or password changed.");
                         }
                     };
                 });
@@ -114,6 +116,12 @@ namespace SmartPool.Infrastructure
                 options.Configuration = configuration.GetConnectionString("Redis");
                 options.InstanceName  = "SmartPool:";
             });
+            // Registration OTP uses Redis scripts for atomic state transitions.
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(
+                configuration.GetConnectionString("Redis")
+                ?? throw new InvalidOperationException("ConnectionStrings:Redis is not configured.")));
+            services.AddScoped<IRegistrationOtpStore, RegistrationOtpStore>();
+            services.AddScoped<IPasswordResetStore, PasswordResetStore>();
 
             // Cloudinary — lưu trữ ảnh
             var cloudinaryUrl = $"cloudinary://" +
