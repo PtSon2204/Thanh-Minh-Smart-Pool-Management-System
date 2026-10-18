@@ -8,6 +8,7 @@ using SmartPool.Application.Features.ManageReports.Queries.GetCustomerStatistics
 using SmartPool.Application.Features.ManageReports.Queries.GetTicketRevenueStatistics;
 using SmartPool.Application.Features.ManageReports.Queries.GetMonthlyTicketStatistics;
 using SmartPool.Application.Features.ManageReports.Queries.GetIncidentStatistics;
+using SmartPool.Application.Features.ManageReports.Queries.GetOperationCostsStatistics;
 
 namespace SmartPool.API.Controllers;
 
@@ -73,6 +74,20 @@ public sealed class ReportsController : ControllerBase
     [RequirePermission("reports", "read")]
     [ProducesResponseType(typeof(IncidentStatisticsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIncidentStatistics([FromQuery] GetIncidentStatisticsQuery query, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy dữ liệu báo cáo thống kê chi phí vận hành và bảo trì thiết bị bể bơi.
+    /// </summary>
+    /// <param name="query">Kỳ báo cáo chi phí (month, quarter, year)</param>
+    /// <param name="cancellationToken"></param>
+    [HttpGet("operations-costs")]
+    [RequirePermission("reports", "read")]
+    [ProducesResponseType(typeof(OperationCostsStatisticsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOperationCostsStatistics([FromQuery] GetOperationCostsStatisticsQuery query, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(query, cancellationToken);
         return Ok(result);

@@ -26,6 +26,7 @@ import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsP
 import TicketRevenueStatisticsPage from "./pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "./pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "./pages/admin/statistics/IncidentStatisticsPage";
+import OperationCostsStatisticsPage from "./pages/admin/statistics/OperationCostsStatisticsPage";
 import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
 import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
@@ -82,6 +83,7 @@ const router = createBrowserRouter([
           { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
           { path: 'statistics/monthly-tickets', element: <MonthlyTicketsPage /> },
           { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
+          { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
           { path: 'staff/profiles', element: <StaffProfilesPage /> },
           { path: 'staff/shifts', element: <ShiftManagementPage /> },
           { path: 'staff/schedule', element: <StaffSchedulePage /> },
