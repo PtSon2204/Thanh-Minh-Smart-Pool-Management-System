@@ -23,5 +23,12 @@ export const reportService = {
    */
   getMonthlyTicketStatistics: (params = {}) =>
     apiClient.get(`${BASE}/monthly-tickets`, { params }).then((res) => res.data),
+
+  /**
+   * Lấy dữ liệu báo cáo thống kê sự cố vận hành & an toàn bể bơi
+   * @param {Object} params - { filter: 'all' | 'critical_urgent' | 'in_progress' }
+   */
+  getIncidentStatistics: (params = {}) =>
+    apiClient.get(`${BASE}/incidents`, { params }).then((res) => res.data),
 };
 
