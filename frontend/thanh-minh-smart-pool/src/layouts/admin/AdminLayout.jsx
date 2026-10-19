@@ -86,13 +86,13 @@ export default function AdminLayout() {
       icon: <TeamOutlined />,
       label: 'Quản lý nhân viên',
       children: [
-        isAdmin && {
+        {
           key: 'staff-attendance',
-          label: 'Chấm công hôm nay',
+          label: isAdmin ? 'Chấm công nhân viên' : 'Check-in / Check-out',
           children: [
-            { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Chấm công thủ công</Link> },
-            { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
-          ],
+            { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Check-in / Check-out</Link> },
+            isAdmin && { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
+          ].filter(Boolean),
         },
         { key: '/admin/staff/shifts', label: <Link to="/admin/staff/shifts">Ca làm việc</Link> },
         { key: '/admin/staff/schedule', label: <Link to="/admin/staff/schedule">Lịch làm việc</Link> },
@@ -128,6 +128,7 @@ export default function AdminLayout() {
       children: [
         { key: '/admin/services', label: <Link to="/admin/services">Danh mục dịch vụ</Link> },
         { key: '/admin/inventory', label: <Link to="/admin/inventory">Tồn kho và lịch sử</Link> },
+        { key: '/admin/inventory/receipts', label: <Link to="/admin/inventory/receipts">Phiếu nhập hàng</Link> },
         { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },

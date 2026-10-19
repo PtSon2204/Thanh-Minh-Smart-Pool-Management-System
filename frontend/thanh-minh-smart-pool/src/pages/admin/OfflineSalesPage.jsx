@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, DatePicker, Tag, Select } from 'antd'
+import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, Tag, Select } from 'antd'
 import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
-import dayjs from 'dayjs'
 import { useTicketTypes } from '../../features/tickets/hooks/useTicketTypes'
 import { useSellOfflineTicket, useCreatePendingOrder, useOrderStatus } from '../../features/tickets/hooks/useSellOfflineTicket'
 import { useVouchers } from '../../features/vouchers/hooks/useVouchers'
@@ -15,7 +14,6 @@ export default function OfflineSalesPage() {
   const [cart, setCart] = useState([])
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
-  const [startDate, setStartDate] = useState(dayjs())
 
   // Voucher state
   const [voucherCode, setVoucherCode] = useState('')
@@ -78,7 +76,6 @@ export default function OfflineSalesPage() {
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
-      setStartDate(dayjs());
     }
   }, [orderStatusData])
 
@@ -159,10 +156,9 @@ export default function OfflineSalesPage() {
   }
 
 
-  // VE_THANG: cần đăng ký TK để gắn QR + StartDate
+  // VE_THANG: cần đăng ký TK để gắn QR
   // VE_LUOT tại quầy: không cần đăng ký (trừ lượt ngay, không QR)
   const requiresRegistration = cart.some(item => item.ticketType.ticketCategory === 'VE_THANG')
-  const requiresStartDate = requiresRegistration
 
   const isValidPhone = customerPhone ? /^0\d{9}$/.test(customerPhone.trim()) : false;
   const canCheckout = cart.length > 0 && (!requiresRegistration || isValidPhone)
@@ -185,7 +181,6 @@ export default function OfflineSalesPage() {
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
       customerName: requiresRegistration ? customerName.trim() : null,
-      startDate: requiresRegistration ? startDate.toISOString() : null,
       voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
@@ -210,7 +205,6 @@ export default function OfflineSalesPage() {
           setCart([])
           setCustomerName('')
           setCustomerPhone('')
-          setStartDate(dayjs())
           setAppliedVoucher(null)
           setVoucherCode('')
         }
@@ -224,7 +218,6 @@ export default function OfflineSalesPage() {
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
       customerName: requiresRegistration ? customerName.trim() : null,
-      startDate: requiresRegistration ? startDate.toISOString() : null,
       voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
@@ -410,17 +403,9 @@ export default function OfflineSalesPage() {
                       onChange={e => setCustomerName(e.target.value)}
                     />
                   </Form.Item>
-                  {requiresStartDate && (
-                    <Form.Item label="Ngày bắt đầu có hiệu lực">
-                      <DatePicker 
-                        format="DD/MM/YYYY" 
-                        value={startDate} 
-                        onChange={val => setStartDate(val || dayjs())}
-                        allowClear={false}
-                        style={{ width: '100%' }}
-                      />
-                    </Form.Item>
-                  )}
+                  <div style={{ color: '#64748b', marginBottom: 16 }}>
+                    Vé tháng có hiệu lực 30 ngày kể từ lúc mua/thanh toán.
+                  </div>
                 </Form>
               </div>
             )}

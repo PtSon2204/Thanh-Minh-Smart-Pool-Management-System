@@ -35,10 +35,10 @@ export function useStaffSchedulePage({ scope, sessionUserId, params, enabled }) 
   })
 }
 
-export function useAttendanceSchedule(sessionUserId, date, enabled) {
+export function useAttendanceSchedule(sessionUserId, date, enabled, scope = 'all') {
   return useQuery({
-    queryKey: ['staff-attendance', sessionUserId, date],
-    queryFn: ({ signal }) => staffService.getCompleteSchedule('all', { fromDate: date, toDate: date }, signal),
+    queryKey: ['staff-attendance', sessionUserId, date, scope],
+    queryFn: ({ signal }) => staffService.getCompleteSchedule(scope, { fromDate: date, toDate: date }, signal),
     enabled: Boolean(enabled && sessionUserId && date),
   })
 }
@@ -99,12 +99,4 @@ export function useCheckIn() {
 
 export function useCheckOut() {
   return useAttendanceMutation(staffService.checkOut)
-}
-
-export function useStaffSalaries(employeeId, params, enabled) {
-  return useQuery({
-    queryKey: ['staff-salaries', employeeId, params],
-    queryFn: () => staffService.getSalaries({ ...params, employeeId }),
-    enabled: Boolean(enabled && employeeId),
-  })
 }

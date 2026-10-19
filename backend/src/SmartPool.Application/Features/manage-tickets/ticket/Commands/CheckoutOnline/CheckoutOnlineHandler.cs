@@ -138,10 +138,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             await _paymentRepo.AddAsync(payment, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Caching for ticket generation logic later in ConfirmPendingOrderHandler
-            // We just store the expected StartDate as UtcNow, so Webhook knows when it was ordered
-            _memoryCache.Set($"OrderStartDate_{order.Id}", _timeProvider.GetUtcNow().UtcDateTime, TimeSpan.FromDays(1));
-
             return new CheckoutOnlineResponse
             {
                 Success = true,

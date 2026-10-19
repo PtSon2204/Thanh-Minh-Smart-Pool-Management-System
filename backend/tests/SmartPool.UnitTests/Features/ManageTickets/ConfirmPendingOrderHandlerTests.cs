@@ -11,9 +11,9 @@ namespace SmartPool.UnitTests.Features.ManageTickets;
 public sealed class ConfirmPendingOrderHandlerTests
 {
     [Theory]
-    [InlineData("2026-10-05T16:59:59Z", "2026-10-05T17:00:00Z")]
+    [InlineData("2026-10-05T16:59:59Z", "2026-10-06T16:59:59Z")]
     [InlineData("2026-10-05T17:00:00Z", "2026-10-06T17:00:00Z")]
-    public async Task Handle_OnlineOrdinaryTicket_ExpiresAtNextVietnamMidnight(string fixedNow, string expectedExpiry)
+    public async Task Handle_OnlineOrdinaryTicket_ExpiresExactly24HoursAfterPurchase(string fixedNow, string expectedExpiry)
     {
         var actual = await ConfirmTicketAsync(TicketCategoryEnum.VE_LUOT.ToString(),
             null, DateTime.Parse(fixedNow, null, System.Globalization.DateTimeStyles.RoundtripKind));
@@ -22,35 +22,50 @@ public sealed class ConfirmPendingOrderHandlerTests
     }
 
     [Fact]
-    public async Task Handle_FutureScheduledOrdinaryTicket_UsesCachedEffectiveStartDate()
+    public async Task Handle_FutureScheduledOrdinaryTicket_UsesPurchaseTime()
     {
         var effectiveStart = new DateTime(2026, 10, 7, 18, 30, 0, DateTimeKind.Utc);
         var ticket = await ConfirmTicketAsync(TicketCategoryEnum.VE_LUOT.ToString(), effectiveStart,
             new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc));
 
-        Assert.Equal(new DateTime(2026, 10, 8, 17, 0, 0, DateTimeKind.Utc), ticket.ExpiryDate);
-        Assert.Equal(effectiveStart, ticket.IssueDate);
+        Assert.Equal(new DateTime(2026, 10, 6, 12, 0, 0, DateTimeKind.Utc), ticket.ExpiryDate);
+        Assert.Equal(new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc), ticket.IssueDate);
     }
 
     [Fact]
-    public async Task Handle_MonthlyTicket_PreservesDurationFromEffectiveIssueDate()
+    public async Task Handle_MonthlyTicket_IgnoresLegacyDurationAndUses30DaysFromPurchase()
     {
         var issueDate = new DateTime(2026, 10, 5, 16, 59, 59, DateTimeKind.Utc);
         var ticket = await ConfirmTicketAsync(TicketCategoryEnum.VE_THANG.ToString(), issueDate,
             new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc), durationDays: 45);
 
-        Assert.Equal(issueDate.AddDays(45), ticket.ExpiryDate);
+        var purchasedAt = new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(purchasedAt, ticket.IssueDate);
+        Assert.Equal(purchasedAt.AddDays(30), ticket.ExpiryDate);
     }
 
     [Fact]
     public async Task Handle_OrdinaryExpiryAtBoundary_IsDeniedBySharedExpiryRule()
     {
-        var boundary = new DateTime(2026, 10, 5, 17, 0, 0, DateTimeKind.Utc);
+        var purchasedAt = new DateTime(2026, 10, 5, 17, 0, 0, DateTimeKind.Utc);
         var ticket = await ConfirmTicketAsync(TicketCategoryEnum.VE_LUOT.ToString(),
-            new DateTime(2026, 10, 5, 16, 0, 0, DateTimeKind.Utc), boundary.AddMinutes(-1));
+            null, purchasedAt);
 
         Assert.False(SmartPool.Application.Common.Time.VietnamTimeBoundary.HasNotExpired(
-            ticket.ExpiryDate, boundary));
+            ticket.ExpiryDate, purchasedAt.AddHours(24)));
+        Assert.True(SmartPool.Application.Common.Time.VietnamTimeBoundary.HasNotExpired(
+            ticket.ExpiryDate, purchasedAt.AddHours(24).AddTicks(-1)));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(30)]
+    [InlineData(0)]
+    public async Task Handle_SingleUseTicket_IgnoresLegacyDuration(int? durationDays)
+    {
+        var purchasedAt = new DateTime(2026, 10, 5, 16, 59, 59, DateTimeKind.Utc);
+        var ticket = await ConfirmTicketAsync("VE_LUOT", null, purchasedAt, durationDays);
+        Assert.Equal(purchasedAt.AddHours(24), ticket.ExpiryDate);
     }
 
     private static async Task<Ticket> ConfirmTicketAsync(string category, DateTime? effectiveIssueDate,

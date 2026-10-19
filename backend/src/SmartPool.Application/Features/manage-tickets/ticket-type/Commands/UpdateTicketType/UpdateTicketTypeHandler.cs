@@ -1,5 +1,6 @@
 using AutoMapper;
 using MediatR;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
 using TicketTypeEntity = SmartPool.Domain.Entities.TicketType;
 
@@ -35,7 +36,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
             entity.Name           = request.Name;
             entity.TicketCategory = request.TicketCategory.ToString();
             entity.Price          = request.Price;
-            entity.DurationDays   = request.DurationDays;
+            entity.DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory);
             entity.UpdatedAt      = DateTime.UtcNow;
 
             _repo.Update(entity);

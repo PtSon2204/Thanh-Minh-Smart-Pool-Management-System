@@ -106,13 +106,14 @@ internal static class IntegrationTestDatabase
     {
         var connection = new NpgsqlConnectionStringBuilder(connectionString);
         var allowedDatabase = string.Equals(connection.Database, "smartpool_dev", StringComparison.Ordinal)
-            || string.Equals(connection.Database, "smartpool_test", StringComparison.Ordinal);
+            || string.Equals(connection.Database, "smartpool_test", StringComparison.Ordinal)
+            || System.Text.RegularExpressions.Regex.IsMatch(connection.Database ?? "", "^smartpool_test_[a-f0-9]{32}$");
         if (!string.Equals(connection.Host, "localhost", StringComparison.OrdinalIgnoreCase)
             || connection.Port != 5432
             || !allowedDatabase)
         {
             throw new InvalidOperationException(
-                "Integration test database guard requires localhost:5432/smartpool_dev or localhost:5432/smartpool_test.");
+                "Integration tests require localhost:5432 and smartpool_dev, smartpool_test or an isolated smartpool_test_<32 hex> database.");
         }
     }
 

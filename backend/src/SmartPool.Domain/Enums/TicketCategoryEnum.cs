@@ -7,7 +7,7 @@ namespace SmartPool.Domain.Enums
     {
         /// <summary>Vé tháng - 1 lượt/ngày, có QR, mua cả online lẫn tại quầy</summary>
         VE_THANG,
-        /// <summary>Vé lượt - mua tại quầy: trừ lượt ngay, không QR. Mua online: có QR, hết hạn cuối ngày</summary>
+        /// <summary>Vé lượt - mua tại quầy: trừ lượt ngay, không QR. Mua online: có QR, hiệu lực 24 giờ từ lúc mua</summary>
         VE_LUOT,
     }
 }

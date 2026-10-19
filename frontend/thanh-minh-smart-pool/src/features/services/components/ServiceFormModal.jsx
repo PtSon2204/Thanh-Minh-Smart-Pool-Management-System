@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Alert, Button, Form, Input, InputNumber, Modal, Select } from 'antd'
+import { Alert, Button, Form, Input, InputNumber, Modal, Select, Switch } from 'antd'
 import { getServiceErrorMessage, useCreateService, useUpdateService } from '../hooks/useServiceMutations'
 
 const serviceTypeOptions = [
@@ -31,7 +31,7 @@ export default function ServiceFormModal({ open, onClose, service }) {
       return
     }
 
-    form.setFieldsValue({ name: undefined, type: undefined, price: undefined, stockQuantity: undefined })
+    form.setFieldsValue({ name: undefined, type: undefined, price: undefined, trackStock: true })
   }, [form, open, service])
 
   const handleFinish = (values) => {
@@ -51,7 +51,7 @@ export default function ServiceFormModal({ open, onClose, service }) {
     }
 
     createServiceMutation.reset()
-    createServiceMutation.mutate({ ...payload, isActive: true, stockQuantity: values.stockQuantity ?? null }, { onSuccess: onClose, onSettled: () => { submitting.current = false } })
+    createServiceMutation.mutate({ ...payload, isActive: true, stockQuantity: values.trackStock ? 0 : null }, { onSuccess: onClose, onSettled: () => { submitting.current = false } })
   }
 
   const handleCancel = () => {
@@ -87,13 +87,13 @@ export default function ServiceFormModal({ open, onClose, service }) {
           <Form.Item label="Loại dịch vụ" name="type" rules={[{ required: true, message: 'Chọn loại dịch vụ.' }]}>
             <Select options={serviceTypeOptions} placeholder="Chọn loại" />
           </Form.Item>
-          <Form.Item label="Giá (VNĐ)" name="price" rules={[{ required: true, message: 'Nhập giá dịch vụ.' }, { type: 'number', min: 0, message: 'Giá không được âm.' }]}>
+          <Form.Item label="Giá bán / thuê (VNĐ)" name="price" rules={[{ required: true, message: 'Nhập giá dịch vụ.' }, { type: 'number', min: 0, message: 'Giá không được âm.' }]}>
             <InputNumber min={0} className="service-full-width" />
           </Form.Item>
         </div>
         {!isEditing && (
-          <Form.Item label="Tồn kho ban đầu" name="stockQuantity" rules={[{ type: 'number', min: 0, message: 'Tồn kho không được âm.' }, { validator: (_, value) => value === undefined || value === null || Number.isInteger(value) ? Promise.resolve() : Promise.reject(new Error('Tồn kho phải là số nguyên.')) }]}>
-            <InputNumber min={0} precision={0} className="service-full-width" placeholder="Để trống nếu không theo dõi tồn kho" />
+          <Form.Item label="Theo dõi tồn kho" name="trackStock" valuePropName="checked" extra="Tồn kho ban đầu là 0. Lập phiếu nhập hàng để lưu số lượng và giá nhập.">
+            <Switch />
           </Form.Item>
         )}
       </Form>

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { EditOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons'
 import { Alert, Button, DatePicker, Drawer, Empty, Form, Input, InputNumber, Pagination, Radio, Select, Spin, Table, Tag, Tooltip, Typography } from 'antd'
 import dayjs from 'dayjs'
+import { Link } from 'react-router-dom'
 import { ServiceCategoryTabs, ServiceListHeader, ServiceListToolbar, ServiceNameCell } from '../../features/services/components/ServiceListChrome'
 import { getServiceErrorMessage, useAdjustStock } from '../../features/services/hooks/useServiceMutations'
 import { useInventoryHistory, useServices } from '../../features/services/hooks/useServices'
@@ -120,12 +121,14 @@ export default function InventoryPage() {
     { title: 'Thay đổi', dataIndex: 'changeType', key: 'changeType', render: (value) => <Tag color="blue">{value}</Tag> },
     { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', align: 'right', render: (value) => <strong className={value > 0 ? 'inventory-positive' : 'inventory-negative'}>{value > 0 ? `+${value}` : value}</strong> },
     { title: 'Ghi chú', dataIndex: 'note', key: 'note', render: (value) => value || '-' },
+    { title: 'Phiếu nhập', dataIndex: 'receiptCode', key: 'receiptCode', render: (value, row) => value ? <Link to={`/admin/inventory/receipts?receiptId=${row.receiptId}`}>{value}</Link> : '-' },
+    { title: 'Giá nhập / đơn vị', dataIndex: 'unitCost', key: 'unitCost', render: (value) => value == null ? '-' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value) },
     { title: 'Người thực hiện', dataIndex: 'createdBy', key: 'createdBy', render: (value) => value || '-' },
   ]
 
   return (
     <div className="service-list-page">
-      <ServiceListHeader title="Tồn kho" tabs={<ServiceCategoryTabs value={type || 'all'} onChange={(category) => resetPage(setType)(category === 'all' ? undefined : category)} />} />
+      <ServiceListHeader action={<Link to="/admin/inventory/receipts"><Button type="primary">Phiếu nhập hàng</Button></Link>} title="Tồn kho" tabs={<ServiceCategoryTabs value={type || 'all'} onChange={(category) => resetPage(setType)(category === 'all' ? undefined : category)} />} />
       <ServiceListToolbar searchTerm={searchTerm} onSearch={resetPage(setSearchTerm)} disabled={isAdjusting} searchLabel="Tìm hàng hóa"><label className="service-filter-control"><span>Trạng thái</span><Select allowClear aria-label="Lọc theo trạng thái dịch vụ" placeholder="Tất cả" disabled={isAdjusting} options={[{ label: 'Hoạt động', value: true }, { label: 'Tạm dừng', value: false }]} value={isActive} onChange={resetPage(setIsActive)} /></label></ServiceListToolbar>
       <section className="service-list-table" aria-label="Danh sách tồn kho">
         {servicesQuery.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
@@ -147,10 +150,11 @@ export default function InventoryPage() {
         <Typography.Title id="inventory-adjustment-title" level={4}>Điều chỉnh tồn kho: {selectedService?.name || ''}</Typography.Title>
         <Form form={form} layout="vertical" onFinish={handleAdjustmentFinish} preserve={false} initialValues={{ direction: 'increase' }}>
           {adjustmentMutation.error && <Alert className="service-inline-error" type="error" showIcon message="Không thể điều chỉnh tồn kho" description={getServiceErrorMessage(adjustmentMutation.error, 'Máy chủ không thể điều chỉnh tồn kho.')} />}
-          <Form.Item label="Hướng điều chỉnh" name="direction" rules={[{ required: true }]}><Radio.Group disabled={isAdjusting}><Radio.Button value="increase">Nhập kho</Radio.Button><Radio.Button value="decrease">Xuất kho</Radio.Button></Radio.Group></Form.Item>
+          <Alert type="info" showIcon message="Điều chỉnh dùng cho kiểm kê, mất/hỏng. Hàng mua mới cần lập phiếu nhập để lưu giá nhập." />
+          <Form.Item label="Hướng điều chỉnh" name="direction" rules={[{ required: true }]}><Radio.Group disabled={isAdjusting}><Radio.Button value="increase">Tăng do kiểm kê</Radio.Button><Radio.Button value="decrease">Giảm do kiểm kê</Radio.Button></Radio.Group></Form.Item>
           <Form.Item label="Số lượng" name="quantity" rules={[{ required: true, message: 'Nhập số lượng.' }, { validator: (_, value) => Number.isInteger(value) && value > 0 ? Promise.resolve() : Promise.reject(new Error('Số lượng phải là số nguyên dương.')) }, { validator: (_, value) => direction !== 'decrease' || currentStock == null || value <= currentStock ? Promise.resolve() : Promise.reject(new Error('Số lượng xuất không được lớn hơn tồn hiện tại.')) }]}><InputNumber min={1} precision={0} className="service-full-width" disabled={isAdjusting} /></Form.Item>
           <div className="inventory-stock-preview"><span>Tồn hiện tại</span><strong>{currentStock ?? 'Không theo dõi'}</strong><span>Tồn sau điều chỉnh</span><strong>{resultStock ?? 'Không theo dõi'}</strong></div>
-          <Form.Item label="Ghi chú" name="note" rules={[{ required: true, whitespace: true, message: 'Nhập ghi chú điều chỉnh.' }]}><Input.TextArea rows={3} showCount disabled={isAdjusting} placeholder="Ví dụ: Nhập thêm phao bơi" /></Form.Item>
+          <Form.Item label="Ghi chú" name="note" rules={[{ required: true, whitespace: true, message: 'Nhập ghi chú điều chỉnh.' }]}><Input.TextArea rows={3} showCount disabled={isAdjusting} placeholder="Ví dụ: Kiểm kê phát hiện chênh lệch. Nhập mua hàng cần lập phiếu nhập." /></Form.Item>
           <Button type="primary" htmlType="submit" loading={isAdjusting} disabled={isAdjusting}>Xác nhận</Button>
         </Form>
       </Drawer>
