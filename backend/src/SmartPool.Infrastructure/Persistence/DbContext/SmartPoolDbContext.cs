@@ -873,6 +873,7 @@ public partial class SmartPoolDbContext : EfDbContext
         });
         //sonpt
 
+        ConfigureWaterQuality(modelBuilder);
         OnModelCreatingPartial(modelBuilder);
     }
 
