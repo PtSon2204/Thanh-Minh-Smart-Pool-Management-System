@@ -57,7 +57,6 @@ const staffService = {
   cancelSchedule: (id) => apiClient.delete(`${BASE}/schedule/${id}`).then((response) => response.data),
   checkIn: (id) => apiClient.post(`${BASE}/schedule/${id}/check-in`).then((response) => response.data),
   checkOut: (id) => apiClient.post(`${BASE}/schedule/${id}/check-out`).then((response) => response.data),
-  getSalaries: (params) => apiClient.get(`${BASE}/salaries`, { params }).then((response) => response.data),
 }
 
 export default staffService

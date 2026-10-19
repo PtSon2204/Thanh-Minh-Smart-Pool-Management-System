@@ -22,7 +22,8 @@ public sealed class SellOfflineTicketHandlerTests
             Name = "QA ticket",
             TicketCategory = category,
             Price = 200,
-            IsActive = true
+            IsActive = true,
+            DurationDays = 45 // Legacy configuration must not override the fixed category duration.
         };
         var orderDetails = new List<OrderDetail>();
         var tickets = new List<Ticket>();
@@ -57,10 +58,13 @@ public sealed class SellOfflineTicketHandlerTests
         var handler = new SellOfflineTicketHandler(ticketRepo.Object, ticketTypeRepo.Object, orderRepo.Object,
             detailRepo.Object, userRepo.Object, paymentRepo.Object, voucherRepo.Object, unitOfWork.Object);
 
+        var beforePurchase = DateTime.UtcNow;
         var response = await handler.Handle(new SellOfflineTicketCommand
         {
-            Items = [new SellOfflineTicketItem { TicketTypeId = typeId, Quantity = quantity }]
+            Items = [new SellOfflineTicketItem { TicketTypeId = typeId, Quantity = quantity }],
+            StartDate = beforePurchase.AddDays(7)
         }, CancellationToken.None);
+        var afterPurchase = DateTime.UtcNow;
 
         var detail = Assert.Single(orderDetails);
         Assert.Equal("TICKET", detail.ItemType);
@@ -87,6 +91,8 @@ public sealed class SellOfflineTicketHandlerTests
                 Assert.Matches(@"^\d{6}$", ticket.QrCode);
                 Assert.Equal(typeId, ticket.TicketTypeId);
                 Assert.Equal("ACTIVE", ticket.Status);
+                Assert.InRange(ticket.IssueDate!.Value, beforePurchase, afterPurchase);
+                Assert.Equal(ticket.IssueDate.Value.AddDays(30), ticket.ExpiryDate);
             });
             Assert.All(response.Tickets, info =>
             {

@@ -1,5 +1,6 @@
 using AutoMapper;
 using MediatR;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Enums;
 using TicketTypeEntity = SmartPool.Domain.Entities.TicketType;
@@ -26,7 +27,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
                 Name           = request.Name,
                 TicketCategory = request.TicketCategory.ToString(), // Enum → string
                 Price          = request.Price,
-                DurationDays   = request.DurationDays,
+                DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory),
             };
                 
             await _repo.AddAsync(entity, cancellationToken);

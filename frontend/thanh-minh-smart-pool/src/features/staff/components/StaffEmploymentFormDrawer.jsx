@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Alert, Button, DatePicker, Drawer, Empty, Form, InputNumber, Select, Spin } from 'antd'
+import { Alert, Button, DatePicker, Drawer, Empty, Form, Select, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { getStaffErrorMessage, useCreateStaff, useUpdateStaff } from '../hooks/useStaffMutations'
 import { useStaffOptions } from '../hooks/useStaffs'
@@ -23,7 +23,7 @@ export default function StaffEmploymentFormDrawer({ open, onClose, staff }) {
     if (!open) return
     form.resetFields()
     form.setFieldsValue(isEditing
-      ? { baseSalary: staff.baseSalary, status: staff.status }
+      ? { status: staff.status }
       : { joinDate: dayjs(), status: 'Working' })
   }, [form, isEditing, open, staff])
 
@@ -34,7 +34,7 @@ export default function StaffEmploymentFormDrawer({ open, onClose, staff }) {
   const handleFinish = (values) => {
     if (submitting.current || isPending) return
     submitting.current = true
-    const data = { baseSalary: values.baseSalary, status: values.status }
+    const data = { status: values.status }
     if (isEditing) {
       updateMutation.mutate({ userId: staff.userId, data }, { onSuccess: onClose, onSettled: () => { submitting.current = false } })
       return
@@ -54,7 +54,6 @@ export default function StaffEmploymentFormDrawer({ open, onClose, staff }) {
         </Form.Item>
         <Form.Item label="Ngày vào làm" name="joinDate" rules={[{ required: true, message: 'Chọn ngày vào làm.' }]}><DatePicker className="service-full-width" format="DD/MM/YYYY" /></Form.Item>
       </>}
-      <Form.Item label="Lương cơ bản (VNĐ)" name="baseSalary" rules={[{ required: true, message: 'Nhập lương cơ bản.' }, { type: 'number', min: 0, message: 'Lương không được âm.' }]}><InputNumber min={0} className="service-full-width" /></Form.Item>
       <Form.Item label="Trạng thái việc làm" name="status" rules={[{ required: true, message: 'Chọn trạng thái.' }]}><Select options={statusOptions} /></Form.Item>
     </Form>}
   </Drawer>

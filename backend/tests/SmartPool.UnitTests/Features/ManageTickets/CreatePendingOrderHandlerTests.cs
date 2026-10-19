@@ -13,7 +13,7 @@ public sealed class CreatePendingOrderHandlerTests
     [Theory]
     [InlineData("VE_LUOT")]
     [InlineData("VE_THANG")]
-    public async Task Handle_OnlineTicket_CreatesPendingOrderAndKeepsEffectiveStartDate(string category)
+    public async Task Handle_OnlineTicket_CreatesPendingOrderWithoutCustomStartDate(string category)
     {
         var ticketTypeId = Guid.NewGuid();
         var startDate = new DateTime(2026, 10, 5, 16, 30, 0, DateTimeKind.Utc);
@@ -72,7 +72,6 @@ public sealed class CreatePendingOrderHandlerTests
         Assert.Equal("PENDING", createdPayment.Status);
         Assert.Equal(500, createdPayment.Amount);
         Assert.False(string.IsNullOrWhiteSpace(response.TransactionRef));
-        Assert.True(cache.TryGetValue($"OrderStartDate_{createdOrder.Id}", out DateTime cachedStartDate));
-        Assert.Equal(startDate, cachedStartDate);
+        Assert.False(cache.TryGetValue($"OrderStartDate_{createdOrder.Id}", out _));
     }
 }

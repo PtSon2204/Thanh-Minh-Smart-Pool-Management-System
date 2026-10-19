@@ -3,10 +3,8 @@ using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
-using SmartPool.Application.Features.ManageStaffs.Commands.SaveSalary;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
-using SmartPool.Application.Features.ManageStaffs.Queries.GetSalaries;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetShifts;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
@@ -56,8 +54,6 @@ namespace SmartPool.Application.Features.ManageStaffs.Mapping
             CreateMap<EmployeeShift, AssignShiftResponse>().ForMember(dest => dest.ShiftName, opt => opt.MapFrom(src => src.Shift.Name)).ForMember(dest => dest.StartTime, opt => opt.MapFrom(src => src.Shift.StartTime)).ForMember(dest => dest.EndTime, opt => opt.MapFrom(src => src.Shift.EndTime)).ForMember(dest => dest.IsShiftActive, opt => opt.MapFrom(src => src.Shift.IsActive ?? false));
             CreateMap<EmployeeShift, CancelShiftAssignmentResponse>().ForMember(dest => dest.ShiftName, opt => opt.MapFrom(src => src.Shift.Name)).ForMember(dest => dest.StartTime, opt => opt.MapFrom(src => src.Shift.StartTime)).ForMember(dest => dest.EndTime, opt => opt.MapFrom(src => src.Shift.EndTime)).ForMember(dest => dest.IsShiftActive, opt => opt.MapFrom(src => src.Shift.IsActive ?? false));
             CreateMap<EmployeeShift, RecordAttendanceResponse>().ForMember(dest => dest.ShiftName, opt => opt.MapFrom(src => src.Shift.Name)).ForMember(dest => dest.StartTime, opt => opt.MapFrom(src => src.Shift.StartTime)).ForMember(dest => dest.EndTime, opt => opt.MapFrom(src => src.Shift.EndTime)).ForMember(dest => dest.IsShiftActive, opt => opt.MapFrom(src => src.Shift.IsActive ?? false));
-            CreateMap<Salary, GetSalariesResponse>();
-            CreateMap<Salary, SaveSalaryResponse>();
         }
     }
 }

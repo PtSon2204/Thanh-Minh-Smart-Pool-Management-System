@@ -160,6 +160,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 AccountInfo = accountInfo
             };
 
+            // Hiệu lực tính từ lúc mua, không nhận ngày bắt đầu tùy chỉnh từ client.
+            DateTime issueDate = DateTime.UtcNow;
+
             // 5. Tạo OrderDetail và Ticket
             foreach (var item in request.Items)
             {
@@ -185,8 +188,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
 
                 for (int i = 0; i < item.Quantity; i++)
                 {
-                    DateTime issueDate = (request.StartDate ?? DateTime.UtcNow).ToUniversalTime();
-                    DateTime expiryDate = issueDate.AddDays(ticketType.DurationDays ?? 30);
+                    DateTime expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory);
 
                     var ticket = new Domain.Entities.Ticket
                     {

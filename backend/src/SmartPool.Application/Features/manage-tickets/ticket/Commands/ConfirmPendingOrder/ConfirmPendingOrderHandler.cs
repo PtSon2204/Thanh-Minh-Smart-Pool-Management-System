@@ -5,7 +5,6 @@ using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
 using Microsoft.Extensions.Caching.Memory;
-using SmartPool.Application.Common.Time;
 
 namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPendingOrder
 {
@@ -129,10 +128,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             var orderDetails = await _orderDetailRepo.FindAsync(od => od.OrderId == order.Id, cancellationToken);
 
             DateTime issueDate = _timeProvider.GetUtcNow().UtcDateTime;
-            if (_memoryCache.TryGetValue($"OrderStartDate_{order.Id}", out DateTime cachedStartDate))
-            {
-                issueDate = cachedStartDate.ToUniversalTime();
-            }
 
             foreach (var detail in orderDetails)
             {
@@ -141,9 +136,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
                 for (int i = 0; i < detail.Quantity; i++)
                 {
-                    DateTime expiryDate = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString()
-                        ? VietnamTimeBoundary.GetNextUtcDayBoundary(issueDate)
-                        : issueDate.AddDays(ticketType.DurationDays ?? 30);
+                    DateTime expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory);
 
                     var ticket = new Domain.Entities.Ticket
                     {

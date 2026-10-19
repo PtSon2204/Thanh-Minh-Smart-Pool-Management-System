@@ -170,11 +170,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             };
             await _paymentRepo.AddAsync(payment, cancellationToken);
             
-            if (request.StartDate.HasValue)
-            {
-                _cache.Set($"OrderStartDate_{order.Id}", request.StartDate.Value, TimeSpan.FromHours(1));
-            }
-
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new CreatePendingOrderResponse

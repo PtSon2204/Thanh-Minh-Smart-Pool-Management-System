@@ -20,11 +20,13 @@ public sealed partial class StaffOperations : IStaffOperations
 {
     private readonly SmartPoolDbContext context;
     private readonly IMapper mapper;
+    private readonly TimeProvider timeProvider;
 
-    public StaffOperations(SmartPoolDbContext context, IMapper mapper)
+    public StaffOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider? timeProvider = null)
     {
         this.context = context;
         this.mapper = mapper;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task<PagedResponse<GetStaffsResponse>> GetStaffsAsync(GetStaffsQuery request, CancellationToken cancellationToken)
@@ -60,7 +62,7 @@ public sealed partial class StaffOperations : IStaffOperations
         if (user is null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
         if (user.Employee is not null) throw new StaffConflictException("Tài khoản đã được gắn với nhân viên.");
         if (user.Role?.IsDeleted == true || !IsEligibleEmploymentRole(user.Role?.Name)) throw new StaffConflictException("Tài khoản phải có vai trò nhân viên hoặc ADMIN.");
-        var employee = new Employee { UserId = user.Id, BaseSalary = request.BaseSalary, JoinDate = request.JoinDate, Status = request.Status, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, User = user };
+        var employee = new Employee { UserId = user.Id, JoinDate = request.JoinDate, Status = request.Status, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, User = user };
         context.Employees.Add(employee);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -71,7 +73,7 @@ public sealed partial class StaffOperations : IStaffOperations
     {
         var employee = await context.Employees.Include(item => item.User).ThenInclude(user => user.UserProfile).Include(item => item.User.Role).FirstOrDefaultAsync(item => item.UserId == request.UserId, cancellationToken);
         if (employee is null) throw new KeyNotFoundException("Không tìm thấy nhân viên.");
-        employee.BaseSalary = request.BaseSalary; employee.Status = request.Status; employee.UpdatedAt = DateTime.UtcNow;
+        employee.Status = request.Status; employee.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync(cancellationToken);
         return mapper.Map<UpdateStaffResponse>(employee);
     }
