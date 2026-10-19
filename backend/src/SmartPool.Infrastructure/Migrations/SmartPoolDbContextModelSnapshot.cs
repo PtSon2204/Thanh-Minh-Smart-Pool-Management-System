@@ -1452,6 +1452,110 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("warnings", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.WaterQualityLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("EquipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_id");
+
+                    b.Property<string>("EvaluationVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("evaluation_version");
+
+                    b.Property<decimal>("FreeChlorineMgL")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("free_chlorine_mg_l");
+
+                    b.Property<Guid?>("InspectedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inspected_by");
+
+                    b.Property<DateTime>("InspectionTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inspection_time");
+
+                    b.Property<bool?>("IsWaterClear")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_water_clear");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("PhValue")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("numeric(4,2)")
+                        .HasColumnName("ph_value");
+
+                    b.Property<string>("Recommendation")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("recommendation");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Manual")
+                        .HasColumnName("source");
+
+                    b.Property<string>("SourceEventId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("source_event_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("NotEvaluated")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("water_quality_logs_pkey");
+
+                    b.HasIndex("InspectedBy");
+
+                    b.HasIndex("InspectionTime")
+                        .IsDescending()
+                        .HasDatabaseName("ix_water_quality_logs_inspection_time");
+
+                    b.HasIndex("EquipmentId", "SourceEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_water_quality_logs_device_event")
+                        .HasFilter("source = 'Device'");
+
+                    b.ToTable("water_quality_logs", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_water_quality_logs_chlorine_nonnegative", "free_chlorine_mg_l >= 0");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_ph_nonnegative", "ph_value >= 0");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_source", "source IN ('Manual', 'Device')");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_source_identity", "(source = 'Manual' AND inspected_by IS NOT NULL AND source_event_id IS NULL)\nOR\n(source = 'Device' AND inspected_by IS NULL AND equipment_id IS NOT NULL\n    AND source_event_id IS NOT NULL AND length(btrim(source_event_id)) > 0)");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_status", "status IN ('NotEvaluated', 'Incomplete', 'WithinLimits', 'Warning', 'Danger')");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", "User")
@@ -1763,6 +1867,25 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Incident");
 
                     b.Navigation("Verifier");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.WaterQualityLog", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Equipment", "Equipment")
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("water_quality_logs_equipment_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "Inspector")
+                        .WithMany()
+                        .HasForeignKey("InspectedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("water_quality_logs_inspected_by_fkey");
+
+                    b.Navigation("Equipment");
+
+                    b.Navigation("Inspector");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
