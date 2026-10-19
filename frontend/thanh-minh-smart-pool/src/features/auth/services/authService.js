@@ -1,4 +1,5 @@
 import apiClient from "../../../services/apiClient";
+import { useAuthStore } from "../store/authStore";
 import {
   loginResponseSchema,
   registerPendingResponseSchema,
@@ -13,6 +14,14 @@ const authService = {
   async login(payload) {
     const response = await apiClient.post("/api/auth/login", payload);
     return loginResponseSchema.parse(response.data);
+  },
+
+  async logout() {
+    const token = useAuthStore.getState().session?.refreshToken;
+    useAuthStore.getState().setSession(null);
+    if (!token) return;
+    const response = await apiClient.post("/api/auth/logout", { refreshToken: token });
+    if (response.status !== 204) throw new Error("Phản hồi đăng xuất không hợp lệ.");
   },
 
   async register(payload) {
@@ -73,6 +82,7 @@ const authService = {
     );
     if (response.status !== 204)
       throw new Error("Phản hồi đặt lại mật khẩu không hợp lệ.");
+    useAuthStore.getState().setSession(null);
   },
 
   async changePassword(payload) {
@@ -85,6 +95,7 @@ const authService = {
     if (response.status !== 204) {
       throw new Error("Phản hồi đổi mật khẩu không hợp lệ.");
     }
+    useAuthStore.getState().setSession(null);
   },
 };
 

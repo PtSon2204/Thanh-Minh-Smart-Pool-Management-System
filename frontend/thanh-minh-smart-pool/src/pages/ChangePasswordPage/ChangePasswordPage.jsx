@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -39,6 +39,7 @@ const fields = [
 
 export default function ChangePasswordPage() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const backTo = location.pathname.startsWith("/admin") ? "/admin" : "/ho-so";
 
@@ -49,7 +50,6 @@ export default function ChangePasswordPage() {
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(changePasswordFormSchema),
@@ -66,14 +66,11 @@ export default function ChangePasswordPage() {
 
     try {
       await authService.changePassword(values);
-
-      setFeedback({
-        type: "success",
-        message: "Đổi mật khẩu thành công.",
+      navigate('/dang-nhap', {
+        replace: true,
+        state: { passwordChanged: 'Mật khẩu đã đổi. Hãy đăng nhập lại bằng mật khẩu mới.' },
       });
-
-      reset();
-      setVisible({});
+      return;
     } catch (error) {
       const data = error.response?.data;
 

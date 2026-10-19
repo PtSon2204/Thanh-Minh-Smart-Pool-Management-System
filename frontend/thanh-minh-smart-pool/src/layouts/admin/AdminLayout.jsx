@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Badge } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Badge, message } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -20,6 +20,7 @@ import {
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
+import authService from '../../features/auth/services/authService';
 import './AdminLayout.css';
 
 const { Header, Sider, Content } = Layout;
@@ -54,7 +55,7 @@ export default function AdminLayout() {
     return () => clearInterval(interval);
   }, [location.pathname]);
 
-  const { session, setSession } = useAuthStore();
+  const { session } = useAuthStore();
   const navigate = useNavigate();
   const role = session?.role?.toUpperCase();
   const isAdmin = role === 'ADMIN';
@@ -161,14 +162,22 @@ export default function AdminLayout() {
     },
   ].filter(Boolean);
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      message.warning('Không thể xác nhận đăng xuất với máy chủ. Phiên trên thiết bị đã được xóa.');
+    }
+    navigate('/dang-nhap', { replace: true });
+  };
+
   const handleUserMenuClick = ({ key }) => {
     if (key === 'profile') {
       navigate('/ho-so');
     } else if (key === 'change-password') {
       navigate('/admin/doi-mat-khau');
     } else if (key === 'logout') {
-      setSession(null);
-      navigate('/dang-nhap', { replace: true });
+      void handleLogout();
     }
   };
 

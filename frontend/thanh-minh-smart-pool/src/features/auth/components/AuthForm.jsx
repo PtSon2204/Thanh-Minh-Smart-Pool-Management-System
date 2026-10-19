@@ -36,7 +36,7 @@ export default function AuthForm({ isRegister }) {
     defaultValues: { username: '', phone: '', familyName: '', givenName: '', email: '', password: '', confirmPassword: '' },
   })
   const form = isRegister ? registerForm : loginForm
-  const feedback = isRegister ? errorMessage : errorMessage || location.state?.registrationSuccess || location.state?.resetSuccess
+  const feedback = isRegister ? errorMessage : errorMessage || location.state?.registrationSuccess || location.state?.resetSuccess || location.state?.passwordChanged
   const errorFor = (name) => form.formState.errors[name]?.message
 
   function clearPasswords() {
