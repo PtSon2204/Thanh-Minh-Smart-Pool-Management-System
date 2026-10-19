@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Dropdown } from 'antd'
-import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { Avatar, Dropdown, message } from 'antd'
+import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined, LockOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import './Navbar.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
@@ -9,6 +9,7 @@ import VoltageButton from './VoltageButton'
 import { useAuthStore } from '../../features/auth/store/authStore'
 import CartIcon from '../../features/cart/components/CartIcon'
 import profileService from '../../features/profiles/services/profileService'
+import authService from '../../features/auth/services/authService'
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
@@ -25,7 +26,16 @@ export default function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const { session, setSession } = useAuthStore()
+  const { session } = useAuthStore()
+
+  async function handleLogout() {
+    try {
+      await authService.logout()
+    } catch {
+      message.warning('Không thể xác nhận đăng xuất với máy chủ. Phiên trên thiết bị đã được xóa.')
+    }
+    navigate('/dang-nhap', { replace: true })
+  }
   const { data: profileData } = useQuery({
     queryKey: ['myProfile'],
     queryFn: profileService.getMyProfile,
@@ -59,10 +69,9 @@ export default function Navbar() {
       },
       {
         key: '2',
-        icon: <LogoutOutlined />,
+        icon: <LockOutlined />,
         label: 'Đổi mật khẩu',
-        danger: true,
-        onClick: () => setSession(null)
+        onClick: () => navigate('/doi-mat-khau')
       },
       { key: '3', icon: <ShoppingOutlined />, label: 'Lịch sử thanh toán', onClick: () => navigate('/lich-su-thanh-toan') },
       {
@@ -70,7 +79,7 @@ export default function Navbar() {
         icon: <LogoutOutlined />,
         label: 'Đăng xuất',
         danger: true,
-        onClick: () => setSession(null)
+        onClick: () => { void handleLogout() }
       }
     ]
   }

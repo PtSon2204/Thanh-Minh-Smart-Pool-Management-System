@@ -8,34 +8,44 @@ using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using FluentValidation;
 using System.Text.Json;
+using System.Globalization;
+using SmartPool.Application.Features.Authentication.Commands.Register.VerifyOTP;
 
 namespace SmartPool.Application.Features.Authentication.Commands.Register;
 
 public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionResult>
 {
+    internal const string OtpEmailSubject = "[Thanh Minh Smart Pool] Mã xác minh đăng ký";
+
     private readonly IRepository<User> _users;
-    private readonly IRepository<UserProfile> _profiles;
     private readonly IRepository<Role> _roles;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IRegistrationOtpStore _otpStore;
+    private readonly RegistrationOtpCodeService _otpCodes;
+    private readonly IEmailService _emailService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<RegisterHandler> _logger;
 
     private readonly IValidator<RegisterCommand> _validator;
 
     public RegisterHandler(
         IRepository<User> users,
-        IRepository<UserProfile> profiles,
         IRepository<Role> roles,
-        IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
+        IRegistrationOtpStore otpStore,
+        RegistrationOtpCodeService otpCodes,
+        IEmailService emailService,
+        IHttpContextAccessor httpContextAccessor,
         IValidator<RegisterCommand> validator,
         ILogger<RegisterHandler> logger)
     {
         _users = users;
-        _profiles = profiles;
         _roles = roles;
-        _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
+        _otpStore = otpStore;
+        _otpCodes = otpCodes;
+        _emailService = emailService;
+        _httpContextAccessor = httpContextAccessor;
         _validator = validator;
         _logger = logger;
     }
@@ -44,8 +54,7 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
     {
         try
         {
-            var response = await RegisterAsync(request, cancellationToken);
-            return new ObjectResult(response) { StatusCode = StatusCodes.Status201Created };
+            return await StartRegistrationAsync(request, cancellationToken);
         }
         catch (ValidationException exception)
         {
@@ -66,7 +75,8 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
             return CreateProblemResult(
                 StatusCodes.Status500InternalServerError,
                 "Cấu hình đăng ký chưa sẵn sàng.",
-                "Role CUSTOMER chưa tồn tại trong hệ thống.");
+                "Role CUSTOMER chưa tồn tại trong hệ thống.",
+                "CUSTOMER_ROLE_NOT_CONFIGURED");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -74,11 +84,13 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
         }
         catch (Exception exception)
         {
-            return CreateUnexpectedErrorResult(exception);
+            _logger.LogError("Khởi tạo đăng ký thất bại do lỗi {ErrorType}.", exception.GetType().Name);
+            return CreateProblemResult(StatusCodes.Status500InternalServerError,
+                "Không thể đăng ký tài khoản.", "Hệ thống gặp lỗi khi xử lý đăng ký.");
         }
     }
 
-    private async Task<RegisterResponse> RegisterAsync(RegisterCommand request, CancellationToken cancellationToken)
+    private async Task<IActionResult> StartRegistrationAsync(RegisterCommand request, CancellationToken cancellationToken)
     {
         await _validator.ValidateAndThrowAsync(request, cancellationToken);
         var username = request.Username.Trim().ToLowerInvariant();
@@ -92,22 +104,42 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
         if (address == string.Empty)
             address = null;
 
-        // SQL unique indexes also cover soft-deleted users.
-        if (await _users.ExistsAsync(
-                user => user.Username != null && user.Username.ToLower() == username,
-                cancellationToken))
-            throw new UniqueFieldConflictException(nameof(RegisterCommand.Username));
+        var remoteIp = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
+        if (remoteIp is null)
+            return CreateProblemResult(StatusCodes.Status503ServiceUnavailable,
+                "Không thể khởi tạo đăng ký.", "Không xác định được địa chỉ kết nối.",
+                "CLIENT_IP_UNAVAILABLE");
+        var ipAddress = remoteIp.IsIPv4MappedToIPv6 ? remoteIp.MapToIPv4().ToString() : remoteIp.ToString();
 
-        if (await _users.ExistsAsync(
-                user => user.Email != null && user.Email.ToLower() == email,
-                cancellationToken))
-            throw new UniqueFieldConflictException(nameof(RegisterCommand.Email));
+        RegistrationOtpStoreResult quota;
+        try
+        {
+            quota = await _otpStore.TryConsumeStartQuotaAsync(email, ipAddress, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("Không thể kiểm tra giới hạn đăng ký: {ErrorType}.", exception.GetType().Name);
+            return CreateProblemResult(StatusCodes.Status503ServiceUnavailable,
+                "Không thể khởi tạo đăng ký.", "Bộ lưu trữ mã xác minh chưa sẵn sàng.",
+                "OTP_STORE_UNAVAILABLE");
+        }
+        if (quota.Status == RegistrationOtpStoreStatus.RateLimited)
+        {
+            SetRetryAfter(quota.RetryAfter);
+            return CreateProblemResult(StatusCodes.Status429TooManyRequests,
+                "Đã gửi quá nhiều yêu cầu đăng ký.", "Vui lòng thử lại sau.", "START_RATE_LIMITED");
+        }
+        if (quota.Status != RegistrationOtpStoreStatus.Success)
+            return CreateProblemResult(StatusCodes.Status503ServiceUnavailable,
+                "Không thể khởi tạo đăng ký.", "Bộ lưu trữ mã xác minh chưa sẵn sàng.",
+                "OTP_STORE_UNAVAILABLE");
 
-        var internationalPhone = phone.StartsWith('0') ? "+84" + phone[1..] : inputPhone;
-        if (await _users.ExistsAsync(
-                user => user.Phone == phone || user.Phone == internationalPhone,
-                cancellationToken))
-            throw new UniqueFieldConflictException(nameof(RegisterCommand.Phone));
+        var conflict = await FindConflictAsync(_users, username, email, phone, cancellationToken);
+        if (conflict is not null) throw new UniqueFieldConflictException(conflict);
 
         var customerRole = await _roles.FirstOrDefaultAsync(
             role => role.Name.ToUpper() == nameof(RoleEnum.CUSTOMER) && role.IsDeleted != true,
@@ -115,54 +147,129 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
         if (customerRole is null)
             throw new CustomerRoleNotConfiguredException();
 
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Username = username,
-            Email = email,
-            Phone = phone,
-            RoleId = customerRole.Id,
-            Status = "Active",
-            IsDeleted = false
-        };
-        user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
+        var registrationId = Guid.NewGuid();
+        var otp = _otpCodes.GenerateCode();
+        var otpDigest = _otpCodes.ComputeDigest(registrationId, otp);
+        // The BCrypt hasher accepts a User argument; this transient object is never persisted.
+        var passwordHash = _passwordHasher.HashPassword(new User { Id = registrationId }, request.Password);
+        var pending = new PendingRegistration(registrationId, username, email, phone, passwordHash,
+            fullName, request.DateOfBirth, address, otpDigest);
 
-        var profile = new UserProfile
+        RegistrationOtpStoreResult stored;
+        try
         {
-            UserId = user.Id,
-            User = user,
-            FullName = fullName,
-            DateOfBirth = request.DateOfBirth,
-            Address = address
-        };
-        user.UserProfile = profile;
-
-        await _users.AddAsync(user, cancellationToken);
-        await _profiles.AddAsync(profile, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new RegisterResponse
+            stored = await _otpStore.TryStartAsync(pending, ipAddress, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            Id = user.Id,
-            Username = username,
-            Email = email,
-            Phone = phone,
-            FullName = fullName,
-            Role = RoleEnum.CUSTOMER,
-            Status = user.Status,
-            CreatedAt = user.CreatedAt ?? DateTime.UtcNow
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("Không thể lưu phiên đăng ký tạm: {ErrorType}.", exception.GetType().Name);
+            await CancelPendingQuietlyAsync(registrationId, email);
+            return CreateProblemResult(StatusCodes.Status503ServiceUnavailable,
+                "Không thể khởi tạo đăng ký.", "Bộ lưu trữ mã xác minh chưa sẵn sàng.",
+                "OTP_STORE_UNAVAILABLE");
+        }
+
+        if (stored.Status == RegistrationOtpStoreStatus.PendingRegistration)
+            return CreateProblemResult(StatusCodes.Status409Conflict,
+                "Email đang chờ xác minh.", "Vui lòng xác minh phiên đăng ký hiện có hoặc thử lại sau khi hết hạn.",
+                "PENDING_REGISTRATION");
+        if (stored.Status != RegistrationOtpStoreStatus.Success ||
+            stored.OtpExpiresAtUtc is null || stored.RegistrationExpiresAtUtc is null ||
+            stored.ResendAvailableAtUtc is null)
+        {
+            await CancelPendingQuietlyAsync(registrationId, email);
+            return CreateProblemResult(StatusCodes.Status503ServiceUnavailable,
+                "Không thể khởi tạo đăng ký.", "Bộ lưu trữ mã xác minh chưa sẵn sàng.",
+                "OTP_STORE_UNAVAILABLE");
+        }
+
+        try
+        {
+            await _emailService.SendAsync(email, OtpEmailSubject,
+                BuildOtpEmailBody(otp, stored.OtpExpiresAtUtc.Value),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await CancelPendingQuietlyAsync(registrationId, email);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("Gửi email OTP đăng ký thất bại: {ErrorType}.", exception.GetType().Name);
+            await CancelPendingQuietlyAsync(registrationId, email);
+            return CreateProblemResult(StatusCodes.Status503ServiceUnavailable,
+                "Không thể gửi mã xác minh.", "Vui lòng thử đăng ký lại sau.", "EMAIL_SEND_FAILED");
+        }
+
+        return new ObjectResult(new RegisterPendingResponse(registrationId,
+            stored.OtpExpiresAtUtc.Value, stored.RegistrationExpiresAtUtc.Value,
+            stored.ResendAvailableAtUtc.Value))
+        {
+            StatusCode = StatusCodes.Status202Accepted
         };
     }
 
-    private static IActionResult CreateConflictResult(string field)
+    private async Task CancelPendingQuietlyAsync(Guid registrationId, string email)
+    {
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            await _otpStore.CancelStartAsync(registrationId, email, timeout.Token);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("Không thể hủy phiên đăng ký tạm: {ErrorType}.", exception.GetType().Name);
+            // The Redis session still expires by TTL if cleanup cannot reach Redis.
+        }
+    }
+
+    private void SetRetryAfter(TimeSpan? retryAfter)
+    {
+        if (retryAfter is { } duration && _httpContextAccessor.HttpContext is { } context)
+            context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(duration.TotalSeconds))
+                .ToString(CultureInfo.InvariantCulture);
+    }
+
+    internal static string BuildOtpEmailBody(string otp, DateTimeOffset? expiresAtUtc = null)
+    {
+        var validity = expiresAtUtc is { } expiry
+            ? $"Mã có hiệu lực khoảng {Math.Max(1, (int)Math.Ceiling((expiry - DateTimeOffset.UtcNow).TotalMinutes))} phút. "
+            : string.Empty;
+        return $"<p>Mã xác minh đăng ký tài khoản của bạn là <strong>{otp}</strong>.</p>" +
+            $"<p>{validity}Nếu bạn không yêu cầu đăng ký, hãy bỏ qua email này.</p>";
+    }
+
+    // SQL unique indexes also cover soft-deleted users. Reused before OTP issue and DB creation.
+    internal static async Task<string?> FindConflictAsync(IRepository<User> users, string username,
+        string email, string phone, CancellationToken cancellationToken)
+    {
+        if (await users.ExistsAsync(
+                user => user.Username != null && user.Username.ToLower() == username, cancellationToken))
+            return "username";
+        if (await users.ExistsAsync(
+                user => user.Email != null && user.Email.ToLower() == email, cancellationToken))
+            return "email";
+        var internationalPhone = "+84" + phone[1..];
+        if (await users.ExistsAsync(
+                user => user.Phone == phone || user.Phone == internationalPhone, cancellationToken))
+            return "phone";
+        return null;
+    }
+
+    internal static IActionResult CreateConflictResult(string field)
     {
         var fieldName = JsonNamingPolicy.CamelCase.ConvertName(field);
-        var message = fieldName switch
+        var (message, code) = fieldName switch
         {
-            "username" => "Tên đăng nhập đã được sử dụng.",
-            "email" => "Email đã được sử dụng.",
-            "phone" => "Số điện thoại đã được sử dụng.",
-            _ => "Thông tin đăng ký đã được sử dụng."
+            "username" => ("Tên đăng nhập đã được sử dụng.", "USERNAME_TAKEN"),
+            "email" => ("Email đã được sử dụng.", "EMAIL_TAKEN"),
+            "phone" => ("Số điện thoại đã được sử dụng.", "PHONE_TAKEN"),
+            _ => ("Thông tin đăng ký đã được sử dụng.", "REGISTRATION_CONFLICT")
         };
 
         var problem = new ProblemDetails
@@ -170,6 +277,7 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
             Status = StatusCodes.Status409Conflict,
             Title = "Thông tin đăng ký bị trùng."
         };
+        problem.Extensions["code"] = code;
         problem.Extensions["errors"] = new Dictionary<string, string[]>
         {
             [fieldName] = [message]
@@ -182,23 +290,16 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
         };
     }
 
-    private IActionResult CreateUnexpectedErrorResult(Exception exception)
+    internal static IActionResult CreateProblemResult(int status, string title, string detail, string? code = null)
     {
-        _logger.LogError(exception, "Đăng ký tài khoản thất bại do lỗi không mong đợi.");
-        return CreateProblemResult(
-            StatusCodes.Status500InternalServerError,
-            "Không thể đăng ký tài khoản.",
-            "Hệ thống gặp lỗi khi xử lý đăng ký.");
-    }
-
-    private static IActionResult CreateProblemResult(int status, string title, string detail)
-    {
-        return new ObjectResult(new ProblemDetails
+        var problem = new ProblemDetails
         {
             Status = status,
             Title = title,
             Detail = detail
-        })
+        };
+        if (code is not null) problem.Extensions["code"] = code;
+        return new ObjectResult(problem)
         {
             StatusCode = status,
             ContentTypes = { "application/problem+json" }

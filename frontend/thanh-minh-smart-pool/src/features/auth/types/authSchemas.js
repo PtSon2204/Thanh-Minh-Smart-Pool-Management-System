@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const passwordSchema = z
+export const passwordSchema = z
   .string()
   .min(8, 'Mật khẩu phải có ít nhất 8 ký tự.')
   .max(128, 'Mật khẩu không được vượt quá 128 ký tự.')
@@ -36,17 +36,82 @@ export const registerFormSchema = z
     path: ['givenName'],
   })
 
+export const forgotPasswordFormSchema = z.object({
+  email: z.string().trim().max(150, 'Email không được vượt quá 150 ký tự.').email('Email không hợp lệ.'),
+})
+
+export const changePasswordFormSchema = z.object({
+  currentPassword: z.string().min(1, 'Nhập mật khẩu hiện tại.'),
+  newPassword: passwordSchema,
+  confirmPassword: z.string().min(1, 'Xác nhận mật khẩu mới.'),
+}).refine((values) => values.newPassword !== values.currentPassword, {
+  message: 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+  path: ['newPassword'],
+}).refine((values) => values.newPassword === values.confirmPassword, {
+  message: 'Mật khẩu xác nhận không khớp.',
+  path: ['confirmPassword'],
+})
+
+export const resetPasswordFormSchema = z.object({
+  newPassword: passwordSchema,
+  confirmPassword: z.string().min(1, 'Xác nhận mật khẩu mới.'),
+}).refine((values) => values.newPassword === values.confirmPassword, {
+  message: 'Mật khẩu xác nhận không khớp.',
+  path: ['confirmPassword'],
+})
+
 export const loginResponseSchema = z.object({
   id: z.string().uuid(),
   username: z.string(),
   role: z.string().min(1),
   accessToken: z.string().min(1),
   expiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Thời hạn phiên không hợp lệ.'),
+  refreshToken: z.string().min(1),
+  refreshTokenExpiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Thời hạn đăng nhập không hợp lệ.'),
+})
+
+export const refreshResponseSchema = loginResponseSchema
+
+const registrationDeadlinesSchema = z.object({
+  otpExpiresAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời hạn OTP không hợp lệ.'),
+  registrationExpiresAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời hạn đăng ký không hợp lệ.'),
+  resendAvailableAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời gian gửi lại không hợp lệ.'),
+})
+
+export const registerPendingResponseSchema = registrationDeadlinesSchema.extend({
+  registrationId: z.string().uuid(),
+})
+
+export const resendRegistrationResponseSchema = registrationDeadlinesSchema
+
+export const verifiedRegistrationResponseSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(1),
+})
+
+const recoveryDeadlinesSchema = z.object({
+  otpExpiresAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời hạn OTP không hợp lệ.'),
+  recoveryExpiresAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời hạn khôi phục không hợp lệ.'),
+  resendAvailableAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời gian gửi lại không hợp lệ.'),
+})
+
+export const requestPasswordResetResponseSchema = recoveryDeadlinesSchema.extend({
+  recoveryId: z.string().uuid(),
+})
+
+export const resendPasswordResetResponseSchema = recoveryDeadlinesSchema
+
+export const verifyPasswordResetResponseSchema = z.object({
+  resetToken: z.string().regex(/^[0-9A-Fa-f]{64}$/, 'Reset token không hợp lệ.'),
+  resetTokenExpiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Reset token đã hết hạn.'),
 })
 
 export function getAuthError(error) {
   if (error instanceof z.ZodError) {
-    return { message: 'Phản hồi đăng nhập không hợp lệ. Vui lòng thử lại.', fieldErrors: {} }
+    return { message: 'Phản hồi máy chủ không hợp lệ. Vui lòng thử lại.', fieldErrors: {} }
+  }
+  if (error instanceof Error && !error?.response) {
+    if (error.message.startsWith('Phản hồi ')) return { message: error.message, fieldErrors: {} }
   }
   const response = error?.response
   const data = response?.data
