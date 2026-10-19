@@ -31,6 +31,10 @@ public sealed class EquipmentApiTests
         var category = "create-" + suffix;
         db.Equipments.Add(new Equipment { Id = Guid.NewGuid(), Name = "Category source " + suffix, Category = category, Status = "Active", IsDeleted = false });
         var addedRoles = new List<Role>();
+        var cameraGuards = new[] {
+            new Equipment { Id = Guid.NewGuid(), Name = "Offline camera guard", Category = "Camera", Status = "Active", IsDeleted = false },
+            new Equipment { Id = Guid.NewGuid(), Name = "Deleted camera guard", Category = "Camera", Status = "Active", IsDeleted = true }
+        };
         async Task<Role> GetRole(string name)
         {
             var existing = await db.Roles.FirstOrDefaultAsync(x => x.Name == name);
@@ -82,8 +86,12 @@ public sealed class EquipmentApiTests
         {
             await app.StartAsync();
             using var client = new HttpClient { BaseAddress = new Uri(app.Urls.Single()) };
-            foreach (var path in new[] { "/api/equipments", "/api/equipments/filters" })
+            var viewPath = $"/api/equipments/{Guid.NewGuid()}/camera/views";
+            var mediaPath = $"{viewPath}/{Guid.NewGuid()}";
+            foreach (var path in new[] { "/api/equipments", "/api/equipments/filters", viewPath, mediaPath })
                 Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync(viewPath, null)).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.DeleteAsync(viewPath + "/" + Guid.NewGuid())).StatusCode);
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/equipments", new { name = "Pump", category })).StatusCode);
 
             using var scope = app.Services.CreateScope();
@@ -95,6 +103,9 @@ public sealed class EquipmentApiTests
                 Assert.True(response.StatusCode == HttpStatusCode.Forbidden, await response.Content.ReadAsStringAsync());
             }
             Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/equipments", new { name = "Pump", category })).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync(viewPath, null)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(mediaPath)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync(viewPath + "/" + Guid.NewGuid())).StatusCode);
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.CreateToken(admin, "ADMIN").Token);
             var result = await client.GetFromJsonAsync<PagedResponse<EquipmentListItem>>("/api/equipments");
@@ -159,6 +170,17 @@ public sealed class EquipmentApiTests
             Assert.Contains(updated.Items, x => x.Id == minimal.Id);
             Assert.Contains(updated.Items, x => x.Id == full.Id);
 
+            db.Equipments.AddRange(cameraGuards);
+            await db.SaveChangesAsync();
+            var offer = new CameraOffer("offer", "v=0\r\n");
+            Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(viewPath, offer)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync($"/api/equipments/{minimal.Id}/camera/views", offer)).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsJsonAsync($"/api/equipments/{cameraGuards[0].Id}/camera/views", offer)).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync($"/api/equipments/{cameraGuards[1].Id}/camera/views", offer)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"/api/equipments/{minimal.Id}/camera/views/{Guid.NewGuid()}")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/equipments/{cameraGuards[1].Id}/camera/views/{Guid.NewGuid()}")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/equipments/{cameraGuards[0].Id}/camera/views/{Guid.NewGuid()}/index.m3u8")).StatusCode);
+
             // The production token validator also rejects accounts whose current status changed.
             sales.Status = "Inactive";
             await db.SaveChangesAsync();
@@ -169,6 +191,8 @@ public sealed class EquipmentApiTests
         {
             await app.StopAsync();
             await db.Equipments.Where(x => x.Category == category).ExecuteDeleteAsync();
+            var guardIds = cameraGuards.Select(x => x.Id).ToArray();
+            await db.Equipments.Where(x => guardIds.Contains(x.Id)).ExecuteDeleteAsync();
             db.Users.RemoveRange(admin, sales);
             db.Roles.RemoveRange(addedRoles);
             await db.SaveChangesAsync();

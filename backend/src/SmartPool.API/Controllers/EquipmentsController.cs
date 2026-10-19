@@ -10,6 +10,7 @@ using SmartPool.Application.Interfaces.Services;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Features.ManageEquipments;
 using SmartPool.Domain.Entities;
+using System.Security.Claims;
 
 namespace SmartPool.API.Controllers;
 
@@ -18,6 +19,61 @@ namespace SmartPool.API.Controllers;
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public sealed class EquipmentsController(ISender sender, ILogger<EquipmentsController> logger) : ControllerBase
 {
+    [HttpGet("{equipmentId:guid}/camera/views")]
+    public async Task<IActionResult> GetCameraViewConfiguration(Guid equipmentId, [FromServices] IRepository<Equipment> repository,
+        [FromServices] ICameraStreamService streams, CancellationToken cancellationToken)
+    {
+        var equipment = await repository.GetByIdAsync(equipmentId, cancellationToken);
+        if (equipment == null || equipment.IsDeleted == true) return NotFound(new { message = "Không tìm thấy camera" });
+        if (!CameraMetadata.IsCamera(equipment.Category)) return BadRequest(new { message = "Thiết bị không thuộc nhóm Camera." });
+        if (equipment.Status != "Active") return StatusCode(503, new { message = "Camera hiện không khả dụng" });
+        Response.Headers.CacheControl = "no-store";
+        return Ok(streams.GetConfiguration());
+    }
+
+    [HttpPost("{equipmentId:guid}/camera/views")]
+    [RequestSizeLimit(73728)]
+    public async Task<IActionResult> OpenCameraView(Guid equipmentId, [FromBody] CameraOffer offer, [FromServices] IRepository<Equipment> repository,
+        [FromServices] ICameraStreamService streams, CancellationToken cancellationToken)
+    {
+        var equipment = await repository.GetByIdAsync(equipmentId, cancellationToken);
+        if (equipment == null || equipment.IsDeleted == true) return NotFound(new { message = "Không tìm thấy camera" });
+        if (!CameraMetadata.IsCamera(equipment.Category)) return BadRequest(new { message = "Thiết bị không thuộc nhóm Camera." });
+        if (equipment.Status != "Active") return StatusCode(503, new { message = "Camera hiện không khả dụng" });
+        Response.Headers.CacheControl = "no-store";
+        try
+        {
+            return Ok(await streams.OpenAsync(equipmentId, User.FindFirstValue(ClaimTypes.NameIdentifier)!, offer, cancellationToken));
+        }
+        catch (CameraConnectionException exception) { return StatusCode(exception.Code == "InvalidOffer" ? 400 : 503, new { message = exception.Message, code = exception.Code }); }
+    }
+
+    [HttpGet("{equipmentId:guid}/camera/views/{viewId:guid}")]
+    public async Task<IActionResult> ReadCameraView(Guid equipmentId, Guid viewId,
+        [FromServices] IRepository<Equipment> repository, [FromServices] ICameraStreamService streams, CancellationToken cancellationToken)
+    {
+        var equipment = await repository.GetByIdAsync(equipmentId, cancellationToken);
+        if (equipment == null || equipment.IsDeleted == true) return NotFound(new { message = "Không tìm thấy camera" });
+        if (!CameraMetadata.IsCamera(equipment.Category)) return BadRequest(new { message = "Thiết bị không thuộc nhóm Camera." });
+        if (equipment.Status != "Active") return StatusCode(503, new { message = "Camera hiện không khả dụng" });
+        Response.Headers.CacheControl = "no-store";
+        try
+        {
+            return Ok(await streams.GetStatusAsync(equipmentId, viewId, User.FindFirstValue(ClaimTypes.NameIdentifier)!, cancellationToken));
+        }
+        catch (CameraConnectionException exception)
+        {
+            return StatusCode(exception.Code == "ViewEnded" ? 410 : 503, new { message = exception.Message, code = exception.Code });
+        }
+    }
+
+    [HttpDelete("{equipmentId:guid}/camera/views/{viewId:guid}")]
+    public async Task<IActionResult> CloseCameraView(Guid equipmentId, Guid viewId, [FromServices] ICameraStreamService streams)
+    {
+        await streams.CloseAsync(equipmentId, viewId, User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return NoContent();
+    }
+
     [HttpGet("{equipmentId:guid}/camera")]
     public async Task<IActionResult> GetCameraStatus(Guid equipmentId, [FromServices] IRepository<Equipment> repository,
         [FromServices] ICameraService cameras, CancellationToken cancellationToken)

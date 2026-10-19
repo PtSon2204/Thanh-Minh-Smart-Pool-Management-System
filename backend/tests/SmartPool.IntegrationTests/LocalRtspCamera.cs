@@ -6,13 +6,17 @@ using System.Text;
 
 namespace SmartPool.IntegrationTests;
 
-// A loopback RTSP server emitting genuine H.264 RTP packets. No success responses are mocked in the application.
+// A loopback RTSP server emitting genuine H.264/H.265 RTP packets. No application success responses are mocked.
 internal sealed class LocalRtspCamera : IAsyncDisposable
 {
     private readonly TcpListener listener = new(IPAddress.Loopback, 0);
     private readonly CancellationTokenSource stop = new();
     private readonly ConcurrentBag<TcpClient> clients = [];
     private readonly byte[][] nals;
+    private readonly bool hevc;
+    public bool FragmentVideo { get; set; }
+    public bool AggregateParameters { get; set; }
+    public bool OmitSdpParameters { get; set; }
     private readonly Task accepting;
     public bool RequireAuthentication { get; set; }
     public bool InvalidVideo { get; set; }
@@ -21,9 +25,10 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
     public int Port => ((IPEndPoint)listener.LocalEndpoint).Port;
     public string Url => $"rtsp://127.0.0.1:{Port}/live";
 
-    private LocalRtspCamera(byte[][] nals)
+    private LocalRtspCamera(byte[][] nals, bool hevc)
     {
         this.nals = nals;
+        this.hevc = hevc;
         listener.Start();
         accepting = Task.Run(async () =>
         {
@@ -41,18 +46,18 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
         });
     }
 
-    public static async Task<LocalRtspCamera> StartAsync(string ffmpeg)
+    public static async Task<LocalRtspCamera> StartAsync(string ffmpeg, bool hevc = false, string color = "blue")
     {
         var file = Path.Combine(Path.GetTempPath(), "smartpool-camera-" + Guid.NewGuid().ToString("N") + ".h264");
         try
         {
             var start = new ProcessStartInfo(ffmpeg) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
-            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=64x64:r=1", "-frames:v", "1", "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-f", "h264", file }) start.ArgumentList.Add(arg);
+            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", $"color=c={color}:s=64x64:r=1", "-frames:v", "1", "-c:v", hevc ? "libx265" : "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-f", hevc ? "hevc" : "h264", file }) start.ArgumentList.Add(arg);
             using var process = Process.Start(start)!;
             var error = process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
             if (process.ExitCode != 0) throw new InvalidOperationException("Unable to generate H.264 test fixture: " + await error);
-            return new LocalRtspCamera(SplitNals(await File.ReadAllBytesAsync(file)));
+            return new LocalRtspCamera(SplitNals(await File.ReadAllBytesAsync(file)), hevc);
         }
         finally { File.Delete(file); }
     }
@@ -81,9 +86,12 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
                 else if (method == "OPTIONS") extra = "Public: OPTIONS, DESCRIBE, SETUP, PLAY, TEARDOWN\r\n";
                 else if (method == "DESCRIBE")
                 {
-                    var sps = Convert.ToBase64String(nals.First(x => (x[0] & 31) == 7));
-                    var pps = Convert.ToBase64String(nals.First(x => (x[0] & 31) == 8));
-                    body = $"v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=Camera test\r\nt=0 0\r\na=control:*\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\na=fmtp:96 packetization-mode=1;sprop-parameter-sets={sps},{pps}\r\na=control:trackID=0\r\n";
+                    var sps = Convert.ToBase64String(nals.First(x => NalType(x) == (hevc ? 33 : 7)));
+                    var pps = Convert.ToBase64String(nals.First(x => NalType(x) == (hevc ? 34 : 8)));
+                    var fmtp = hevc ? $"sprop-vps={Convert.ToBase64String(nals.First(x => NalType(x) == 32))};sprop-sps={sps};sprop-pps={pps}" : $"packetization-mode=1;sprop-parameter-sets={sps},{pps}";
+                    body = $"v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=Camera test\r\nt=0 0\r\na=control:*\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 {(hevc ? "H265" : "H264")}/90000\r\n";
+                    if (!OmitSdpParameters) body += $"a=fmtp:96 {fmtp}\r\n";
+                    body += "a=control:trackID=0\r\n";
                     extra = $"Content-Type: application/sdp\r\nContent-Base: {Url}/\r\n";
                 }
                 else if (method == "SETUP") extra = "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\nSession: test-session\r\n";
@@ -103,13 +111,40 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
         uint timestamp = 0;
         while (!stop.IsCancellationRequested)
         {
-            foreach (var original in nals.Where(x => (x[0] & 31) is 7 or 8 or 5))
+            var parameters = nals.Where(x => hevc ? NalType(x) is 32 or 33 or 34 : NalType(x) is 7 or 8).ToArray();
+            var payloads = new List<(byte[] Data, bool Marker)>();
+            if (hevc && AggregateParameters)
             {
-                var nal = InvalidVideo && (original[0] & 31) == 5 ? new byte[] { 0x65, 0x00 } : original;
+                using var ap = new MemoryStream();
+                ap.Write(new byte[] { 48 << 1, 1 });
+                foreach (var nal in parameters) { ap.WriteByte((byte)(nal.Length >> 8)); ap.WriteByte((byte)nal.Length); ap.Write(nal); }
+                payloads.Add((ap.ToArray(), false));
+            }
+            else payloads.AddRange(parameters.Select(x => (x, false)));
+            foreach (var original in nals.Where(x => hevc ? NalType(x) is >= 16 and <= 21 : NalType(x) == 5))
+            {
+                var nal = InvalidVideo ? hevc ? new byte[] { 38, 1, 0 } : new byte[] { 0x65, 0 } : original;
+                if (hevc && FragmentVideo)
+                {
+                    for (var offset = 2; offset < nal.Length; offset += 8)
+                    {
+                        var count = Math.Min(8, nal.Length - offset);
+                        var last = offset + count == nal.Length;
+                        var fu = new byte[count + 3];
+                        fu[0] = (byte)((nal[0] & 0x81) | 49 << 1); fu[1] = nal[1];
+                        fu[2] = (byte)(NalType(nal) | (offset == 2 ? 128 : 0) | (last ? 64 : 0));
+                        Buffer.BlockCopy(nal, offset, fu, 3, count);
+                        payloads.Add((fu, last));
+                    }
+                }
+                else payloads.Add((nal, true));
+            }
+            foreach (var (nal, marker) in payloads)
+            {
                 var packet = new byte[16 + nal.Length];
                 packet[0] = (byte)'$'; packet[1] = 0;
                 packet[2] = (byte)((12 + nal.Length) >> 8); packet[3] = (byte)(12 + nal.Length);
-                packet[4] = 0x80; packet[5] = (byte)(96 | ((nal[0] & 31) == 5 ? 128 : 0));
+                packet[4] = 0x80; packet[5] = (byte)(96 | (marker ? 128 : 0));
                 packet[6] = (byte)(sequence >> 8); packet[7] = (byte)sequence++;
                 packet[8] = (byte)(timestamp >> 24); packet[9] = (byte)(timestamp >> 16); packet[10] = (byte)(timestamp >> 8); packet[11] = (byte)timestamp;
                 packet[15] = 1;
@@ -122,6 +157,7 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
     }
 
     public void DisconnectClients() { foreach (var client in clients) client.Dispose(); }
+    private int NalType(byte[] nal) => hevc ? (nal[0] >> 1) & 63 : nal[0] & 31;
 
     private static async Task<string?> ReadHeaderAsync(Stream stream, CancellationToken token)
     {

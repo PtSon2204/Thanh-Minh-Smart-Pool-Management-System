@@ -19,10 +19,12 @@ public sealed class CameraEquipmentTests
     private static string Ffmpeg => Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")
         ?? throw new InvalidOperationException("Set SMARTPOOL_CAMERA_TEST_FFMPEG to an FFmpeg executable to run camera integration tests.");
 
-    [Fact]
-    public async Task RealRtsp_ValidatesDecodedFramePersistsEncryptedConfigurationRejectsDuplicateAndReportsDisconnect()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RealRtsp_ValidatesDecodedFramePersistsEncryptedConfigurationRejectsDuplicateAndReportsDisconnect(bool hevc)
     {
-        await using var server = await LocalRtspCamera.StartAsync(Ffmpeg);
+        await using var server = await LocalRtspCamera.StartAsync(Ffmpeg, hevc);
         server.RequireAuthentication = true;
         await using var db = new SmartPoolDbContext(await IntegrationTestDatabase.CreateOptionsAsync());
         var source = new Equipment { Id = Guid.NewGuid(), Name = "Camera category source", Category = "Camera", IsDeleted = false };
@@ -77,10 +79,36 @@ public sealed class CameraEquipmentTests
         }
     }
 
-    [Fact]
-    public async Task RealRtsp_StoredConfigurationRestoresOneSharedConnection()
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public async Task H265_ReassemblesSingleNalFragmentedAndAggregatedRtp(bool fragmented, bool aggregated, bool omitSdp)
     {
-        await using var server = await LocalRtspCamera.StartAsync(Ffmpeg);
+        await using var server = await LocalRtspCamera.StartAsync(Ffmpeg, hevc: true);
+        server.FragmentVideo = fragmented;
+        server.AggregateParameters = aggregated;
+        server.OmitSdpParameters = omitSdp;
+        var options = Options.Create(new CameraOptions { AllowedEndpoints = [new() { Host = "127.0.0.1", Port = server.Port }], FfmpegPath = Ffmpeg, ConnectionTimeoutSeconds = 8 });
+        await using var cameras = new CameraService(new CameraAddressPolicy(options), new CameraFrameDecoder(options), new EphemeralDataProtectionProvider(), options, TimeProvider.System, NullLogger<CameraService>.Instance);
+        await using var registration = await cameras.PrepareAsync(new() { StreamUrl = server.Url }, CancellationToken.None);
+        var id = Guid.NewGuid();
+        registration.Publish(id);
+        registration.Confirm();
+        Assert.Equal("Connected", cameras.GetStatus(id).State);
+        var jpeg = cameras.GetFrame(id);
+        Assert.NotNull(jpeg);
+        Assert.Equal(new byte[] { 0xff, 0xd8 }, jpeg[..2]);
+        Assert.Equal(new byte[] { 0xff, 0xd9 }, jpeg[^2..]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RealRtsp_StoredConfigurationRestoresOneSharedConnection(bool hevc)
+    {
+        await using var server = await LocalRtspCamera.StartAsync(Ffmpeg, hevc);
         var options = Options.Create(new CameraOptions { AllowedEndpoints = [new() { Host = "127.0.0.1", Port = server.Port }], FfmpegPath = Ffmpeg, ConnectionTimeoutSeconds = 5 });
         var protection = new EphemeralDataProtectionProvider();
         string encrypted;
@@ -126,10 +154,12 @@ public sealed class CameraEquipmentTests
         Assert.NotNull(retry);
     }
 
-    [Fact]
-    public async Task RealRtsp_BadCredentialsAndInvalidVideoDoNotProduceSuccessfulRegistration()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RealRtsp_BadCredentialsAndInvalidVideoDoNotProduceSuccessfulRegistration(bool hevc)
     {
-        await using var server = await LocalRtspCamera.StartAsync(Ffmpeg);
+        await using var server = await LocalRtspCamera.StartAsync(Ffmpeg, hevc);
         server.RequireAuthentication = true;
         var options = Options.Create(new CameraOptions { AllowedEndpoints = [new() { Host = "127.0.0.1", Port = server.Port }], FfmpegPath = Ffmpeg, ConnectionTimeoutSeconds = 4 });
         await using var cameras = new CameraService(new CameraAddressPolicy(options), new CameraFrameDecoder(options), new EphemeralDataProtectionProvider(), options, TimeProvider.System, NullLogger<CameraService>.Instance);

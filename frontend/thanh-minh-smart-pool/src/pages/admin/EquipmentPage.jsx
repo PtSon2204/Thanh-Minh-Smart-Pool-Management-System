@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Input, Select, Table, Tag, Tooltip } from 'antd'
-import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined, SearchOutlined, VideoCameraOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { ServiceListHeader } from '../../features/services/components/ServiceListChrome'
 import { useEquipmentFilters, useEquipments } from '../../features/equipments/hooks/useEquipments'
 import EquipmentFormModal from '../../features/equipments/components/EquipmentFormModal'
+import CameraViewModal from '../../features/equipments/components/CameraViewModal'
 import '../../features/services/styles/serviceManagement.css'
 import '../../features/equipments/styles/equipmentManagement.css'
 
@@ -41,6 +42,7 @@ function formatMetadata(value) {
 export default function EquipmentPage() {
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
+  const [viewingCamera, setViewingCamera] = useState(null)
   const [params, setParams] = useState({ searchTerm: '', pageIndex: 1, pageSize: 10 })
   const list = useEquipments(params)
   const filters = useEquipmentFilters()
@@ -76,8 +78,9 @@ export default function EquipmentPage() {
       {equipment.cameraConnection && <Tag color={cameraStates[equipment.cameraConnection.state]?.color || 'default'}>{cameraStates[equipment.cameraConnection.state]?.label || 'Camera mất kết nối'}</Tag>}
     </> },
     { title: 'Bảo trì sắp tới', dataIndex: 'nextMaintenanceDate', width: 190, render: value => value ? dayjs(value).format('DD/MM/YYYY') : 'Chưa có lịch bảo trì' },
-    // No equipment detail/edit/retirement use cases exist yet. Do not expose fake actions.
-    { title: 'Thao tác', key: 'actions', width: 100, render: () => <span aria-label="Chưa có thao tác khả dụng">—</span> },
+    { title: 'Thao tác', key: 'actions', width: 160, render: (_, equipment) => equipment.category?.trim().toLowerCase() === 'camera'
+      ? <Button icon={<VideoCameraOutlined />} onClick={() => setViewingCamera(equipment)}>Xem Camera</Button>
+      : <span aria-label="Chưa có thao tác khả dụng">—</span> },
   ]
 
   return <div className="service-list-page equipment-list-page">
@@ -102,5 +105,6 @@ export default function EquipmentPage() {
           }} />}
     </section>
     <EquipmentFormModal open={formOpen} onClose={() => setFormOpen(false)} />
+    {viewingCamera && <CameraViewModal key={viewingCamera.id} equipment={viewingCamera} onClose={() => setViewingCamera(null)} />}
   </div>
 }

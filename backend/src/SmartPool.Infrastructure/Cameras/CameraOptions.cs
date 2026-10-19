@@ -8,6 +8,15 @@ public sealed class CameraOptions
     public int FrameStaleSeconds { get; set; } = 15;
     public int ReconnectDelaySeconds { get; set; } = 5;
     public int MaxConnections { get; set; } = 16;
+    public CameraWebRtcOptions WebRtc { get; set; } = new();
+}
+
+public sealed class CameraWebRtcOptions
+{
+    public string? BindAddress { get; set; }
+    public int PortRangeStart { get; set; } = 50000;
+    public int PortRangeEnd { get; set; } = 50127;
+    public List<SmartPool.Application.Interfaces.Services.CameraIceServer> IceServers { get; set; } = [];
 }
 
 public sealed class CameraEndpoint

@@ -47,6 +47,9 @@ namespace SmartPool.Infrastructure
             services.AddSingleton<CameraService>();
             services.AddSingleton<ICameraService>(provider => provider.GetRequiredService<CameraService>());
             services.AddHostedService<CameraSupervisor>();
+            services.AddSingleton<CameraStreamService>();
+            services.AddSingleton<ICameraStreamService>(provider => provider.GetRequiredService<CameraStreamService>());
+            services.AddHostedService(provider => provider.GetRequiredService<CameraStreamService>());
 
             // Database — Entity Framework Core + PostgreSQL (Npgsql)
             services.AddDbContext<SmartPoolDbContext>(options =>

@@ -13,7 +13,7 @@ public sealed class CameraFrameDecoder(IOptions<CameraOptions> options) : ICamer
 {
     public async Task<byte[]?> DecodeAsync(byte[] encodedFrame, string format, CancellationToken cancellationToken)
     {
-        if (format is not ("h264" or "mjpeg") || encodedFrame.Length > 4 * 1024 * 1024) return null;
+        if (format is not ("h264" or "hevc" or "mjpeg") || encodedFrame.Length > 4 * 1024 * 1024) return null;
         if (string.IsNullOrWhiteSpace(options.Value.FfmpegPath) || !Path.IsPathFullyQualified(options.Value.FfmpegPath) || !File.Exists(options.Value.FfmpegPath))
             throw new CameraConnectionException("NotConfigured", "Chưa cấu hình đường dẫn FFmpeg cho camera.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

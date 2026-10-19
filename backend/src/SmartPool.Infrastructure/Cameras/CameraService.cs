@@ -67,6 +67,16 @@ public sealed class CameraService(CameraAddressPolicy policy, ICameraFrameDecode
 
     public byte[]? GetFrame(Guid equipmentId) { lock (gate) return published.TryGetValue(equipmentId, out var worker) ? worker.GetFrame() : null; }
 
+    internal IDisposable Subscribe(Guid equipmentId, Action<CameraEncodedFrame> receive)
+    {
+        lock (gate)
+        {
+            if (!published.TryGetValue(equipmentId, out var worker) || worker.GetStatus().State != "Connected")
+                throw new CameraConnectionException("StreamUnavailable", "Camera hiện không khả dụng");
+            return worker.Subscribe(receive);
+        }
+    }
+
     public async Task RestoreAsync(Guid equipmentId, string protectedConfiguration, CancellationToken cancellationToken)
     {
         lock (gate) if (published.ContainsKey(equipmentId)) return;

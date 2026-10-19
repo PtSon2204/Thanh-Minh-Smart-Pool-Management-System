@@ -1,10 +1,12 @@
 # Thêm thiết bị Camera và kiểm tra kết nối
 
+Chức năng xem video ngay tại danh sách thiết bị được mô tả trong [Xem Camera qua HLS](camera-live-view.md).
+
 ## Kết quả và phạm vi
 
 Nhóm có tên `Camera` (không phân biệt hoa/thường) mở thêm cấu hình kết nối trong modal Thêm thiết bị. Các nhóm khác tiếp tục dùng luồng thêm thiết bị đã có.
 
-Hiện hỗ trợ **RTSP qua TCP, video H.264/MJPEG**. Không cung cấp lựa chọn HTTP, ONVIF, RTSPS hoặc H.265 vì chưa triển khai các giao thức/codec này. Không tự kích hoạt AI.
+Hiện hỗ trợ **RTSP qua TCP, video H.264/H.265 (HEVC)/MJPEG**. Codec được nhận tự động từ SDP của camera; không cần chọn codec trong form. Không cung cấp lựa chọn HTTP, ONVIF hoặc RTSPS vì chưa triển khai các giao thức này. Không tự kích hoạt AI.
 
 Trước khi triển khai, codebase chỉ có `Warning.CamId` liên kết `Equipment` và một dòng CameraHub đang comment. Không tìm thấy module đọc video, dịch vụ camera bên ngoài, stream manager hoặc thuật toán AI để tích hợp trực tiếp. Phần bổ sung cung cấp một dịch vụ RTSP dùng chung trong tiến trình và các điểm lấy trạng thái/frame cho module giám sát hoặc AI được triển khai sau này; không tạo dashboard giám sát hay thuật toán nhận diện mới.
 
@@ -63,7 +65,7 @@ Hai điểm tích hợp chỉ dành cho Admin:
 2. Kiểm tra endpoint trong allowlist và chuẩn hóa định danh camera bằng hash của **IP đã pin + cổng**. Các đường dẫn stream khác nhau trên cùng IP/cổng được coi là cùng một camera. Đây là quy tắc chống trùng được bổ sung vì chưa có định danh camera trước đó.
 3. Kiểm tra database có camera này chưa, trước khi mở RTSP.
 4. Camera service đặt chỗ endpoint, giới hạn tổng số kết nối; mở RTSP qua TCP, xác thực và nhận dữ liệu video.
-5. H.264 keyframe (kèm SPS/PPS) hoặc MJPEG frame được đưa vào FFmpeg qua stdin. Chỉ chấp nhận sau khi FFmpeg giải mã được JPEG hợp lệ. Không lấy kết quả “cổng mở” hoặc “RTSP trả 200” làm xác nhận kết nối thành công.
+5. SharpRTSPClient ghép các gói RTP qua TCP. H.264 keyframe (kèm SPS/PPS), H.265 keyframe (kèm VPS/SPS/PPS) hoặc MJPEG frame được đưa vào FFmpeg qua stdin. Parameter sets được nhận từ SDP và cập nhật từ luồng RTP; H.265 hỗ trợ single NAL, aggregation packet và fragmentation unit. Chỉ chấp nhận sau khi FFmpeg giải mã được JPEG hợp lệ. Không lấy kết quả “cổng mở” hoặc “RTSP trả 200” làm xác nhận kết nối thành công.
 6. Sau bước mạng mới mở transaction PostgreSQL ngắn. Dùng advisory transaction lock theo định danh để kiểm tra chống trùng lần cuối giữa các request/API instance, thêm một bản ghi `Equipment` và publish worker trong bộ nhớ; không mở kết nối mạng trong transaction.
 7. Nếu save/commit/publish thất bại, rollback database và dispose registration: đóng socket, dừng decode, xóa chỗ giữ/stream. Không để stream được publish gắn với một thiết bị chưa commit.
 8. Khi commit thành công, giữ lại chính kết nối đã kiểm tra làm kết nối dùng chung; không mở thêm một RTSP session riêng chỉ để đọc frame cho giám sát.
@@ -84,7 +86,7 @@ Supervisor khôi phục camera Active từ cấu hình đã mã hóa khi khởi 
 - Mặc định allowlist rỗng: không mở kết nối camera nào. Chỉ chấp nhận đúng hostname/IP và cổng do quản trị server cấu hình.
 - Hostname phải có danh sách IP được pin; mọi kết quả DNS phải thuộc danh sách đó. Kết nối thực tế dùng IP đã kiểm tra, tránh DNS thay đổi giữa kiểm tra và kết nối.
 - Không dùng UDP, không theo RTSP redirect sang địa chỉ mới, không chấp nhận HTTP/file/URL có userinfo hay địa chỉ metadata link-local. Redirect sang endpoint không được phép đã được kiểm thử bằng máy chủ RTSP thật.
-- FFmpeg chỉ nhận dữ liệu H.264/MJPEG qua pipe, giới hạn protocol `pipe`; không nhận URL/mật khẩu hoặc được phép tự mở giao thức mạng.
+- FFmpeg chỉ nhận dữ liệu H.264/H.265/MJPEG qua pipe, giới hạn protocol `pipe`; không nhận URL/mật khẩu hoặc được phép tự mở giao thức mạng. Bản FFmpeg triển khai phải có decoder HEVC; có thể kiểm tra bằng `ffmpeg -decoders`.
 
 ## Cấu hình vận hành
 
@@ -98,9 +100,9 @@ CameraSettings__FfmpegPath=<absolute-path-to-ffmpeg-executable>
 CameraSettings__KeyRingPath=<persistent-protected-key-directory>
 ```
 
-Mặc định timeout kết nối 15 giây, frame hết hạn sau 15 giây, thử lại sau 5 giây, tối đa 16 kết nối. Nếu camera có khoảng cách giữa các H.264 keyframe lớn, cấu hình `FrameStaleSeconds` phù hợp (giới hạn 3–60 giây). Cấu hình cổng/hostname/IP, key ring và FFmpeg trước khi khởi động lại backend.
+Mặc định timeout kết nối 15 giây, frame hết hạn sau 15 giây, thử lại sau 5 giây, tối đa 16 kết nối. Nếu camera có khoảng cách giữa các H.264/H.265 keyframe lớn, cấu hình `FrameStaleSeconds` phù hợp (giới hạn 3–60 giây). Cấu hình cổng/hostname/IP, key ring và FFmpeg trước khi khởi động lại backend.
 
-FFmpeg là dependency triển khai bên ngoài, không tự tải/cài trên server khi người dùng nhấn Lưu. Binary dùng cho kiểm thử chỉ đặt trong `_notes/camera-tools`, không đóng gói vào API và không ghi đường dẫn thử nghiệm vào cấu hình ứng dụng.
+FFmpeg là dependency triển khai bên ngoài, không tự tải/cài trên server khi người dùng nhấn Lưu. Binary dùng trên máy phát triển/kiểm thử đặt trong `_notes/camera-tools`, không đóng gói vào API. Đường dẫn của từng máy nằm trong `.env` backend được gitignore; khi triển khai cần cấu hình đường dẫn tương ứng trên server.
 
 ## File mới
 
@@ -128,7 +130,7 @@ FFmpeg là dependency triển khai bên ngoài, không tự tải/cài trên ser
 - `backend/src/SmartPool.Application/Features/manage-equipments/Queries/GetEquipments/GetEquipmentsHandler.cs`
 - `backend/src/SmartPool.Infrastructure/Persistence/Repositories/EquipmentOperations.cs`
 - `backend/src/SmartPool.Infrastructure/DependencyInjection.cs`
-- `backend/src/SmartPool.Infrastructure/SmartPool.Infrastructure.csproj`: thêm RtspClientSharp 1.3.3.
+- `backend/src/SmartPool.Infrastructure/SmartPool.Infrastructure.csproj`: dùng SharpRTSPClient 0.8.0 thay RtspClientSharp để nhận H.265.
 - `frontend/thanh-minh-smart-pool/src/features/equipments/components/EquipmentFormModal.jsx`
 - `frontend/thanh-minh-smart-pool/src/features/equipments/hooks/useCreateEquipment.js`
 - `frontend/thanh-minh-smart-pool/src/features/equipments/hooks/useEquipments.js`
@@ -139,15 +141,15 @@ FFmpeg là dependency triển khai bên ngoài, không tự tải/cài trên ser
 
 - Build backend: đạt; còn các cảnh báo nullable từ những phần có sẵn.
 - Build và lint frontend: đạt; còn cảnh báo kích thước bundle và static message của Ant Design như trước.
-- Toàn bộ unit test: **112/112 đạt**, gồm validation cấu hình, địa chỉ ngoài allowlist, cổng sai, giao thức sai, URL nhúng credentials, hostname chưa pin, mặc định deny, kiểm tra dispose khi save thất bại và ngăn thông tin xác thực trong thông số công khai.
-- Integration tests lọc `FullyQualifiedName~Equipment`: **8/8 đạt** trên PostgreSQL kiểm thử riêng. Có 5 bài RTSP: video H.264 thật và JPEG giải mã thật; cấu hình lưu mã hóa/chống trùng; sai mật khẩu và video lỗi; redirect không mở endpoint khác; khôi phục kết nối dùng chung; lỗi database rollback và giải phóng registration. Các bài danh sách/tìm kiếm/lọc/phân trang và HTTP thêm thiết bị trước đó vẫn đạt.
-- Chrome headless → frontend thật → API JWT thật → RTSP loopback phát H.264 → FFmpeg giải mã → PostgreSQL: đạt. Kiểm tra phần Camera chỉ hiện đúng nhóm, input password, sai mật khẩu không tạo thiết bị và xóa password, lưu lại đúng thông tin, thông báo thành công sau 201, không lộ credentials trong response, đọc JPEG qua endpoint dùng chung, chống trùng, mất kết nối trả 503 cho frame.
+- Toàn bộ unit test: **212/212 đạt**, gồm validation cấu hình, địa chỉ ngoài allowlist, cổng sai, giao thức sai, URL nhúng credentials, hostname chưa pin, mặc định deny, kiểm tra dispose khi save thất bại và ngăn thông tin xác thực trong thông số công khai.
+- Integration tests lọc `FullyQualifiedName~Equipment`: **16/16 đạt** trên PostgreSQL kiểm thử riêng. Dùng video H.264/H.265 thật và JPEG giải mã thật; kiểm tra H.265 single NAL, FU, AP, parameter sets trong RTP khi SDP không có; lưu mã hóa/chống trùng, sai mật khẩu/video lỗi, khôi phục dùng chung cho cả H.264/H.265; redirect không mở endpoint khác và rollback khi lỗi database. Bổ sung HLS hai camera, chia sẻ kết nối, giải phóng viewer và quyền Admin. Các bài danh sách/tìm kiếm/lọc/phân trang và HTTP thêm thiết bị vẫn đạt.
+- Kiểm thử Chrome headless trước lần bổ sung H.265: frontend thật → API JWT thật → RTSP loopback H.264 → FFmpeg → PostgreSQL đã đạt. Kiểm tra phần Camera chỉ hiện đúng nhóm, input password, sai mật khẩu không tạo thiết bị và xóa password, thông báo thành công sau 201, không lộ credentials, endpoint JPEG, chống trùng và mất kết nối trả 503. Lần bổ sung H.265 kiểm tra lại build/lint frontend và luồng API với camera thật.
 - Dịch vụ/browser/database fixture kiểm thử đã dọn; không thêm camera hoặc dữ liệu thử vào database ứng dụng, không bật AI, không restart backend đang chạy của người dùng.
 
-Máy chủ RTSP thử nghiệm là fixture nội bộ phát bitstream video thật, không phải kết quả kết nối giả của ứng dụng. Chưa xác minh với camera vật lý tại bể bơi vì chưa nhận được IP/hostname, cổng và đường dẫn RTSP thực tế. Chưa có module giám sát/AI bên ngoài để kiểm thử tích hợp trực tiếp.
+Kiểm tra camera EZVIZ thật ngày 19/10/2026: kết nối trực tiếp `192.168.1.136:554/ch1/main` (RTSP/TCP, video H.265), `POST /api/equipments` trả `201`, trạng thái `Connected`, endpoint frame trả `200` và JPEG hợp lệ. Đã xác nhận thiết bị xuất hiện trong danh sách, trạng thái mặc định `Active`, credentials lưu mã hóa. Dùng database riêng `smartpool_test` và dọn dữ liệu sau kiểm thử; không đổi cấu hình camera hay `.env`. Lần kết nối đầu bị timeout, lần kiểm tra lại qua relay chẩn đoán rồi trực tiếp đều thành công. Chưa có module giám sát/AI bên ngoài để kiểm thử tích hợp trực tiếp.
 
 ## Tài liệu kỹ thuật đối chiếu
 
-- [API và codec hỗ trợ của RtspClientSharp](https://github.com/BogdanovKirill/RtspClientSharp).
+- [API và codec hỗ trợ của SharpRTSPClient](https://github.com/jimm98y/SharpRealTimeStreaming/tree/v0.8.0).
 - [FFmpeg protocols và protocol whitelist](https://ffmpeg.org/ffmpeg-protocols.html).
 - [Cấu hình ASP.NET Core Data Protection và key encryption](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview?view=aspnetcore-8.0).

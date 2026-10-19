@@ -5,3 +5,8 @@
 .equipment-specification { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .equipment-list-page > .ant-alert { margin-bottom: 16px; }
 @media (max-width: 600px) { .equipment-toolbar label { flex-basis: 100%; } .equipment-toolbar > button { width: 100%; } }
+.camera-view-status { margin-bottom: 12px; }
+.camera-video-container { position: relative; aspect-ratio: 16 / 9; background: #000; margin-bottom: 16px; overflow: hidden; border-radius: 8px; }
+.camera-video { width: 100%; height: 100%; object-fit: contain; }
+.camera-video-hidden { visibility: hidden; }
+.camera-video-loading { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; color: #fff; }

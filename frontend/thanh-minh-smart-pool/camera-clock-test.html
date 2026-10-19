@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Camera latency clock — test only</title>
+<style>html,body,#root{margin:0;width:100%;height:100%;background:white;color:black;font-family:Arial}#root{display:flex;align-items:center;justify-content:center}.clock{text-align:center}.clock p{font-size:38px;margin:8px}</style></head><body><div id="root"></div>
+<script type="module">
+import React from 'react'; import {createRoot} from 'react-dom/client'; import {QRCodeCanvas} from 'qrcode.react';
+function Clock(){const [time,setTime]=React.useState(Date.now());React.useEffect(()=>{const t=setInterval(()=>setTime(Date.now()),100);return()=>clearInterval(t)},[]);return React.createElement('div',{className:'clock'},React.createElement(QRCodeCanvas,{value:'SPCLOCK:'+time,size:Math.min(innerHeight-120,innerWidth-120),level:'L',marginSize:4}),React.createElement('p',null,'SPCLOCK:'+time));}
+createRoot(document.getElementById('root')).render(React.createElement(Clock));
+</script></body></html>
