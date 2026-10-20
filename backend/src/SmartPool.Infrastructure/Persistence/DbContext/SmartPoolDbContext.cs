@@ -537,9 +537,6 @@ public partial class SmartPoolDbContext : EfDbContext
             entity.Property(e => e.StockQuantity)
                 .HasDefaultValue(0)
                 .HasColumnName("stock_quantity");
-            entity.Property(e => e.Type)
-                .HasMaxLength(50)
-                .HasColumnName("type");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
@@ -874,9 +871,7 @@ public partial class SmartPoolDbContext : EfDbContext
         //sonpt
 
         ConfigureWaterQuality(modelBuilder);
-        OnModelCreatingPartial(modelBuilder);
     }
 
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
 

@@ -12,7 +12,7 @@ import '../../features/shared/styles/adminActions.css'
 import '../../features/staff/styles/staffProfiles.css'
 
 const statusOptions = [{ label: 'Đang làm việc', value: 'Working' }, { label: 'Không hoạt động', value: 'Inactive' }]
-const roleOptions = [{ label: 'Quản trị viên', value: 'ADMIN' }, { label: 'Nhân viên cứu hộ', value: 'LIFEGUARD' }, { label: 'Nhân viên bán hàng', value: 'SALES' }]
+const roleOptions = [{ label: 'Quản trị viên', value: 'ADMIN' }, { label: 'Nhân viên cứu hộ', value: 'LIFEGUARD' }, { label: 'Nhân viên bán vé', value: 'SALES' }]
 
 export default function StaffProfilesPage() {
   const role = useAuthStore((state) => state.session?.role)

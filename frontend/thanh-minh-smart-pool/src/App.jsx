@@ -18,7 +18,6 @@ import DashboardPage from "./pages/admin/DashboardPage";
 import OfflineSalesPage from "./pages/admin/OfflineSalesPage";
 import TicketTypePage from "./pages/admin/TicketTypePage";
 import ServicePage from "./pages/admin/ServicePage";
-import GoodsReceiptsPage from './pages/admin/GoodsReceiptsPage'
 import InventoryPage from "./pages/admin/InventoryPage";
 import RentalPage from "./pages/admin/RentalPage";
 import VoucherPage from "./pages/admin/VoucherPage";
@@ -51,7 +50,7 @@ const router = createBrowserRouter([
           { path: '/ho-so', element: <ProfilePage /> },
           { path: '/doi-mat-khau', element: <ChangePasswordPage /> },
           { path: '/the-cua-toi', element: <MyCardPage /> },
-          { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage /> },
+          { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage isCustomerView /> },
         ],
       },
       { path: '*', element: <NotFoundPage /> },
@@ -78,7 +77,6 @@ const router = createBrowserRouter([
           { path: 'tickets/types', element: <TicketTypePage /> },
           { path: 'services', element: <ServicePage /> },
           { path: 'inventory', element: <InventoryPage /> },
-          { path: 'inventory/receipts', element: <GoodsReceiptsPage /> },
           { path: 'staff/attendance', element: <StaffAttendancePage /> },
           { path: 'rentals', element: <RentalPage /> },
           { path: 'coupons', element: <VoucherPage /> },

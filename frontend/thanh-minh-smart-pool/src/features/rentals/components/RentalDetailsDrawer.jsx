@@ -44,7 +44,7 @@ export default function RentalDetailsDrawer({ open, query, onClose, onReturn }) 
         <span><strong>{details.outstandingQuantity}</strong> còn lại</span>
       </div>
       {details.outstandingQuantity > 0 && <Button type="primary" onClick={() => onReturn(details)}>Nhận lại</Button>}
-      <Typography.Title level={5}>Lịch sử trả hàng</Typography.Title>
+      <Typography.Title level={5}>Lịch sử trả đồ</Typography.Title>
       {(details.rentals || []).length === 0 && <Empty description="Chưa có lịch sử thuê." />}
       <div className="rental-history-list">
         {(details.rentals || []).map((record, index) => <article className="rental-history-record" key={`${record.rentTime}-${record.returnTime}-${index}`}>

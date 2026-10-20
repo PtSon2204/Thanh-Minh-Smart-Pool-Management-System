@@ -122,7 +122,7 @@ export default function AboutPage() {
                 cao trên 1,4m. Toàn bộ khu vực đều được trang bị hệ thống <strong>Camera giám sát tích hợp AI</strong> nhằm phát hiện và cảnh báo nguy hiểm kịp thời.
               </p>
               <p>
-                Ngoài ra, Thành Minh cung cấp đầy đủ các tiện ích như: dịch vụ trông xe chu đáo, tủ đồ miễn phí, cho thuê phao/kính bơi/khăn tắm, và khu vực đồ ăn nhanh (bim bim, nước, xúc xích...) giúp bạn có trải nghiệm trọn vẹn nhất.
+                Ngoài ra, Thành Minh cung cấp đầy đủ các tiện ích như: dịch vụ trông xe chu đáo, tủ đồ miễn phí và cho thuê phao/kính bơi/khăn tắm giúp bạn có trải nghiệm trọn vẹn nhất.
               </p>
             </div>            
           </div>
@@ -237,11 +237,8 @@ export default function AboutPage() {
       <section className="about-cta">
         <div className="container">
           <h2>Sẵn sàng trải nghiệm?</h2>
-          <p>Đặt vé ngay hôm nay hoặc liên hệ chúng tôi để được tư vấn thêm.</p>
+          <p>Liên hệ chúng tôi để được tư vấn thêm.</p>
           <div className="cta-buttons">
-            <Link to="/dat-ve" className="btn-cta btn-cta-primary">
-              🎫 Đặt vé ngay
-            </Link>
             <Link to="/lien-he" className="btn-cta btn-cta-outline">
               📞 Liên hệ chúng tôi
             </Link>
