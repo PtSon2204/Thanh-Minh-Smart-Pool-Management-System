@@ -28,6 +28,7 @@ const { Header, Sider, Content } = Layout;
 function openKeysForPath(pathname) {
   if (pathname.startsWith('/admin/staff/attendance')) return ['staff', 'staff-attendance'];
   if (pathname.startsWith('/admin/staff/')) return ['staff'];
+  if (pathname.startsWith('/admin/equipments/')) return ['equipments'];
   if (pathname.startsWith('/admin/services') || pathname.startsWith('/admin/inventory') || pathname.startsWith('/admin/rentals')) return ['services'];
   if (pathname.startsWith('/admin/payments')) return ['payments'];
   if (pathname.startsWith('/admin/statistics')) return ['statistics'];
@@ -117,9 +118,23 @@ export default function AdminLayout() {
       label: <Link to="/admin/coupons">Quản lý mã giảm giá</Link>,
     },
     isAdmin && {
-      key: '/admin/equipment',
+      key: '/admin/safety',
       icon: <ToolOutlined />,
-      label: <Link to="/admin/equipment">Quản lý thiết bị</Link>,
+      label: 'Giám sát an toàn',
+       children: [
+        { key: '/admin/safety/list-camera', label: <Link to="/admin/safety/list-camera">Danh sách camera</Link> },
+        { key: '/admin/safety/incident-history', label: <Link to="/admin/safety/incident-history">Lịch sử sự cố</Link> },
+      ],
+    },
+    isAdmin && {
+      key: 'equipments',
+      icon: <BarChartOutlined />,
+      label: 'Quản lý thiết bị',
+      children: [
+        { key: '/admin/equipments/list-equipments', label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link> },
+        { key: '/admin/equipments/maintenance', label: <Link to="/admin/equipments/maintenance">Cấu hình lịch bảo trì</Link> },
+        { key: '/admin/equipments/maintenance-history', label: <Link to="/admin/equipments/maintenance-history">Lịch sử bảo trì</Link> },
+      ],
     },
     (isAdmin || role === 'SALES') && {
       key: 'services',
@@ -128,7 +143,7 @@ export default function AdminLayout() {
       label: 'Dịch vụ cho thuê',
       children: [
         { key: '/admin/services', label: <Link to="/admin/services">Danh mục đồ cho thuê</Link> },
-        { key: '/admin/inventory', label: <Link to="/admin/inventory">Số lượng đồ thuê và lịch sử</Link> },
+        { key: '/admin/inventory', label: <Link to="/admin/inventory">Lịch sử cho thuê</Link> },
         { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },
