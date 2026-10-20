@@ -15,7 +15,6 @@ const navItems = [
   { label: 'Trang chủ', to: '/' },
   { label: 'Giới thiệu', to: '/gioi-thieu' },
   { label: 'Bảng giá vé', to: '/bang-gia' },
-  { label: 'Sơ đồ bể bơi', to: '/so-do-be-boi' },
   { label: 'Liên hệ', to: '/lien-he' },
 ]
 

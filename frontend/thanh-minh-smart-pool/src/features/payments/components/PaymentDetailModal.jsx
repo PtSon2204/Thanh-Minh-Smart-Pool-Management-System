@@ -24,6 +24,7 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
 
   const isSuccess = data?.status === 'COMPLETED'
   const isFailed = data?.status === 'FAILED'
+  const isTransfer = data?.paymentMethod === 'BANK_TRANSFER' || data?.paymentMethod === 'TRANSFER'
 
   const itemColumns = [
     {
@@ -175,13 +176,13 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
               </Descriptions.Item>
               <Descriptions.Item label="Phương thức">
                 <Space>
-                  {data.paymentMethod === 'BANK_TRANSFER' ? (
+                  {isTransfer ? (
                     <CreditCardOutlined style={{ color: '#0284c7' }} />
                   ) : (
                     <MoneyCollectOutlined style={{ color: '#16a34a' }} />
                   )}
                   <Text strong>
-                    {data.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản' : data.paymentMethod === 'CASH' ? 'Tiền mặt' : data.paymentMethod}
+                    {isTransfer ? 'Chuyển khoản' : data.paymentMethod === 'CASH' ? 'Tiền mặt' : data.paymentMethod}
                   </Text>
                 </Space>
               </Descriptions.Item>

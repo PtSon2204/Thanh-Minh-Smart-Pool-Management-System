@@ -108,7 +108,6 @@ export default function AdminLayout() {
       children: [
         { key: '/admin/tickets/scanQR', label: <Link to="/admin/tickets/scanQR">Quét QR vào cổng</Link> },
         { key: '/admin/tickets/types', label: <Link to="/admin/tickets/types">Loại vé</Link> },
-        { key: '/admin/tickets/renewals', label: <Link to="/admin/tickets/renewals">Gia hạn vé</Link> },
         { key: '/admin/tickets/pos', label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link> },
       ],
     },

@@ -156,7 +156,7 @@ export default function PaymentHistoryPage() {
       key: 'paymentMethod',
       width: 150,
       render: (method) => {
-        const isTransfer = method === 'BANK_TRANSFER'
+        const isTransfer = method === 'BANK_TRANSFER' || method === 'TRANSFER'
         return isTransfer ? (
           <span className="method-pill method-transfer">
             <CreditCardOutlined />
