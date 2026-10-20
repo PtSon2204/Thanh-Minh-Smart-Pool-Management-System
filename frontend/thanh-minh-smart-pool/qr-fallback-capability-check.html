@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR fallback capability check</title>
+  </head>
+  <body>
+    <output id="result">RUNNING</output>
+    <script type="module">
+      import { zxingModuleReady } from '/src/features/qr/prepareZXingModule.js'
+      import { BarcodeDetector as BarcodeDetectorPonyfill } from 'barcode-detector/ponyfill'
+
+      Reflect.deleteProperty(globalThis, 'BarcodeDetector')
+
+      const result = document.querySelector('#result')
+      result.dataset.nativeDetectorAbsent = String(!('BarcodeDetector' in globalThis))
+      const wasmRequests = []
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = (...args) => {
+        const requestUrl = String(args[0] instanceof Request ? args[0].url : args[0])
+        if (requestUrl.endsWith('.wasm')) wasmRequests.push(requestUrl)
+        return originalFetch(...args)
+      }
+
+      try {
+        await zxingModuleReady
+        const fixture = new Image()
+        fixture.src = '/qr-scanner/fixtures/capability-check.svg'
+        await fixture.decode()
+        const canvas = document.createElement('canvas')
+        canvas.width = 512
+        canvas.height = 512
+        const context = canvas.getContext('2d')
+        context.drawImage(fixture, 0, 0, canvas.width, canvas.height)
+        const detector = new BarcodeDetectorPonyfill({ formats: ['qr_code'] })
+        const detectedCodes = await detector.detect(context.getImageData(0, 0, canvas.width, canvas.height))
+        result.textContent = detectedCodes[0]?.rawValue ?? 'NO_RESULT'
+        result.dataset.wasmRequests = JSON.stringify(wasmRequests)
+      } catch (error) {
+        result.textContent = error instanceof Error ? error.message : String(error)
+        result.dataset.error = 'true'
+      }
+    </script>
+  </body>
+</html>
