@@ -164,7 +164,10 @@ export default function StaffAttendanceScanPage() {
       <h2>Quét mã QR</h2>
       <p>Máy chủ xác minh ca, ngày và thao tác. Ứng dụng chỉ gửi mã QR; không gửi mã nhân viên, phân công, thời gian hoặc thao tác.</p>
       {phase === 'idle' && <Button type="primary" onClick={() => { setNotice(null); setPhase('scanning') }}>Bắt đầu quét</Button>}
-      {phase === 'scanning' && <QrScanner expectedPurpose={QR_PURPOSE.staff} onDecoded={handleDecoded} />}
+      {phase === 'scanning' && <>
+        <Button onClick={resetScanner}>Dừng quét</Button>
+        <QrScanner expectedPurpose={QR_PURPOSE.staff} onDecoded={handleDecoded} />
+      </>}
       {phase === 'previewing' && <div className="admin-management-state"><Spin tip="Đang xác minh mã QR với máy chủ" /></div>}
       {preview && <Descriptions className="staff-schedule-alert" size="small" bordered column={{ xs: 1, sm: 2 }} title="Bối cảnh máy chủ đã xác minh">
         <Descriptions.Item label="Mục đích">{preview.verified.purpose}</Descriptions.Item>
