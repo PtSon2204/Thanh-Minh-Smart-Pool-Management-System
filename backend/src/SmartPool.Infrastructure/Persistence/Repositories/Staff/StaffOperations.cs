@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using AutoMapper;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs;
+using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
@@ -20,11 +22,15 @@ public sealed partial class StaffOperations : IStaffOperations
 {
     private readonly SmartPoolDbContext context;
     private readonly IMapper mapper;
+    private readonly TimeProvider timeProvider;
+    private readonly StaffAttendanceQrSettings attendanceQrSettings;
 
-    public StaffOperations(SmartPoolDbContext context, IMapper mapper)
+    public StaffOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider timeProvider, IOptions<StaffAttendanceQrSettings> attendanceQrSettings)
     {
         this.context = context;
         this.mapper = mapper;
+        this.timeProvider = timeProvider;
+        this.attendanceQrSettings = attendanceQrSettings.Value;
     }
 
     public async Task<PagedResponse<GetStaffsResponse>> GetStaffsAsync(GetStaffsQuery request, CancellationToken cancellationToken)

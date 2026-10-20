@@ -11,5 +11,10 @@ namespace SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance
         public bool CheckIn { get; set; }
         [JsonIgnore]
         public Guid? OwnerId { get; set; }
+        public string? Reason { get; set; }
+        [JsonIgnore]
+        public string Method { get; set; } = string.Empty;
+        [JsonIgnore]
+        public Guid PerformedByUserId { get; set; }
     }
 }

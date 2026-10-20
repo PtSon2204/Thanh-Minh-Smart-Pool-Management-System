@@ -1,6 +1,8 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Mapping;
 using SmartPool.Domain.Entities;
@@ -98,7 +100,8 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
 
     public SmartPoolDbContext CreateContext() => new(options);
 
-    public StaffOperations CreateOperations(SmartPoolDbContext? operationContext = null) => new(operationContext ?? context, mapper);
+    public StaffOperations CreateOperations(SmartPoolDbContext? operationContext = null, TimeProvider? timeProvider = null) =>
+        new(operationContext ?? context, mapper, timeProvider ?? TimeProvider.System, Options.Create(new StaffAttendanceQrSettings()));
 
     public CreateStaffCommand CreateCommand(Guid userId) => new()
     {

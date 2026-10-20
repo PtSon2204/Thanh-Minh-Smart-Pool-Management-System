@@ -29,6 +29,8 @@ public partial class User
 
     public virtual ICollection<Incident> Incidents { get; set; } = new List<Incident>();
 
+    public virtual ICollection<AttendanceLog> PerformedAttendanceLogs { get; set; } = new List<AttendanceLog>();
+
     public virtual ICollection<InventoryLog> InventoryLogs { get; set; } = new List<InventoryLog>();
 
     public virtual ICollection<MaintenanceLog> MaintenanceLogs { get; set; } = new List<MaintenanceLog>();
