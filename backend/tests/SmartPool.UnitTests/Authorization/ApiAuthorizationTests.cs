@@ -84,7 +84,7 @@ public sealed class ApiAuthorizationTests
     {
         var controllers = new[]
         {
-            typeof(ServicesController), typeof(GoodsReceiptsController), typeof(StaffsController), typeof(ShiftsController),
+            typeof(ServicesController), typeof(StaffsController), typeof(ShiftsController),
             typeof(RentalsController), typeof(PoolAccessController), typeof(TicketController),
             typeof(NotificationsController), typeof(PaymentsController), typeof(ReportsController),
             typeof(ProfilesController)

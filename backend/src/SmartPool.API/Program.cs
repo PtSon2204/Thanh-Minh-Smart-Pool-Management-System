@@ -61,7 +61,7 @@ namespace SmartPool.API
             // Thêm tính năng mới? Sửa RolePermissionSeeder.cs là đủ.
             await RolePermissionSeeder.SeedAsync(app.Services);
 
-            app.Run();
+                app.Run();
         }
     }
 }

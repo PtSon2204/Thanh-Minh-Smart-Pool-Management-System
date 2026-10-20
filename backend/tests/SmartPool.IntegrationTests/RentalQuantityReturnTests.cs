@@ -518,7 +518,7 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
             var now = DateTime.UtcNow;
             context.Products.Add(new Product
             {
-                Id = fixture.ProductId, Name = $"QA return {fixture.ProductId:N}", Type = "Rental",
+                Id = fixture.ProductId, Name = $"QA return {fixture.ProductId:N}",
                 Price = 1, StockQuantity = stockQuantity, IsActive = true, IsDeleted = false,
                 CreatedAt = now, UpdatedAt = now
             });
@@ -594,7 +594,7 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
         var now = DateTime.UtcNow;
         context.Products.Add(new Product
         {
-            Id = productId, Name = $"QA return {productId:N}", Type = "Rental", Price = 1,
+            Id = productId, Name = $"QA return {productId:N}", Price = 1,
             StockQuantity = 0, IsActive = true, IsDeleted = false, CreatedAt = now, UpdatedAt = now
         });
         context.OrderDetails.Add(new OrderDetail

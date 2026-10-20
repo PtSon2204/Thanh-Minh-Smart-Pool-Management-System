@@ -41,7 +41,7 @@ const formatCurrency = (val) => {
   return new Intl.NumberFormat('vi-VN').format(val) + ' ₫'
 }
 
-export default function PaymentHistoryPage() {
+export default function PaymentHistoryPage({ isCustomerView = false }) {
   // Query states
   const [pageIndex, setPageIndex] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -245,13 +245,17 @@ export default function PaymentHistoryPage() {
       {/* 1. Ocean Hero Banner */}
       <section className="payment-hero">
         <div className="payment-hero-content">
-          <span className="payment-eyebrow">QUẢN LÝ TÀI CHÍNH & DOANH THU</span>
+          {!isCustomerView && (
+            <span className="payment-eyebrow">QUẢN LÝ TÀI CHÍNH & DOANH THU</span>
+          )}
           <Title level={2} className="payment-hero-title">
-            Lịch sử giao dịch & Thanh toán
+            {isCustomerView ? 'Lịch sử thanh toán' : 'Lịch sử giao dịch & Thanh toán'}
           </Title>
-          <p>
-            Theo dõi dòng tiền, quản lý biên lai và đối soát toàn bộ giao dịch mua vé, thuê đồ tại bể bơi
-          </p>
+          {!isCustomerView && (
+            <p>
+              Theo dõi dòng tiền, quản lý biên lai và đối soát toàn bộ giao dịch mua vé, thuê đồ tại bể bơi
+            </p>
+          )}
         </div>
         <div className="payment-hero-icon">
           <TransactionOutlined />
@@ -259,48 +263,50 @@ export default function PaymentHistoryPage() {
       </section>
 
       {/* 2. Quick KPI Statistics */}
-      <Row gutter={[16, 16]} className="payment-stats">
-        <Col xs={12} sm={6}>
-          <Card className="payment-stat-card payment-stat-revenue">
-            <Statistic
-              title="Doanh thu trang này"
-              value={formatCurrency(stats.completedRevenue)}
-              prefix={<WalletOutlined style={{ color: '#0077b6' }} />}
-              valueStyle={{ color: '#0077b6' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card className="payment-stat-card payment-stat-total">
-            <Statistic
-              title="Tổng giao dịch"
-              value={stats.totalCount}
-              prefix={<TransactionOutlined style={{ color: '#00b4d8' }} />}
-              valueStyle={{ color: '#0f172a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card className="payment-stat-card payment-stat-success">
-            <Statistic
-              title="Thành công (trang này)"
-              value={stats.completedCount}
-              prefix={<CheckCircleOutlined style={{ color: '#10b981' }} />}
-              valueStyle={{ color: '#10b981' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card className="payment-stat-card payment-stat-pending">
-            <Statistic
-              title="Chờ xử lý / Khác"
-              value={stats.pendingOrFailed}
-              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
-              valueStyle={{ color: '#f59e0b' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {!isCustomerView && (
+        <Row gutter={[16, 16]} className="payment-stats">
+          <Col xs={12} sm={6}>
+            <Card className="payment-stat-card payment-stat-revenue">
+              <Statistic
+                title="Doanh thu trang này"
+                value={formatCurrency(stats.completedRevenue)}
+                prefix={<WalletOutlined style={{ color: '#0077b6' }} />}
+                valueStyle={{ color: '#0077b6' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card className="payment-stat-card payment-stat-total">
+              <Statistic
+                title="Tổng giao dịch"
+                value={stats.totalCount}
+                prefix={<TransactionOutlined style={{ color: '#00b4d8' }} />}
+                valueStyle={{ color: '#0f172a' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card className="payment-stat-card payment-stat-success">
+              <Statistic
+                title="Thành công (trang này)"
+                value={stats.completedCount}
+                prefix={<CheckCircleOutlined style={{ color: '#10b981' }} />}
+                valueStyle={{ color: '#10b981' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card className="payment-stat-card payment-stat-pending">
+              <Statistic
+                title="Chờ xử lý / Khác"
+                value={stats.pendingOrFailed}
+                prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+                valueStyle={{ color: '#f59e0b' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       {/* 3. Filter Card */}
       <Card className="payment-filter-card" size="small">

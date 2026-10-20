@@ -26,7 +26,7 @@ export default function AuthPhoto() {
           An toàn · Tiêu chuẩn · Chất lượng
         </div>
         <h2 className="auth-photo-headline">Trải nghiệm bơi lội<br /><span>đẳng cấp</span> tại<br />Thành Minh</h2>
-        <p className="auth-photo-sub">Bể bơi hiện đại với camera AI giám sát an toàn 24/7, dịch vụ cho thuê phụ kiện và đồ ăn nhanh ngay tại chỗ.</p>
+        <p className="auth-photo-sub">Bể bơi hiện đại với camera AI giám sát an toàn 24/7 và dịch vụ cho thuê phụ kiện bơi lội ngay tại chỗ.</p>
       </div>
     </section>
   )

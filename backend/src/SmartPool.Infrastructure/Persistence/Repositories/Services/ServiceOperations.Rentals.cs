@@ -39,7 +39,7 @@ public sealed partial class ServiceOperations
     public async Task<CheckoutRentalResponse> CheckoutRentalAsync(CheckoutRentalCommand command, CancellationToken cancellationToken)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        var stockUpdated = await _context.Database.ExecuteSqlInterpolatedAsync($"UPDATE smart_pool.products SET stock_quantity = stock_quantity - {command.Quantity}, updated_at = now() WHERE id = {command.ProductId} AND type = 'Rental' AND is_active = true AND is_deleted = false AND stock_quantity IS NOT NULL AND stock_quantity >= {command.Quantity}", cancellationToken);
+        var stockUpdated = await _context.Database.ExecuteSqlInterpolatedAsync($"UPDATE smart_pool.products SET stock_quantity = stock_quantity - {command.Quantity}, updated_at = now() WHERE id = {command.ProductId} AND is_active = true AND is_deleted = false AND stock_quantity IS NOT NULL AND stock_quantity >= {command.Quantity}", cancellationToken);
         if (stockUpdated == 0)
         {
             await transaction.RollbackAsync(cancellationToken);
