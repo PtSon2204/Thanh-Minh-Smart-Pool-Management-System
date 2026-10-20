@@ -3,6 +3,10 @@ import apiClient from '../../../services/apiClient'
 const BASE = '/api/tickets'
 
 const ticketService = {
+  checkoutOnline: (data) => apiClient.post(`${BASE}/checkout`, data).then((res) => res.data),
+
+  checkMyOrderStatus: (orderId, signal) => apiClient.get(`${BASE}/me/orders/${orderId}/status`, { signal }).then((res) => res.data),
+
   /** Bán vé tại quầy (Tiền mặt) */
   sellOffline: (data) => apiClient.post(`${BASE}/sell-offline`, data).then((res) => res.data),
   

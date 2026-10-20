@@ -6,6 +6,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useTicketTypes } from '../../features/tickets/hooks/useTicketTypes'
 import { useSellOfflineTicket, useCreatePendingOrder, useOrderStatus } from '../../features/tickets/hooks/useSellOfflineTicket'
 import { useVouchers } from '../../features/vouchers/hooks/useVouchers'
+import { useVoucherClock } from '../../features/vouchers/hooks/useVoucherClock'
+import { getVoucherDiscount, getVoucherError, VoucherStatus } from '../../features/vouchers/utils/voucherValidity'
 
 
 const { Title } = Typography
@@ -40,11 +42,12 @@ export default function OfflineSalesPage() {
   })
 
   const { data: voucherData, isLoading: vouchersLoading } = useVouchers({
-    isActive: true,
+    status: VoucherStatus.ACTIVE,
     pageIndex: 1,
     pageSize: 100,
   })
   const availableVouchers = voucherData?.items || []
+  const now = useVoucherClock()
   
   const ticketTypes = pagedData?.items || []
   
@@ -100,15 +103,10 @@ export default function OfflineSalesPage() {
 
   const totalAmount = cart.reduce((sum, item) => sum + (item.ticketType.price * item.quantity), 0)
 
-  // Tính discount theo Snapshot tại thời điểm áp mã
-  const discountAmount = (() => {
-    if (!appliedVoucher) return 0
-    if (appliedVoucher.minOrderValue && totalAmount < appliedVoucher.minOrderValue) return 0
-    if (appliedVoucher.discountType === 'PERCENTAGE') {
-      return Math.round(totalAmount * appliedVoucher.discountValue / 100)
-    }
-    return Math.min(appliedVoucher.discountValue, totalAmount)
-  })()
+  const currentVoucher = availableVouchers.find(v => v.id === appliedVoucher?.id)
+  const appliedVoucherError = appliedVoucher ? getVoucherError(currentVoucher, totalAmount, now) : null
+  const discountAmount = getVoucherDiscount(currentVoucher, totalAmount, now, true)
+  const validVouchers = availableVouchers.filter(v => !getVoucherError(v, totalAmount, now))
 
   const finalAmount = totalAmount - discountAmount
   const formattedTotal = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(finalAmount)
@@ -119,26 +117,9 @@ export default function OfflineSalesPage() {
     setVoucherError('')
     try {
       const matched = availableVouchers.find(v => v.code === code)
-      if (!matched) {
-        setVoucherError('Mã giảm giá không tồn tại hoặc đã bị khóa.')
-        setAppliedVoucher(null)
-        return
-      }
-      // Kiểm tra hạn sử dụng
-      const now = new Date()
-      if (matched.startDate && new Date(matched.startDate) > now) {
-        setVoucherError('Mã giảm giá chưa đến thời gian sử dụng.')
-        setAppliedVoucher(null)
-        return
-      }
-      if (matched.endDate && new Date(matched.endDate) < now) {
-        setVoucherError('Mã giảm giá đã hết hạn.')
-        setAppliedVoucher(null)
-        return
-      }
-      // Kiểm tra đơn tối thiểu
-      if (matched.minOrderValue && totalAmount < matched.minOrderValue) {
-        setVoucherError(`Đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(matched.minOrderValue)}đ để dùng mã này.`)
+      const error = getVoucherError(matched, totalAmount)
+      if (error) {
+        setVoucherError(error)
         setAppliedVoucher(null)
         return
       }
@@ -163,8 +144,19 @@ export default function OfflineSalesPage() {
   const isValidPhone = customerPhone ? /^0\d{9}$/.test(customerPhone.trim()) : false;
   const canCheckout = cart.length > 0 && (!requiresRegistration || isValidPhone)
 
+  const validateAppliedVoucher = () => {
+    if (!appliedVoucher) return true
+    const error = getVoucherError(currentVoucher, totalAmount)
+    if (!error) return true
+    setVoucherError(error)
+    setAppliedVoucher(null)
+    setPaymentMethodVisible(false)
+    message.error(error)
+    return false
+  }
+
   const handleOpenPaymentMethod = () => {
-    if (!canCheckout) return
+    if (!canCheckout || !validateAppliedVoucher()) return
     setPaymentMethodVisible(true)
   }
 
@@ -176,7 +168,7 @@ export default function OfflineSalesPage() {
   const getOrderSummary = () => cart.map(c => `${c.ticketType.name} x${c.quantity}`).join(', ')
 
   const handlePayCash = () => {
-    if (isSellingCash) return;
+    if (isSellingCash || !validateAppliedVoucher()) return;
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
@@ -213,7 +205,7 @@ export default function OfflineSalesPage() {
   }
 
   const handlePayTransfer = () => {
-    if (isCreatingOrder) return;
+    if (isCreatingOrder || !validateAppliedVoucher()) return;
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
@@ -416,7 +408,7 @@ export default function OfflineSalesPage() {
 
             {/* === KHU VỰC ÁP MÃ GIẢM GIÁ === */}
             <div style={{ marginBottom: 14 }}>
-              {!appliedVoucher ? (
+              {!appliedVoucher || appliedVoucherError ? (
                 <div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Select
@@ -424,12 +416,13 @@ export default function OfflineSalesPage() {
                       allowClear
                       loading={vouchersLoading}
                       placeholder="Chọn mã giảm giá..."
+                      notFoundContent="Hiện không có mã giảm giá nào"
                       optionFilterProp="label"
-                      value={voucherCode || null}
-                      onChange={val => { setVoucherCode(val || ''); setVoucherError('') }}
+                      value={appliedVoucherError ? null : voucherCode || null}
+                      onChange={val => { setVoucherCode(val || ''); setVoucherError(''); setAppliedVoucher(null) }}
                       style={{ flex: 1, minWidth: 200 }}
                       disabled={cart.length === 0}
-                      options={availableVouchers.map(v => ({
+                      options={validVouchers.map(v => ({
                         value: v.code,
                         label: `${v.code} - Giảm ${v.discountType === 'PERCENTAGE' ? v.discountValue + '%' : new Intl.NumberFormat('vi-VN').format(v.discountValue) + 'đ'}`
                       }))}
@@ -444,9 +437,9 @@ export default function OfflineSalesPage() {
                       Áp mã
                     </Button>
                   </div>
-                  {voucherError && (
+                  {(voucherError || appliedVoucherError) && (
                     <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <CloseCircleOutlined /> {voucherError}
+                      <CloseCircleOutlined /> {voucherError || appliedVoucherError}
                     </div>
                   )}
                 </div>

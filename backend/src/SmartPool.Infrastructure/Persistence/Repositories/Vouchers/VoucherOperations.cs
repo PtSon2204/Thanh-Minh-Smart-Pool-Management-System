@@ -1,4 +1,5 @@
 using AutoMapper;
+using SmartPool.Application.Common.Helpers;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageVouchers;
@@ -14,17 +15,20 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
     {
         private readonly SmartPoolDbContext context;
         private readonly IMapper mapper;
+        private readonly TimeProvider timeProvider;
 
-        public VoucherOperations(SmartPoolDbContext context, IMapper mapper)
+        public VoucherOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider timeProvider)
         {
             this.context = context;
             this.mapper = mapper;
+            this.timeProvider = timeProvider;
         }
 
         private static (int Page, int PageSize) Normalize(int page, int pageSize) => (Math.Max(1, page), Math.Clamp(pageSize, 1, 100));
 
         public async Task<PagedResponse<GetVouchersResponse>> GetAllVouchersAsync(GetAllVouchersQuery request, CancellationToken cancellationToken)
         {
+            var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
             var query = context.Vouchers.AsNoTracking().Where(v => v.IsDeleted != true).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -37,6 +41,11 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 query = query.Where(v => v.IsActive == request.IsActive.Value);
             }
 
+            if (request.Status is not null)
+            {
+                query = query.Where(VoucherValidityPolicy.WithStatus(request.Status, nowUtc));
+            }
+
             var total = await query.CountAsync(cancellationToken);
             var page = Normalize(request.PageIndex, request.PageSize);
             
@@ -46,9 +55,15 @@ namespace SmartPool.Infrastructure.Persistence.Repositories
                 .Take(page.PageSize)
                 .ToListAsync(cancellationToken);
 
+            var items = mapper.Map<List<GetVouchersResponse>>(rows);
+            for (var index = 0; index < rows.Count; index++)
+            {
+                items[index].Status = VoucherValidityPolicy.GetStatus(rows[index], nowUtc);
+            }
+
             return new PagedResponse<GetVouchersResponse>
             {
-                Items = mapper.Map<List<GetVouchersResponse>>(rows),
+                Items = items,
                 TotalCount = total,
                 PageIndex = page.Page,
                 PageSize = page.PageSize

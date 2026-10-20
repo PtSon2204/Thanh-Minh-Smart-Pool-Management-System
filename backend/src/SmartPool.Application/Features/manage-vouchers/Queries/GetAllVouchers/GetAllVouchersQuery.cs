@@ -9,5 +9,6 @@ namespace SmartPool.Application.Features.ManageVouchers.Queries.GetAllVouchers
         public int PageSize { get; set; } = 20;
         public string? SearchTerm { get; set; }
         public bool? IsActive { get; set; }
+        public string? Status { get; set; }
     }
 }
