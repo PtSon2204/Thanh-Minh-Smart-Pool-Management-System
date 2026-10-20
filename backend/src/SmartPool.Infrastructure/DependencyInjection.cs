@@ -144,6 +144,7 @@ namespace SmartPool.Infrastructure
 
             // Access token generation for login
             services.AddScoped<IAccessTokenService, AccessTokenService>();
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
             // Identity of the authenticated caller in the current HTTP request
             services.AddHttpContextAccessor();
@@ -164,11 +165,14 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
             services.AddScoped<IEquipmentOperations, EquipmentOperations>();
+            services.AddScoped<IGoodsReceiptOperations, GoodsReceiptOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();
             services.AddScoped<IPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.PaymentOperations>();
+            services.AddScoped<IOrderPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.OrderPaymentOperations>();
+            services.AddHostedService<ExpiredOnlineOrderWorker>();
 
             return services;
         }

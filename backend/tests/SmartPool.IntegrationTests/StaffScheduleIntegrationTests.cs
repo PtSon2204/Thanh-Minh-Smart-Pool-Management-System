@@ -20,7 +20,7 @@ public sealed class StaffScheduleIntegrationTests
                 setupContext.Employees.Add(new Employee
                 {
                     UserId = fixture.EligibleStaffUserId,
-                    BaseSalary = 10000000,
+
                     JoinDate = new DateOnly(2026, 10, 5),
                     Status = "Working"
                 });

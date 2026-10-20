@@ -142,7 +142,7 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
             Assert.Contains(result.Errors, error => error.PropertyName == "Name");
         }
 
-        [Fact(DisplayName = "UTCID07 (A) - Tên chứa dấu ngoặc -> Báo lỗi Name")]
+        [Fact(DisplayName = "UTCID07 (N) - Tên chứa dấu ngoặc -> Hợp lệ")]
         public void Validate_NameWithParentheses()
         {
             var command = ValidCommand();
@@ -150,8 +150,7 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
 
             var result = new CreateTicketTypeValidator().Validate(command);
 
-            Assert.False(result.IsValid);
-            Assert.Contains(result.Errors, error => error.PropertyName == "Name");
+            Assert.True(result.IsValid);
         }
 
         [Fact(DisplayName = "UTCID08 (A) - Tên chứa ký tự đặc biệt -> Báo lỗi Name")]
@@ -266,6 +265,7 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
         {
             var command = ValidCommand();
             command.TicketCategory = TicketCategoryEnum.VE_LUOT;
+            command.DurationDays = 1;
 
             var result = new CreateTicketTypeValidator().Validate(command);
 
@@ -319,8 +319,8 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
             Assert.True(result.IsValid);
         }
 
-        [Fact(DisplayName = "UTCID22 (N) - Hiệu lực null -> Hợp lệ")]
-        public void Validate_UnlimitedDuration()
+        [Fact(DisplayName = "UTCID22 (N) - Không gửi hiệu lực -> Hợp lệ và được tự xác định theo loại vé")]
+        public void Validate_OmittedDuration()
         {
             var command = ValidCommand();
             command.DurationDays = null;
@@ -334,6 +334,7 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
         public void Validate_MinimumDuration()
         {
             var command = ValidCommand();
+            command.TicketCategory = TicketCategoryEnum.VE_LUOT;
             command.DurationDays = 1;
 
             var result = new CreateTicketTypeValidator().Validate(command);
@@ -363,6 +364,45 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
 
             Assert.False(result.IsValid);
             Assert.Contains(result.Errors, error => error.PropertyName == "DurationDays");
+        }
+
+        [Fact(DisplayName = "UTCID26 (A) - Vé lượt gửi 30 ngày -> Báo lỗi DurationDays")]
+        public void Validate_SingleUseWithMonthlyDuration_ReturnsError()
+        {
+            var command = ValidCommand();
+            command.TicketCategory = TicketCategoryEnum.VE_LUOT;
+            var result = new CreateTicketTypeValidator().Validate(command);
+            Assert.Contains(result.Errors, error => error.PropertyName == "DurationDays");
+        }
+
+        [Fact(DisplayName = "UTCID27 (A) - Vé tháng gửi 1 ngày -> Báo lỗi DurationDays")]
+        public void Validate_MonthlyWithSingleUseDuration_ReturnsError()
+        {
+            var command = ValidCommand();
+            command.DurationDays = 1;
+            var result = new CreateTicketTypeValidator().Validate(command);
+            Assert.Contains(result.Errors, error => error.PropertyName == "DurationDays");
+        }
+
+        [Theory(DisplayName = "UTCID28 (N) - Tạo vé -> Server tự đặt hiệu lực theo phân loại")]
+        [InlineData(TicketCategoryEnum.VE_THANG, null, 30)]
+        [InlineData(TicketCategoryEnum.VE_LUOT, null, 1)]
+        [InlineData(TicketCategoryEnum.VE_THANG, 1, 30)]
+        [InlineData(TicketCategoryEnum.VE_LUOT, 30, 1)]
+        public async Task Handle_DerivesDurationFromCategory(TicketCategoryEnum category, int? suppliedDays, int expectedDays)
+        {
+            var repo = new Mock<IRepository<TicketTypeEntity>>();
+            TicketTypeEntity? saved = null;
+            repo.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
+                .Callback<TicketTypeEntity, CancellationToken>((entity, _) => saved = entity)
+                .Returns(Task.CompletedTask);
+            var command = ValidCommand();
+            command.TicketCategory = category;
+            command.DurationDays = suppliedDays;
+            var result = await new CreateTicketTypeHandler(repo.Object, _mockUow.Object, TicketTypeTestSupport.Mapper())
+                .Handle(command, CancellationToken.None);
+            Assert.Equal(expectedDays, saved!.DurationDays);
+            Assert.Equal(expectedDays, result.DurationDays);
         }
 
         private static CreateTicketTypeCommand ValidCommand() => new()

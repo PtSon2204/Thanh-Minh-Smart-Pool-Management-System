@@ -3,7 +3,7 @@ import { Modal, Form, Input, Select, InputNumber } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import { useCreateTicketType } from '../hooks/useCreateTicketType'
 import { useUpdateTicketType } from '../hooks/useTicketTypeMutations'
-import { TicketCategoryOptions } from '../types/ticketType'
+import { TicketCategoryOptions, TicketValidityLabel } from '../types/ticketType'
 
 /**
  * Modal form để thêm mới / sửa loại vé.
@@ -14,6 +14,7 @@ import { TicketCategoryOptions } from '../types/ticketType'
  */
 export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
   const [form] = Form.useForm()
+  const ticketCategory = Form.useWatch('ticketCategory', form)
   
   const { mutate: createTicketType, isPending: isCreating } = useCreateTicketType()
   const { mutate: updateTicketType, isPending: isUpdating } = useUpdateTicketType()
@@ -38,7 +39,6 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
         name:           values.name,
         ticketCategory: values.ticketCategory,
         price:          values.price,
-        durationDays:   values.durationDays ?? null,
       }
 
       if (isEditMode) {
@@ -90,19 +90,19 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
         style: { background: '#005f8e', borderColor: '#005f8e' }
       }}
     >
-      <Form form={form} layout="vertical" initialValues={{ durationDays: null }}>
+      <Form form={form} layout="vertical">
         {/* Tên loại vé */}
         <Form.Item
           label="Tên loại vé"
           name="name"
-          normalize={(value) => value.normalize('NFC').replace(/[^\p{L}\p{M}\p{Nd} ]/gu, '').slice(0, 30)}
+          normalize={(value) => value.normalize('NFC').replace(/[^\p{L}\p{M}\p{Nd} ()]/gu, '').slice(0, 30)}
           rules={[
             { required: true, whitespace: true, message: 'Vui lòng nhập tên loại vé.' },
             { max: 30, message: 'Tên loại vé không được vượt quá 30 ký tự.' },
-            { pattern: /^[\p{L}\p{M}\p{Nd} ]+$/u, message: 'Tên loại vé chỉ được chứa chữ, số và khoảng trắng.' },
+            { pattern: /^[\p{L}\p{M}\p{Nd} ()]+$/u, message: 'Tên loại vé chỉ được chứa chữ, số, khoảng trắng và dấu ngoặc ().' },
           ]}
         >
-          <Input placeholder="Ví dụ: Vé tháng 30 ngày" maxLength={30} showCount />
+          <Input placeholder="Ví dụ: Vé tháng (30 ngày)" maxLength={30} showCount />
         </Form.Item>
 
         {/* Phân loại */}
@@ -133,16 +133,8 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
             />
           </Form.Item>
 
-          <Form.Item
-            label="Hiệu lực (ngày)"
-            name="durationDays"
-            extra="Để trống nếu không giới hạn"
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={1}
-              placeholder="30"
-            />
+          <Form.Item label="Hiệu lực" extra="Tự động theo phân loại vé">
+            <Input readOnly value={TicketValidityLabel[ticketCategory] ?? ''} placeholder="Chọn phân loại vé" />
           </Form.Item>
         </div>
       </Form>

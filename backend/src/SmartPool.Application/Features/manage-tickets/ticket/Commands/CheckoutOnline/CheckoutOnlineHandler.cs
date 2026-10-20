@@ -2,14 +2,14 @@
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
-using SmartPool.Application.Common.Time;
+using SmartPool.Application.Common.Helpers;
+using SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPendingOrder;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutOnline
 {
@@ -22,7 +22,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
         private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly TimeProvider _timeProvider;
-        private readonly IMemoryCache _memoryCache;
+        private readonly ISender _sender;
 
         public CheckoutOnlineHandler(
             IRepository<Domain.Entities.TicketType> ticketTypeRepo,
@@ -32,7 +32,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             IRepository<Domain.Entities.Voucher> voucherRepo,
             IUnitOfWork unitOfWork,
             TimeProvider timeProvider,
-            IMemoryCache memoryCache)
+            ISender sender)
         {
             _ticketTypeRepo = ticketTypeRepo;
             _orderRepo = orderRepo;
@@ -41,11 +41,13 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             _voucherRepo = voucherRepo;
             _unitOfWork = unitOfWork;
             _timeProvider = timeProvider;
-            _memoryCache = memoryCache;
+            _sender = sender;
         }
 
         public async Task<CheckoutOnlineResponse> Handle(CheckoutOnlineCommand request, CancellationToken cancellationToken)
         {
+            if (request.Items == null || request.Items.Count == 0 || request.Items.Any(item => item.Quantity <= 0))
+                throw new ArgumentException("Giỏ hàng phải có vé với số lượng lớn hơn 0.");
             decimal totalAmount = 0;
             var validatedItems = new List<(Domain.Entities.TicketType Type, int Quantity)>();
 
@@ -69,11 +71,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             {
                 var now = _timeProvider.GetUtcNow().UtcDateTime;
                 var voucher = await _voucherRepo.FirstOrDefaultAsync(
-                    v => v.Code == request.VoucherCode
-                         && v.IsDeleted != true
-                         && v.IsActive == true
-                         && (v.StartDate == null || v.StartDate <= now)
-                         && (v.EndDate == null || v.EndDate >= now),
+                    VoucherValidityPolicy.UsableCodeAt(request.VoucherCode, now),
                     cancellationToken)
                     ?? throw new InvalidOperationException($"Mã giảm giá '{request.VoucherCode}' không hợp lệ hoặc đã hết hạn.");
 
@@ -90,6 +88,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
 
             decimal finalAmount = totalAmount - discountAmount;
             if (finalAmount < 0) finalAmount = 0;
+            discountAmount = totalAmount - finalAmount;
+            var createdAt = _timeProvider.GetUtcNow().UtcDateTime;
 
             // SePay webhook looks for "SPxxxxxx"
             var transactionRef = "SP" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
@@ -103,7 +103,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                 DiscountAmount = discountAmount,
                 FinalAmount = finalAmount,
                 Status = OrderStatusEnum.PENDING.ToString(),
-                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
+                CreatedAt = createdAt,
                 IsDeleted = false
             };
 
@@ -119,7 +119,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                     ItemId = vItem.Type.Id,
                     Quantity = vItem.Quantity,
                     UnitPrice = vItem.Type.Price,
-                    CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+                    CreatedAt = createdAt
                 };
                 await _orderDetailRepo.AddAsync(detail, cancellationToken);
             }
@@ -132,15 +132,23 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                 Amount = finalAmount,
                 TransactionRef = transactionRef,
                 Status = PaymentStatusEnum.PENDING.ToString(),
-                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+                CreatedAt = createdAt
             };
 
             await _paymentRepo.AddAsync(payment, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Caching for ticket generation logic later in ConfirmPendingOrderHandler
-            // We just store the expected StartDate as UtcNow, so Webhook knows when it was ordered
-            _memoryCache.Set($"OrderStartDate_{order.Id}", _timeProvider.GetUtcNow().UtcDateTime, TimeSpan.FromDays(1));
+            // A fully discounted order needs no bank transfer or QR waiting period.
+            ConfirmPendingOrderResponse? confirmation = null;
+            if (finalAmount == 0)
+            {
+                confirmation = await _sender.Send(new ConfirmPendingOrderCommand
+                {
+                    TransactionRef = transactionRef,
+                    ActualAmount = 0
+                }, cancellationToken);
+                if (!confirmation.Success) throw new InvalidOperationException(confirmation.Message);
+            }
 
             return new CheckoutOnlineResponse
             {
@@ -148,7 +156,22 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                 Message = "Tạo đơn hàng chờ thanh toán thành công.",
                 OrderId = order.Id,
                 TotalAmount = finalAmount,
-                TransactionRef = transactionRef // We need to add this property!
+                TransactionRef = transactionRef,
+                Status = confirmation == null ? "PENDING" : "COMPLETED",
+                Subtotal = totalAmount,
+                DiscountAmount = discountAmount,
+                FinalAmount = finalAmount,
+                RemainingAmount = finalAmount,
+                ExpiresAtUtc = OnlineOrderPaymentPolicy.GetExpiresAtUtc(order, payment),
+                ServerTimeUtc = _timeProvider.GetUtcNow().UtcDateTime,
+                Items = validatedItems.Select(item => new OnlineOrderItemDto
+                {
+                    TicketTypeId = item.Type.Id,
+                    Name = item.Type.Name,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.Type.Price
+                }).ToList(),
+                Tickets = confirmation?.Tickets ?? []
             };
         }
     }

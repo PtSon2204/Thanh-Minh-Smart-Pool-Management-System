@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.Application.Features.Authentication.Commands.ChangePassword;
 using SmartPool.Application.Features.Authentication.Commands.Login;
+using SmartPool.Application.Features.Authentication.Commands.Logout;
 using SmartPool.Application.Features.Authentication.Commands.PasswordReset;
+using SmartPool.Application.Features.Authentication.Commands.Refresh;
 using SmartPool.Application.Features.Authentication.Commands.Register;
 using SmartPool.Application.Features.Authentication.Commands.Register.ResendOTP;
 using SmartPool.Application.Features.Authentication.Commands.Register.VerifyOTP;
@@ -21,8 +23,8 @@ public sealed class AuthController : ControllerBase
         _sender = sender;
     }
 
-    /// <summary>Đăng nhập bằng username, email hoặc số điện thoại và nhận access JWT.</summary>
-    /// <response code="200">Đăng nhập thành công; trả thông tin tài khoản và access token.</response>
+    /// <summary>Đăng nhập bằng username, email hoặc số điện thoại và nhận access token cùng refresh token.</summary>
+    /// <response code="200">Đăng nhập thành công; trả thông tin tài khoản, hai token và thời hạn của chúng.</response>
     /// <response code="400">Thiếu hoặc sai định dạng dữ liệu đăng nhập.</response>
     /// <response code="401">Thông tin đăng nhập không hợp lệ hoặc tài khoản không khả dụng.</response>
     [AllowAnonymous]
@@ -32,6 +34,36 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public Task<IActionResult> Login(
         [FromBody] LoginCommand command,
+        CancellationToken cancellationToken)
+    {
+        return _sender.Send(command, cancellationToken);
+    }
+
+    /// <summary>Dùng refresh token còn hiệu lực để nhận cặp token mới.</summary>
+    /// <response code="200">Đã thu hồi refresh token cũ và trả cặp token mới.</response>
+    /// <response code="400">Thiếu refresh token hoặc dữ liệu không hợp lệ.</response>
+    /// <response code="401">Refresh token không hợp lệ, đã hết hạn, đã dùng hoặc tài khoản không khả dụng.</response>
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(RefreshResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public Task<IActionResult> Refresh(
+        [FromBody] RefreshCommand command,
+        CancellationToken cancellationToken)
+    {
+        return _sender.Send(command, cancellationToken);
+    }
+
+    /// <summary>Thu hồi refresh token của phiên hiện tại.</summary>
+    /// <response code="204">Đã xử lý yêu cầu đăng xuất.</response>
+    /// <response code="400">Thiếu refresh token hoặc dữ liệu không hợp lệ.</response>
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public Task<IActionResult> Logout(
+        [FromBody] LogoutCommand command,
         CancellationToken cancellationToken)
     {
         return _sender.Send(command, cancellationToken);
@@ -167,8 +199,8 @@ public sealed class AuthController : ControllerBase
         return _sender.Send(command, cancellationToken);
     }
 
-    /// <summary>Đổi mật khẩu bằng reset token đã xác minh, sau đó vô hiệu các access JWT cũ.</summary>
-    /// <response code="204">Mật khẩu đã đổi; reset token đã được tiêu thụ.</response>
+    /// <summary>Đổi mật khẩu bằng reset token đã xác minh; vô hiệu access JWT và thu hồi refresh token cũ.</summary>
+    /// <response code="204">Mật khẩu đã đổi, refresh token cũ đã bị thu hồi; reset token đã được tiêu thụ.</response>
     /// <response code="400">Dữ liệu hoặc reset token không hợp lệ.</response>
     /// <response code="409">Tài khoản đã thay đổi hoặc một yêu cầu khác đang xử lý.</response>
     /// <response code="410">Phiên hoặc reset token đã hết hạn.</response>
@@ -187,8 +219,11 @@ public sealed class AuthController : ControllerBase
         return _sender.Send(command, cancellationToken);
     }
 
+    /// <summary>Đổi mật khẩu và thu hồi các refresh token cũ của tài khoản.</summary>
     [Authorize]
     [HttpPut("change-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ChangePassword(
         [FromBody] ChangePasswordCommand command,
         CancellationToken cancellationToken)

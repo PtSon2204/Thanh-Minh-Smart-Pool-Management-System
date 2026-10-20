@@ -6,5 +6,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderSt
     public class GetOrderStatusQuery : IRequest<GetOrderStatusResponse>
     {
         public Guid OrderId { get; set; }
+        public Guid? UserId { get; set; }
     }
 }

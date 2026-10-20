@@ -18,6 +18,7 @@ import DashboardPage from "./pages/admin/DashboardPage";
 import OfflineSalesPage from "./pages/admin/OfflineSalesPage";
 import TicketTypePage from "./pages/admin/TicketTypePage";
 import ServicePage from "./pages/admin/ServicePage";
+import GoodsReceiptsPage from './pages/admin/GoodsReceiptsPage'
 import InventoryPage from "./pages/admin/InventoryPage";
 import RentalPage from "./pages/admin/RentalPage";
 import VoucherPage from "./pages/admin/VoucherPage";
@@ -25,6 +26,8 @@ import NotificationPage from "./pages/admin/NotificationPage";
 import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsPage";
 import TicketRevenueStatisticsPage from "./pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "./pages/admin/statistics/MonthlyTicketsPage";
+import IncidentStatisticsPage from "./pages/admin/statistics/IncidentStatisticsPage";
+import OperationCostsStatisticsPage from "./pages/admin/statistics/OperationCostsStatisticsPage";
 import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
 import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
@@ -75,12 +78,16 @@ const router = createBrowserRouter([
           { path: 'tickets/types', element: <TicketTypePage /> },
           { path: 'services', element: <ServicePage /> },
           { path: 'inventory', element: <InventoryPage /> },
+          { path: 'inventory/receipts', element: <GoodsReceiptsPage /> },
+          { path: 'staff/attendance', element: <StaffAttendancePage /> },
           { path: 'rentals', element: <RentalPage /> },
           { path: 'coupons', element: <VoucherPage /> },
           { path: 'notifications', element: <NotificationPage /> },
           { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
           { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
           { path: 'statistics/monthly-tickets', element: <MonthlyTicketsPage /> },
+          { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
+          { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
           { path: 'staff/profiles', element: <StaffProfilesPage /> },
           { path: 'staff/shifts', element: <ShiftManagementPage /> },
           { path: 'staff/schedule', element: <StaffSchedulePage /> },
@@ -90,6 +97,7 @@ const router = createBrowserRouter([
             children: [
               { path: 'equipment', element: <EquipmentPage /> },
               { path: 'staff/attendance', element: <StaffAttendancePage /> },
+
               { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },
               { path: 'users', element: <UserManagementPage /> },
               { path: 'roles/permissions', element: <RolePermissionsPage /> },

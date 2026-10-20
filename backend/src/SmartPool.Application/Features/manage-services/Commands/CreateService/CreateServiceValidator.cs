@@ -11,9 +11,8 @@ namespace SmartPool.Application.Features.ManageServices.Commands.CreateService
             RuleFor(command => command.Type).Must(type => type is "Sale" or "Rental")
                 .WithMessage("Loại dịch vụ phải là Sale hoặc Rental.");
             RuleFor(command => command.Price).GreaterThanOrEqualTo(0).WithMessage("Giá dịch vụ không được âm.");
-            RuleFor(command => command.StockQuantity).GreaterThanOrEqualTo(0)
-                .When(command => command.StockQuantity.HasValue)
-                .WithMessage("Số lượng tồn kho không được âm.");
+            RuleFor(command => command.StockQuantity).Must(quantity => quantity is null or 0)
+                .WithMessage("Sản phẩm mới bắt đầu với tồn kho 0. Hãy lập phiếu nhập để ghi nhận số lượng và giá nhập.");
         }
     }
 }

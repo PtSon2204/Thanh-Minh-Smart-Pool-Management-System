@@ -1,0 +1,8 @@
+.goods-receipt-filters { margin-bottom: 20px; }
+.goods-receipt-filters .ant-select { min-width: 180px; }
+.goods-receipt-line { display: grid; grid-template-columns: minmax(200px, 2fr) 1fr 1.5fr auto; gap: 12px; align-items: center; margin-top: 18px; }
+.goods-receipt-details { margin-top: 20px; margin-bottom: 16px; }
+@media (max-width: 650px) {
+  .goods-receipt-line { grid-template-columns: 1fr 1fr; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .goods-receipt-line > :first-child { grid-column: 1 / -1; }
+}

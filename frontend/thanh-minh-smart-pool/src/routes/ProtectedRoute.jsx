@@ -1,21 +1,28 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { useAuthStore } from '../features/auth/store/authStore'
+import { hasValidAccessToken, hasValidRefreshToken, useAuthStore } from '../features/auth/store/authStore'
+import { refreshSession } from '../services/apiClient'
 
 export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
   const session = useAuthStore((state) => state.session)
+  const [refreshFailed, setRefreshFailed] = useState(false)
   const location = useLocation()
   const unauthenticatedRedirectTo = redirectTo ?? '/dang-nhap'
   const forbiddenRedirectTo = redirectTo ?? '/401'
 
-  // 1. Kiểm tra trạng thái đăng nhập
-  const hasToken = Boolean(session?.accessToken)
+  const hasToken = hasValidAccessToken(session) || hasValidRefreshToken(session)
 
   useEffect(() => {
-    if (session?.expiresAtUtc && Date.parse(session.expiresAtUtc) <= Date.now()) {
+    if (session && !hasToken) {
       useAuthStore.getState().setSession(null)
+    } else if (session && !hasValidAccessToken(session) && hasValidRefreshToken(session)) {
+      let active = true
+      void refreshSession()
+        .then(() => { if (active) setRefreshFailed(false) })
+        .catch(() => { if (active) setRefreshFailed(true) })
+      return () => { active = false }
     }
-  }, [session])
+  }, [session, hasToken])
 
   if (!hasToken) {
     return (
@@ -27,6 +34,22 @@ export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
           message: 'Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập.',
         }}
       />
+    )
+  }
+
+  if (!hasValidAccessToken(session)) {
+    return (
+      <div role="status">
+        {refreshFailed ? (
+          <>
+            <p>Không thể làm mới phiên đăng nhập.</p>
+            <button type="button" onClick={() => {
+              setRefreshFailed(false)
+              void refreshSession().catch(() => setRefreshFailed(true))
+            }}>Thử lại</button>
+          </>
+        ) : <p>Đang làm mới phiên đăng nhập...</p>}
+      </div>
     )
   }
 

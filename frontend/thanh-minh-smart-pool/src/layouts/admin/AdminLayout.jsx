@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Badge } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Badge, message } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -20,6 +20,7 @@ import {
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
+import authService from '../../features/auth/services/authService';
 import './AdminLayout.css';
 
 const { Header, Sider, Content } = Layout;
@@ -54,7 +55,7 @@ export default function AdminLayout() {
     return () => clearInterval(interval);
   }, [location.pathname]);
 
-  const { session, setSession } = useAuthStore();
+  const { session } = useAuthStore();
   const navigate = useNavigate();
   const role = session?.role?.toUpperCase();
   const isAdmin = role === 'ADMIN';
@@ -87,13 +88,13 @@ export default function AdminLayout() {
       icon: <TeamOutlined />,
       label: 'Quản lý nhân viên',
       children: [
-        isAdmin && {
+        {
           key: 'staff-attendance',
-          label: 'Chấm công hôm nay',
+          label: isAdmin ? 'Chấm công nhân viên' : 'Check-in / Check-out',
           children: [
-            { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Chấm công thủ công</Link> },
-            { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
-          ],
+            { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Check-in / Check-out</Link> },
+            isAdmin && { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
+          ].filter(Boolean),
         },
         { key: '/admin/staff/shifts', label: <Link to="/admin/staff/shifts">Ca làm việc</Link> },
         { key: '/admin/staff/schedule', label: <Link to="/admin/staff/schedule">Lịch làm việc</Link> },
@@ -107,7 +108,6 @@ export default function AdminLayout() {
       children: [
         { key: '/admin/tickets/scanQR', label: <Link to="/admin/tickets/scanQR">Quét QR vào cổng</Link> },
         { key: '/admin/tickets/types', label: <Link to="/admin/tickets/types">Loại vé</Link> },
-        { key: '/admin/tickets/renewals', label: <Link to="/admin/tickets/renewals">Gia hạn vé</Link> },
         { key: '/admin/tickets/pos', label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link> },
       ],
     },
@@ -129,6 +129,7 @@ export default function AdminLayout() {
       children: [
         { key: '/admin/services', label: <Link to="/admin/services">Danh mục dịch vụ</Link> },
         { key: '/admin/inventory', label: <Link to="/admin/inventory">Tồn kho và lịch sử</Link> },
+        { key: '/admin/inventory/receipts', label: <Link to="/admin/inventory/receipts">Phiếu nhập hàng</Link> },
         { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },
@@ -161,14 +162,22 @@ export default function AdminLayout() {
     },
   ].filter(Boolean);
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      message.warning('Không thể xác nhận đăng xuất với máy chủ. Phiên trên thiết bị đã được xóa.');
+    }
+    navigate('/dang-nhap', { replace: true });
+  };
+
   const handleUserMenuClick = ({ key }) => {
     if (key === 'profile') {
       navigate('/ho-so');
     } else if (key === 'change-password') {
       navigate('/admin/doi-mat-khau');
     } else if (key === 'logout') {
-      setSession(null);
-      navigate('/dang-nhap', { replace: true });
+      void handleLogout();
     }
   };
 

@@ -9,6 +9,10 @@ public partial class InventoryLog
 
     public Guid ProductId { get; set; }
 
+    public Guid? ReceiptDetailId { get; set; }
+
+    public virtual GoodsReceiptDetail? ReceiptDetail { get; set; }
+
     public string ChangeType { get; set; } = null!;
 
     public int Quantity { get; set; }

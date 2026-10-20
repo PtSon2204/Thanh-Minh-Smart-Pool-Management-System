@@ -12,9 +12,7 @@ using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
-using SmartPool.Application.Features.ManageStaffs.Commands.SaveSalary;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
-using SmartPool.Application.Features.ManageStaffs.Queries.GetSalaries;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
@@ -157,36 +155,6 @@ namespace SmartPool.API.Controllers
                 RequireEmployee = true
             };
             return await SendAsync(query, cancellationToken);
-        }
-
-        /// <summary>Lấy danh sách bảng lương có phân trang và lọc.</summary>
-        [HttpGet("salaries")]
-        [RequirePermission("salaries", "read")]
-        [ProducesResponseType(typeof(PagedResponse<GetSalariesResponse>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetSalaries([FromQuery] GetSalariesQuery query, CancellationToken cancellationToken)
-        {
-            return await SendAsync(query, cancellationToken);
-        }
-
-        /// <summary>Tạo bảng lương cho nhân viên.</summary>
-        [HttpPost("{userId:guid}/salaries")]
-        [RequirePermission("salaries", "create")]
-        [ProducesResponseType(typeof(SaveSalaryResponse), StatusCodes.Status201Created)]
-        public async Task<IActionResult> CreateSalary(Guid userId, [FromBody] SaveSalaryCommand command, CancellationToken cancellationToken)
-        {
-            command.UserId = userId;
-            return await SendAsync(command, cancellationToken, StatusCodes.Status201Created);
-        }
-
-        /// <summary>Cập nhật bảng lương của nhân viên.</summary>
-        [HttpPut("{userId:guid}/salaries/{id:guid}")]
-        [RequirePermission("salaries", "update")]
-        [ProducesResponseType(typeof(SaveSalaryResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> UpdateSalary(Guid userId, Guid id, [FromBody] SaveSalaryCommand command, CancellationToken cancellationToken)
-        {
-            command.UserId = userId;
-            command.Id = id;
-            return await SendAsync(command, cancellationToken);
         }
 
         private async Task<IActionResult> AttendAsync(Guid id, bool checkIn, CancellationToken cancellationToken)

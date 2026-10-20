@@ -1,11 +1,11 @@
 import { Modal, Descriptions, Tag } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
-import { TicketCategoryLabel, TicketCategoryColor } from '../types/ticketType'
+import { TicketCategoryLabel, TicketCategoryColor, TicketValidityLabel } from '../types/ticketType'
 
 export default function TicketTypeDetailModal({ open, onClose, ticketType }) {
   if (!ticketType) return null
 
-  const { name, ticketCategory, price, durationDays, isActive, createdAt, updatedAt } = ticketType
+  const { name, ticketCategory, price, isActive, createdAt, updatedAt } = ticketType
 
   const formattedPrice = new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -46,7 +46,7 @@ export default function TicketTypeDetailModal({ open, onClose, ticketType }) {
         </Descriptions.Item>
         <Descriptions.Item label="Giá vé">{formattedPrice}</Descriptions.Item>
         <Descriptions.Item label="Thời hạn">
-          {durationDays ? `${durationDays} ngày` : 'Không giới hạn'}
+          {TicketValidityLabel[ticketCategory] ?? '—'}
         </Descriptions.Item>
         <Descriptions.Item label="Ngày tạo">
           {createdAt ? new Date(createdAt).toLocaleString('vi-VN') : '—'}

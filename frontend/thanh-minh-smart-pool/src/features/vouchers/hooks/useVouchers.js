@@ -3,9 +3,11 @@ import voucherService from '../services/voucherService'
 
 export const VOUCHERS_QUERY_KEY = ['vouchers']
 
-export function useVouchers(params) {
+export function useVouchers(params, options = {}) {
   return useQuery({
     queryKey: [...VOUCHERS_QUERY_KEY, params],
     queryFn: () => voucherService.getAll(params),
+    refetchInterval: 30000,
+    ...options,
   })
 }

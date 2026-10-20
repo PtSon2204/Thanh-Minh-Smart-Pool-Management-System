@@ -18,7 +18,7 @@ public sealed class StaffEmploymentIntegrationTests
             await fixture.CreateOperations().UpdateStaffAsync(new UpdateStaffCommand
             {
                 UserId = fixture.EligibleStaffUserId,
-                BaseSalary = 12500000,
+
                 Status = "Inactive"
             }, CancellationToken.None);
 
@@ -26,8 +26,8 @@ public sealed class StaffEmploymentIntegrationTests
             var employee = await fixture.ReadEmployeeAsync(fixture.EligibleStaffUserId);
 
             Assert.Equal(before, after);
-            Assert.Equal((new DateOnly(2026, 10, 5), 12500000m, "Inactive"),
-                (employee.JoinDate, employee.BaseSalary, employee.Status));
+            Assert.Equal((new DateOnly(2026, 10, 5), "Inactive"),
+                (employee.JoinDate, employee.Status));
         }
         finally
         {

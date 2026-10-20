@@ -70,6 +70,27 @@ namespace SmartPool.API.Controllers
             }
         }
 
+        /// <summary>Khách hàng kiểm tra đơn thuộc tài khoản của mình.</summary>
+        [HttpGet("me/orders/{orderId:guid}/status")]
+        [RequirePermission("customer_tickets", "read")]
+        public async Task<IActionResult> GetMyOrderStatus(Guid orderId, CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+            try
+            {
+                var result = await _sender.Send(new SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderStatus.GetOrderStatusQuery
+                {
+                    OrderId = orderId,
+                    UserId = userId
+                }, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Không tìm thấy đơn hàng." });
+            }
+        }
+
         /// <summary>Thanh toán và tạo vé online (Cho Customer).</summary>
         [HttpPost("checkout")]
         [RequirePermission("customer_tickets", "create")]

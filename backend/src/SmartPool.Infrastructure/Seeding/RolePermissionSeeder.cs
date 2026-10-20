@@ -30,7 +30,6 @@ public static class RolePermissionSeeder
                 ["staff"]            = ["read", "create", "update"],
                 ["shifts"]           = ["read", "create", "update"],
                 ["staff_schedule"]   = ["read", "create", "delete"],
-                ["salaries"]         = ["read", "create", "update"],
                 ["attendance"]       = ["read", "update"],
                 ["ticket_lookup"]    = ["read"],
                 ["pool_entry"]       = ["read", "create"],
@@ -110,7 +109,7 @@ public static class RolePermissionSeeder
             var current = ParsePermissions(role.Permissions);
 
             // Merge: chỉ thêm action còn thiếu, giữ nguyên những gì đã có
-            bool changed = false;
+            bool changed = current.Remove("salaries");
             foreach (var (module, desiredActions) in desiredModules)
             {
                 if (!current.TryGetValue(module, out var existingActions))

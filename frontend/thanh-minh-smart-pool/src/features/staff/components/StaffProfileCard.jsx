@@ -3,7 +3,6 @@ import { EllipsisOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { USER_ROLES, USER_ROLE_COLORS } from '../../users/userManagement'
 
-const currencyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
 
 function StaffStatus({ status }) {
   const isWorking = status === 'Working'
@@ -70,10 +69,6 @@ export default function StaffProfileCard({ staff, onDetails, onEdit }) {
         <div className="staff-profile-detail staff-profile-detail-join-date">
           <dt>Ngày vào làm</dt>
           <dd>{staff.joinDate ? dayjs(staff.joinDate).format('DD/MM/YYYY') : '-'}</dd>
-        </div>
-        <div className="staff-profile-detail staff-profile-detail-salary">
-          <dt>Lương cơ bản</dt>
-          <dd>{currencyFormatter.format(staff.baseSalary || 0)}</dd>
         </div>
         <div className="staff-profile-detail staff-profile-detail-contact">
           <dt>Email</dt>
