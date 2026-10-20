@@ -23,6 +23,7 @@ namespace SmartPool.API.Controllers
 
         /// <summary>Lấy danh sách ca làm việc có phân trang và lọc.</summary>
         [HttpGet]
+        [Authorize(Roles = "ADMIN")]
         [RequirePermission("shifts", "read")]
         [ProducesResponseType(typeof(PagedResponse<GetShiftsResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetShifts([FromQuery] GetShiftsQuery query, CancellationToken cancellationToken)

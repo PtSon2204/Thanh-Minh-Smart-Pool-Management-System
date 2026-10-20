@@ -19,6 +19,7 @@ import { useVouchers } from '../../features/vouchers/hooks/useVouchers'
 import { useToggleLockVoucher, useDeleteVoucher } from '../../features/vouchers/hooks/useVoucherMutations'
 import { DiscountTypeLabels, DiscountType } from '../../features/vouchers/types/voucher'
 import dayjs from 'dayjs'
+import { useAuthStore } from '../../features/auth/store/authStore'
 
 const { Title, Text } = Typography
 
@@ -36,6 +37,7 @@ function RetryEmpty({ onRetry }) {
 }
 
 export default function VoucherPage() {
+  const isAdmin = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN')
   const [searchTerm, setSearchTerm] = useState('')
   const [discountType, setDiscountType] = useState()
   const [isActive, setIsActive] = useState()
@@ -173,7 +175,7 @@ export default function VoucherPage() {
         </Tag>
       )
     },
-    {
+    ...(isAdmin ? [{
       title: 'Thao tác',
       key: 'actions',
       align: 'center',
@@ -208,7 +210,7 @@ export default function VoucherPage() {
           </Tooltip>
         </Space>
       )
-    },
+    }] : []),
   ]
 
   return (
@@ -236,7 +238,7 @@ export default function VoucherPage() {
               </div>
             </Space>
           </Col>
-          <Col>
+          {isAdmin && <Col>
             <Button
               type="primary"
               size="large"
@@ -250,7 +252,7 @@ export default function VoucherPage() {
             >
               Phát hành mã mới
             </Button>
-          </Col>
+          </Col>}
         </Row>
 
         {/* Toolbar */}
@@ -339,7 +341,7 @@ export default function VoucherPage() {
       </Card>
 
       <VoucherFormModal
-        open={formOpen}
+        open={isAdmin && formOpen}
         onClose={handleCloseModal}
         editingVoucher={editingVoucher}
       />

@@ -15,7 +15,7 @@ import { TicketCategoryLabel, TicketCategoryColor } from '../types/ticketType'
  * Props:
  *   ticketType — object từ API (id, name, ticketCategory, price, durationDays, isActive, createdAt)
  */
-export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock, onDelete }) {
+export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock, onDelete, canManage = false }) {
   const { name, ticketCategory, price, durationDays, isActive } = ticketType
 
   const categoryLabel = TicketCategoryLabel[ticketCategory] ?? ticketCategory
@@ -47,6 +47,7 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
         <Tooltip title="Xem chi tiết" key="view">
           <Button type="text" icon={<EyeOutlined />} onClick={() => onView(ticketType)} style={{ width: '100%' }} />
         </Tooltip>,
+        ...(canManage ? [
         <Tooltip title="Sửa" key="edit">
           <Button type="text" icon={<EditOutlined />} style={{ color: '#00b4d8', width: '100%' }} onClick={() => onEdit(ticketType)} />
         </Tooltip>,
@@ -66,6 +67,7 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
             onClick={() => onDelete(ticketType)}
           />
         </Tooltip>,
+        ] : []),
       ]}
     >
       {/* Accent Header Line */}

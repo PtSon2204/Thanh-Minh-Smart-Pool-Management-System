@@ -22,14 +22,13 @@ function isOvernight(shift) {
 export default function ShiftManagementPage() {
   const role = useAuthStore((state) => state.session?.role)
   const isAdmin = role?.toUpperCase() === 'ADMIN'
-  const canRead = isAdmin || ['LIFEGUARD', 'SALES'].includes(role?.toUpperCase())
   const [isActive, setIsActive] = useState()
   const [pageIndex, setPageIndex] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [isDrawerOpen, setDrawerOpen] = useState(false)
   const [selectedShift, setSelectedShift] = useState(null)
   const updateShift = useUpdateShift()
-  const query = useShifts({ pageIndex, pageSize, isActive }, canRead)
+  const query = useShifts({ pageIndex, pageSize, isActive }, isAdmin)
   const openShiftDrawer = (shift = null) => {
     setSelectedShift(shift)
     setDrawerOpen(true)
@@ -78,7 +77,7 @@ export default function ShiftManagementPage() {
     }] : []),
   ]
 
-  if (!canRead) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên và nhân viên mới có thể xem ca làm việc." /></div>
+  if (!isAdmin) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên có thể xem ca làm việc." /></div>
 
   return <div className="service-list-page staff-schedule-page">
     <ServiceListHeader title={<>Ca làm việc <span className="staff-schedule-count">{query.isLoading ? 'Đang tải…' : query.isError ? 'Không khả dụng' : `${query.data?.totalCount ?? 0} ca`}</span></>} action={isAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={() => openShiftDrawer()}>Tạo ca</Button> : null} />

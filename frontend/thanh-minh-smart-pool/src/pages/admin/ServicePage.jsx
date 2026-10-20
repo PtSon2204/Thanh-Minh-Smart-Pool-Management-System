@@ -5,6 +5,7 @@ import ServiceFormModal from '../../features/services/components/ServiceFormModa
 import { ServiceCategoryTabs, ServiceListHeader, ServiceListToolbar, ServiceNameCell } from '../../features/services/components/ServiceListChrome'
 import { useServices } from '../../features/services/hooks/useServices'
 import { useSetServiceStatus } from '../../features/services/hooks/useServiceMutations'
+import { useAuthStore } from '../../features/auth/store/authStore'
 import '../../features/services/styles/serviceManagement.css'
 import '../../features/shared/styles/adminActions.css'
 import '../../features/shared/styles/serviceMobileCards.css'
@@ -38,18 +39,19 @@ function ServiceActions({ service, onEdit, statusMutation }) {
   </div>
 }
 
-function ServiceMobileCards({ services, onEdit, statusMutation }) {
+function ServiceMobileCards({ services, onEdit, statusMutation, canManage }) {
   return <div className="service-mobile-list">{services.map((service) => <article className="service-mobile-card" key={service.id}>
     <div className="service-mobile-card-heading"><ServiceNameCell name={service.name} type={service.type} /><Tag color={service.isActive ? 'success' : 'error'}>{service.isActive ? 'Hoạt động' : 'Tạm dừng'}</Tag></div>
     <dl className="service-mobile-card-details">
       <div><dt>Đơn giá</dt><dd>{currencyFormatter.format(service.price)}</dd></div>
       <div><dt>Tồn kho</dt><dd>{service.stockQuantity ?? 'Không theo dõi'}</dd></div>
     </dl>
-    <ServiceActions service={service} onEdit={onEdit} statusMutation={statusMutation} />
+    {canManage && <ServiceActions service={service} onEdit={onEdit} statusMutation={statusMutation} />}
   </article>)}</div>
 }
 
 export default function ServicePage() {
+  const canManage = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN')
   const [searchTerm, setSearchTerm] = useState('')
   const [type, setType] = useState()
   const [isActive, setIsActive] = useState()
@@ -81,14 +83,14 @@ export default function ServicePage() {
     { title: 'Đơn giá', dataIndex: 'price', key: 'price', align: 'right', render: (value) => <span className="service-number-cell">{currencyFormatter.format(value)}</span> },
     { title: 'Tồn kho', dataIndex: 'stockQuantity', key: 'stockQuantity', align: 'right', render: (value) => <span className="service-number-cell">{value ?? 'Không theo dõi'}</span> },
     { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', render: (value) => <Tag color={value ? 'success' : 'error'}>{value ? 'Hoạt động' : 'Tạm dừng'}</Tag> },
-    {
+    ...(canManage ? [{
       title: 'Thao tác', key: 'actions', align: 'right', render: (_, service) => <ServiceActions service={service} onEdit={openEdit} statusMutation={statusMutation} />,
-    },
+    }] : []),
   ]
 
   return (
     <div className="service-list-page">
-      <ServiceListHeader title="Dịch vụ" tabs={<ServiceCategoryTabs value={type || 'all'} onChange={handleCategoryChange} />} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingService(null); setFormOpen(true) }}>Thêm dịch vụ</Button>} />
+      <ServiceListHeader title="Dịch vụ" tabs={<ServiceCategoryTabs value={type || 'all'} onChange={handleCategoryChange} />} action={canManage && <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingService(null); setFormOpen(true) }}>Thêm dịch vụ</Button>} />
       <ServiceListToolbar searchTerm={searchTerm} onSearch={resetPage(setSearchTerm)}>
         <label className="service-filter-control"><span>Trạng thái</span><Select allowClear aria-label="Lọc theo trạng thái dịch vụ" placeholder="Tất cả" options={[{ label: 'Hoạt động', value: true }, { label: 'Tạm dừng', value: false }]} value={isActive} onChange={resetPage(setIsActive)} /></label>
       </ServiceListToolbar>
@@ -98,11 +100,11 @@ export default function ServicePage() {
         {servicesQuery.isError && <RetryEmpty onRetry={servicesQuery.refetch} />}
         {!servicesQuery.isLoading && !servicesQuery.isError && <>
           <Table className="service-desktop-table" rowKey="id" columns={columns} dataSource={servicesQuery.data?.items || []} pagination={false} scroll={{ x: true }} locale={{ emptyText: 'Không tìm thấy dịch vụ phù hợp.' }} />
-          <ServiceMobileCards services={servicesQuery.data?.items || []} onEdit={openEdit} statusMutation={statusMutation} />
+          <ServiceMobileCards services={servicesQuery.data?.items || []} onEdit={openEdit} statusMutation={statusMutation} canManage={canManage} />
         </>}
         {!servicesQuery.isLoading && !servicesQuery.isError && (servicesQuery.data?.totalCount || 0) > 0 && <div className="admin-management-pagination"><Pagination current={pageIndex} pageSize={pageSize} total={servicesQuery.data.totalCount} showSizeChanger pageSizeOptions={['10', '20', '50', '100']} onChange={(page, size) => { setPageIndex(page); setPageSize(size) }} showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} dịch vụ`} /></div>}
       </section>
-      <ServiceFormModal open={formOpen} onClose={() => setFormOpen(false)} service={editingService} />
+      <ServiceFormModal open={canManage && formOpen} onClose={() => setFormOpen(false)} service={editingService} />
     </div>
   )
 }
