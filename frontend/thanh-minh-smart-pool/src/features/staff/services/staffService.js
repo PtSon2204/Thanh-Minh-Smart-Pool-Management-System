@@ -55,8 +55,10 @@ const staffService = {
   getScheduleEmployees: (signal) => apiClient.get(`${BASE}/schedule/employees`, { signal }).then((response) => response.data),
   assignShiftBatch: (assignments) => apiClient.post(`${BASE}/schedule/batch`, { assignments }).then((response) => response.data),
   cancelSchedule: (id) => apiClient.delete(`${BASE}/schedule/${id}`).then((response) => response.data),
-  checkIn: (id) => apiClient.post(`${BASE}/schedule/${id}/check-in`).then((response) => response.data),
-  checkOut: (id) => apiClient.post(`${BASE}/schedule/${id}/check-out`).then((response) => response.data),
+  checkIn: (id, data) => apiClient.post(`${BASE}/schedule/${id}/check-in`, data).then((response) => response.data),
+  checkOut: (id, data) => apiClient.post(`${BASE}/schedule/${id}/check-out`, data).then((response) => response.data),
+  correctAttendance: (id, data) => apiClient.patch(`${BASE}/schedule/${id}/attendance`, data).then((response) => response.data),
+  getAttendanceHistory: (id, params, signal) => apiClient.get(`${BASE}/schedule/${id}/attendance/history`, { params, signal }).then((response) => response.data),
   getSalaries: (params) => apiClient.get(`${BASE}/salaries`, { params }).then((response) => response.data),
 }
 

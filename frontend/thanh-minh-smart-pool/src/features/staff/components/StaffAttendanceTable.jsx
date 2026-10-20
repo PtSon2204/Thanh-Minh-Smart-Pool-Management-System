@@ -17,30 +17,37 @@ function actionFor(assignment) {
   return null
 }
 
-export default function StaffAttendanceTable({ assignments, actionsDisabled, pendingId, onAction }) {
+function sourceLabel(value) {
+  if (value === 'QR') return 'QR'
+  if (value === 'Manual') return 'Thủ công'
+  return 'Không xác định'
+}
+
+export default function StaffAttendanceTable({ assignments, actionsDisabled, pendingId, onAction, onCorrect, onHistory, correctionAvailable }) {
   const columns = [
     { title: 'Nhân viên', dataIndex: 'employeeName', key: 'employeeName', render: (value) => value || 'Nhân viên' },
     { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (value) => <Tag color={statusColor(value)}>{statusLabel(value)}</Tag> },
-    { title: 'Vào ca', dataIndex: 'checkInTime', key: 'checkInTime', render: formatDateTime },
-    { title: 'Ra ca', dataIndex: 'checkOutTime', key: 'checkOutTime', render: formatDateTime },
+    { title: 'Vào ca', dataIndex: 'checkInTime', key: 'checkInTime', render: (value, assignment) => <>{formatDateTime(value)}<small className="staff-attendance-source">Nguồn: {sourceLabel(assignment.checkInMethod)}</small></> },
+    { title: 'Ra ca', dataIndex: 'checkOutTime', key: 'checkOutTime', render: (value, assignment) => <>{formatDateTime(value)}<small className="staff-attendance-source">Nguồn: {sourceLabel(assignment.checkOutMethod)}</small></> },
     {
       title: 'Thao tác',
       key: 'actions',
       align: 'right',
       render: (_, assignment) => {
         const action = actionFor(assignment)
-        if (!action) return '-'
-
-        const isCheckIn = action === 'check-in'
-        return <Button
-          className="admin-action-button admin-action-button--positive"
-          size="small"
-          loading={pendingId === assignment.id}
-          disabled={actionsDisabled}
-          onClick={() => onAction(assignment, action)}
-        >
-          {isCheckIn ? 'Vào ca' : 'Ra ca'}
-        </Button>
+        return <div className="staff-attendance-row-actions">
+          {action && <Button
+            className="admin-action-button admin-action-button--positive"
+            size="small"
+            loading={pendingId === assignment.id}
+            disabled={actionsDisabled}
+            onClick={() => onAction(assignment, action)}
+          >
+            {action === 'check-in' ? 'Vào ca' : 'Ra ca'}
+          </Button>}
+          {assignment.status !== 'Cancelled' && <Button size="small" disabled={actionsDisabled || !correctionAvailable(assignment)} onClick={() => onCorrect(assignment)}>{correctionAvailable(assignment) ? (assignment.checkInTime || assignment.checkOutTime ? 'Điều chỉnh' : 'Bổ sung') : 'Ngoài hạn 7 ngày'}</Button>}
+          <Button size="small" type="link" onClick={() => onHistory(assignment)}>Lịch sử</Button>
+        </div>
       },
     },
   ]
