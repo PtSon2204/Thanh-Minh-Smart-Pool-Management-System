@@ -52,3 +52,13 @@ jobs:
 
       - name: Test
         run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal
+      
+      - name: Install FFmpeg
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y ffmpeg
+
+            - name: Test
+              env:
+                SMARTPOOL_CAMERA_TEST_FFMPEG: /usr/bin/ffmpeg
+              run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal
