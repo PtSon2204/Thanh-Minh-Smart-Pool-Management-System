@@ -34,6 +34,7 @@ import StaffAttendancePage from "./pages/admin/StaffAttendancePage";
 import StaffQrAttendancePage from "./pages/admin/StaffQrAttendancePage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
+import EquipmentPage from "./pages/admin/EquipmentPage";
 
 const router = createBrowserRouter([
   {
@@ -92,6 +93,9 @@ const router = createBrowserRouter([
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
+              { path: 'equipment', element: <EquipmentPage /> },
+              { path: 'staff/attendance', element: <StaffAttendancePage /> },
+
               { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },
               { path: 'users', element: <UserManagementPage /> },
               { path: 'roles/permissions', element: <RolePermissionsPage /> },

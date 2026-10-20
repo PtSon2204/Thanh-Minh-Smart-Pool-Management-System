@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SharpRTSPClient" Version="0.8.0" />
+    <PackageReference Include="SIPSorcery" Version="10.0.17" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="CloudinaryDotNet" Version="1.29.3" />
     <PackageReference Include="MailKit" Version="4.18.0" />
