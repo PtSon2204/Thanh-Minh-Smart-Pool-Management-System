@@ -1,4 +1,5 @@
 using MediatR;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
@@ -16,6 +17,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
         private readonly IRepository<Domain.Entities.User> _userRepo;
         private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly TimeProvider _timeProvider;
         private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
         public CreatePendingOrderHandler(
@@ -26,7 +28,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             IRepository<Domain.Entities.User> userRepo,
             IRepository<Domain.Entities.Voucher> voucherRepo,
             IUnitOfWork unitOfWork,
-            Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
+            Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
+            TimeProvider timeProvider)
         {
             _ticketTypeRepo = ticketTypeRepo;
             _orderRepo = orderRepo;
@@ -36,6 +39,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             _voucherRepo = voucherRepo;
             _unitOfWork = unitOfWork;
             _cache = cache;
+            _timeProvider = timeProvider;
         }
 
         public async Task<CreatePendingOrderResponse> Handle(CreatePendingOrderCommand request, CancellationToken cancellationToken)
@@ -103,13 +107,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
 
             if (!string.IsNullOrWhiteSpace(request.VoucherCode))
             {
-                var now = DateTime.UtcNow;
+                var now = _timeProvider.GetUtcNow().UtcDateTime;
                 var voucher = await _voucherRepo.FirstOrDefaultAsync(
-                    v => v.Code == request.VoucherCode
-                         && v.IsDeleted != true
-                         && v.IsActive == true
-                         && (v.StartDate == null || v.StartDate <= now)
-                         && (v.EndDate == null || v.EndDate >= now),
+                    VoucherValidityPolicy.UsableCodeAt(request.VoucherCode, now),
                     cancellationToken)
                     ?? throw new InvalidOperationException($"Mã giảm giá '{request.VoucherCode}' không hợp lệ hoặc đã hết hạn.");
 
@@ -170,11 +170,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CreatePen
             };
             await _paymentRepo.AddAsync(payment, cancellationToken);
             
-            if (request.StartDate.HasValue)
-            {
-                _cache.Set($"OrderStartDate_{order.Id}", request.StartDate.Value, TimeSpan.FromHours(1));
-            }
-
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new CreatePendingOrderResponse

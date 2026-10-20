@@ -15,9 +15,9 @@ using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Persistence.Repositories.Roles;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
+using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text;
-using StackExchange.Redis;
 
 
 namespace SmartPool.Infrastructure
@@ -77,8 +77,9 @@ namespace SmartPool.Infrastructure
                         {
                             var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
                             var tokenRole = context.Principal?.FindFirstValue(ClaimTypes.Role);
+                            var passwordVersion = context.Principal?.FindFirstValue(AccessTokenService.PasswordVersionClaim);
                             if (!Guid.TryParse(userIdValue, out var userId) || userId == Guid.Empty ||
-                                string.IsNullOrWhiteSpace(tokenRole))
+                                string.IsNullOrWhiteSpace(tokenRole) || string.IsNullOrWhiteSpace(passwordVersion))
                             {
                                 context.Fail("Token identity is invalid.");
                                 return;
@@ -86,9 +87,9 @@ namespace SmartPool.Infrastructure
 
                             var validator = context.HttpContext.RequestServices
                                 .GetRequiredService<IAccessTokenService>();
-                            if (!await validator.IsCurrentAsync(userId, tokenRole,
+                            if (!await validator.IsCurrentAsync(userId, tokenRole, passwordVersion,
                                 context.HttpContext.RequestAborted))
-                                context.Fail("Account role or status changed.");
+                                context.Fail("Account role, status or password changed.");
                         }
                     };
                 });
@@ -105,6 +106,8 @@ namespace SmartPool.Infrastructure
                 .Bind(configuration.GetSection(StaffAttendanceQrSettings.SectionName))
                 .Validate(settings => settings.IsValid(), "StaffAttendanceQr settings must be positive.")
                 .ValidateOnStart();
+            services.AddScoped<IRegistrationOtpStore, RegistrationOtpStore>();
+            services.AddScoped<IPasswordResetStore, PasswordResetStore>();
 
             // Cloudinary — lưu trữ ảnh
             var cloudinaryUrl = $"cloudinary://" +
@@ -124,6 +127,7 @@ namespace SmartPool.Infrastructure
 
             // Access token generation for login
             services.AddScoped<IAccessTokenService, AccessTokenService>();
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
             // Identity of the authenticated caller in the current HTTP request
             services.AddHttpContextAccessor();
@@ -144,11 +148,14 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
+            services.AddScoped<IGoodsReceiptOperations, GoodsReceiptOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();
             services.AddScoped<IPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.PaymentOperations>();
+            services.AddScoped<IOrderPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.OrderPaymentOperations>();
+            services.AddHostedService<ExpiredOnlineOrderWorker>();
 
             return services;
         }

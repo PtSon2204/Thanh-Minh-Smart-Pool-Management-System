@@ -17,6 +17,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
         private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
         private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly TimeProvider _timeProvider;
 
         public SellOfflineTicketHandler(
             IRepository<Domain.Entities.Ticket> ticketRepo,
@@ -26,7 +27,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             IRepository<Domain.Entities.User> userRepo,
             IRepository<Domain.Entities.Payment> paymentRepo,
             IRepository<Domain.Entities.Voucher> voucherRepo,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            TimeProvider timeProvider)
         {
             _ticketRepo = ticketRepo;
             _ticketTypeRepo = ticketTypeRepo;
@@ -36,6 +38,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             _paymentRepo = paymentRepo;
             _voucherRepo = voucherRepo;
             _unitOfWork = unitOfWork;
+            _timeProvider = timeProvider;
         }
 
         public async Task<SellOfflineTicketResponse> Handle(SellOfflineTicketCommand request, CancellationToken cancellationToken)
@@ -107,13 +110,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
 
             if (!string.IsNullOrWhiteSpace(request.VoucherCode))
             {
-                var now = DateTime.UtcNow;
+                var now = _timeProvider.GetUtcNow().UtcDateTime;
                 var voucher = await _voucherRepo.FirstOrDefaultAsync(
-                    v => v.Code == request.VoucherCode
-                         && v.IsDeleted != true
-                         && v.IsActive == true
-                         && (v.StartDate == null || v.StartDate <= now)
-                         && (v.EndDate == null || v.EndDate >= now),
+                    VoucherValidityPolicy.UsableCodeAt(request.VoucherCode, now),
                     cancellationToken)
                     ?? throw new InvalidOperationException($"Mã giảm giá '{request.VoucherCode}' không hợp lệ hoặc đã hết hạn.");
 
@@ -160,6 +159,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 AccountInfo = accountInfo
             };
 
+            // Hiệu lực tính từ lúc mua, không nhận ngày bắt đầu tùy chỉnh từ client.
+            DateTime issueDate = DateTime.UtcNow;
+
             // 5. Tạo OrderDetail và Ticket
             foreach (var item in request.Items)
             {
@@ -185,8 +187,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
 
                 for (int i = 0; i < item.Quantity; i++)
                 {
-                    DateTime issueDate = (request.StartDate ?? DateTime.UtcNow).ToUniversalTime();
-                    DateTime expiryDate = issueDate.AddDays(ticketType.DurationDays ?? 30);
+                    DateTime expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory);
 
                     var ticket = new Domain.Entities.Ticket
                     {

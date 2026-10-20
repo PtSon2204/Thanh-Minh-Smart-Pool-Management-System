@@ -14,7 +14,6 @@ const moduleLabels = {
   staff: 'Hồ sơ nhân viên',
   shifts: 'Ca làm việc',
   staff_schedule: 'Lịch làm việc',
-  salaries: 'Lương',
   attendance: 'Chấm công',
   ticket_lookup: 'Tra cứu vé',
   pool_entry: 'Vào cổng hồ bơi',

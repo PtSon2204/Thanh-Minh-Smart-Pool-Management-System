@@ -47,8 +47,16 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Payments
 
             if (!string.IsNullOrWhiteSpace(request.PaymentMethod))
             {
-                var methodUpper = request.PaymentMethod.Trim().ToUpper();
-                query = query.Where(p => p.PaymentMethod.ToUpper() == methodUpper);
+                var methodUpper = request.PaymentMethod.Trim().ToUpperInvariant();
+                if (methodUpper is "BANK_TRANSFER" or "TRANSFER")
+                {
+                    query = query.Where(p => p.PaymentMethod.ToUpper() == "BANK_TRANSFER"
+                        || p.PaymentMethod.ToUpper() == "TRANSFER");
+                }
+                else
+                {
+                    query = query.Where(p => p.PaymentMethod.ToUpper() == methodUpper);
+                }
             }
 
             if (request.FromDate.HasValue)

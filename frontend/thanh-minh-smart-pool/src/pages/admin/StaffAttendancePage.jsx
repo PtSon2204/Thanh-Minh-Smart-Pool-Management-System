@@ -1,6 +1,7 @@
+import dayjs from 'dayjs'
 import { useState } from 'react'
 import { ReloadOutlined } from '@ant-design/icons'
-import { Alert, Button, Checkbox, Drawer, Empty, Input, message, Modal, Spin } from 'antd'
+import { Alert, Button, Checkbox, DatePicker, Drawer, Empty, Input, message, Modal, Spin } from 'antd'
 import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../../features/auth/store/authStore'
 import StaffAttendanceTable from '../../features/staff/components/StaffAttendanceTable'
@@ -53,9 +54,9 @@ function formatWorkDate(value) {
 
 function errorMessage(error) {
   const status = error?.response?.status
-  if (status === 409) return 'Lịch chấm công đã thay đổi. Dữ liệu đã được làm mới, không gửi lại thao tác.'
+  if (status === 409) return error.response.data?.message || 'Lịch chấm công đã thay đổi. Hãy làm mới dữ liệu.'
   if (!status) return 'Không xác định được kết quả thao tác. Dữ liệu đã được làm mới, không gửi lại thao tác.'
-  if (status === 403) return 'Bạn không có quyền chấm công thủ công cho ca này.'
+  if (status === 403) return 'Bạn không có quyền chấm công cho ca này.'
   if (status === 404) return 'Không tìm thấy phân công. Hãy làm mới dữ liệu trước khi thao tác lại.'
   return 'Máy chủ không thể ghi nhận thao tác. Không gửi lại tự động.'
 }
@@ -242,17 +243,17 @@ export default function StaffAttendancePage() {
   }
 
   if (!isAdmin) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên có thể chấm công thủ công." /></div>
-
   if (!selection.valid) return <div className="service-list-page staff-schedule-page">
-    <ServiceListHeader title="Chấm công thủ công" />
+    <ServiceListHeader title="Check-in / Check-out" />
     <Alert type="error" showIcon title="Liên kết chấm công không hợp lệ" description={selection.error} action={<Button onClick={() => setSearchParams({})}>Về hôm nay</Button>} />
   </div>
 
   return <div className="service-list-page staff-schedule-page">
     <ServiceListHeader
-      title={<>Chấm công thủ công <span className="staff-schedule-count">{attendance.isLoading ? 'Đang tải…' : `${attendance.data?.totalCount ?? 0} phân công`}</span></>}
+      title={<>Check-in / Check-out <span className="staff-schedule-count">{attendance.isLoading ? 'Đang tải…' : `${attendance.data?.totalCount ?? 0} phân công`}</span></>}
       action={<div className="admin-action-group">
         {openedFromShortcut && <Button disabled={Boolean(pendingId)} onClick={() => { setSearchParams({}); setErrorContext(null) }}>Về hôm nay</Button>}
+        <DatePicker aria-label="Ngày chấm công" allowClear={false} value={dayjs(selection.date)} disabled={Boolean(pendingId)} onChange={(value) => { if (value) { setSearchParams({ date: value.format('YYYY-MM-DD') }); setErrorContext(null); setRefreshLocked(false) } }} />
         <Button className="admin-action-button admin-action-button--primary" icon={<ReloadOutlined />} loading={attendance.isFetching} disabled={Boolean(pendingId)} onClick={refresh}>Làm mới</Button>
       </div>}
     />

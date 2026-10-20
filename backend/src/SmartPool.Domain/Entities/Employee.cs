@@ -7,7 +7,6 @@ public partial class Employee
 {
     public Guid UserId { get; set; }
 
-    public decimal BaseSalary { get; set; }
 
     public DateOnly JoinDate { get; set; }
 
@@ -23,7 +22,6 @@ public partial class Employee
 
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
 
-    public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();
 
     public virtual User User { get; set; } = null!;
 }

@@ -82,7 +82,7 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
             {
                 UserId = fixture.AttachedStaffUserId,
                 JoinDate = new DateOnly(2025, 1, 1),
-                BaseSalary = 9000000,
+
                 Status = "Working",
                 CreatedAt = now,
                 UpdatedAt = now
@@ -107,7 +107,7 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
     {
         UserId = userId,
         JoinDate = new DateOnly(2026, 10, 5),
-        BaseSalary = 10000000,
+
         Status = "Working"
     };
 

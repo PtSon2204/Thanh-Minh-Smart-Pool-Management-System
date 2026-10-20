@@ -39,6 +39,15 @@ export const useCartStore = create(
       },
 
       clearCart: () => set({ items: [] }),
+
+      removePurchasedItems: (purchasedItems) => set((state) => ({
+        items: state.items.flatMap((item) => {
+          const purchased = purchasedItems.filter((entry) => entry.ticketTypeId === item.id)
+            .reduce((sum, entry) => sum + entry.quantity, 0)
+          const quantity = item.quantity - purchased
+          return quantity > 0 ? [{ ...item, quantity }] : []
+        })
+      })),
       
       toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
       

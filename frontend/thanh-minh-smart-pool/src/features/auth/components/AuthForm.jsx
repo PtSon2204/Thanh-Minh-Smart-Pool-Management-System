@@ -3,6 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useLogin, useRegister } from '../hooks/useAuthMutations'
+import { savePendingRegistration } from '../services/registrationSession'
+import { beginOtpRequest } from '../services/otpRequest'
 import { getAuthError, loginFormSchema, registerFormSchema } from '../types/authSchemas'
 
 function AuthField({ id, label, error, children }) {
@@ -34,7 +36,7 @@ export default function AuthForm({ isRegister }) {
     defaultValues: { username: '', phone: '', familyName: '', givenName: '', email: '', password: '', confirmPassword: '' },
   })
   const form = isRegister ? registerForm : loginForm
-  const feedback = isRegister ? errorMessage : errorMessage || location.state?.registrationSuccess
+  const feedback = isRegister ? errorMessage : errorMessage || location.state?.registrationSuccess || location.state?.resetSuccess || location.state?.passwordChanged
   const errorFor = (name) => form.formState.errors[name]?.message
 
   function clearPasswords() {
@@ -81,31 +83,30 @@ export default function AuthForm({ isRegister }) {
     }
   }
 
-  async function submitRegister(values) {
+  function submitRegister(values) {
     if (submittingRef.current) return
     submittingRef.current = true
     setErrorMessage('')
-    try {
-      await register.mutateAsync({
+    const email = values.email.trim()
+    const username = values.username.trim()
+    const request = register.mutateAsync({
         username: values.username,
         email: values.email,
         phone: values.phone,
         password: values.password,
         confirmPassword: values.confirmPassword,
         fullName: `${values.familyName} ${values.givenName}`.trim(),
+      }).then((pendingRegistration) => {
+        const session = { ...pendingRegistration, email, username }
+        savePendingRegistration(session)
+        return session
       })
-      clearPasswords()
-      navigate('/dang-nhap', {
-        replace: true,
-        state: { registeredUsername: values.username, registrationSuccess: 'Đăng ký thành công. Hãy đăng nhập để tiếp tục.' },
-      })
-    } catch (error) {
-      const authError = getAuthError(error)
-      applyServerErrors(authError.fieldErrors)
-      setErrorMessage(authError.message)
-    } finally {
-      submittingRef.current = false
-    }
+    const requestId = beginOtpRequest('register', email, request)
+    clearPasswords()
+    navigate('/xac-nhan-otp/dang-ky', {
+      replace: true,
+      state: { email, requestId },
+    })
   }
 
   function onSubmit(event) {
@@ -151,7 +152,7 @@ export default function AuthForm({ isRegister }) {
         {isRegister && <AuthField id="inp-pw2" label="Xác nhận mật khẩu" error={errorFor('confirmPassword')}>
           {(errorId) => <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M9 12l2 2 4-4" /><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg><input type="password" id="inp-pw2" placeholder="Nhập lại mật khẩu" autoComplete="new-password" disabled={pending} aria-invalid={Boolean(errorFor('confirmPassword'))} aria-describedby={errorFor('confirmPassword') ? errorId : undefined} {...registerForm.register('confirmPassword')} /></>}
         </AuthField>}
-        {!isRegister && <div className="auth-forgot-row"><Link to="#" className="auth-forgot-link">Quên mật khẩu?</Link></div>}
+        {!isRegister && <div className="auth-forgot-row"><Link to="/quen-mat-khau" className="auth-forgot-link">Quên mật khẩu?</Link></div>}
         {feedback && <p className={`auth-feedback${errorMessage ? ' auth-feedback-error' : ''}`} role="alert">{feedback}</p>}
         <button className="auth-btn-main" id="loginBtn" type="submit" disabled={pending}><span>{pending ? 'Đang xử lý...' : isRegister ? 'Đăng ký' : 'Đăng nhập'}</span><svg viewBox="0 0 22 22" fill="none" width="18" height="18"><path d="M3 11h15.4M11 3.3l7.7 7.7-7.7 7.7" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
       </form>

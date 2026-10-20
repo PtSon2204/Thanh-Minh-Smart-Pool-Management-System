@@ -13,7 +13,6 @@ namespace SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs
         public Guid RoleId { get; set; }
         public string RoleName { get; set; } = string.Empty;
         public DateOnly JoinDate { get; set; }
-        public decimal BaseSalary { get; set; }
         public string Status { get; set; } = string.Empty;
     }
 }

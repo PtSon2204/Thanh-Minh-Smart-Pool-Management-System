@@ -10,7 +10,8 @@ namespace SmartPool.Application.Features.ManageVouchers.Mapping
     {
         public VoucherMappingProfile()
         {
-            CreateMap<Voucher, GetVouchersResponse>();
+            CreateMap<Voucher, GetVouchersResponse>()
+                .ForMember(response => response.Status, options => options.Ignore());
             CreateMap<Voucher, CreateVoucherResponse>();
             CreateMap<Voucher, UpdateVoucherResponse>();
         }

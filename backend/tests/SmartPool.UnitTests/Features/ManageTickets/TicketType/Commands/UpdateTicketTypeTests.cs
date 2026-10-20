@@ -46,8 +46,8 @@ public class UpdateTicketTypeTests
         uow.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
     }
 
-    [Fact(DisplayName = "UTCID02 (N) - Hiệu lực null -> Xóa giới hạn ngày và giữ trạng thái mặc định hoạt động")]
-    public async Task Handle_NullDuration_ClearsDuration()
+    [Fact(DisplayName = "UTCID02 (N) - Hiệu lực null -> Tự đặt vé lượt 1 ngày và giữ trạng thái mặc định hoạt động")]
+    public async Task Handle_NullDuration_SetsFixedDuration()
     {
         var entity = TicketTypeTestSupport.Entity(active: null, deleted: null);
         var repo = TicketTypeTestSupport.Repository(entity);
@@ -59,8 +59,8 @@ public class UpdateTicketTypeTests
         command.DurationDays = null;
         var result = await new UpdateTicketTypeHandler(repo.Object, uow.Object, TicketTypeTestSupport.Mapper())
             .Handle(command, CancellationToken.None);
-        Assert.Null(entity.DurationDays);
-        Assert.Null(result.DurationDays);
+        Assert.Equal(1, entity.DurationDays);
+        Assert.Equal(1, result.DurationDays);
         Assert.True(result.IsActive);
     }
 
@@ -166,7 +166,7 @@ public class UpdateTicketTypeTests
         Assert.Contains(result.Errors, error => error.PropertyName == "Name");
     }
 
-    [Fact(DisplayName = "UTCID11 (A) - Tên chứa dấu ngoặc -> Báo lỗi Name")]
+    [Fact(DisplayName = "UTCID11 (N) - Tên chứa dấu ngoặc -> Hợp lệ")]
     public void Validate_NameWithParentheses()
     {
         var command = ValidCommand();
@@ -174,8 +174,7 @@ public class UpdateTicketTypeTests
 
         var result = new UpdateTicketTypeValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == "Name");
+            Assert.True(result.IsValid);
     }
 
     [Fact(DisplayName = "UTCID12 (A) - Tên chứa ký tự đặc biệt -> Báo lỗi Name")]
@@ -279,6 +278,7 @@ public class UpdateTicketTypeTests
     {
         var command = ValidCommand();
         command.TicketCategory = TicketCategoryEnum.VE_THANG;
+        command.DurationDays = 30;
 
         var result = new UpdateTicketTypeValidator().Validate(command);
 
@@ -343,8 +343,8 @@ public class UpdateTicketTypeTests
         Assert.True(result.IsValid);
     }
 
-    [Fact(DisplayName = "UTCID26 (N) - Hiệu lực null -> Hợp lệ")]
-    public void Validate_UnlimitedDuration()
+    [Fact(DisplayName = "UTCID26 (N) - Không gửi hiệu lực -> Hợp lệ và được tự xác định theo loại vé")]
+    public void Validate_OmittedDuration()
     {
         var command = ValidCommand();
         command.DurationDays = null;
@@ -397,6 +397,44 @@ public class UpdateTicketTypeTests
         var result = new UpdateTicketTypeValidator().Validate(command);
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == "Id");
+    }
+
+    [Fact(DisplayName = "UTCID31 (A) - Vé lượt gửi 30 ngày -> Báo lỗi DurationDays")]
+    public void Validate_SingleUseWithMonthlyDuration_ReturnsError()
+    {
+        var command = ValidCommand();
+        command.DurationDays = 30;
+        var result = new UpdateTicketTypeValidator().Validate(command);
+        Assert.Contains(result.Errors, error => error.PropertyName == "DurationDays");
+    }
+
+    [Fact(DisplayName = "UTCID32 (A) - Vé tháng gửi 1 ngày -> Báo lỗi DurationDays")]
+    public void Validate_MonthlyWithSingleUseDuration_ReturnsError()
+    {
+        var command = ValidCommand();
+        command.TicketCategory = TicketCategoryEnum.VE_THANG;
+        var result = new UpdateTicketTypeValidator().Validate(command);
+        Assert.Contains(result.Errors, error => error.PropertyName == "DurationDays");
+    }
+
+    [Theory(DisplayName = "UTCID33 (N) - Đổi phân loại vé -> Server tự thay hiệu lực cũ bằng giá trị cố định")]
+    [InlineData(TicketCategoryEnum.VE_THANG, null, 30)]
+    [InlineData(TicketCategoryEnum.VE_LUOT, null, 1)]
+    [InlineData(TicketCategoryEnum.VE_THANG, 1, 30)]
+    [InlineData(TicketCategoryEnum.VE_LUOT, 30, 1)]
+    public async Task Handle_DerivesDurationFromCategory(TicketCategoryEnum category, int? suppliedDays, int expectedDays)
+    {
+        var entity = TicketTypeTestSupport.Entity();
+        var repo = TicketTypeTestSupport.Repository(entity);
+        repo.Setup(r => r.Update(entity));
+        var command = ValidCommand();
+        command.Id = entity.Id;
+        command.TicketCategory = category;
+        command.DurationDays = suppliedDays;
+        var result = await new UpdateTicketTypeHandler(repo.Object, new Mock<IUnitOfWork>().Object, TicketTypeTestSupport.Mapper())
+            .Handle(command, CancellationToken.None);
+        Assert.Equal(expectedDays, entity.DurationDays);
+        Assert.Equal(expectedDays, result.DurationDays);
     }
 
     private static UpdateTicketTypeCommand ValidCommand() => new()

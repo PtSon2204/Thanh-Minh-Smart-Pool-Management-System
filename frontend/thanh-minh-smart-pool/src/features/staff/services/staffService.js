@@ -59,7 +59,6 @@ const staffService = {
   checkOut: (id, data) => apiClient.post(`${BASE}/schedule/${id}/check-out`, data).then((response) => response.data),
   correctAttendance: (id, data) => apiClient.patch(`${BASE}/schedule/${id}/attendance`, data).then((response) => response.data),
   getAttendanceHistory: (id, params, signal) => apiClient.get(`${BASE}/schedule/${id}/attendance/history`, { params, signal }).then((response) => response.data),
-  getSalaries: (params) => apiClient.get(`${BASE}/salaries`, { params }).then((response) => response.data),
 }
 
 export default staffService

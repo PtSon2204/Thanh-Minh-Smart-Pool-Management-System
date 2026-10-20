@@ -7,6 +7,7 @@ import PricingPage from "./pages/PricingPage/PricingPage";
 import ContactPage from "./pages/ContactPage/ContactPage";
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage";
 import AuthPage from "./pages/AuthPage/AuthPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage/ChangePasswordPage";
 import ProfilePage from "./pages/ProfilePage/ProfilePage";
 import MyCardPage from "./pages/MyCardPage/MyCardPage";
 import PaymentHistoryPage from "./pages/PaymentHistoryPage/PaymentHistoryPage";
@@ -17,11 +18,16 @@ import DashboardPage from "./pages/admin/DashboardPage";
 import OfflineSalesPage from "./pages/admin/OfflineSalesPage";
 import TicketTypePage from "./pages/admin/TicketTypePage";
 import ServicePage from "./pages/admin/ServicePage";
+import GoodsReceiptsPage from './pages/admin/GoodsReceiptsPage'
 import InventoryPage from "./pages/admin/InventoryPage";
 import RentalPage from "./pages/admin/RentalPage";
 import VoucherPage from "./pages/admin/VoucherPage";
 import NotificationPage from "./pages/admin/NotificationPage";
 import CustomerStatisticsPage from "./pages/admin/statistics/CustomerStatisticsPage";
+import TicketRevenueStatisticsPage from "./pages/admin/statistics/TicketRevenueStatisticsPage";
+import MonthlyTicketsPage from "./pages/admin/statistics/MonthlyTicketsPage";
+import IncidentStatisticsPage from "./pages/admin/statistics/IncidentStatisticsPage";
+import OperationCostsStatisticsPage from "./pages/admin/statistics/OperationCostsStatisticsPage";
 import StaffProfilesPage from "./pages/admin/StaffProfilesPage";
 import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
@@ -44,6 +50,7 @@ const router = createBrowserRouter([
         element: <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["CUSTOMER", "ADMIN", "LIFEGUARD", "SALES"]} />,
         children: [
           { path: '/ho-so', element: <ProfilePage /> },
+          { path: '/doi-mat-khau', element: <ChangePasswordPage /> },
           { path: '/the-cua-toi', element: <MyCardPage /> },
           { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage /> },
         ],
@@ -55,6 +62,10 @@ const router = createBrowserRouter([
   { path: '/unauthorized', element: <Error401Page /> },
   { path: '/dang-nhap', element: <AuthPage /> },
   { path: '/dang-ky', element: <AuthPage /> },
+  { path: '/quen-mat-khau', element: <AuthPage /> },
+  { path: '/xac-nhan-otp/dang-ky', element: <AuthPage /> },
+  { path: '/xac-nhan-otp/quen-mat-khau', element: <AuthPage /> },
+  { path: '/dat-lai-mat-khau', element: <AuthPage /> },
   {
     element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />,
     children: [
@@ -62,14 +73,19 @@ const router = createBrowserRouter([
         path: '/admin',
         element: <AdminLayout />,
         children: [
+          { path: 'doi-mat-khau', element: <ChangePasswordPage /> },
           { path: 'staff/schedule', element: <StaffSchedulePage /> },
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
-              { path: 'staff/shifts', element: <ShiftManagementPage /> },
               { index: true, element: <DashboardPage /> },
+              { path: 'staff/shifts', element: <ShiftManagementPage /> },
               { path: 'notifications', element: <NotificationPage /> },
               { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
+              { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
+              { path: 'statistics/monthly-tickets', element: <MonthlyTicketsPage /> },
+              { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
+              { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
               { path: 'staff/profiles', element: <StaffProfilesPage /> },
               { path: 'payments/invoices', element: <PaymentHistoryPage /> },
               { path: 'staff/attendance', element: <StaffAttendancePage /> },
@@ -86,6 +102,7 @@ const router = createBrowserRouter([
               { path: 'tickets/scanQR', element: <TicketScannerPage /> },
               { path: 'services', element: <ServicePage /> },
               { path: 'inventory', element: <InventoryPage /> },
+              { path: 'inventory/receipts', element: <GoodsReceiptsPage /> },
               { path: 'rentals', element: <RentalPage /> },
               { path: 'coupons', element: <VoucherPage /> },
             ],
@@ -101,5 +118,16 @@ const router = createBrowserRouter([
 ])
 
 export default function App() {
-  return <ConfigProvider theme={{ token: { fontFamily: "'Open Sans', system-ui, -apple-system, Roboto, sans-serif" } }}><RouterProvider router={router} /></ConfigProvider>
+  return (
+    <ConfigProvider
+      theme={{
+        token: {
+          fontFamily:
+            "'Open Sans', system-ui, -apple-system, Roboto, sans-serif",
+        },
+      }}
+    >
+      <RouterProvider router={router} />
+    </ConfigProvider>
+  );
 }

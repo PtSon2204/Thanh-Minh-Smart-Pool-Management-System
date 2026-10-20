@@ -49,7 +49,6 @@ public partial class SmartPoolDbContext : EfDbContext
 
     public virtual DbSet<Role> Roles { get; set; }
 
-    public virtual DbSet<Salary> Salaries { get; set; }
 
     public virtual DbSet<Shift> Shifts { get; set; }
 
@@ -83,9 +82,6 @@ public partial class SmartPoolDbContext : EfDbContext
             entity.Property(e => e.UserId)
                 .ValueGeneratedNever()
                 .HasColumnName("user_id");
-            entity.Property(e => e.BaseSalary)
-                .HasPrecision(18, 2)
-                .HasColumnName("base_salary");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("created_at");
@@ -108,7 +104,11 @@ public partial class SmartPoolDbContext : EfDbContext
         {
             entity.HasKey(e => e.Id).HasName("employee_shifts_pkey");
 
-            entity.ToTable("employee_shifts", "smart_pool");
+            entity.ToTable("employee_shifts", "smart_pool", table =>
+            {
+                table.HasCheckConstraint("ck_employee_shifts_checkout_requires_checkin", "check_out_time IS NULL OR check_in_time IS NOT NULL");
+                table.HasCheckConstraint("ck_employee_shifts_time_order", "check_out_time IS NULL OR check_out_time >= check_in_time");
+            });
 
             entity.HasIndex(e => new { e.EmployeeId, e.ShiftId, e.WorkDate }, "ux_employee_shifts_employee_id_shift_id_work_date").IsUnique();
 
@@ -673,43 +673,6 @@ public partial class SmartPoolDbContext : EfDbContext
                 .HasColumnName("updated_at");
         });
 
-        modelBuilder.Entity<Salary>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("salaries_pkey");
-
-            entity.ToTable("salaries", "smart_pool");
-
-            entity.HasIndex(e => new { e.EmployeeId, e.Month, e.Year }, "ux_salaries_employee_id_month_year").IsUnique();
-
-            entity.Property(e => e.Id)
-                .HasDefaultValueSql("uuid_generate_v4()")
-                .HasColumnName("id");
-            entity.Property(e => e.Bonus)
-                .HasPrecision(18, 2)
-                .HasDefaultValueSql("0")
-                .HasColumnName("bonus");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("now()")
-                .HasColumnName("created_at");
-            entity.Property(e => e.Deduction)
-                .HasPrecision(18, 2)
-                .HasDefaultValueSql("0")
-                .HasColumnName("deduction");
-            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
-            entity.Property(e => e.Month).HasColumnName("month");
-            entity.Property(e => e.NetSalary)
-                .HasPrecision(18, 2)
-                .HasColumnName("net_salary");
-            entity.Property(e => e.TotalShifts)
-                .HasDefaultValue(0)
-                .HasColumnName("total_shifts");
-            entity.Property(e => e.Year).HasColumnName("year");
-
-            entity.HasOne(d => d.Employee).WithMany(p => p.Salaries)
-                .HasForeignKey(d => d.EmployeeId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("salaries_employee_id_fkey");
-        });
 
         modelBuilder.Entity<Shift>(entity =>
         {
@@ -974,6 +937,7 @@ public partial class SmartPoolDbContext : EfDbContext
         });
         //sonpt
 
+        ConfigureWaterQuality(modelBuilder);
         OnModelCreatingPartial(modelBuilder);
     }
 

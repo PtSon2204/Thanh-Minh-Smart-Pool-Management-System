@@ -8,7 +8,7 @@ import {
   EyeOutlined,
   DeleteOutlined
 } from '@ant-design/icons'
-import { TicketCategoryLabel, TicketCategoryColor } from '../types/ticketType'
+import { TicketCategoryLabel, TicketCategoryColor, TicketValidityLabel } from '../types/ticketType'
 
 /**
  * Card hiển thị thông tin 1 loại vé.
@@ -16,7 +16,7 @@ import { TicketCategoryLabel, TicketCategoryColor } from '../types/ticketType'
  *   ticketType — object từ API (id, name, ticketCategory, price, durationDays, isActive, createdAt)
  */
 export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock, onDelete, canManage = false }) {
-  const { name, ticketCategory, price, durationDays, isActive } = ticketType
+  const { name, ticketCategory, price, isActive } = ticketType
 
   const categoryLabel = TicketCategoryLabel[ticketCategory] ?? ticketCategory
   const categoryColor = TicketCategoryColor[ticketCategory] ?? 'default'
@@ -117,7 +117,7 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 13, fontWeight: 500, paddingLeft: 4 }}>
         <ClockCircleOutlined style={{ fontSize: 15 }} />
         <span>
-          {durationDays ? `Hiệu lực: ${durationDays} ngày` : 'Không giới hạn thời hạn'}
+          Hiệu lực: {TicketValidityLabel[ticketCategory] ?? '—'}
         </span>
       </div>
     </Card>

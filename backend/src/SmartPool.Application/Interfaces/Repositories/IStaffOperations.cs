@@ -5,10 +5,8 @@ using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.CorrectAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
-using SmartPool.Application.Features.ManageStaffs.Commands.SaveSalary;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
-using SmartPool.Application.Features.ManageStaffs.Queries.GetSalaries;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetAttendanceHistory;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
@@ -35,7 +33,5 @@ public interface IStaffOperations
     Task<RecordAttendanceResponse> RecordAttendanceAsync(RecordAttendanceCommand request, CancellationToken cancellationToken);
     Task<RecordAttendanceResponse> CorrectAttendanceAsync(ManualAttendanceCorrectionCommand request, CancellationToken cancellationToken);
     Task<PagedResponse<GetAttendanceHistoryResponse>> GetAttendanceHistoryAsync(GetAttendanceHistoryQuery query, CancellationToken cancellationToken);
-    Task<PagedResponse<GetSalariesResponse>> GetSalariesAsync(GetSalariesQuery request, CancellationToken cancellationToken);
-    Task<SaveSalaryResponse> SaveSalaryAsync(SaveSalaryCommand request, CancellationToken cancellationToken);
 }
 }

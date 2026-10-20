@@ -18,6 +18,8 @@ import VoucherFormModal from '../../features/vouchers/components/VoucherFormModa
 import { useVouchers } from '../../features/vouchers/hooks/useVouchers'
 import { useToggleLockVoucher, useDeleteVoucher } from '../../features/vouchers/hooks/useVoucherMutations'
 import { DiscountTypeLabels, DiscountType } from '../../features/vouchers/types/voucher'
+import { useVoucherClock } from '../../features/vouchers/hooks/useVoucherClock'
+import { getVoucherStatus, VoucherStatus } from '../../features/vouchers/utils/voucherValidity'
 import dayjs from 'dayjs'
 import { useAuthStore } from '../../features/auth/store/authStore'
 
@@ -40,13 +42,14 @@ export default function VoucherPage() {
   const isAdmin = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN')
   const [searchTerm, setSearchTerm] = useState('')
   const [discountType, setDiscountType] = useState()
-  const [isActive, setIsActive] = useState()
+  const [status, setStatus] = useState()
   const [pageIndex, setPageIndex] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [formOpen, setFormOpen] = useState(false)
   const [editingVoucher, setEditingVoucher] = useState(null)
 
-  const vouchersQuery = useVouchers({ searchTerm: searchTerm || undefined, discountType, isActive, pageIndex, pageSize })
+  const now = useVoucherClock()
+  const vouchersQuery = useVouchers({ searchTerm: searchTerm || undefined, discountType, status, pageIndex, pageSize })
   const { mutate: toggleLock, isPending: isToggling } = useToggleLockVoucher()
   const { mutate: deleteVoucher, isPending: isDeleting } = useDeleteVoucher()
 
@@ -161,19 +164,27 @@ export default function VoucherPage() {
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'isActive',
-      key: 'isActive',
+      key: 'status',
       align: 'center',
       width: '13%',
-      render: (value) => (
-        <Tag
-          color={value ? 'success' : 'default'}
-          bordered={false}
-          style={{ padding: '3px 10px', borderRadius: '12px', fontWeight: 600, fontSize: '11px' }}
-        >
-          {value ? 'HOẠT ĐỘNG' : 'ĐÃ KHÓA'}
-        </Tag>
-      )
+      render: (_, record) => {
+        const status = getVoucherStatus(record, now)
+        const appearance = {
+          [VoucherStatus.ACTIVE]: { color: 'success', label: 'HOẠT ĐỘNG' },
+          [VoucherStatus.EXPIRED]: { color: 'error', label: 'HẾT HẠN' },
+          [VoucherStatus.SCHEDULED]: { color: 'processing', label: 'CHƯA ĐẾN HẠN' },
+          [VoucherStatus.LOCKED]: { color: 'default', label: 'ĐÃ KHÓA' },
+        }[status]
+        return (
+          <Tag
+            color={appearance.color}
+            bordered={false}
+            style={{ padding: '3px 10px', borderRadius: '12px', fontWeight: 600, fontSize: '11px' }}
+          >
+            {appearance.label}
+          </Tag>
+        )
+      }
     },
     ...(isAdmin ? [{
       title: 'Thao tác',
@@ -296,11 +307,13 @@ export default function VoucherPage() {
                     placeholder="Tất cả"
                     style={{ width: 140 }}
                     options={[
-                      { label: 'Đang hoạt động', value: true },
-                      { label: 'Đã khóa', value: false }
+                      { label: 'Đang hoạt động', value: VoucherStatus.ACTIVE },
+                      { label: 'Hết hạn', value: VoucherStatus.EXPIRED },
+                      { label: 'Chưa đến hạn', value: VoucherStatus.SCHEDULED },
+                      { label: 'Đã khóa', value: VoucherStatus.LOCKED }
                     ]}
-                    value={isActive}
-                    onChange={resetPage(setIsActive)}
+                    value={status}
+                    onChange={resetPage(setStatus)}
                   />
                 </Space>
               </Space>

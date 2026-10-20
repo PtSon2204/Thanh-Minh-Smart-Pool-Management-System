@@ -6,6 +6,11 @@ export const TicketCategory = Object.freeze({
   VE_LUOT:  'VE_LUOT',
 })
 
+export const TicketValidityLabel = Object.freeze({
+  VE_THANG: '30 ngày kể từ lúc mua',
+  VE_LUOT: '24 giờ kể từ lúc mua',
+})
+
 /**
  * Label tiếng Việt hiển thị trên UI.
  */

@@ -57,9 +57,9 @@ public sealed partial class StaffOperations
     {
         var assignment = await GetAssignmentAsync(request.Id, cancellationToken);
         if (assignment is null) throw new KeyNotFoundException("Không tìm thấy lịch làm việc.");
-        if (assignment.Status != "Scheduled") throw new StaffConflictException("Chỉ có thể hủy lịch đang được lên kế hoạch.");
+        if (assignment.Status != "Scheduled" || assignment.CheckInTime is not null || assignment.CheckOutTime is not null) throw new StaffConflictException("Chỉ có thể hủy lịch chưa chấm công.");
         var now = DateTime.UtcNow;
-        var changed = await context.EmployeeShifts.Where(item => item.Id == request.Id && item.Status == "Scheduled").ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, "Cancelled").SetProperty(item => item.UpdatedAt, now), cancellationToken);
+        var changed = await context.EmployeeShifts.Where(item => item.Id == request.Id && item.Status == "Scheduled" && item.CheckInTime == null && item.CheckOutTime == null).ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, "Cancelled").SetProperty(item => item.UpdatedAt, now), cancellationToken);
         if (changed == 0) throw new StaffConflictException("Chỉ có thể hủy lịch đang được lên kế hoạch.");
         assignment.Status = "Cancelled";
         assignment.UpdatedAt = now;
@@ -78,7 +78,7 @@ public sealed partial class StaffOperations
         if (!request.CheckIn && !StaffAttendanceTiming.CanCheckOut(assignment, now))
             throw new StaffConflictException("Chỉ có thể check-out từ giờ kết thúc ca sau khi đã check-in.");
         var changed = request.CheckIn
-            ? await context.EmployeeShifts.Where(item => item.Id == request.Id && item.Status == "Scheduled" && item.CheckInTime == null).ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, "Present").SetProperty(item => item.CheckInTime, now).SetProperty(item => item.CheckInMethod, request.Method).SetProperty(item => item.UpdatedAt, now), cancellationToken)
+            ? await context.EmployeeShifts.Where(item => item.Id == request.Id && item.Status == "Scheduled" && item.CheckInTime == null && item.CheckOutTime == null && item.Employee.Status == "Working" && item.Employee.User.IsDeleted != true && item.Employee.User.Status != null && EF.Functions.ILike(item.Employee.User.Status, "ACTIVE")).ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, "Present").SetProperty(item => item.CheckInTime, now).SetProperty(item => item.CheckInMethod, request.Method).SetProperty(item => item.UpdatedAt, now), cancellationToken)
             : await context.EmployeeShifts.Where(item => item.Id == request.Id && item.Status == "Present" && item.CheckInTime != null && item.CheckOutTime == null).ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, "Completed").SetProperty(item => item.CheckOutTime, now).SetProperty(item => item.CheckOutMethod, request.Method).SetProperty(item => item.UpdatedAt, now), cancellationToken);
         if (changed == 0) throw new StaffConflictException(request.CheckIn ? "Không thể check-in lịch này." : "Cần check-in trước khi check-out.");
         context.AttendanceLogs.Add(new AttendanceLog

@@ -125,11 +125,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.Property<decimal>("BaseSalary")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("base_salary");
-
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -224,7 +219,12 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasIndex(new[] { "EmployeeId", "ShiftId", "WorkDate" }, "ux_employee_shifts_employee_id_shift_id_work_date")
                         .IsUnique();
 
-                    b.ToTable("employee_shifts", "smart_pool");
+                    b.ToTable("employee_shifts", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_employee_shifts_checkout_requires_checkin", "check_out_time IS NULL OR check_in_time IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_employee_shifts_time_order", "check_out_time IS NULL OR check_out_time >= check_in_time");
+                        });
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.EntryLog", b =>
@@ -341,6 +341,115 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("equipments", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<string>("ReceiptCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("receipt_code");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Draft")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("supplier_name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("ReceiptCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_goods_receipts_code");
+
+                    b.HasIndex("ReceivedAt")
+                        .IsDescending()
+                        .HasDatabaseName("ix_goods_receipts_received_at");
+
+                    b.ToTable("goods_receipts", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_goods_receipts_status", "status IN ('Draft', 'Posted', 'Cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceiptDetail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("receipt_id");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ReceiptId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("goods_receipt_details", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_goods_receipt_details_cost", "unit_cost >= 0");
+
+                            t.HasCheckConstraint("ck_goods_receipt_details_quantity", "quantity > 0");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Incident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -442,12 +551,20 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
 
+                    b.Property<Guid?>("ReceiptDetailId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("receipt_detail_id");
+
                     b.HasKey("Id")
                         .HasName("inventory_logs_pkey");
 
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("ReceiptDetailId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_inventory_logs_receipt_detail_id");
 
                     b.ToTable("inventory_logs", "smart_pool");
                 });
@@ -1009,66 +1126,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("roles", "smart_pool");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.Salary", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<decimal?>("Bonus")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("bonus")
-                        .HasDefaultValueSql("0");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<decimal?>("Deduction")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("deduction")
-                        .HasDefaultValueSql("0");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("employee_id");
-
-                    b.Property<int>("Month")
-                        .HasColumnType("integer")
-                        .HasColumnName("month");
-
-                    b.Property<decimal>("NetSalary")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("net_salary");
-
-                    b.Property<int?>("TotalShifts")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("total_shifts");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("integer")
-                        .HasColumnName("year");
-
-                    b.HasKey("Id")
-                        .HasName("salaries_pkey");
-
-                    b.HasIndex(new[] { "EmployeeId", "Month", "Year" }, "ux_salaries_employee_id_month_year")
-                        .IsUnique();
-
-                    b.ToTable("salaries", "smart_pool");
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.Shift", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1520,6 +1577,110 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("EmployeeShift");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.WaterQualityLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("EquipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_id");
+
+                    b.Property<string>("EvaluationVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("evaluation_version");
+
+                    b.Property<decimal>("FreeChlorineMgL")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("free_chlorine_mg_l");
+
+                    b.Property<Guid?>("InspectedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inspected_by");
+
+                    b.Property<DateTime>("InspectionTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inspection_time");
+
+                    b.Property<bool?>("IsWaterClear")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_water_clear");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("PhValue")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("numeric(4,2)")
+                        .HasColumnName("ph_value");
+
+                    b.Property<string>("Recommendation")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("recommendation");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Manual")
+                        .HasColumnName("source");
+
+                    b.Property<string>("SourceEventId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("source_event_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("NotEvaluated")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("water_quality_logs_pkey");
+
+                    b.HasIndex("InspectedBy");
+
+                    b.HasIndex("InspectionTime")
+                        .IsDescending()
+                        .HasDatabaseName("ix_water_quality_logs_inspection_time");
+
+                    b.HasIndex("EquipmentId", "SourceEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_water_quality_logs_device_event")
+                        .HasFilter("source = 'Device'");
+
+                    b.ToTable("water_quality_logs", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_water_quality_logs_chlorine_nonnegative", "free_chlorine_mg_l >= 0");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_ph_nonnegative", "ph_value >= 0");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_source", "source IN ('Manual', 'Device')");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_source_identity", "(source = 'Manual' AND inspected_by IS NOT NULL AND source_event_id IS NULL)\nOR\n(source = 'Device' AND inspected_by IS NULL AND equipment_id IS NOT NULL\n    AND source_event_id IS NOT NULL AND length(btrim(source_event_id)) > 0)");
+
+                            t.HasCheckConstraint("ck_water_quality_logs_status", "status IN ('NotEvaluated', 'Incomplete', 'WithinLimits', 'Warning', 'Danger')");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", "User")
@@ -1567,6 +1728,36 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Ticket");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceipt", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Creator");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceiptDetail", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.GoodsReceipt", "Receipt")
+                        .WithMany("Details")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Receipt");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Incident", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", "ReportedByNavigation")
@@ -1590,9 +1781,16 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("inventory_logs_product_id_fkey");
 
+                    b.HasOne("SmartPool.Domain.Entities.GoodsReceiptDetail", "ReceiptDetail")
+                        .WithMany()
+                        .HasForeignKey("ReceiptDetailId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("CreatedByNavigation");
 
                     b.Navigation("Product");
+
+                    b.Navigation("ReceiptDetail");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.MaintenanceLog", b =>
@@ -1732,17 +1930,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.Salary", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.Employee", "Employee")
-                        .WithMany("Salaries")
-                        .HasForeignKey("EmployeeId")
-                        .IsRequired()
-                        .HasConstraintName("salaries_employee_id_fkey");
-
-                    b.Navigation("Employee");
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.Ticket", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.TicketType", "TicketType")
@@ -1807,6 +1994,25 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Verifier");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.WaterQualityLog", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Equipment", "Equipment")
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("water_quality_logs_equipment_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "Inspector")
+                        .WithMany()
+                        .HasForeignKey("InspectedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("water_quality_logs_inspected_by_fkey");
+
+                    b.Navigation("Equipment");
+
+                    b.Navigation("Inspector");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.Navigation("EmployeeShifts");
@@ -1814,8 +2020,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("Payments");
-
-                    b.Navigation("Salaries");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.EmployeeShift", b =>
@@ -1828,6 +2032,11 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("MaintenanceLogs");
 
                     b.Navigation("MaintenanceSchedules");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceipt", b =>
+                {
+                    b.Navigation("Details");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.MaintenanceSchedule", b =>

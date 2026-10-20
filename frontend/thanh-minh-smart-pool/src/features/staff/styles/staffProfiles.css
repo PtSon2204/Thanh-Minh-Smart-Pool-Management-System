@@ -191,8 +191,7 @@
   overflow-wrap: anywhere;
 }
 
-.staff-profile-detail-join-date dd,
-.staff-profile-detail-salary dd {
+.staff-profile-detail-join-date dd {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }

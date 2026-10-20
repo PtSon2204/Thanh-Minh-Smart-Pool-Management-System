@@ -35,10 +35,10 @@ export function useStaffSchedulePage({ scope, sessionUserId, params, enabled }) 
   })
 }
 
-export function useAttendanceSchedule(sessionUserId, date, enabled) {
+export function useAttendanceSchedule(sessionUserId, date, enabled, scope = 'all') {
   return useQuery({
-    queryKey: ['staff-attendance', sessionUserId, date],
-    queryFn: ({ signal }) => staffService.getCompleteSchedule('all', { fromDate: date, toDate: date }, signal),
+    queryKey: ['staff-attendance', sessionUserId, date, scope],
+    queryFn: ({ signal }) => staffService.getCompleteSchedule(scope, { fromDate: date, toDate: date }, signal),
     enabled: Boolean(enabled && sessionUserId && date),
   })
 }
@@ -121,13 +121,5 @@ export function useAttendanceHistory(assignmentId, pageIndex = 1, enabled = true
     queryFn: ({ signal }) => staffService.getAttendanceHistory(assignmentId, { pageIndex, pageSize: 20 }, signal),
     enabled: Boolean(enabled && assignmentId),
     retry: false,
-  })
-}
-
-export function useStaffSalaries(employeeId, params, enabled) {
-  return useQuery({
-    queryKey: ['staff-salaries', employeeId, params],
-    queryFn: () => staffService.getSalaries({ ...params, employeeId }),
-    enabled: Boolean(enabled && employeeId),
   })
 }

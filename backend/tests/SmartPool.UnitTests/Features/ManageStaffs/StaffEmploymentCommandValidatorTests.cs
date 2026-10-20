@@ -12,7 +12,7 @@ public sealed class StaffEmploymentCommandValidatorTests
         {
             UserId = Guid.NewGuid(),
             JoinDate = new DateOnly(2026, 10, 5),
-            BaseSalary = 10000000,
+
             Status = "Working"
         });
 
@@ -25,7 +25,7 @@ public sealed class StaffEmploymentCommandValidatorTests
         var result = new UpdateStaffValidator().Validate(new UpdateStaffCommand
         {
             UserId = Guid.NewGuid(),
-            BaseSalary = 10000000,
+
             Status = "Inactive"
         });
 
@@ -38,7 +38,7 @@ public sealed class StaffEmploymentCommandValidatorTests
         var result = new CreateStaffValidator().Validate(new CreateStaffCommand
         {
             UserId = Guid.NewGuid(),
-            BaseSalary = 10000000,
+
             Status = "Working"
         });
 
