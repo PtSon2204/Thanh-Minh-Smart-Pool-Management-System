@@ -41,7 +41,7 @@ public sealed partial class ServiceOperations
             logs = logs.Where(log => log.CreatedAt >= start && log.CreatedAt < end);
         }
         var total = await logs.CountAsync(cancellationToken);
-        var items = await logs.OrderByDescending(log => log.CreatedAt).ThenBy(log => log.Id).Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).Select(log => new GetInventoryHistoryResponse { Id = log.Id, ProductId = log.ProductId, ChangeType = log.ChangeType, Quantity = log.Quantity, Note = log.Note, CreatedBy = log.CreatedBy, CreatedAt = log.CreatedAt, ReceiptDetailId = log.ReceiptDetailId, ReceiptId = log.ReceiptDetail == null ? null : log.ReceiptDetail.ReceiptId, ReceiptCode = log.ReceiptDetail == null ? null : log.ReceiptDetail.Receipt.ReceiptCode, UnitCost = log.ReceiptDetail == null ? null : log.ReceiptDetail.UnitCost }).ToListAsync(cancellationToken);
+        var items = await logs.OrderByDescending(log => log.CreatedAt).ThenBy(log => log.Id).Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).Select(log => new GetInventoryHistoryResponse { Id = log.Id, ProductId = log.ProductId, ChangeType = log.ChangeType, Quantity = log.Quantity, Note = log.Note, CreatedBy = log.CreatedBy, CreatedAt = log.CreatedAt }).ToListAsync(cancellationToken);
         return new PagedResponse<GetInventoryHistoryResponse> { Items = items, TotalCount = total, PageIndex = query.PageIndex, PageSize = query.PageSize };
     }
 }

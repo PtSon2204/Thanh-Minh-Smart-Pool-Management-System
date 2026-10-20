@@ -19,13 +19,12 @@ public sealed partial class ServiceOperations
 
         var hasActiveRentals = await _context.Rentals
             .AnyAsync(rental => rental.ProductId == command.Id && rental.Status == "Renting", cancellationToken);
-        if (hasActiveRentals && (command.Type != "Rental" || product.StockQuantity is null))
+        if (hasActiveRentals && product.StockQuantity is null)
         {
-            throw new ServiceConflictException("Dịch vụ có lượt thuê đang hoạt động phải giữ loại Rental và tồn kho có thể hoàn trả.");
+            throw new ServiceConflictException("Đồ đang cho thuê phải có số lượng để nhận trả.");
         }
 
         product.Name = command.Name.Trim();
-        product.Type = command.Type;
         product.Price = command.Price;
         product.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);

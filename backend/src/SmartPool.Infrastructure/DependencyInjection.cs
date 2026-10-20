@@ -143,7 +143,6 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
-            services.AddScoped<IGoodsReceiptOperations, GoodsReceiptOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();

@@ -1,11 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Alert, Button, Form, Input, InputNumber, Modal, Select, Switch } from 'antd'
+import { Alert, Button, Form, Input, InputNumber, Modal } from 'antd'
 import { getServiceErrorMessage, useCreateService, useUpdateService } from '../hooks/useServiceMutations'
-
-const serviceTypeOptions = [
-  { label: 'Bán hàng', value: 'Sale' },
-  { label: 'Cho thuê', value: 'Rental' },
-]
 
 export default function ServiceFormModal({ open, onClose, service }) {
   const [form] = Form.useForm()
@@ -24,14 +19,13 @@ export default function ServiceFormModal({ open, onClose, service }) {
     if (service) {
       form.setFieldsValue({
         name: service.name,
-        type: service.type,
         price: service.price,
         stockQuantity: undefined,
       })
       return
     }
 
-    form.setFieldsValue({ name: undefined, type: undefined, price: undefined, trackStock: true })
+    form.setFieldsValue({ name: undefined, price: undefined, stockQuantity: 0 })
   }, [form, open, service])
 
   const handleFinish = (values) => {
@@ -40,7 +34,6 @@ export default function ServiceFormModal({ open, onClose, service }) {
 
     const payload = {
       name: values.name.trim(),
-      type: values.type,
       price: values.price,
     }
 
@@ -51,7 +44,7 @@ export default function ServiceFormModal({ open, onClose, service }) {
     }
 
     createServiceMutation.reset()
-    createServiceMutation.mutate({ ...payload, isActive: true, stockQuantity: values.trackStock ? 0 : null }, { onSuccess: onClose, onSettled: () => { submitting.current = false } })
+    createServiceMutation.mutate({ ...payload, isActive: true, stockQuantity: values.stockQuantity }, { onSuccess: onClose, onSettled: () => { submitting.current = false } })
   }
 
   const handleCancel = () => {
@@ -64,7 +57,7 @@ export default function ServiceFormModal({ open, onClose, service }) {
 
   return (
     <Modal
-      title={isEditing ? 'Cập nhật dịch vụ' : 'Thêm dịch vụ'}
+      title={isEditing ? 'Cập nhật đồ cho thuê' : 'Thêm đồ cho thuê'}
       open={open}
       forceRender
       onCancel={handleCancel}
@@ -80,20 +73,15 @@ export default function ServiceFormModal({ open, onClose, service }) {
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} preserve={false}>
         {mutationError && <Alert className="service-inline-error" type="error" showIcon message="Không thể lưu dịch vụ" description={getServiceErrorMessage(mutationError, 'Máy chủ không thể lưu dịch vụ.')} action={<Button size="small" danger onClick={() => form.submit()} disabled={isPending}>Thử lại</Button>} />}
-        <Form.Item label="Tên dịch vụ" name="name" rules={[{ required: true, whitespace: true, message: 'Nhập tên dịch vụ.' }, { max: 255, message: 'Tên không vượt quá 255 ký tự.' }]}>
+        <Form.Item label="Tên đồ cho thuê" name="name" rules={[{ required: true, whitespace: true, message: 'Nhập tên đồ cho thuê.' }, { max: 255, message: 'Tên không vượt quá 255 ký tự.' }]}>
           <Input placeholder="Ví dụ: Khăn tắm" />
         </Form.Item>
-        <div className="service-form-grid">
-          <Form.Item label="Loại dịch vụ" name="type" rules={[{ required: true, message: 'Chọn loại dịch vụ.' }]}>
-            <Select options={serviceTypeOptions} placeholder="Chọn loại" />
-          </Form.Item>
-          <Form.Item label="Giá bán / thuê (VNĐ)" name="price" rules={[{ required: true, message: 'Nhập giá dịch vụ.' }, { type: 'number', min: 0, message: 'Giá không được âm.' }]}>
-            <InputNumber min={0} className="service-full-width" />
-          </Form.Item>
-        </div>
+        <Form.Item label="Giá thuê mỗi đơn vị (VNĐ)" name="price" rules={[{ required: true, message: 'Nhập giá thuê.' }, { type: 'number', min: 0, message: 'Giá không được âm.' }]}>
+          <InputNumber min={0} className="service-full-width" />
+        </Form.Item>
         {!isEditing && (
-          <Form.Item label="Theo dõi tồn kho" name="trackStock" valuePropName="checked" extra="Tồn kho ban đầu là 0. Lập phiếu nhập hàng để lưu số lượng và giá nhập.">
-            <Switch />
+          <Form.Item label="Số lượng ban đầu có thể cho thuê" name="stockQuantity" rules={[{ required: true, type: 'integer', min: 0, max: 2147483647, message: 'Nhập số nguyên không âm hợp lệ.' }]} extra="Có thể điều chỉnh số lượng đồ thuê sau khi kiểm kê.">
+            <InputNumber min={0} max={2147483647} precision={0} className="service-full-width" />
           </Form.Item>
         )}
       </Form>

@@ -14,7 +14,7 @@ public sealed class ServiceStatusIntegrationTests
             await using var context = fixture.CreateContext();
             var before = await context.Products.AsNoTracking()
                 .Where(product => product.Id == fixture.ProductId)
-                .Select(product => new { product.Name, product.Type, product.Price, product.StockQuantity, product.IsActive, product.IsDeleted, product.CreatedAt, product.UpdatedAt })
+                .Select(product => new { product.Name, product.Price, product.StockQuantity, product.IsActive, product.IsDeleted, product.CreatedAt, product.UpdatedAt })
                 .SingleAsync();
 
             var result = await fixture.CreateOperations().SetServiceStatusAsync(
@@ -22,11 +22,11 @@ public sealed class ServiceStatusIntegrationTests
 
             var after = await context.Products.AsNoTracking()
                 .Where(product => product.Id == fixture.ProductId)
-                .Select(product => new { product.Name, product.Type, product.Price, product.StockQuantity, product.IsActive, product.IsDeleted, product.CreatedAt, product.UpdatedAt })
+                .Select(product => new { product.Name, product.Price, product.StockQuantity, product.IsActive, product.IsDeleted, product.CreatedAt, product.UpdatedAt })
                 .SingleAsync();
 
-            Assert.Equal((before.Name, before.Type, before.Price, before.StockQuantity, before.IsDeleted, before.CreatedAt),
-                (after.Name, after.Type, after.Price, after.StockQuantity, after.IsDeleted, after.CreatedAt));
+            Assert.Equal((before.Name, before.Price, before.StockQuantity, before.IsDeleted, before.CreatedAt),
+                (after.Name, after.Price, after.StockQuantity, after.IsDeleted, after.CreatedAt));
             Assert.True(before.IsActive);
             Assert.False(after.IsActive);
             Assert.InRange(Math.Abs((after.UpdatedAt!.Value - result.UpdatedAt).Ticks), 0, 10);

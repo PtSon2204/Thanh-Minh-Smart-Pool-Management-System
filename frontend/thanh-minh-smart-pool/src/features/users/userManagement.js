@@ -2,7 +2,7 @@ export const USER_ROLES = [
   { value: 'CUSTOMER', label: 'Khách hàng' },
   { value: 'ADMIN', label: 'Quản trị viên' },
   { value: 'LIFEGUARD', label: 'Nhân viên cứu hộ' },
-  { value: 'SALES', label: 'Nhân viên bán hàng' },
+  { value: 'SALES', label: 'Nhân viên bán vé' },
 ]
 
 export const USER_ROLE_COLORS = { ADMIN: 'purple', CUSTOMER: 'cyan', LIFEGUARD: 'blue', SALES: 'geekblue' }
