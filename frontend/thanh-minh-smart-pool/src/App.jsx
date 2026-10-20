@@ -1,5 +1,5 @@
 import { ConfigProvider } from 'antd'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import MainLayout from "./layouts/MainLayout";
 import HomePage from "./pages/HomePage/HomePage";
 import AboutPage from "./pages/AboutPage/AboutPage";
@@ -79,7 +79,8 @@ const router = createBrowserRouter([
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
               { index: true, element: <DashboardPage /> },
-              { path: 'equipment', element: <EquipmentPage /> },
+              { path: 'equipments/list-equipments', element: <EquipmentPage /> },
+              { path: 'equipment', element: <Navigate to="/admin/equipments/list-equipments" replace /> },
               { path: 'staff/shifts', element: <ShiftManagementPage /> },
               { path: 'notifications', element: <NotificationPage /> },
               { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
