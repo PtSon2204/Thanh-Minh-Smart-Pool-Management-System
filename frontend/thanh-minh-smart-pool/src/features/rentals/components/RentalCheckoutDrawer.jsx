@@ -12,7 +12,7 @@ export default function RentalCheckoutDrawer({ open, mutation, onClose, onSucces
   const [searchTerm, setSearchTerm] = useState('')
   const [pageIndex, setPageIndex] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const productsQuery = useServices({ type: 'Rental', isActive: true, searchTerm: searchTerm || undefined, pageIndex, pageSize: PRODUCT_PAGE_SIZE })
+  const productsQuery = useServices({ isActive: true, searchTerm: searchTerm || undefined, pageIndex, pageSize: PRODUCT_PAGE_SIZE })
   const { refetch: refetchProducts } = productsQuery
   const quantity = Form.useWatch('quantity', form) || 0
   const trackedStock = selectedProduct?.stockQuantity

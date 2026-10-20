@@ -28,8 +28,8 @@ export default function useOnlineTicketPayment() {
   const [now, setNow] = useState(Date.now)
   const clock = useRef(null)
   const submitting = useRef(false)
-  const orderId = session?.userId === userId ? session.orderId : restoredId
-  const open = Boolean(userId && orderId && (modal?.userId === userId ? modal.open : restoredId))
+  const orderId = session && session.userId === userId ? session.orderId : restoredId
+  const open = Boolean(userId && orderId && (modal && modal.userId === userId ? modal.open : restoredId))
 
   const synchronizeClock = (data) => {
     const serverTime = Date.parse(data.serverTimeUtc)
@@ -61,7 +61,7 @@ export default function useOnlineTicketPayment() {
     if (!orderId) return
     const timer = setInterval(() => {
       const anchor = clock.current
-      if (anchor?.userId === userId && anchor.orderId === orderId) {
+      if (anchor && anchor.userId === userId && anchor.orderId === orderId) {
         setNow(anchor.serverTime + performance.now() - anchor.receivedAt)
       }
     }, 250)

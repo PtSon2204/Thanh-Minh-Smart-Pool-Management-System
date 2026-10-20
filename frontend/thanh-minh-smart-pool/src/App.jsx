@@ -18,7 +18,6 @@ import DashboardPage from "./pages/admin/DashboardPage";
 import OfflineSalesPage from "./pages/admin/OfflineSalesPage";
 import TicketTypePage from "./pages/admin/TicketTypePage";
 import ServicePage from "./pages/admin/ServicePage";
-import GoodsReceiptsPage from './pages/admin/GoodsReceiptsPage'
 import InventoryPage from "./pages/admin/InventoryPage";
 import RentalPage from "./pages/admin/RentalPage";
 import VoucherPage from "./pages/admin/VoucherPage";
@@ -37,6 +36,7 @@ import StaffAttendanceScanPage from "./pages/admin/StaffAttendanceScanPage";
 import TicketScannerPage from "./pages/admin/TicketScannerPage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
+import EquipmentPage from "./pages/admin/EquipmentPage";
 
 const router = createBrowserRouter([
   {
@@ -52,7 +52,7 @@ const router = createBrowserRouter([
           { path: '/ho-so', element: <ProfilePage /> },
           { path: '/doi-mat-khau', element: <ChangePasswordPage /> },
           { path: '/the-cua-toi', element: <MyCardPage /> },
-          { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage /> },
+          { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage isCustomerView /> },
         ],
       },
       { path: '*', element: <NotFoundPage /> },
@@ -79,6 +79,7 @@ const router = createBrowserRouter([
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
               { index: true, element: <DashboardPage /> },
+              { path: 'equipment', element: <EquipmentPage /> },
               { path: 'staff/shifts', element: <ShiftManagementPage /> },
               { path: 'notifications', element: <NotificationPage /> },
               { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
@@ -102,7 +103,6 @@ const router = createBrowserRouter([
               { path: 'tickets/scanQR', element: <TicketScannerPage /> },
               { path: 'services', element: <ServicePage /> },
               { path: 'inventory', element: <InventoryPage /> },
-              { path: 'inventory/receipts', element: <GoodsReceiptsPage /> },
               { path: 'rentals', element: <RentalPage /> },
               { path: 'coupons', element: <VoucherPage /> },
             ],

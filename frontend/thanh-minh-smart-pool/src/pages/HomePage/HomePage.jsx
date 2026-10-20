@@ -5,13 +5,11 @@ import './HomePage.css'
 // Import service images
 import imgLocker from '../../assets/tu-do-mien-phi.png'
 import imgShop from '../../assets/dich-vu-cho-thue.png'
-import imgFood from '../../assets/dich-vu-am-thuc.png'
 
 // Import why-us images
 import whyImg1 from '../../assets/tai-sao-anh-1-dochothue.png'
 import whyImg2 from '../../assets/tai-sao-anh-2-camera-giam-sat.png'
 import whyImg3 from '../../assets/tai-sao-anh-3-tudedofree.png'
-import whyImg4 from '../../assets/tai-sao-anh-4-doannhanh.png'
 
 const promoItems = [
   {
@@ -59,24 +57,16 @@ const whyUsItems = [
   },
   {
     id: 3,
-    title: 'Đồ ăn nhanh tiện lợi',
-    tag: '03 ✦ NẠP NĂNG LƯỢNG',
-    desc: 'Quầy ẩm thực ngay tại khuôn viên cung cấp đa dạng các món ăn vặt, xúc xích, bim bim và nước giải khát, giúp bạn nạp lại năng lượng tức thì sau những giờ bơi lội.',
-    features: ['Thực đơn phong phú, đa dạng lựa chọn', 'Phục vụ nhanh chóng, hợp vệ sinh'],
-    img: whyImg4,
-  },
-  {
-    id: 4,
     title: 'Camera AI giám sát an toàn',
-    tag: '04 ✦ CÔNG NGHỆ TIÊN PHONG',
+    tag: '03 ✦ CÔNG NGHỆ TIÊN PHONG',
     desc: 'Thành Minh tự hào ứng dụng công nghệ Trí tuệ nhân tạo (AI) vào hệ thống camera giám sát. Hệ thống liên tục quét và tự động phát hiện, cảnh báo ngay lập tức các nguy cơ mất an toàn.',
     features: ['Hỗ trợ phát hiện nguy cơ đuối nước sớm', 'Giám sát 24/7 bao quát toàn bộ khu vực'],
     img: whyImg2,
   },
   {
-    id: 5,
+    id: 4,
     title: 'Dịch vụ cho thuê phụ kiện',
-    tag: '05 ✦ TRANG BỊ ĐẦY ĐỦ',
+    tag: '04 ✦ TRANG BỊ ĐẦY ĐỦ',
     desc: 'Quên mang theo phụ kiện bơi lội? Đừng lo! Chúng tôi cung cấp dịch vụ cho thuê phao bơi, kính bơi, khăn tắm sạch sẽ, chất lượng cao dành cho mọi lứa tuổi.',
     features: ['Đa dạng mẫu mã và kích cỡ', 'Vệ sinh tiệt trùng cẩn thận sau mỗi lần thuê'],
     img: whyImg1,
@@ -86,7 +76,6 @@ const whyUsItems = [
 const services = [
   { img: imgLocker, title: 'Tủ đồ miễn phí', desc: 'Tủ đồ cá nhân an toàn, miễn phí cho mọi khách hàng' },
   { img: imgShop, title: 'Cho thuê phụ kiện', desc: 'Cung cấp đầy đủ phao, kính bơi, khăn tắm...' },
-  { img: imgFood, title: 'Đồ ăn nhanh', desc: 'Phục vụ đa dạng: bim bim, nước giải khát, xúc xích...' },
 ]
 
 export default function HomePage() {
@@ -174,9 +163,6 @@ export default function HomePage() {
                 và tận hưởng không gian vui chơi mát mẻ ngay giữa lòng thành phố.
               </p>
               <div className="hero-actions">
-                <Link to="/dat-ve" className="btn-primary">
-                  🎟️ Đặt vé ngay
-                </Link>
                 <Link to="/bang-gia" className="btn-outline">
                   📋 Xem bảng giá
                 </Link>
@@ -215,7 +201,7 @@ export default function HomePage() {
               <div className="why-us-badge" style={{ marginBottom: 0 }}>✨ GIÁ TRỊ TỐT NHẤT DÀNH CHO BẠN</div>
             </div>
             <h2 className="section-title">Tại sao lại chọn <span style={{ color: 'var(--accent)', fontStyle: 'italic', fontFamily: 'serif' }}>Bể bơi Thành Minh</span>?</h2>
-            <p className="section-subtitle">5 tiêu chuẩn hàng đầu giúp chúng tôi mang đến trải nghiệm bơi lội tuyệt vời nhất</p>
+            <p className="section-subtitle">{whyUsItems.length} tiêu chuẩn hàng đầu giúp chúng tôi mang đến trải nghiệm bơi lội tuyệt vời nhất</p>
           </div>
 
           <div className="why-us-list">
@@ -260,13 +246,9 @@ export default function HomePage() {
           <div className="cta-content reveal">
             <h2 className="cta-title">🌊 Sẵn sàng cho một ngày vui trọn vẹn?</h2>
             <p className="cta-desc">
-              Đặt vé ngay hôm nay để đảm bảo chỗ và nhận ưu đãi tốt nhất.
-              Hệ thống đặt vé online hoạt động 24/7 — nhanh chóng, tiện lợi, an toàn.
+              Tham khảo bảng giá để lựa chọn loại vé phù hợp với nhu cầu của bạn.
             </p>
             <div className="cta-actions">
-              <Link to="/dat-ve" className="btn-primary">
-                🎟️ Đặt vé online ngay
-              </Link>
               <Link to="/bang-gia" className="btn-outline">
                 📋 Xem bảng giá
               </Link>

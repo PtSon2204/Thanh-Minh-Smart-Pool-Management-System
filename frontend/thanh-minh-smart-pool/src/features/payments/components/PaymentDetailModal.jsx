@@ -28,7 +28,7 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
 
   const itemColumns = [
     {
-      title: 'Tên mặt hàng / Dịch vụ',
+      title: 'Vé / Dịch vụ thuê',
       dataIndex: 'itemName',
       key: 'itemName',
       render: (name, r) => (
@@ -274,8 +274,8 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
             </Col>
           </Row>
 
-          {/* Card: Danh sách mặt hàng trong đơn */}
-          <Card size="small" title="2. Chi tiết các mặt hàng / Vé đã mua" style={{ marginBottom: 16, borderColor: '#e2e8f0' }}>
+          {/* Card: Chi tiết vé và dịch vụ thuê trong đơn */}
+          <Card size="small" title="2. Chi tiết vé / Dịch vụ thuê" style={{ marginBottom: 16, borderColor: '#e2e8f0' }}>
             <Table
               columns={itemColumns}
               dataSource={data.items || []}

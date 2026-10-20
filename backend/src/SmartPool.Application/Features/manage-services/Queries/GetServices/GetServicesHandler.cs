@@ -37,11 +37,6 @@ namespace SmartPool.Application.Features.ManageServices.Queries.GetServices
                 query = query.Where(product => product.Name.ToLower().Contains(searchTerm));
             }
 
-            if (!string.IsNullOrWhiteSpace(request.Type))
-            {
-                query = query.Where(product => product.Type == request.Type);
-            }
-
             if (request.IsActive.HasValue)
             {
                 query = request.IsActive.Value

@@ -45,10 +45,6 @@ export default function Footer() {
           {/* Services */}
           <div className="footer-col">
             <h4>Dịch vụ</h4>
-             <div className="footer-service-item">
-              <span className="footer-contact-icon"></span>
-              <span>Dịch vụ đồ ăn</span>
-            </div>
             <div className="footer-service-item">
               <span className="footer-contact-icon"></span>
               <span>Dịch vụ thuê đồ</span>

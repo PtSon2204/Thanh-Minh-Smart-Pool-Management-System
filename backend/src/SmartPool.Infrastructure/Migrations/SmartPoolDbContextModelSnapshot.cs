@@ -341,115 +341,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("equipments", "smart_pool");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceipt", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("text")
-                        .HasColumnName("note");
-
-                    b.Property<string>("ReceiptCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("receipt_code");
-
-                    b.Property<DateTime>("ReceivedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("received_at");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Draft")
-                        .HasColumnName("status");
-
-                    b.Property<string>("SupplierName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("supplier_name");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("ReceiptCode")
-                        .IsUnique()
-                        .HasDatabaseName("ux_goods_receipts_code");
-
-                    b.HasIndex("ReceivedAt")
-                        .IsDescending()
-                        .HasDatabaseName("ix_goods_receipts_received_at");
-
-                    b.ToTable("goods_receipts", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_goods_receipts_status", "status IN ('Draft', 'Posted', 'Cancelled')");
-                        });
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceiptDetail", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<Guid>("ProductId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("product_id");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer")
-                        .HasColumnName("quantity");
-
-                    b.Property<Guid>("ReceiptId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("receipt_id");
-
-                    b.Property<decimal>("UnitCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("unit_cost");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("ReceiptId", "ProductId")
-                        .IsUnique();
-
-                    b.ToTable("goods_receipt_details", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_goods_receipt_details_cost", "unit_cost >= 0");
-
-                            t.HasCheckConstraint("ck_goods_receipt_details_quantity", "quantity > 0");
-                        });
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.Incident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -551,20 +442,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
 
-                    b.Property<Guid?>("ReceiptDetailId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("receipt_detail_id");
-
                     b.HasKey("Id")
                         .HasName("inventory_logs_pkey");
 
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("ProductId");
-
-                    b.HasIndex("ReceiptDetailId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_inventory_logs_receipt_detail_id");
 
                     b.ToTable("inventory_logs", "smart_pool");
                 });
@@ -967,12 +850,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("stock_quantity");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("type");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -1728,36 +1605,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Ticket");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceipt", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.User", "Creator")
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Creator");
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceiptDetail", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartPool.Domain.Entities.GoodsReceipt", "Receipt")
-                        .WithMany("Details")
-                        .HasForeignKey("ReceiptId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("Receipt");
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.Incident", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", "ReportedByNavigation")
@@ -1781,16 +1628,9 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("inventory_logs_product_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.GoodsReceiptDetail", "ReceiptDetail")
-                        .WithMany()
-                        .HasForeignKey("ReceiptDetailId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("CreatedByNavigation");
 
                     b.Navigation("Product");
-
-                    b.Navigation("ReceiptDetail");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.MaintenanceLog", b =>
@@ -2032,11 +1872,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("MaintenanceLogs");
 
                     b.Navigation("MaintenanceSchedules");
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.GoodsReceipt", b =>
-                {
-                    b.Navigation("Details");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.MaintenanceSchedule", b =>

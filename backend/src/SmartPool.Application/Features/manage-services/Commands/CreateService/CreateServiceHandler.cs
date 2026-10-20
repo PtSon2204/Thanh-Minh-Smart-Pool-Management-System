@@ -33,7 +33,6 @@ namespace SmartPool.Application.Features.ManageServices.Commands.CreateService
             {
                 Id = Guid.NewGuid(),
                 Name = request.Name.Trim(),
-                Type = request.Type,
                 Price = request.Price,
                 StockQuantity = request.StockQuantity,
                 IsActive = request.IsActive,

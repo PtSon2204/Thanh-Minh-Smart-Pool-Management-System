@@ -65,7 +65,7 @@ export default function AdminLayout() {
   const roleLabelMap = {
     ADMIN: 'Quản trị viên',
     LIFEGUARD: 'Nhân viên cứu hộ',
-    SALES: 'Nhân viên bán hàng',
+    SALES: 'Nhân viên bán vé',
   };
   const roleDisplay = roleLabelMap[role] || (isAdmin ? 'Quản trị viên' : 'Nhân viên');
 
@@ -128,11 +128,10 @@ export default function AdminLayout() {
       key: 'services',
       className: 'admin-service-menu',
       icon: <AppstoreOutlined />,
-      label: 'Quản lý dịch vụ',
+      label: 'Dịch vụ cho thuê',
       children: [
-        { key: '/admin/services', label: <Link to="/admin/services">Danh mục dịch vụ</Link> },
-        { key: '/admin/inventory', label: <Link to="/admin/inventory">Tồn kho và lịch sử</Link> },
-        { key: '/admin/inventory/receipts', label: <Link to="/admin/inventory/receipts">Phiếu nhập hàng</Link> },
+        { key: '/admin/services', label: <Link to="/admin/services">Danh mục đồ cho thuê</Link> },
+        { key: '/admin/inventory', label: <Link to="/admin/inventory">Số lượng đồ thuê và lịch sử</Link> },
         { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },
@@ -151,8 +150,6 @@ export default function AdminLayout() {
       children: [
         { key: '/admin/statistics/ticket-revenue', label: <Link to="/admin/statistics/ticket-revenue">Thống kê số tiền vé</Link> },
         { key: '/admin/statistics/monthly-tickets', label: <Link to="/admin/statistics/monthly-tickets">Thống kê vé tháng</Link> },
-        { key: '/admin/statistics/inventory-costs', label: <Link to="/admin/statistics/inventory-costs">Thống kê số tiền nhập hàng</Link> },
-        { key: '/admin/statistics/sales-revenue', label: <Link to="/admin/statistics/sales-revenue">Thống kê doanh thu bán hàng</Link> },
         { key: '/admin/statistics/user-count', label: <Link to="/admin/statistics/user-count">Thống kê số lượng người dùng</Link> },
         { key: '/admin/statistics/incidents', label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link> },
         { key: '/admin/statistics/operations-costs', label: <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link> },
