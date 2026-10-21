@@ -150,6 +150,10 @@
 }
 
 .camera-view-status { margin-bottom: 12px; }
+.browser-camera-preview { display: grid; gap: 12px; margin-bottom: 20px; }
+.browser-camera-preview .camera-view-status,
+.browser-camera-preview .camera-video-container { margin-bottom: 0; }
+.browser-camera-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .camera-video-container { position: relative; aspect-ratio: 16 / 9; background: #000; margin-bottom: 16px; overflow: hidden; border-radius: 8px; }
 .camera-video { width: 100%; height: 100%; object-fit: contain; }
 .camera-video-hidden { visibility: hidden; }

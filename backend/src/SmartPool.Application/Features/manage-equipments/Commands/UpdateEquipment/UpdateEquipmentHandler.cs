@@ -18,8 +18,6 @@ public sealed class UpdateEquipmentHandler(IRepository<Equipment> repository, IU
         var category = request.Category.Trim();
         if (CameraMetadata.IsCamera(category) != CameraMetadata.IsCamera(equipment.Category))
             throw new ValidationException([new ValidationFailure(nameof(request.Category), "Không thể chuyển đổi giữa Camera và nhóm thiết bị khác.")]);
-        if (category != equipment.Category && !await repository.ExistsAsync(x => x.IsDeleted != true && x.Category == category, cancellationToken))
-            throw new ValidationException([new ValidationFailure(nameof(request.Category), "Nhóm thiết bị không tồn tại. Vui lòng chọn nhóm từ danh sách hiện có.")]);
 
         equipment.Name = request.Name.Trim();
         equipment.Category = category;

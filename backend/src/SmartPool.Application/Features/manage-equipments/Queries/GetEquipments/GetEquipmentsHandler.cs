@@ -17,9 +17,13 @@ public sealed class GetEquipmentsHandler(IEquipmentOperations repository, IValid
         var result = await repository.GetListAsync(request, VietnamTimeBoundary.GetDate(timeProvider), cancellationToken);
         foreach (var equipment in result.Items)
         {
+            var browser = CameraMetadata.IsBrowserCamera(equipment.Metadata);
             equipment.Metadata = CameraMetadata.PublicSpecifications(equipment.Metadata);
             if (CameraMetadata.IsCamera(equipment.Category))
-                equipment.CameraConnection = cameras?.GetStatus(equipment.Id) ?? new CameraConnectionStatus("Disconnected", null);
+            {
+                equipment.CameraSource = browser ? "Browser" : "RTSP";
+                if (!browser) equipment.CameraConnection = cameras?.GetStatus(equipment.Id) ?? new CameraConnectionStatus("Disconnected", null);
+            }
         }
         return result;
     }

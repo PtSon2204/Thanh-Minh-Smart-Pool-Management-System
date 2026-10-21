@@ -31,12 +31,21 @@ public sealed class CreateEquipmentValidator : AbstractValidator<CreateEquipment
             RuleFor(x => x.CameraConnection).NotNull().WithMessage("Nhập cấu hình kết nối camera.");
             When(x => x.CameraConnection != null, () =>
             {
-                RuleFor(x => x.CameraConnection!.Protocol).Equal("RTSP").WithMessage("Hiện chỉ hỗ trợ RTSP qua TCP.");
-                RuleFor(x => x.CameraConnection!.StreamUrl).Must(value => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+                RuleFor(x => x.CameraConnection!.Protocol).Must(value => value is "RTSP" or "Browser").WithMessage("Chọn nguồn camera hợp lệ.");
+                When(x => x.CameraConnection!.Protocol == "RTSP", () =>
+                {
+                    RuleFor(x => x.CameraConnection!.StreamUrl).Must(value => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
                     uri.Scheme == "rtsp" && uri.Port != 0 && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Fragment) && !string.IsNullOrWhiteSpace(uri.Host) &&
                     !value.Any(char.IsControl)).WithMessage("Nhập RTSP URL hợp lệ, không nhúng username/password vào URL.");
-                RuleFor(x => x.CameraConnection!.Username).NotEmpty().When(x => !string.IsNullOrEmpty(x.CameraConnection!.Password))
+                    RuleFor(x => x.CameraConnection!.Username).NotEmpty().When(x => !string.IsNullOrEmpty(x.CameraConnection!.Password))
                     .WithMessage("Nhập username khi sử dụng password.");
+                });
+                When(x => x.CameraConnection!.Protocol == "Browser", () =>
+                {
+                    RuleFor(x => x.CameraConnection!.StreamUrl).Empty().WithMessage("Camera máy tính không sử dụng địa chỉ RTSP.");
+                    RuleFor(x => x.CameraConnection!.Username).Empty().WithMessage("Camera máy tính không sử dụng tài khoản RTSP.");
+                    RuleFor(x => x.CameraConnection!.Password).Empty().WithMessage("Camera máy tính không sử dụng mật khẩu RTSP.");
+                });
             });
         });
         RuleFor(x => x.CameraConnection).Null().When(x => !CameraMetadata.IsCamera(x.Category))

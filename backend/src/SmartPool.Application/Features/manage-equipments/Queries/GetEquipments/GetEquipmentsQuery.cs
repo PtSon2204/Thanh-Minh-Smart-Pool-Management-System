@@ -38,6 +38,7 @@ public sealed class EquipmentListItem
     public string? Status { get; set; }
     public DateOnly? NextMaintenanceDate { get; set; }
     public CameraConnectionStatus? CameraConnection { get; set; }
+    public string? CameraSource { get; set; }
 }
 
 public sealed class EquipmentFilterOptions

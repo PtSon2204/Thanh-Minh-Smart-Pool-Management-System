@@ -21,9 +21,7 @@ public sealed class CreateEquipmentHandler(
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
         var category = request.Category.Trim();
-        if (!await repository.ExistsAsync(x => x.IsDeleted != true && x.Category == category, cancellationToken) &&
-            await repository.ExistsAsync(x => x.IsDeleted != true && x.Category != "", cancellationToken))
-            throw new ValidationException([new FluentValidation.Results.ValidationFailure(nameof(request.Category), "Nhóm thiết bị không tồn tại. Vui lòng chọn nhóm từ danh sách hiện có.")]);
+        var browser = CameraMetadata.IsCamera(category) && request.CameraConnection?.Protocol == "Browser";
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var equipment = new Equipment
         {
@@ -33,7 +31,7 @@ public sealed class CreateEquipmentHandler(
                 ? metadata.GetRawText() : null,
             Status = EquipmentStatuses.Active, IsDeleted = false, CreatedAt = now, UpdatedAt = now
         };
-        if (CameraMetadata.IsCamera(category))
+        if (CameraMetadata.IsCamera(category) && !browser)
         {
             if (cameras == null || equipmentOperations == null)
                 throw new CameraConnectionException("NotConfigured", "Dịch vụ camera chưa được cấu hình.");
@@ -48,6 +46,7 @@ public sealed class CreateEquipmentHandler(
         }
         else
         {
+            if (browser) equipment.Metadata = CameraMetadata.PackBrowser(equipment.Metadata);
             await repository.AddAsync(equipment, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
@@ -55,7 +54,8 @@ public sealed class CreateEquipmentHandler(
         {
             Id = equipment.Id, Name = equipment.Name, Category = equipment.Category, Location = equipment.Location,
             Metadata = CameraMetadata.PublicSpecifications(equipment.Metadata), Status = equipment.Status, NextMaintenanceDate = null,
-            CameraConnection = CameraMetadata.IsCamera(category) ? cameras!.GetStatus(equipment.Id) : null
+            CameraSource = CameraMetadata.IsCamera(category) ? browser ? "Browser" : "RTSP" : null,
+            CameraConnection = CameraMetadata.IsCamera(category) && !browser ? cameras!.GetStatus(equipment.Id) : null
         };
     }
 }

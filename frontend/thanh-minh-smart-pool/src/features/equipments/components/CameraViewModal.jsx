@@ -4,6 +4,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import equipmentService from '../services/equipmentService'
 import apiClient from '../../../services/apiClient'
 import { getAccessToken } from '../../auth/store/authStore'
+import BrowserCameraPreview from './BrowserCameraPreview'
 
 function waitForIce(peer, signal) {
   return new Promise((resolve, reject) => {
@@ -209,6 +210,7 @@ function CameraVideoPlayer({ equipment }) {
 export default function CameraViewModal({ equipment, onClose }) {
   return <Modal open title={`Xem Camera — ${equipment.name}`} width={900} onCancel={onClose}
     footer={<Button onClick={onClose}>Đóng</Button>}>
-    <CameraVideoPlayer equipment={equipment} />
+    {equipment.status !== 'Active' ? <Alert type="warning" showIcon title="Thiết bị đang bị khóa hoặc đang bảo trì." /> :
+      equipment.cameraSource === 'Browser' ? <BrowserCameraPreview name={equipment.name} /> : <CameraVideoPlayer equipment={equipment} />}
   </Modal>
 }

@@ -7,6 +7,24 @@ public static class CameraMetadata
 {
     public static bool IsCamera(string? category) => string.Equals(category?.Trim(), "Camera", StringComparison.OrdinalIgnoreCase);
 
+    public static bool IsBrowserCamera(string? metadata)
+    {
+        if (string.IsNullOrEmpty(metadata)) return false;
+        try
+        {
+            using var document = JsonDocument.Parse(metadata);
+            return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("_camera", out var camera) &&
+                camera.ValueKind == JsonValueKind.Object && camera.TryGetProperty("source", out var source) && source.ValueKind == JsonValueKind.String && source.GetString() == "Browser";
+        }
+        catch (JsonException) { return false; }
+    }
+
+    public static string PackBrowser(string? specifications) => JsonSerializer.Serialize(new
+    {
+        _camera = new { version = 1, source = "Browser" },
+        specifications = specifications == null ? (JsonElement?)null : JsonSerializer.Deserialize<JsonElement>(specifications)
+    });
+
     public static bool ContainsConnectionCredentials(JsonElement element)
     {
         if (element.ValueKind == JsonValueKind.Object)
