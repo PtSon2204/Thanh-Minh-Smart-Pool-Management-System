@@ -170,6 +170,8 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
             services.AddScoped<IEquipmentOperations, EquipmentOperations>();
+            services.AddScoped<IMaintenanceOperations, MaintenanceOperations>();
+            services.AddHostedService<MaintenanceReminderWorker>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();

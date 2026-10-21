@@ -24,6 +24,12 @@ const equipmentService = {
     const { data } = await apiClient.post('/api/equipments', payload)
     return data
   },
+  async update(id, payload) {
+    await apiClient.put(`/api/equipments/${id}`, payload)
+  },
+  async setStatus(id, status) {
+    await apiClient.patch(`/api/equipments/${id}/status`, { status })
+  },
   async getAll(params, signal) {
     const { data } = await apiClient.get('/api/equipments', { params, signal })
     return data

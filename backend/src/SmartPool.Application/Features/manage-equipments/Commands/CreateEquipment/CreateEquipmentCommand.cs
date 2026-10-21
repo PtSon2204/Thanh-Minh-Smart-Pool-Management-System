@@ -19,8 +19,11 @@ public sealed class CreateEquipmentValidator : AbstractValidator<CreateEquipment
 {
     public CreateEquipmentValidator()
     {
-        RuleFor(x => x.Metadata).Must(value => value is not { ValueKind: JsonValueKind.Object } element || !element.TryGetProperty("_camera", out _))
-            .WithMessage("Thông số riêng chứa trường hệ thống không được phép.");
+        RuleFor(x => x.Metadata).Custom((value, context) =>
+        {
+            var error = EquipmentSpecifications.ValidationError(value);
+            if (error != null) context.AddFailure(error);
+        });
         When(x => CameraMetadata.IsCamera(x.Category), () =>
         {
             RuleFor(x => x.Metadata).Must(value => value == null || !CameraMetadata.ContainsConnectionCredentials(value.Value))

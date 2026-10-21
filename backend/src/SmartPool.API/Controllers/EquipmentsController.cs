@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.Application.Features.ManageEquipments.Commands.CreateEquipment;
+using SmartPool.Application.Features.ManageEquipments.Commands.UpdateEquipment;
+using SmartPool.Application.Features.ManageEquipments.Commands.SetEquipmentStatus;
 using SmartPool.API.Authorization;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
@@ -125,6 +127,38 @@ public sealed class EquipmentsController(ISender sender, ILogger<EquipmentsContr
             if (CameraMetadata.IsCamera(command.Category)) logger.LogError("Unable to create camera equipment; error type {ErrorType}.", exception.GetType().Name);
             else logger.LogError(exception, "Unable to create equipment.");
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Thêm thiết bị thất bại. Vui lòng thử lại." });
+        }
+    }
+
+    [HttpPut("{equipmentId:guid}")]
+    public async Task<IActionResult> Update(Guid equipmentId, [FromBody] UpdateEquipmentCommand command, CancellationToken cancellationToken)
+    {
+        command.Id = equipmentId;
+        try
+        {
+            return await sender.Send(command, cancellationToken) ? NoContent() : NotFound(new { message = "Không tìm thấy thiết bị." });
+        }
+        catch (ValidationException exception) { return BadRequest(ValidationError(exception)); }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError("Unable to update equipment; error type {ErrorType}.", exception.GetType().Name);
+            return StatusCode(500, new { message = "Cập nhật thiết bị thất bại. Vui lòng thử lại." });
+        }
+    }
+
+    [HttpPatch("{equipmentId:guid}/status")]
+    public async Task<IActionResult> SetStatus(Guid equipmentId, [FromBody] SetEquipmentStatusCommand command, CancellationToken cancellationToken)
+    {
+        command.Id = equipmentId;
+        try
+        {
+            return await sender.Send(command, cancellationToken) ? NoContent() : NotFound(new { message = "Không tìm thấy thiết bị." });
+        }
+        catch (ValidationException exception) { return BadRequest(ValidationError(exception)); }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError("Unable to change equipment status; error type {ErrorType}.", exception.GetType().Name);
+            return StatusCode(500, new { message = "Thay đổi trạng thái thiết bị thất bại. Vui lòng thử lại." });
         }
     }
 

@@ -37,6 +37,8 @@ import TicketScannerPage from "./pages/admin/TicketScannerPage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
 import EquipmentPage from "./pages/admin/EquipmentPage";
+import MaintenancePage from "./pages/admin/MaintenancePage";
+import MaintenanceHistoryPage from "./pages/admin/MaintenanceHistoryPage";
 
 const router = createBrowserRouter([
   {
@@ -80,6 +82,8 @@ const router = createBrowserRouter([
             children: [
               { index: true, element: <DashboardPage /> },
               { path: 'equipments/list-equipments', element: <EquipmentPage /> },
+              { path: 'equipments/maintenance', element: <MaintenancePage /> },
+              { path: 'equipments/maintenance-history', element: <MaintenanceHistoryPage /> },
               { path: 'equipment', element: <Navigate to="/admin/equipments/list-equipments" replace /> },
               { path: 'staff/shifts', element: <ShiftManagementPage /> },
               { path: 'notifications', element: <NotificationPage /> },

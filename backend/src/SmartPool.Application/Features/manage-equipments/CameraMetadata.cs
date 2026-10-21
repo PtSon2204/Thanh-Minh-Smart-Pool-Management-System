@@ -33,6 +33,18 @@ public static class CameraMetadata
         return root.TryGetProperty("specifications", out var specs) && specs.ValueKind != JsonValueKind.Null ? specs.GetRawText() : null;
     }
 
+    public static string? UpdateSpecifications(string? metadata, JsonElement? specifications)
+    {
+        var value = specifications is { ValueKind: not JsonValueKind.Null and not JsonValueKind.Undefined } element
+            ? element : (JsonElement?)null;
+        if (metadata == null) return value?.GetRawText();
+        using var document = JsonDocument.Parse(metadata);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("_camera", out var camera))
+            return value?.GetRawText();
+        return JsonSerializer.Serialize(new { _camera = camera, specifications = value });
+    }
+
     public static bool TryGetProtectedConfiguration(string? metadata, out string configuration)
     {
         configuration = string.Empty;
