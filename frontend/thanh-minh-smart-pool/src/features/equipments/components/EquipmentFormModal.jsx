@@ -2,17 +2,8 @@ import { useEffect, useRef } from 'react'
 import { Alert, Button, Form, Input, Modal, Select } from 'antd'
 import { useCreateEquipment } from '../hooks/useCreateEquipment'
 import { useEquipmentFilters } from '../hooks/useEquipments'
-
-function jsonValidator(_, value) {
-  if (!value?.trim()) return Promise.resolve()
-  try {
-    const metadata = JSON.parse(value)
-    if (metadata && Object.hasOwn(metadata, '_camera')) return Promise.reject(new Error('Không nhập trường hệ thống _camera vào thông số riêng.'))
-    return Promise.resolve()
-  } catch {
-    return Promise.reject(new Error('Thông số riêng phải là JSON hợp lệ.'))
-  }
-}
+import EquipmentSpecificationsEditor from './EquipmentSpecificationsEditor'
+import { specificationError, specificationsToMetadata } from '../utils/equipmentSpecifications'
 
 function applyServerErrors(form, error) {
   const errors = error?.response?.data?.errors
@@ -20,8 +11,8 @@ function applyServerErrors(form, error) {
   const fields = Object.entries(errors).flatMap(([key, messages]) => {
     const field = key.split('.').at(-1)
     const cameraFields = { streamurl: 'cameraStreamUrl', protocol: 'cameraProtocol', username: 'cameraUsername', password: 'cameraPassword', cameraconnection: 'cameraStreamUrl' }
-    const name = cameraFields[field.toLowerCase()] || field.charAt(0).toLowerCase() + field.slice(1)
-    return ['name', 'category', 'location', 'metadata', ...Object.values(cameraFields)].includes(name)
+    const name = field.toLowerCase() === 'metadata' ? 'specifications' : cameraFields[field.toLowerCase()] || field.charAt(0).toLowerCase() + field.slice(1)
+    return ['name', 'category', 'location', 'specifications', ...Object.values(cameraFields)].includes(name)
       ? [{ name, errors: Array.isArray(messages) ? messages : [String(messages)] }] : []
   })
   form.setFields(fields)
@@ -51,7 +42,7 @@ export default function EquipmentFormModal({ open, onClose }) {
     mutation.mutate({
       name: values.name.trim(), category: values.category.trim(),
       location: values.location?.trim() || null,
-      metadata: values.metadata?.trim() ? JSON.parse(values.metadata) : null,
+      metadata: specificationsToMetadata(values.specifications),
       ...(isCamera ? { cameraConnection: {
         protocol: values.cameraProtocol || 'RTSP', streamUrl: values.cameraStreamUrl.trim(),
         username: values.cameraUsername || null, password: values.cameraPassword || null,
@@ -77,7 +68,7 @@ export default function EquipmentFormModal({ open, onClose }) {
     ? 'Bạn không có quyền thêm thiết bị.'
     : mutation.error?.response?.data?.message || 'Không thể lưu thiết bị. Vui lòng kiểm tra kết nối và thử lại.'
 
-  return <Modal title="Thêm thiết bị" open={open} forceRender width={600}
+  return <Modal title="Thêm thiết bị" open={open} forceRender width={680} className="equipment-modal"
     onOk={() => form.submit()} onCancel={handleCancel} cancelText="Hủy"
     confirmLoading={mutation.isPending}
     okText={mutation.isPending && isCamera ? 'Đang kiểm tra camera...' : 'Lưu'}
@@ -123,8 +114,13 @@ export default function EquipmentFormModal({ open, onClose }) {
         ]}><Input autoComplete="off" /></Form.Item>
         <Form.Item label="Password" name="cameraPassword" extra="Không bắt buộc nếu camera không yêu cầu xác thực. Mật khẩu được xóa khỏi form khi kết nối thất bại; hãy nhập lại trước khi thử lưu."><Input.Password visibilityToggle={false} autoComplete="new-password" /></Form.Item>
       </section>}
-      <Form.Item label="Thông số riêng (JSON)" name="metadata" extra="Không bắt buộc. Nhập JSON hợp lệ; cấu trúc thông số có thể khác nhau giữa các nhóm." rules={[{ validator: jsonValidator }]}>
-        <Input.TextArea rows={5} placeholder="Để trống nếu chưa có thông số" spellCheck={false} />
+      <Form.Item label="Thông số thiết bị" name="specifications" extra="Không bắt buộc. Thêm tên và giá trị cho từng thông số, ví dụ Công suất — 2 kW." rules={[{
+        validator: (_, value) => {
+          const error = specificationError(value)
+          return error ? Promise.reject(new Error(error)) : Promise.resolve()
+        },
+      }]}>
+        <EquipmentSpecificationsEditor disabled={mutation.isPending} />
       </Form.Item>
     </Form>
   </Modal>
