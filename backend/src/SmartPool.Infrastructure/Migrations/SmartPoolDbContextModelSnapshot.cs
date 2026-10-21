@@ -25,6 +25,100 @@ namespace SmartPool.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "smart_pool", "uuid-ossp");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.AttendanceLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid>("PerformedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("performed_by_user_id");
+
+                    b.Property<string>("AfterCheckInMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("after_check_in_method");
+
+                    b.Property<DateTime?>("AfterCheckInTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("after_check_in_time");
+
+                    b.Property<string>("AfterCheckOutMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("after_check_out_method");
+
+                    b.Property<DateTime?>("AfterCheckOutTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("after_check_out_time");
+
+                    b.Property<string>("AfterStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("after_status");
+
+                    b.Property<string>("BeforeCheckInMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("before_check_in_method");
+
+                    b.Property<DateTime?>("BeforeCheckInTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("before_check_in_time");
+
+                    b.Property<string>("BeforeCheckOutMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("before_check_out_method");
+
+                    b.Property<DateTime?>("BeforeCheckOutTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("before_check_out_time");
+
+                    b.Property<string>("BeforeStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("before_status");
+
+                    b.Property<Guid>("EmployeeShiftId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_shift_id");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<DateTime>("PerformedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("performed_at_utc");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id")
+                        .HasName("attendance_logs_pkey");
+
+                    b.HasIndex("PerformedByUserId");
+
+                    b.HasIndex(new[] { "EmployeeShiftId" }, "ix_attendance_logs_employee_shift_id");
+
+                    b.HasIndex(new[] { "PerformedAtUtc" }, "ix_attendance_logs_performed_at_utc");
+
+                    b.ToTable("attendance_logs", "smart_pool");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -68,9 +162,19 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
+                    b.Property<string>("CheckInMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("check_in_method");
+
                     b.Property<DateTime?>("CheckInTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("check_in_time");
+
+                    b.Property<string>("CheckOutMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("check_out_method");
 
                     b.Property<DateTime?>("CheckOutTime")
                         .HasColumnType("timestamp with time zone")
@@ -1329,6 +1433,27 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("warnings", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.AttendanceLog", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "PerformedByUser")
+                        .WithMany("PerformedAttendanceLogs")
+                        .HasForeignKey("PerformedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("attendance_logs_performed_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.EmployeeShift", "EmployeeShift")
+                        .WithMany("AttendanceLogs")
+                        .HasForeignKey("EmployeeShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("attendance_logs_employee_shift_id_fkey");
+
+                    b.Navigation("PerformedByUser");
+
+                    b.Navigation("EmployeeShift");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.WaterQualityLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1737,6 +1862,11 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Payments");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.EmployeeShift", b =>
+                {
+                    b.Navigation("AttendanceLogs");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Equipment", b =>
                 {
                     b.Navigation("MaintenanceLogs");
@@ -1787,6 +1917,8 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.User", b =>
                 {
+                    b.Navigation("PerformedAttendanceLogs");
+
                     b.Navigation("Employee");
 
                     b.Navigation("Incidents");

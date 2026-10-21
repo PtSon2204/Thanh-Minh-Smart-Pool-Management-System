@@ -207,6 +207,123 @@
   overflow-x: auto;
 }
 
+.staff-attendance-lookback {
+  margin-bottom: var(--space-4);
+}
+
+.staff-attendance-scan-page > .staff-schedule-table {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-6);
+}
+
+.staff-attendance-scan-page .staff-week-shift-card {
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.staff-attendance-scan-page .staff-week-shift-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.staff-attendance-scan-page h2,
+.staff-attendance-scan-page p {
+  margin: 0;
+}
+
+.staff-attendance-scan-page > .staff-schedule-table > .ant-btn {
+  justify-self: start;
+}
+
+.staff-attendance-source {
+  color: var(--list-muted);
+  display: block;
+  font-size: 12px;
+  margin-top: var(--space-1);
+}
+
+.staff-attendance-row-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.staff-attendance-correction-form,
+.staff-attendance-history-list {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.staff-attendance-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.staff-attendance-field-label,
+.staff-attendance-field > small {
+  color: var(--list-muted);
+}
+
+.staff-attendance-field-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.staff-attendance-field > small,
+.staff-attendance-helper {
+  font-size: 12px;
+}
+
+.staff-attendance-helper {
+  color: var(--list-muted);
+  margin: 0;
+}
+
+.staff-attendance-history-entry {
+  background: var(--list-canvas);
+  border: 1px solid var(--list-divider);
+  border-radius: var(--list-radius);
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.staff-attendance-history-entry > header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.staff-attendance-history-entry > header span,
+.staff-attendance-history-entry p {
+  color: var(--list-muted);
+  font-size: 12px;
+}
+
+.staff-attendance-history-entry dl {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-attendance-history-entry dt {
+  font-weight: 600;
+  margin-top: var(--space-2);
+}
+
+.staff-attendance-history-entry dd {
+  margin: 0;
+}
+
 @container (max-width: 81.5rem) {
   .staff-week-board {
     grid-template-columns: repeat(7, minmax(var(--schedule-day-min), 1fr));
@@ -244,6 +361,14 @@
 }
 
 @media (max-width: 640px) {
+  .staff-attendance-row-actions {
+    justify-content: flex-start;
+  }
+
+  .staff-attendance-history-entry {
+    padding: var(--space-3);
+  }
+
   .staff-schedule-toolbar .service-list-filters,
   .staff-schedule-toolbar .service-filter-control,
   .staff-schedule-toolbar .ant-picker,

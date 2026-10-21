@@ -19,6 +19,10 @@ public partial class EmployeeShift
 
     public DateTime? CheckOutTime { get; set; }
 
+    public string? CheckInMethod { get; set; }
+
+    public string? CheckOutMethod { get; set; }
+
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
@@ -26,5 +30,7 @@ public partial class EmployeeShift
     public virtual Employee Employee { get; set; } = null!;
 
     public virtual Shift Shift { get; set; } = null!;
+
+    public virtual ICollection<AttendanceLog> AttendanceLogs { get; set; } = new List<AttendanceLog>();
 }
 

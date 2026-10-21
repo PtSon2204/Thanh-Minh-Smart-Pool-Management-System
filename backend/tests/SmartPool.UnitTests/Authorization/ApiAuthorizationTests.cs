@@ -125,6 +125,34 @@ public sealed class ApiAuthorizationTests
         Assert.True(PermissionCatalog.IsValid("ticket_lookup", "read"));
     }
 
+    [Theory]
+    [InlineData("ADMIN", true, true)]
+    [InlineData("Admin", true, true)]
+    [InlineData("admin", true, true)]
+    [InlineData("SALES", true, false)]
+    [InlineData("LIFEGUARD", true, false)]
+    [InlineData("ADMIN", false, false)]
+    public async Task ShiftListing_UsesAdminPolicyAndStillRequiresReadPermission(string role, bool hasPermission, bool expected)
+    {
+        var reader = new Mock<IRolePermissionReader>();
+        reader.Setup(item => item.ReadCurrentPermissionsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hasPermission ? "{\"shifts\":[\"read\"]}" : "{}");
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(reader.Object);
+        services.AddApiAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var metadata = typeof(ShiftsController).GetMethod(nameof(ShiftsController.GetShifts))!
+            .GetCustomAttributes<AuthorizeAttribute>();
+        var policy = await AuthorizationPolicy.CombineAsync(provider.GetRequiredService<IAuthorizationPolicyProvider>(), metadata);
+        Assert.NotNull(policy);
+
+        var result = await provider.GetRequiredService<IAuthorizationService>().AuthorizeAsync(
+            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", role), null, policy);
+
+        Assert.Equal(expected, result.Succeeded);
+    }
+
     private static ClaimsPrincipal CreatePrincipal(bool isAuthenticated, string userId, string role)
     {
         var identity = new ClaimsIdentity(isAuthenticated ? "test" : null);

@@ -105,15 +105,13 @@ internal static class IntegrationTestDatabase
     private static void ValidateTarget(string connectionString)
     {
         var connection = new NpgsqlConnectionStringBuilder(connectionString);
-        var allowedDatabase = string.Equals(connection.Database, "smartpool_dev", StringComparison.Ordinal)
-            || string.Equals(connection.Database, "smartpool_test", StringComparison.Ordinal)
+        var allowedDatabase = string.Equals(connection.Database, "smartpool_test", StringComparison.Ordinal)
             || System.Text.RegularExpressions.Regex.IsMatch(connection.Database ?? "", "^smartpool_test_[a-f0-9]{32}$");
         if (!string.Equals(connection.Host, "localhost", StringComparison.OrdinalIgnoreCase)
-            || connection.Port != 5432
             || !allowedDatabase)
         {
             throw new InvalidOperationException(
-                "Integration tests require localhost:5432 and smartpool_dev, smartpool_test or an isolated smartpool_test_<32 hex> database.");
+                "Integration tests require localhost and smartpool_test or an isolated smartpool_test_<32 hex> database.");
         }
     }
 

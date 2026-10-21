@@ -65,7 +65,15 @@ export default function AuthForm({ isRegister }) {
     try {
       const session = await login.mutateAsync(values)
       clearPasswords()
-      navigate(['ADMIN', 'LIFEGUARD', 'SALES'].includes(session.role.toUpperCase()) ? '/admin' : '/')
+      const role = session.role?.toUpperCase()
+      const destination = role === 'ADMIN'
+        ? '/admin'
+        : role === 'SALES'
+          ? '/admin/tickets/pos'
+          : role === 'LIFEGUARD'
+            ? '/admin/staff/schedule'
+            : '/'
+      navigate(destination)
     } catch (error) {
       const authError = getAuthError(error)
       applyServerErrors(authError.fieldErrors)

@@ -47,7 +47,6 @@ public static class RolePermissionSeeder
             ["LIFEGUARD"] = new(StringComparer.Ordinal)
             {
                 ["profiles"]         = ["read", "update"],
-                ["shifts"]           = ["read"],
                 ["staff_schedule"]   = ["read"],
                 ["attendance"]       = ["read", "update"],
             },
@@ -55,7 +54,6 @@ public static class RolePermissionSeeder
             ["SALES"] = new(StringComparer.Ordinal)
             {
                 ["profiles"]         = ["read", "update"],
-                ["shifts"]           = ["read"],
                 ["staff_schedule"]   = ["read"],
                 ["attendance"]       = ["read", "update"],
                 ["ticket_lookup"]    = ["read"],
@@ -110,6 +108,9 @@ public static class RolePermissionSeeder
 
             // Merge: chỉ thêm action còn thiếu, giữ nguyên những gì đã có
             bool changed = current.Remove("salaries");
+            if (roleName is "LIFEGUARD" or "SALES")
+                changed = current.Remove("shifts") || changed;
+
             foreach (var (module, desiredActions) in desiredModules)
             {
                 if (!current.TryGetValue(module, out var existingActions))

@@ -26,6 +26,7 @@ import './AdminLayout.css';
 const { Header, Sider, Content } = Layout;
 
 function openKeysForPath(pathname) {
+  if (pathname === '/admin/staff/attendance/scan') return ['staff'];
   if (pathname.startsWith('/admin/staff/attendance')) return ['staff', 'staff-attendance'];
   if (pathname.startsWith('/admin/staff/')) return ['staff'];
   if (pathname.startsWith('/admin/equipments/')) return ['equipments'];
@@ -37,10 +38,16 @@ function openKeysForPath(pathname) {
 
 export default function AdminLayout() {
   const location = useLocation();
+  const { session } = useAuthStore();
+  const navigate = useNavigate();
+  const role = session?.role?.toUpperCase();
+  const isAdmin = role === 'ADMIN';
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    if (!isAdmin) return undefined;
+
     const fetchUnread = async () => {
       try {
         const res = await notificationService.getNotifications({ page: 1, pageSize: 1 });
@@ -54,12 +61,7 @@ export default function AdminLayout() {
     fetchUnread();
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
-  }, [location.pathname]);
-
-  const { session } = useAuthStore();
-  const navigate = useNavigate();
-  const role = session?.role?.toUpperCase();
-  const isAdmin = role === 'ADMIN';
+  }, [location.pathname, isAdmin]);
 
   const roleLabelMap = {
     ADMIN: 'Quản trị viên',
@@ -69,7 +71,7 @@ export default function AdminLayout() {
   const roleDisplay = roleLabelMap[role] || (isAdmin ? 'Quản trị viên' : 'Nhân viên');
 
   const menuItems = [
-    {
+    isAdmin && {
       key: '/admin',
       icon: <DashboardOutlined />,
       label: <Link to="/admin">Bảng điều khiển</Link>,
@@ -89,17 +91,18 @@ export default function AdminLayout() {
       icon: <TeamOutlined />,
       label: 'Quản lý nhân viên',
       children: [
-        {
+        isAdmin && {
           key: 'staff-attendance',
-          label: isAdmin ? 'Chấm công nhân viên' : 'Check-in / Check-out',
+          label: 'Chấm công nhân viên',
           children: [
             { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Check-in / Check-out</Link> },
-            isAdmin && { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
-          ].filter(Boolean),
+            { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
+          ],
         },
-        { key: '/admin/staff/shifts', label: <Link to="/admin/staff/shifts">Ca làm việc</Link> },
+        (role === 'SALES' || role === 'LIFEGUARD') && { key: '/admin/staff/attendance/scan', label: <Link to="/admin/staff/attendance/scan">Quét QR chấm công cá nhân</Link> },
+        isAdmin && { key: '/admin/staff/shifts', label: <Link to="/admin/staff/shifts">Ca làm việc</Link> },
         { key: '/admin/staff/schedule', label: <Link to="/admin/staff/schedule">Lịch làm việc</Link> },
-        { key: '/admin/staff/profiles', label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link> },
+        isAdmin && { key: '/admin/staff/profiles', label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link> },
       ].filter(Boolean),
     },
     (isAdmin || role === 'SALES') && {
@@ -147,7 +150,7 @@ export default function AdminLayout() {
         { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },
-    (isAdmin || role === 'SALES') && {
+    isAdmin && {
       key: 'payments',
       icon: <TransactionOutlined />,
       label: 'Thanh toán và giao dịch',
@@ -167,7 +170,7 @@ export default function AdminLayout() {
         { key: '/admin/statistics/operations-costs', label: <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link> },
       ],
     },
-    {
+    isAdmin && {
       key: '/admin/notifications',
       icon: <BellOutlined />,
       label: <Link to="/admin/notifications">Thông báo hệ thống</Link>,
@@ -287,11 +290,11 @@ export default function AdminLayout() {
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
+            {isAdmin && <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
               <Badge count={unreadCount} size="small" overflowCount={99}>
                 <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 18 }} />} />
               </Badge>
-            </Link>
+            </Link>}
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#005f8e' }} icon={<UserOutlined />} />

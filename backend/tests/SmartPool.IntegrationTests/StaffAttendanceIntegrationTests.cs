@@ -16,6 +16,8 @@ public sealed class StaffAttendanceIntegrationTests
         await fixture.AttendAsync(true);
         await Assert.ThrowsAsync<StaffConflictException>(() => fixture.AttendAsync(true));
         fixture.Clock.Now = fixture.Clock.Now.AddHours(3);
+        await Assert.ThrowsAsync<StaffConflictException>(() => fixture.AttendAsync(false));
+        fixture.Clock.Now = fixture.Clock.Now.AddHours(5);
         await fixture.AttendAsync(false);
         await Assert.ThrowsAsync<StaffConflictException>(() => fixture.AttendAsync(false));
         await using var read = fixture.Employment.CreateContext();
@@ -23,6 +25,14 @@ public sealed class StaffAttendanceIntegrationTests
         Assert.Equal("Completed", assignment.Status);
         Assert.Equal(new DateTime(2026, 10, 19, 2, 0, 0, DateTimeKind.Utc), assignment.CheckInTime);
         Assert.Equal(fixture.Clock.Now.UtcDateTime, assignment.CheckOutTime);
+        var audits = await read.AttendanceLogs.Where(log => log.EmployeeShiftId == fixture.AssignmentId)
+            .OrderBy(log => log.PerformedAtUtc).ToListAsync();
+        Assert.Equal(new[] { "CheckIn", "CheckOut" }, audits.Select(log => log.Action));
+        Assert.All(audits, log =>
+        {
+            Assert.Equal(fixture.EmployeeId, log.PerformedByUserId);
+            Assert.Equal("QR", log.Method);
+        });
     }
 
     [Fact]
@@ -46,6 +56,8 @@ public sealed class StaffAttendanceIntegrationTests
         }
         var results = await Task.WhenAll(TryAttend(), TryAttend());
         Assert.Equal(1, results.Count(success => success));
+        await using var read = fixture.Employment.CreateContext();
+        Assert.Equal(1, await read.AttendanceLogs.CountAsync(log => log.EmployeeShiftId == fixture.AssignmentId));
     }
 
     [Fact]
@@ -112,12 +124,20 @@ public sealed class StaffAttendanceIntegrationTests
         public async Task AttendAsync(bool checkIn, Guid? ownerId = null)
         {
             await using var context = Employment.CreateContext();
-            await Employment.CreateOperations(context, Clock).RecordAttendanceAsync(new RecordAttendanceCommand { Id = AssignmentId, CheckIn = checkIn, OwnerId = ownerId ?? EmployeeId }, default);
+            await Employment.CreateOperations(context, Clock).RecordAttendanceAsync(new RecordAttendanceCommand
+            {
+                Id = AssignmentId,
+                CheckIn = checkIn,
+                OwnerId = ownerId ?? EmployeeId,
+                Method = "QR",
+                PerformedByUserId = EmployeeId
+            }, default);
         }
         public async ValueTask DisposeAsync()
         {
             await using (var context = Employment.CreateContext())
             {
+                await context.AttendanceLogs.Where(log => log.EmployeeShiftId == AssignmentId).ExecuteDeleteAsync();
                 await context.EmployeeShifts.Where(s => s.Id == AssignmentId).ExecuteDeleteAsync();
                 await context.Shifts.Where(s => s.Id == ShiftId).ExecuteDeleteAsync();
             }

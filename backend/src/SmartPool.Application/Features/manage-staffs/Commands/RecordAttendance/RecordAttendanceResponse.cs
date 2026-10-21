@@ -13,5 +13,8 @@ namespace SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance
         public string Status { get; set; } = string.Empty;
         public DateTime? CheckInTime { get; set; }
         public DateTime? CheckOutTime { get; set; }
+        public string? CheckInMethod { get; set; }
+        public string? CheckOutMethod { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 }

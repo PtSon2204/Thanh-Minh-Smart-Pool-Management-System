@@ -7,11 +7,13 @@ import TicketTypeCard from '../../features/tickets/components/TicketTypeCard'
 import TicketTypeFormModal from '../../features/tickets/components/TicketTypeFormModal'
 import TicketTypeDetailModal from '../../features/tickets/components/TicketTypeDetailModal'
 import { TicketCategoryOptions } from '../../features/tickets/types/ticketType'
+import { useAuthStore } from '../../features/auth/store/authStore'
 
 const { Title } = Typography
 const { confirm } = Modal
 
 export default function TicketTypePage() {
+  const isAdmin = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN')
   const [formModalOpen, setFormModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState(null)
@@ -103,7 +105,7 @@ export default function TicketTypePage() {
             Danh sách các loại vé đang cung cấp tại hồ bơi
           </p>
         </div>
-        <Button
+        {isAdmin && <Button
           type="primary"
           icon={<PlusOutlined />}
           size="large"
@@ -116,7 +118,7 @@ export default function TicketTypePage() {
           }}
         >
           Thêm loại vé
-        </Button>
+        </Button>}
       </div>
 
       {/* Toolbar: Search & Filter */}
@@ -206,6 +208,7 @@ export default function TicketTypePage() {
                   onView={handleView}
                   onToggleLock={handleToggleLock}
                   onDelete={handleDelete}
+                  canManage={isAdmin}
                 />
               </Col>
             ))}
@@ -230,7 +233,7 @@ export default function TicketTypePage() {
 
       {/* Modals */}
       <TicketTypeFormModal
-        open={formModalOpen}
+        open={isAdmin && formModalOpen}
         onClose={() => setFormModalOpen(false)}
         editingTicket={selectedTicket}
       />

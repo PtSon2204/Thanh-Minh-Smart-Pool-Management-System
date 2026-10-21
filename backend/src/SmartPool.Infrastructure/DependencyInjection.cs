@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Infrastructure.AttendanceQr;
+using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Infrastructure.Caching;
 using SmartPool.Infrastructure.Persistence;
 using SmartPool.Infrastructure.Persistence.DbContext;
@@ -119,10 +121,12 @@ namespace SmartPool.Infrastructure
                 options.Configuration = configuration.GetConnectionString("Redis");
                 options.InstanceName  = "SmartPool:";
             });
-            // Registration OTP uses Redis scripts for atomic state transitions.
             services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(
-                configuration.GetConnectionString("Redis")
-                ?? throw new InvalidOperationException("ConnectionStrings:Redis is not configured.")));
+                ConfigurationOptions.Parse(configuration.GetConnectionString("Redis") ?? throw new InvalidOperationException("Redis is not configured."))));
+            services.AddOptions<StaffAttendanceQrSettings>()
+                .Bind(configuration.GetSection(StaffAttendanceQrSettings.SectionName))
+                .Validate(settings => settings.IsValid(), "StaffAttendanceQr settings must be positive.")
+                .ValidateOnStart();
             services.AddScoped<IRegistrationOtpStore, RegistrationOtpStore>();
             services.AddScoped<IPasswordResetStore, PasswordResetStore>();
 
@@ -157,6 +161,7 @@ namespace SmartPool.Infrastructure
 
             // Cache Service wrapper
             services.AddScoped<ICacheService, RedisCacheService>();
+            services.AddScoped<IStaffAttendanceSessionStore, RedisStaffAttendanceSessionStore>();
 
             // Repository & Unit of Work
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));

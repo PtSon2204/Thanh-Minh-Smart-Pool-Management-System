@@ -1,6 +1,5 @@
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
 using SmartPool.API.Contracts;
@@ -11,10 +10,12 @@ using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
+using SmartPool.Application.Features.ManageStaffs.Commands.CorrectAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetAttendanceHistory;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
 using SmartPool.Domain.Enums;
@@ -75,6 +76,11 @@ namespace SmartPool.API.Controllers
         [ProducesResponseType(typeof(PagedResponse<GetScheduleResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetSchedule([FromQuery] GetScheduleQuery query, CancellationToken cancellationToken)
         {
+            if (!User.HasRole(RoleEnum.ADMIN))
+            {
+                return Forbid();
+            }
+
             return await SendAsync(query, cancellationToken);
         }
 
@@ -119,18 +125,52 @@ namespace SmartPool.API.Controllers
         [HttpPost("schedule/{id:guid}/check-in")]
         [RequirePermission("attendance", "update")]
         [ProducesResponseType(typeof(RecordAttendanceResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> CheckIn(Guid id, CancellationToken cancellationToken)
+        public async Task<IActionResult> CheckIn(Guid id, [FromBody] RecordAttendanceCommand command, CancellationToken cancellationToken)
         {
-            return await AttendAsync(id, true, cancellationToken);
+            return await AttendAsync(id, true, command, cancellationToken);
         }
 
         /// <summary>Ghi nhận giờ ra ca.</summary>
         [HttpPost("schedule/{id:guid}/check-out")]
         [RequirePermission("attendance", "update")]
         [ProducesResponseType(typeof(RecordAttendanceResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> CheckOut(Guid id, CancellationToken cancellationToken)
+        public async Task<IActionResult> CheckOut(Guid id, [FromBody] RecordAttendanceCommand command, CancellationToken cancellationToken)
         {
-            return await AttendAsync(id, false, cancellationToken);
+            return await AttendAsync(id, false, command, cancellationToken);
+        }
+
+        /// <summary>Bổ sung hoặc điều chỉnh giờ chấm công theo thời điểm thực tế.</summary>
+        [HttpPatch("schedule/{id:guid}/attendance")]
+        [RequirePermission("attendance", "update")]
+        [ProducesResponseType(typeof(RecordAttendanceResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> CorrectAttendance(Guid id, [FromBody] ManualAttendanceCorrectionCommand command, CancellationToken cancellationToken)
+        {
+            if (!User.HasRole(RoleEnum.ADMIN) || !TryGetUserId(out var userId))
+                return Forbid();
+
+            command.AssignmentId = id;
+            command.PerformedByUserId = userId;
+            return await SendAsync(command, cancellationToken);
+        }
+
+        /// <summary>Lấy lịch sử bổ sung và điều chỉnh chấm công.</summary>
+        [HttpGet("schedule/{id:guid}/attendance/history")]
+        [RequirePermission("attendance", "read")]
+        [ProducesResponseType(typeof(PagedResponse<GetAttendanceHistoryResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetAttendanceHistory(Guid id, [FromQuery] GetAttendanceHistoryQuery query, CancellationToken cancellationToken)
+        {
+            if (!User.HasRole(RoleEnum.ADMIN))
+                return Forbid();
+
+            query.AssignmentId = id;
+            return await SendAsync(query, cancellationToken);
         }
 
         /// <summary>Lấy lịch làm việc của người dùng đang đăng nhập.</summary>
@@ -157,20 +197,19 @@ namespace SmartPool.API.Controllers
             return await SendAsync(query, cancellationToken);
         }
 
-        private async Task<IActionResult> AttendAsync(Guid id, bool checkIn, CancellationToken cancellationToken)
+        private async Task<IActionResult> AttendAsync(Guid id, bool checkIn, RecordAttendanceCommand command, CancellationToken cancellationToken)
         {
-            Guid? ownerId = null;
-            if (!User.HasRole(RoleEnum.ADMIN))
+            if (!User.HasRole(RoleEnum.ADMIN) || !TryGetUserId(out var userId))
             {
-                if (!TryGetUserId(out var userId))
-                {
-                    return Forbid();
-                }
-
-                ownerId = userId;
+                return Forbid();
             }
 
-            return await SendAsync(new RecordAttendanceCommand { Id = id, CheckIn = checkIn, OwnerId = ownerId }, cancellationToken);
+            command.Id = id;
+            command.CheckIn = checkIn;
+            command.OwnerId = null;
+            command.Method = "Manual";
+            command.PerformedByUserId = userId;
+            return await SendAsync(command, cancellationToken);
         }
 
         private bool TryGetUserId(out Guid userId)

@@ -32,6 +32,8 @@ import ShiftManagementPage from "./pages/admin/ShiftManagementPage";
 import StaffSchedulePage from "./pages/admin/StaffSchedulePage";
 import StaffAttendancePage from "./pages/admin/StaffAttendancePage";
 import StaffQrAttendancePage from "./pages/admin/StaffQrAttendancePage";
+import StaffAttendanceScanPage from "./pages/admin/StaffAttendanceScanPage";
+import TicketScannerPage from "./pages/admin/TicketScannerPage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RolePermissionsPage from "./pages/admin/RolePermissionsPage";
 import EquipmentPage from "./pages/admin/EquipmentPage";
@@ -71,36 +73,44 @@ const router = createBrowserRouter([
         path: '/admin',
         element: <AdminLayout />,
         children: [
-          { index: true, element: <DashboardPage /> },
           { path: 'doi-mat-khau', element: <ChangePasswordPage /> },
-          { path: 'tickets/pos', element: <OfflineSalesPage /> },
-          { path: 'tickets/types', element: <TicketTypePage /> },
-          { path: 'services', element: <ServicePage /> },
-          { path: 'inventory', element: <InventoryPage /> },
-          { path: 'staff/attendance', element: <StaffAttendancePage /> },
-          { path: 'rentals', element: <RentalPage /> },
-          { path: 'coupons', element: <VoucherPage /> },
-          { path: 'notifications', element: <NotificationPage /> },
-          { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
-          { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
-          { path: 'statistics/monthly-tickets', element: <MonthlyTicketsPage /> },
-          { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
-          { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
-          { path: 'staff/profiles', element: <StaffProfilesPage /> },
-          { path: 'staff/shifts', element: <ShiftManagementPage /> },
           { path: 'staff/schedule', element: <StaffSchedulePage /> },
-          { path: 'payments/invoices', element: <PaymentHistoryPage /> },
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
+              { index: true, element: <DashboardPage /> },
               { path: 'equipments/list-equipments', element: <EquipmentPage /> },
               { path: 'equipment', element: <Navigate to="/admin/equipments/list-equipments" replace /> },
+              { path: 'staff/shifts', element: <ShiftManagementPage /> },
+              { path: 'notifications', element: <NotificationPage /> },
+              { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
+              { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
+              { path: 'statistics/monthly-tickets', element: <MonthlyTicketsPage /> },
+              { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
+              { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
+              { path: 'staff/profiles', element: <StaffProfilesPage /> },
+              { path: 'payments/invoices', element: <PaymentHistoryPage /> },
               { path: 'staff/attendance', element: <StaffAttendancePage /> },
-
               { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },
               { path: 'users', element: <UserManagementPage /> },
               { path: 'roles/permissions', element: <RolePermissionsPage /> },
             ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN", "SALES"]} />,
+            children: [
+              { path: 'tickets/pos', element: <OfflineSalesPage /> },
+              { path: 'tickets/types', element: <TicketTypePage /> },
+              { path: 'tickets/scanQR', element: <TicketScannerPage /> },
+              { path: 'services', element: <ServicePage /> },
+              { path: 'inventory', element: <InventoryPage /> },
+              { path: 'rentals', element: <RentalPage /> },
+              { path: 'coupons', element: <VoucherPage /> },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["SALES", "LIFEGUARD"]} />,
+            children: [{ path: 'staff/attendance/scan', element: <StaffAttendanceScanPage /> }],
           },
         ],
       },

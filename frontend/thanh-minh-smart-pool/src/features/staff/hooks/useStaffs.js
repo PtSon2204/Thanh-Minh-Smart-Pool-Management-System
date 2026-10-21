@@ -94,9 +94,32 @@ function useAttendanceMutation(mutationFn) {
 }
 
 export function useCheckIn() {
-  return useAttendanceMutation(staffService.checkIn)
+  return useAttendanceMutation(({ id, reason }) => staffService.checkIn(id, { reason }))
 }
 
 export function useCheckOut() {
-  return useAttendanceMutation(staffService.checkOut)
+  return useAttendanceMutation(({ id, reason }) => staffService.checkOut(id, { reason }))
+}
+
+export function useCorrectAttendance() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => staffService.correctAttendance(id, data),
+    retry: false,
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-attendance-history'] }),
+    ]),
+  })
+}
+
+export function useAttendanceHistory(assignmentId, pageIndex = 1, enabled = true) {
+  return useQuery({
+    queryKey: ['staff-attendance-history', assignmentId, pageIndex],
+    queryFn: ({ signal }) => staffService.getAttendanceHistory(assignmentId, { pageIndex, pageSize: 20 }, signal),
+    enabled: Boolean(enabled && assignmentId),
+    retry: false,
+  })
 }

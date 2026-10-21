@@ -21,6 +21,8 @@ public partial class SmartPoolDbContext : EfDbContext
 
     public virtual DbSet<EmployeeShift> EmployeeShifts { get; set; }
 
+    public virtual DbSet<AttendanceLog> AttendanceLogs { get; set; }
+
     public virtual DbSet<EntryLog> EntryLogs { get; set; }
 
     public virtual DbSet<Equipment> Equipments { get; set; }
@@ -114,7 +116,13 @@ public partial class SmartPoolDbContext : EfDbContext
                 .HasDefaultValueSql("uuid_generate_v4()")
                 .HasColumnName("id");
             entity.Property(e => e.CheckInTime).HasColumnName("check_in_time");
+            entity.Property(e => e.CheckInMethod)
+                .HasMaxLength(20)
+                .HasColumnName("check_in_method");
             entity.Property(e => e.CheckOutTime).HasColumnName("check_out_time");
+            entity.Property(e => e.CheckOutMethod)
+                .HasMaxLength(20)
+                .HasColumnName("check_out_method");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("created_at");
@@ -138,6 +146,62 @@ public partial class SmartPoolDbContext : EfDbContext
                 .HasForeignKey(d => d.ShiftId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("employee_shifts_shift_id_fkey");
+        });
+
+        modelBuilder.Entity<AttendanceLog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("attendance_logs_pkey");
+
+            entity.ToTable("attendance_logs", "smart_pool");
+
+            entity.HasIndex(e => e.EmployeeShiftId, "ix_attendance_logs_employee_shift_id");
+            entity.HasIndex(e => e.PerformedAtUtc, "ix_attendance_logs_performed_at_utc");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("uuid_generate_v4()")
+                .HasColumnName("id");
+            entity.Property(e => e.Action)
+                .HasMaxLength(20)
+                .HasColumnName("action");
+            entity.Property(e => e.Method)
+                .HasMaxLength(20)
+                .HasColumnName("method");
+            entity.Property(e => e.PerformedByUserId).HasColumnName("performed_by_user_id");
+            entity.Property(e => e.PerformedAtUtc).HasColumnName("performed_at_utc");
+            entity.Property(e => e.Reason).HasColumnName("reason");
+            entity.Property(e => e.EmployeeShiftId).HasColumnName("employee_shift_id");
+            entity.Property(e => e.BeforeCheckInTime).HasColumnName("before_check_in_time");
+            entity.Property(e => e.BeforeCheckOutTime).HasColumnName("before_check_out_time");
+            entity.Property(e => e.BeforeCheckInMethod)
+                .HasMaxLength(20)
+                .HasColumnName("before_check_in_method");
+            entity.Property(e => e.BeforeCheckOutMethod)
+                .HasMaxLength(20)
+                .HasColumnName("before_check_out_method");
+            entity.Property(e => e.BeforeStatus)
+                .HasMaxLength(50)
+                .HasColumnName("before_status");
+            entity.Property(e => e.AfterCheckInTime).HasColumnName("after_check_in_time");
+            entity.Property(e => e.AfterCheckOutTime).HasColumnName("after_check_out_time");
+            entity.Property(e => e.AfterCheckInMethod)
+                .HasMaxLength(20)
+                .HasColumnName("after_check_in_method");
+            entity.Property(e => e.AfterCheckOutMethod)
+                .HasMaxLength(20)
+                .HasColumnName("after_check_out_method");
+            entity.Property(e => e.AfterStatus)
+                .HasMaxLength(50)
+                .HasColumnName("after_status");
+
+            entity.HasOne(d => d.EmployeeShift).WithMany(p => p.AttendanceLogs)
+                .HasForeignKey(d => d.EmployeeShiftId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("attendance_logs_employee_shift_id_fkey");
+
+            entity.HasOne(d => d.PerformedByUser).WithMany(p => p.PerformedAttendanceLogs)
+                .HasForeignKey(d => d.PerformedByUserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("attendance_logs_performed_by_user_id_fkey");
         });
 
         modelBuilder.Entity<EntryLog>(entity =>
