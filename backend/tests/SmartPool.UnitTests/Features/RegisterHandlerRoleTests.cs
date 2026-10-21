@@ -1,3 +1,4 @@
+using SmartPool.Application.Features.Authentication.Models;
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;

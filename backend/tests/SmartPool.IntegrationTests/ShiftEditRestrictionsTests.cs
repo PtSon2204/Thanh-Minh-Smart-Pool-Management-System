@@ -1,3 +1,4 @@
+using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;

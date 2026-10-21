@@ -6,7 +6,7 @@ using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetAttendanceHistory;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories;
+namespace SmartPool.Infrastructure.Persistence.Repositories.Staff;
 
 public sealed partial class StaffOperations
 {

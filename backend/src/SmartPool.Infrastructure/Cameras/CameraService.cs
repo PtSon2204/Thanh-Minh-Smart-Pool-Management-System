@@ -1,3 +1,5 @@
+using SmartPool.Application.Features.ManageEquipments.Cameras;
+using SmartPool.Application.Features.ManageEquipments;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;

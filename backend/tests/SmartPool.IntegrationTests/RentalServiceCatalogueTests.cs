@@ -1,3 +1,4 @@
+using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using AutoMapper;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;

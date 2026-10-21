@@ -1,5 +1,5 @@
 import { Alert, Avatar, Button, Descriptions, Drawer, Space, Spin, Tag } from 'antd'
-import { USER_ROLES, USER_ROLE_COLORS, getUserError } from '../userManagement'
+import { USER_ROLES, USER_ROLE_COLORS, getUserError } from "../utils/userManagement"
 import { useUserDetail } from '../hooks/useUsers'
 
 function formatDate(value) {

@@ -1,3 +1,4 @@
+using SmartPool.Application.Features.Authentication.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;

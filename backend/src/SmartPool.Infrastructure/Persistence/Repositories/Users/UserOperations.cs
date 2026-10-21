@@ -11,7 +11,7 @@ using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Domain.Enums;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories;
+namespace SmartPool.Infrastructure.Persistence.Repositories.Users;
 
 public sealed class UserOperations : IUserOperations
 {

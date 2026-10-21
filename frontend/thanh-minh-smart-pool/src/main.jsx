@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import './features/qr/prepareZXingModule.js'
+import "./features/qr/utils/prepareZXingModule.js"
 import './index.css'
 import App from './App.jsx'
 

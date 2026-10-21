@@ -1,3 +1,5 @@
+using SmartPool.Application.Features.ManageEquipments.Cameras;
+using SmartPool.Application.Features.ManageEquipments;
 using System.Net;
 using System.Threading.Channels;
 using SharpRTSPClient;
@@ -166,5 +168,3 @@ internal sealed class CameraWorker : IAsyncDisposable
         SetState("Disconnected");
     }
 }
-
-internal sealed record CameraEncodedFrame(byte[] Data, string Format, bool IsKeyFrame, uint RtpTimestamp);

@@ -1,7 +1,7 @@
 import { Avatar, Button, Dropdown, Tag } from 'antd'
 import { EllipsisOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { USER_ROLES, USER_ROLE_COLORS } from '../../users/userManagement'
+import { USER_ROLES, USER_ROLE_COLORS } from "../../users/utils/userManagement"
 
 
 function StaffStatus({ status }) {

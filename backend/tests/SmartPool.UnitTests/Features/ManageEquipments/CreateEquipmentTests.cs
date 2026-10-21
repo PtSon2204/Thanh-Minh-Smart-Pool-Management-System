@@ -86,20 +86,29 @@ public sealed class CreateEquipmentTests
     }
 
     [Fact]
-    public async Task UnknownCategory_DoesNotInsertOrSave()
+    public async Task NewCategory_IsInsertedAndSaved()
     {
         var repository = new Mock<IRepository<Equipment>>();
         repository.Setup(x => x.ExistsAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Equipment, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((System.Linq.Expressions.Expression<Func<Equipment, bool>> predicate, CancellationToken _) =>
                 new[] { new Equipment { Category = "Existing", IsDeleted = false } }.Any(predicate.Compile()));
+        Equipment? saved = null;
+        repository.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()))
+            .Callback<Equipment, CancellationToken>((entity, _) => saved = entity).Returns(Task.CompletedTask);
         var work = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        work.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         var handler = new CreateEquipmentHandler(repository.Object, work.Object, new CreateEquipmentValidator(), TimeProvider.System);
-        var error = await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new CreateEquipmentCommand
+        var result = await handler.Handle(new CreateEquipmentCommand
         {
-            Name = "Pump", Category = "not-an-existing-category"
-        }, CancellationToken.None));
-        Assert.Contains(error.Errors, x => x.PropertyName == "Category");
-        repository.Verify(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()), Times.Never);
+            Name = "Pump", Category = "  New group  "
+        }, CancellationToken.None);
+        Assert.NotNull(saved);
+        Assert.Equal("Pump", saved.Name);
+        Assert.Equal("New group", saved.Category);
+        Assert.Equal(saved.Id, result.Id);
+        Assert.Equal(saved.Category, result.Category);
+        repository.Verify(x => x.AddAsync(saved, It.IsAny<CancellationToken>()), Times.Once);
+        work.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         work.VerifyNoOtherCalls();
     }
 

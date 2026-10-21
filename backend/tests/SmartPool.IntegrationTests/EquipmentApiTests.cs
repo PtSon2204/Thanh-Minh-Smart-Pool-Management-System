@@ -1,3 +1,5 @@
+using SmartPool.Application.Features.ManageEquipments.Cameras;
+using SmartPool.Application.Features.ManageEquipments.DTOs;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -29,6 +31,7 @@ public sealed class EquipmentApiTests
         await using var db = new SmartPoolDbContext(await IntegrationTestDatabase.CreateOptionsAsync());
         var suffix = Guid.NewGuid().ToString("N");
         var category = "create-" + suffix;
+        var newCategory = "new-" + suffix;
         db.Equipments.Add(new Equipment { Id = Guid.NewGuid(), Name = "Category source " + suffix, Category = category, Status = "Active", IsDeleted = false });
         var addedRoles = new List<Role>();
         var cameraGuards = new[] {
@@ -126,12 +129,27 @@ public sealed class EquipmentApiTests
                 new { name = "   ", category, location = (string?)null },
                 new { name = new string('x', 256), category, location = (string?)null },
                 new { name = "Pump", category = "", location = (string?)null },
-                new { name = "Pump", category = "missing-" + suffix, location = (string?)null },
+                new { name = "Pump", category = new string('x', 51), location = (string?)null },
                 new { name = "Pump", category, location = (string?)new string('x', 256) }
             })
                 Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/equipments", invalid)).StatusCode);
             using (var malformed = new StringContent("{\"name\":\"Pump\",\"metadata\":{broken}}", Encoding.UTF8, "application/json"))
                 Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/equipments", malformed)).StatusCode);
+
+            Assert.False(await db.Equipments.AnyAsync(x => x.Category == newCategory));
+            var newCategoryResponse = await client.PostAsJsonAsync("/api/equipments", new
+            {
+                name = "New category device " + suffix, category = "  " + newCategory + "  "
+            });
+            Assert.Equal(HttpStatusCode.Created, newCategoryResponse.StatusCode);
+            var newCategoryEquipment = await newCategoryResponse.Content.ReadFromJsonAsync<EquipmentListItem>();
+            Assert.NotNull(newCategoryEquipment);
+            Assert.Equal(newCategory, newCategoryEquipment.Category);
+            var newCategorySaved = await db.Equipments.AsNoTracking().SingleAsync(x => x.Id == newCategoryEquipment.Id);
+            Assert.Equal(newCategory, newCategorySaved.Category);
+            var updatedFilterOptions = await client.GetFromJsonAsync<EquipmentFilterOptions>("/api/equipments/filters");
+            Assert.NotNull(updatedFilterOptions);
+            Assert.Contains(newCategory, updatedFilterOptions.Categories);
 
             var initialCount = await db.Equipments.CountAsync(x => x.Category == category);
             var minimalResponse = await client.PostAsJsonAsync("/api/equipments", new { name = "  Pump " + suffix + "  ", category });
@@ -190,7 +208,7 @@ public sealed class EquipmentApiTests
         finally
         {
             await app.StopAsync();
-            await db.Equipments.Where(x => x.Category == category).ExecuteDeleteAsync();
+            await db.Equipments.Where(x => x.Category == category || x.Category == newCategory).ExecuteDeleteAsync();
             var guardIds = cameraGuards.Select(x => x.Id).ToArray();
             await db.Equipments.Where(x => guardIds.Contains(x.Id)).ExecuteDeleteAsync();
             db.Users.RemoveRange(admin, sales);

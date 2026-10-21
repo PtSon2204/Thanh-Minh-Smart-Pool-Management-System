@@ -1,3 +1,10 @@
+using SmartPool.Infrastructure.Persistence.Repositories.Users;
+using SmartPool.Infrastructure.Persistence.Repositories.Services;
+using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
+using SmartPool.Infrastructure.Persistence.Repositories.Maintenance;
+using SmartPool.Infrastructure.Persistence.Repositories.Staff;
+using SmartPool.Infrastructure.Persistence.Repositories.Tickets;
+using SmartPool.Infrastructure.Persistence.Repositories.Vouchers;
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;

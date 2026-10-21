@@ -15,7 +15,7 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories
+namespace SmartPool.Infrastructure.Persistence.Repositories.Staff
 {
 
 public sealed partial class StaffOperations : IStaffOperations

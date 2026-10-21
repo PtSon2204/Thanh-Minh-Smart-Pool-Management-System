@@ -1,4 +1,5 @@
 using MediatR;
+using SmartPool.API.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SmartPool.API.Extensions;
@@ -157,7 +158,4 @@ namespace SmartPool.API.Controllers
             }
         }
     }
-
-    /// <summary>Body request cho endpoint cập nhật mã vé.</summary>
-    public record UpdateTicketCodeRequest(string Code);
 }

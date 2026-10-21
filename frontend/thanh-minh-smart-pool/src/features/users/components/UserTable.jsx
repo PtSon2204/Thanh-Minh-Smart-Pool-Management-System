@@ -1,6 +1,6 @@
 import { Avatar, Button, Space, Table, Tag, Tooltip } from 'antd'
 import { EditOutlined, EyeOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
-import { USER_ROLES, USER_ROLE_COLORS } from '../userManagement'
+import { USER_ROLES, USER_ROLE_COLORS } from "../utils/userManagement"
 
 function userName(user) {
   return user.fullName || user.username

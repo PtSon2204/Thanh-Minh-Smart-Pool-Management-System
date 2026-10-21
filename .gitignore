@@ -163,6 +163,7 @@ MigrationBackup/
 
 #bỏ file codebase.md
 codebase.md
+ARCHITECTURE.md
 
 #bỏ folder docs
 docs/

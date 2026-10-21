@@ -1,3 +1,4 @@
+using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
 using SmartPool.Domain.Entities;

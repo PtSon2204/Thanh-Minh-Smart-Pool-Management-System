@@ -1,3 +1,4 @@
+using SmartPool.Application.Features.Authentication.Models;
 namespace SmartPool.Application.Interfaces.Services;
 
 public interface IRefreshTokenService
@@ -11,10 +12,3 @@ public interface IRefreshTokenService
 
     string ComputeHash(string token);
 }
-
-public sealed record RefreshTokenResult(string Token, DateTime ExpiresAtUtc);
-
-public sealed record RefreshRotationResult(
-    Guid Id, string Username, string Role,
-    string AccessToken, DateTime AccessTokenExpiresAtUtc,
-    string RefreshToken, DateTime RefreshTokenExpiresAtUtc);

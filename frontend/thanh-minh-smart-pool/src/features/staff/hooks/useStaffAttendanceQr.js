@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { attendanceQrService } from '../services/attendanceQrService.js'
-import { claimAttendanceQrStart, initialAttendanceQrState, reduceAttendanceQrSession } from './attendanceQrState.js'
+import { claimAttendanceQrStart, initialAttendanceQrState, reduceAttendanceQrSession } from "../state/attendanceQrState.js"
 
 function isCurrentSession(session, candidate) {
   return session?.sessionId === candidate.sessionId && session.generation === candidate.generation

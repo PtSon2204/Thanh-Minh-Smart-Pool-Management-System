@@ -3,7 +3,7 @@ using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentalDetails;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories;
+namespace SmartPool.Infrastructure.Persistence.Repositories.Services;
 
 public sealed partial class ServiceOperations
 {

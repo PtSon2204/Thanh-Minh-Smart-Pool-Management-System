@@ -1,3 +1,4 @@
+using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
