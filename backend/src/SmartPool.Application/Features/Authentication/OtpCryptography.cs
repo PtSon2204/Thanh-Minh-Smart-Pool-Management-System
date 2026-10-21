@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+        using System.Security.Cryptography;
 using System.Text;
 
 namespace SmartPool.Application.Features.Authentication;

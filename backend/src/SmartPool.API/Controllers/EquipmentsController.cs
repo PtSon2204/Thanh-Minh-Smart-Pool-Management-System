@@ -1,3 +1,6 @@
+using SmartPool.Application.Features.ManageEquipments.Cameras;
+using SmartPool.Application.Features.ManageEquipments.DTOs;
+using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipmentFilters;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

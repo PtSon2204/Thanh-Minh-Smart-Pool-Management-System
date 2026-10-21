@@ -1,3 +1,5 @@
+using SmartPool.Application.Features.ManageEquipments.Cameras;
+using SmartPool.Application.Features.ManageEquipments;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -5,8 +7,6 @@ using Microsoft.Extensions.Options;
 using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Infrastructure.Cameras;
-
-public sealed record CameraTarget(Uri Uri, string Identity);
 
 public sealed class CameraAddressPolicy(IOptions<CameraOptions> options)
 {
@@ -38,9 +38,4 @@ public sealed class CameraAddressPolicy(IOptions<CameraOptions> options)
         var identity = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{address}:{port}")));
         return new CameraTarget(pinned, identity);
     }
-}
-
-internal static class CameraAddressExtensions
-{
-    public static long ScopeIdSafe(this IPAddress address) => address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? address.ScopeId : 0;
 }

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, MailCheck, ShieldCheck } from 'lucide-react'
 import { useResendPasswordReset, useResendRegistration, useVerifyPasswordReset, useVerifyRegistration } from '../hooks/useAuthMutations'
-import { clearPendingRegistration, readPendingRegistration, savePendingRegistration } from '../services/registrationSession'
-import { savePasswordResetGrant } from '../services/passwordResetGrant'
-import { getOtpRequest } from '../services/otpRequest'
+import { clearPendingRegistration, readPendingRegistration, savePendingRegistration } from "../state/registrationSession"
+import { savePasswordResetGrant } from "../state/passwordResetGrant"
+import { getOtpRequest } from "../state/otpRequest"
 import { getAuthError, registerPendingResponseSchema, requestPasswordResetResponseSchema } from '../types/authSchemas'
 
 const OTP_LENGTH = 6

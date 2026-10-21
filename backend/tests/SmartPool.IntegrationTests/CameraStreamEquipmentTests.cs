@@ -1,3 +1,5 @@
+using SmartPool.Application.Features.ManageEquipments;
+using SmartPool.Application.Features.ManageEquipments.Cameras;
 using System.Diagnostics;
 using System.Net;
 using Microsoft.AspNetCore.DataProtection;

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Alert, Button, Form, Input, Modal, Select } from 'antd'
+import { Alert, AutoComplete, Button, Form, Input, Modal } from 'antd'
 import { useEquipmentFilters } from '../hooks/useEquipments'
 import { useUpdateEquipment } from '../hooks/useEquipmentMutations'
 import { isCamera } from '../utils/equipmentDisplay'
@@ -51,11 +51,21 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
     keyboard={!mutation.isPending} mask={{ closable: !mutation.isPending }}>
     <Form form={form} layout="vertical" disabled={mutation.isPending} onFinish={handleFinish} onValuesChange={() => { if (mutation.isError) mutation.reset() }}>
       {mutation.isError && <Alert type="error" showIcon className="service-inline-error" title="Cập nhật thiết bị thất bại" description={mutation.error?.response?.data?.message || 'Không thể lưu thay đổi. Vui lòng thử lại.'} />}
-      {filters.isError && <Alert type="warning" showIcon className="service-inline-error" title="Không thể tải các nhóm thiết bị khác" action={<Button onClick={() => filters.refetch()}>Thử lại</Button>} />}
+      {filters.isError && <Alert type="warning" showIcon className="service-inline-error" title="Không thể tải gợi ý nhóm thiết bị. Bạn vẫn có thể nhập tên nhóm." action={<Button onClick={() => filters.refetch()}>Thử lại</Button>} />}
       <Form.Item label="Tên thiết bị" name="name" rules={[{ required: true, whitespace: true, message: 'Nhập tên thiết bị.' }, { transform: value => value?.trim(), max: 255, message: 'Tên thiết bị không được vượt quá 255 ký tự.' }]}><Input maxLength={255} placeholder="Nhập tên thiết bị" /></Form.Item>
-      <Form.Item label="Nhóm thiết bị" name="category" extra={isCamera(equipment?.category) ? 'Nhóm Camera được giữ nguyên khi cập nhật thiết bị.' : undefined} rules={[{ required: true, message: 'Chọn nhóm thiết bị.' }]}>
-        <Select showSearch optionFilterProp="label" loading={filters.isFetching} disabled={mutation.isPending || isCamera(equipment?.category)}
-          options={categories.map(value => ({ value, label: value, disabled: isCamera(value) !== isCamera(equipment?.category) }))} />
+      <Form.Item label="Nhóm thiết bị" name="category" extra={isCamera(equipment?.category)
+        ? 'Nhóm Camera được giữ nguyên để tiếp tục sử dụng chức năng xem camera.'
+        : 'Nhập tên nhóm mới hoặc chọn một nhóm đã có. Thay đổi chỉ áp dụng cho thiết bị này.'} rules={[
+        { required: true, whitespace: true, message: 'Nhập nhóm thiết bị.' },
+        { transform: value => value?.trim(), max: 50, message: 'Nhóm thiết bị không được vượt quá 50 ký tự.' },
+        { validator: (_, value) => isCamera(equipment?.category) || !isCamera(value)
+          ? Promise.resolve() : Promise.reject(new Error('Thêm thiết bị Camera mới để cấu hình kết nối camera.')) },
+      ]}>
+        {isCamera(equipment?.category) ? <Input readOnly aria-label="Nhóm Camera được giữ cố định" /> :
+          <AutoComplete allowClear options={categories.filter(value => !isCamera(value)).map(value => ({ value, label: value }))}
+            filterOption={(input, option) => option.value.toLocaleLowerCase('vi-VN').includes(input.trim().toLocaleLowerCase('vi-VN'))}>
+            <Input maxLength={50} placeholder="Nhập hoặc chọn nhóm thiết bị" />
+          </AutoComplete>}
       </Form.Item>
       <Form.Item label="Khu vực" name="location" rules={[{ transform: value => value?.trim(), max: 255, message: 'Khu vực không được vượt quá 255 ký tự.' }]}><Input maxLength={255} placeholder="Nhập khu vực đặt thiết bị" /></Form.Item>
       <Form.Item label="Thông số thiết bị" name="specifications" extra="Mỗi thiết bị có thông số riêng. Thêm, sửa hoặc xóa từng dòng theo nhu cầu." rules={[{

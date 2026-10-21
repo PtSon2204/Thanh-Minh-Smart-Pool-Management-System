@@ -1,3 +1,5 @@
+using SmartPool.Application.Features.ManageEquipments;
+using SmartPool.Application.Features.ManageEquipments.Cameras;
 using System.Net;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;

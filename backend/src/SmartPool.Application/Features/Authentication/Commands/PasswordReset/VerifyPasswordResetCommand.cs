@@ -7,8 +7,3 @@ public sealed record VerifyPasswordResetCommand(Guid RecoveryId, string Otp) : I
 {
     public override string ToString() => $"VerifyPasswordResetCommand {{ RecoveryId = {RecoveryId}, Otp = [REDACTED] }}";
 }
-
-public sealed record VerifyPasswordResetResponse(string ResetToken, DateTimeOffset ResetTokenExpiresAtUtc)
-{
-    public override string ToString() => "VerifyPasswordResetResponse { ResetToken = [REDACTED] }";
-}

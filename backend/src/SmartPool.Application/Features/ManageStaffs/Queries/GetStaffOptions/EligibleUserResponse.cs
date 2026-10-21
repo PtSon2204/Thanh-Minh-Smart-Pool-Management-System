@@ -1,0 +1,12 @@
+namespace SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions
+{
+
+    public sealed class EligibleUserResponse
+    {
+        public Guid UserId { get; set; }
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? FullName { get; set; }
+    }
+}

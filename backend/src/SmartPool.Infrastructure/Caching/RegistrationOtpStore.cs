@@ -1,3 +1,4 @@
+using SmartPool.Application.Features.Authentication.Models;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

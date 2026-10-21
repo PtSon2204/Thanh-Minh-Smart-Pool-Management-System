@@ -5,7 +5,7 @@ using SmartPool.Application.Features.ManageServices.Commands.AdjustStock;
 using SmartPool.Application.Features.ManageServices.Queries.GetInventoryHistory;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories
+namespace SmartPool.Infrastructure.Persistence.Repositories.Services
 {
 
 public sealed partial class ServiceOperations

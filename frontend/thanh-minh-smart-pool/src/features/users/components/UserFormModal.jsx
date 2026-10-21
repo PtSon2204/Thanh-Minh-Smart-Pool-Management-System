@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import dayjs from 'dayjs'
 import { Col, Form, Input, Modal, Row, Select } from 'antd'
-import { USER_ROLES } from '../userManagement'
+import { USER_ROLES } from "../utils/userManagement"
 
 const phonePattern = /^(?:0|\+84)[35789]\d{8}$/
 const usernamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9._]*[A-Za-z0-9])?$/

@@ -1,3 +1,4 @@
+using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;

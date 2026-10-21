@@ -13,7 +13,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories
+namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
 {
     public sealed class PoolAccessOperations : IPoolAccessOperations
     {

@@ -2,7 +2,7 @@ using AutoMapper;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories
+namespace SmartPool.Infrastructure.Persistence.Repositories.Services
 {
 
 public sealed partial class ServiceOperations : IServiceOperations

@@ -3,8 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useLogin, useRegister } from '../hooks/useAuthMutations'
-import { savePendingRegistration } from '../services/registrationSession'
-import { beginOtpRequest } from '../services/otpRequest'
+import { savePendingRegistration } from "../state/registrationSession"
+import { beginOtpRequest } from "../state/otpRequest"
 import { getAuthError, loginFormSchema, registerFormSchema } from '../types/authSchemas'
 
 function AuthField({ id, label, error, children }) {

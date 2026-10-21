@@ -3,7 +3,6 @@ using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Infrastructure.Services
 {
-    public abstract class NotificationHubBase : Hub { }
 
     /// <summary>
     /// Gửi thông báo real-time đến clients qua SignalR.

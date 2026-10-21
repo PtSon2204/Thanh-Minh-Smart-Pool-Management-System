@@ -5,8 +5,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Mail, ShieldCheck } from 'lucide-react'
 import { forgotPasswordFormSchema } from '../types/authSchemas'
 import { useRequestPasswordReset } from '../hooks/useAuthMutations'
-import { clearPasswordResetGrant } from '../services/passwordResetGrant'
-import { beginOtpRequest } from '../services/otpRequest'
+import { clearPasswordResetGrant } from "../state/passwordResetGrant"
+import { beginOtpRequest } from "../state/otpRequest"
 
 export default function ForgotPasswordForm() {
   const navigate = useNavigate()

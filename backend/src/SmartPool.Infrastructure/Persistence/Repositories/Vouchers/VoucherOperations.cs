@@ -9,7 +9,7 @@ using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories
+namespace SmartPool.Infrastructure.Persistence.Repositories.Vouchers
 {
     public sealed partial class VoucherOperations : IVoucherOperations
     {

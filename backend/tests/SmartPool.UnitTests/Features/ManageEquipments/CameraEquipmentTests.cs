@@ -1,3 +1,5 @@
+using SmartPool.Application.Features.ManageEquipments.Cameras;
+using SmartPool.Application.Features.ManageEquipments;
 using System.Linq.Expressions;
 using FluentValidation;
 using Microsoft.Extensions.Options;

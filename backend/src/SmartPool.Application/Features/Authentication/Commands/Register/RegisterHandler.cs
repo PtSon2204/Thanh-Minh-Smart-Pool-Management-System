@@ -1,3 +1,4 @@
+using SmartPool.Application.Features.Authentication.Models;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

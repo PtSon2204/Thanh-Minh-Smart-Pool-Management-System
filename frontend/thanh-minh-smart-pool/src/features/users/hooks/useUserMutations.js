@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import userService from '../services/userService'
-import { getUserError } from '../userManagement'
+import { getUserError } from "../utils/userManagement"
 
 export function useSaveUser() {
   const queryClient = useQueryClient()

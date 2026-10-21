@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useCompletePasswordReset } from '../hooks/useAuthMutations'
-import { clearPasswordResetGrant, readPasswordResetGrant } from '../services/passwordResetGrant'
+import { clearPasswordResetGrant, readPasswordResetGrant } from "../state/passwordResetGrant"
 import { getAuthError, resetPasswordFormSchema } from '../types/authSchemas'
 
 const fields = [

@@ -1,3 +1,4 @@
+using SmartPool.Application.Features.ManageEquipments.DTOs;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
 using SmartPool.Domain.Entities;

@@ -1,3 +1,4 @@
+using SmartPool.Application.Features.Authentication.Models;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;

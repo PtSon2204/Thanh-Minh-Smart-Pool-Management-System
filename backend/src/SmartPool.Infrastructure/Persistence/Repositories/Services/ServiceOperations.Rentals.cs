@@ -7,7 +7,7 @@ using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantit
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.Infrastructure.Persistence.Repositories
+namespace SmartPool.Infrastructure.Persistence.Repositories.Services
 {
 
 public sealed partial class ServiceOperations

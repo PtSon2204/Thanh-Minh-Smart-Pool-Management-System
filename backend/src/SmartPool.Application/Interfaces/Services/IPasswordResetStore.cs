@@ -1,36 +1,5 @@
+using SmartPool.Application.Features.Authentication.Models;
 namespace SmartPool.Application.Interfaces.Services;
-
-// UserId null denotes an indistinguishable decoy session. No plaintext secrets enter Redis.
-public sealed record PendingPasswordReset(
-    Guid RecoveryId, string? Email, Guid? UserId, string? PasswordFingerprint)
-{
-    public override string ToString() => $"PendingPasswordReset {{ RecoveryId = {RecoveryId}, secrets = [REDACTED] }}";
-}
-
-public sealed record PasswordResetIdentity(Guid UserId, string Email, string PasswordFingerprint)
-{
-    public override string ToString() => "PasswordResetIdentity { secrets = [REDACTED] }";
-}
-
-public enum PasswordResetStoreStatus
-{
-    Success, RateLimited, Unavailable, OtpExpired, InvalidOtp, AttemptsExceeded,
-    ResendCooldown, ResendLimitReached, Busy, AlreadyVerified, InvalidToken, TokenExpired
-}
-
-public sealed record PasswordResetStoreResult(
-    PasswordResetStoreStatus Status,
-    DateTimeOffset? OtpExpiresAtUtc = null,
-    DateTimeOffset? RecoveryExpiresAtUtc = null,
-    DateTimeOffset? ResendAvailableAtUtc = null,
-    DateTimeOffset? ResetTokenExpiresAtUtc = null,
-    TimeSpan? RetryAfter = null,
-    string? LeaseId = null,
-    string? Email = null,
-    PasswordResetIdentity? Identity = null)
-{
-    public override string ToString() => $"PasswordResetStoreResult {{ Status = {Status}, secrets = [REDACTED] }}";
-}
 
 public interface IPasswordResetStore
 {

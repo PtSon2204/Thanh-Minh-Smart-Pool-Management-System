@@ -1,3 +1,4 @@
+using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
