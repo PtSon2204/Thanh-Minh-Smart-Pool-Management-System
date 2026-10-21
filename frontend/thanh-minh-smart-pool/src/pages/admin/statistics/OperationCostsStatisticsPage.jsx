@@ -490,6 +490,7 @@ export default function OperationCostsStatisticsPage() {
         >
           <Table
             columns={columns}
+            scroll={{ x: 800 }}
             dataSource={data?.recentMaintenanceLogs || []}
             rowKey="id"
             pagination={{

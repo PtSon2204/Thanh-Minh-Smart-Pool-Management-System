@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Badge, message } from 'antd';
+﻿import { useState, useEffect } from 'react';
+import { Layout, Menu, Button, Avatar, Dropdown, Badge, Drawer, Grid, message } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -16,6 +16,7 @@ import {
   BellOutlined,
   LogoutOutlined,
   LockOutlined,
+  SecurityScanOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
@@ -43,7 +44,17 @@ export default function AdminLayout() {
   const role = session?.role?.toUpperCase();
   const isAdmin = role === 'ADMIN';
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const closeMenu = () => setMobileMenuOpen(false);
+    desktop.addEventListener('change', closeMenu);
+    return () => desktop.removeEventListener('change', closeMenu);
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) return undefined;
@@ -122,7 +133,7 @@ export default function AdminLayout() {
     },
     isAdmin && {
       key: '/admin/safety',
-      icon: <ToolOutlined />,
+      icon: <SecurityScanOutlined />,
       label: 'Giám sát an toàn',
        children: [
         { key: '/admin/safety/list-camera', label: <Link to="/admin/safety/list-camera">Danh sách camera</Link> },
@@ -131,7 +142,7 @@ export default function AdminLayout() {
     },
     isAdmin && {
       key: 'equipments',
-      icon: <BarChartOutlined />,
+      icon: <ToolOutlined />,
       label: 'Quản lý thiết bị',
       children: [
         { key: '/admin/equipments/list-equipments', label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link> },
@@ -222,8 +233,10 @@ export default function AdminLayout() {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#e2e8f0' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} breakpoint="md" onBreakpoint={setCollapsed} width={250} className="admin-sidebar">
+    <Layout className="admin-layout" style={{ minHeight: '100vh', background: '#e2e8f0' }}>
+      {isMobile ? <Drawer title="Thanh Minh Admin" placement="left" width={280} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} rootClassName="admin-navigation-drawer">
+        <Menu mode="inline" selectedKeys={[location.pathname]} defaultOpenKeys={openKeysForPath(location.pathname)} items={menuItems} onClick={() => setMobileMenuOpen(false)} />
+      </Drawer> : <Sider trigger={null} collapsible collapsed={collapsed} width={250} className="admin-sidebar">
         <div className="bubbles-container">
           <div className="bubble"></div>
           <div className="bubble"></div>
@@ -233,18 +246,11 @@ export default function AdminLayout() {
           <div className="bubble"></div>
           <div className="bubble"></div>
         </div>
-        <div
-          className="admin-logo"
-          style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: collapsed ? '1rem' : '1.25rem',
-            fontWeight: 'bold',
-          }}
-        >
-          {collapsed ? 'TM' : 'Thanh Minh Admin'}
+        <div className="admin-logo">
+          {collapsed
+            ? <span className="admin-logo-collapsed">TM</span>
+            : <span className="admin-logo-text">Thanh Minh Admin</span>
+          }
         </div>
         <Menu
           mode="inline"
@@ -260,9 +266,10 @@ export default function AdminLayout() {
             height: 'calc(100vh - 80px)'
           }}
         />
-      </Sider>
+      </Sider>}
       <Layout style={{ background: '#e2e8f0', minWidth: 0 }}>
         <Header
+          className="admin-header"
           style={{
             padding: '0 24px',
             background: '#ffffff',
@@ -277,29 +284,30 @@ export default function AdminLayout() {
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <Button
               type="text"
-              aria-label={collapsed ? 'Mở menu quản trị' : 'Thu gọn menu quản trị'}
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
+              icon={isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              aria-label={isMobile ? 'Mở menu quản trị' : collapsed ? 'Mở rộng menu quản trị' : 'Thu gọn menu quản trị'}
+              aria-expanded={isMobile ? mobileMenuOpen : !collapsed}
+              onClick={() => isMobile ? setMobileMenuOpen(true) : setCollapsed(!collapsed)}
               style={{
                 fontSize: '16px',
                 width: 64,
                 height: 64,
-                marginLeft: -24,
+                marginLeft: isMobile ? -16 : -24,
               }}
             />
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div className="admin-header-actions">
             {isAdmin && <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
               <Badge count={unreadCount} size="small" overflowCount={99}>
-                <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 18 }} />} />
+                <Button type="text" shape="circle" aria-label="Thông báo hệ thống" icon={<BellOutlined style={{ fontSize: 18 }} />} />
               </Badge>
             </Link>}
-            <Dropdown menu={userMenu} placement="bottomRight">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+              <button type="button" className="admin-account-trigger" aria-label="Menu tài khoản">
                 <Avatar style={{ backgroundColor: '#005f8e' }} icon={<UserOutlined />} />
-                <span style={{ fontWeight: 600 }}>{session?.username ? `${session.username} (${roleDisplay})` : roleDisplay}</span>
-              </div>
+                <span className="admin-account-name">{session?.username ? `${session.username} (${roleDisplay})` : roleDisplay}</span>
+              </button>
             </Dropdown>
           </div>
         </Header>

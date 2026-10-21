@@ -94,6 +94,8 @@ export default function TicketTypePage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
           boxShadow: '0 4px 12px rgba(0, 119, 182, 0.15)',
         }}
       >

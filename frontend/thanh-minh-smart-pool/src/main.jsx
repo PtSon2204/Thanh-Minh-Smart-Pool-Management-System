@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import "./features/qr/utils/prepareZXingModule.js"
 import './index.css'
 import App from './App.jsx'
+import './styles/responsive.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

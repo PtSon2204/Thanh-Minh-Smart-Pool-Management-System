@@ -204,6 +204,7 @@ export default function EmailNotificationManager() {
       >
         <Table
           rowKey={(record) => record.id || record.sentAt}
+          scroll={{ x: 640 }}
           columns={columns}
           dataSource={historyData}
           loading={historyLoading}

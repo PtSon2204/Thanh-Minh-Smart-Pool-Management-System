@@ -1,0 +1,81 @@
+/* Shared sizing rules. Wide datasets scroll inside their table, never the page. */
+.main-layout, .main-content, .admin-content > *, .ant-col, .ant-space-item {
+  min-width: 0;
+}
+
+.main-layout { min-height: 100svh; }
+.ant-drawer-content-wrapper { max-width: 100vw; }
+.ant-table-wrapper { min-width: 0; max-width: 100%; }
+.ant-table-content { overflow-x: auto; }
+.ant-pagination { flex-wrap: wrap; row-gap: 8px; }
+.responsive-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.admin-standard-page { padding: 24px; }
+
+.pos-container { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 24px; min-height: calc(100svh - 120px); }
+.pos-catalog, .pos-checkout { display: flex; flex-direction: column; min-width: 0; }
+.pos-checkout { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,.05); }
+
+@media (max-width: 1100px) {
+  .pos-container { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 767px) {
+  .container { padding-inline: 16px; }
+  .admin-standard-page { padding: 12px; }
+  .service-list-header { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-block: 16px; }
+  .service-list-primary-action { justify-self: start; }
+  .admin-content .ant-card-head { padding-inline: 16px; }
+  .admin-content .ant-card-body { padding: 16px; }
+  .admin-content .ant-card-head-wrapper { flex-wrap: wrap; gap: 12px; padding-block: 12px; }
+  .admin-content .ant-card-head-title, .ant-modal .ant-card-head-title { white-space: normal; overflow-wrap: anywhere; }
+  .admin-content .ant-card-head-title .ant-space, .ant-modal .ant-card-head-title .ant-space { flex-wrap: wrap; }
+  .admin-content .ant-radio-group { display: flex; flex-wrap: wrap; gap: 4px; }
+  .admin-content .ant-radio-button-wrapper { border: 1px solid #d9d9d9; border-radius: 6px; }
+  .admin-content .ant-radio-button-wrapper::before { display: none; }
+  .admin-content .ant-space { max-width: 100%; }
+  .admin-content .ant-space-horizontal { flex-wrap: wrap; }
+  .admin-content .ant-select, .admin-content .ant-input-affix-wrapper, .admin-content .ant-picker { max-width: 100%; }
+  .ant-modal .ant-descriptions-item-content, .ant-drawer .ant-descriptions-item-content { overflow-wrap: anywhere; }
+  .ant-modal .ant-btn { max-width: 100%; white-space: normal; height: auto; min-height: 32px; }
+  .pos-container { min-height: 0; gap: 16px; }
+  .pos-checkout { padding: 16px; }
+  .pos-checkout .ant-list-item { flex-wrap: wrap; gap: 8px; }
+  .um-toolbar .ant-space { flex-wrap: wrap; }
+  .responsive-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero-stats { flex-wrap: wrap; gap: 20px; }
+}
+
+@media (max-width: 480px) {
+  .ant-modal:not(.online-ticket-payment-modal) .ant-modal-container, .ant-drawer .ant-drawer-body { padding: 16px; }
+  .ant-modal .ant-modal-title { padding-inline-end: 24px; overflow-wrap: anywhere; }
+  .ant-modal .ant-modal-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  .ant-modal .ant-modal-footer .ant-btn + .ant-btn { margin-inline-start: 0; }
+  .online-payment-order, .online-payment-transfer { min-width: 0; overflow-wrap: anywhere; }
+  .online-payment-item, .online-payment-order-code { flex-wrap: wrap; }
+  .online-payment-total { flex-wrap: wrap; }
+  .btn-primary, .btn-outline { max-width: 100%; padding-inline: 24px; text-align: center; }
+}
+
+@media (max-width: 640px) {
+  /* Keep both range calendars and date/time controls reachable on phones. */
+  .ant-picker-dropdown {
+    position: fixed !important;
+    top: 8px !important;
+    bottom: auto !important;
+    left: 8px !important;
+    right: auto !important;
+    max-width: calc(100vw - 16px);
+  }
+  .ant-picker-dropdown .ant-picker-panels,
+  .ant-picker-dropdown .ant-picker-datetime-panel { flex-direction: column; }
+  .ant-picker-dropdown .ant-picker-panel-container {
+    max-width: calc(100vw - 16px);
+    max-height: min(80dvh, 640px);
+    overflow-y: auto;
+  }
+  .ant-picker-dropdown .ant-picker-datetime-panel .ant-picker-time-panel {
+    width: 100%;
+    border-inline-start: 0;
+    border-top: 1px solid #f0f0f0;
+  }
+}

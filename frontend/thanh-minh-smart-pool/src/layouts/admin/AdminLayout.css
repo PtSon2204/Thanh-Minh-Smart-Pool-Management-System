@@ -1,71 +1,241 @@
 /* AdminLayout.css */
 
-.admin-content {
-  margin: 24px;
+/* ─── Layout shell ─────────────────────────────────────────────── */
+.admin-layout { min-width: 0; }
+
+/* ─── Top header ───────────────────────────────────────────────── */
+.admin-header-actions { display: flex; align-items: center; gap: 20px; min-width: 0; }
+
+.admin-account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  padding: 6px 10px;
+  transition: background 0.18s;
+}
+.admin-account-trigger:hover {
+  background: rgba(0, 119, 182, 0.06);
+}
+.admin-account-trigger .ant-avatar { flex-shrink: 0; }
+.admin-account-name {
+  min-width: 0;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #005f8e;
 }
 
-.admin-content:has(.staff-schedule-page--wide) {
-  margin: 12px;
+/* Mobile drawer */
+.admin-navigation-drawer .ant-drawer-body { padding: 8px; }
+.admin-navigation-drawer .ant-menu-title-content { white-space: normal; line-height: 1.4; }
+.admin-navigation-drawer .ant-menu-item,
+.admin-navigation-drawer .ant-menu-submenu-title { height: auto; min-height: 44px; padding-block: 10px; }
+
+@media (max-width: 767px) {
+  .admin-header.ant-layout-header { padding-inline: 16px !important; }
+  .admin-header-actions { gap: 10px; }
+  .admin-account-name { max-width: min(42vw, 220px); }
 }
 
-@media (max-width: 640px) {
-  .admin-content {
-    margin: 12px;
-  }
-}
+/* ─── Content area ─────────────────────────────────────────────── */
+.admin-content { margin: 24px; min-width: 0; }
+.admin-content:has(.staff-schedule-page--wide) { margin: 12px; }
+@media (max-width: 640px) { .admin-content { margin: 12px; } }
 
-@media (prefers-reduced-motion: reduce) {
-  .admin-sidebar .bubble {
-    animation: none;
-  }
-}
-
+/* ─── Sidebar shell ────────────────────────────────────────────── */
 .admin-sidebar {
-  background: linear-gradient(180deg, #005f8e 0%, #00b4d8 100%) !important;
   position: relative;
+  overflow: hidden;
+  /*
+   * Dùng đúng bộ màu của web:
+   * primary-dark #005f8e (trên) → secondary #00b4d8 (dưới)
+   * thêm một lớp tối nhẹ để chữ dễ đọc hơn
+   */
+  background: linear-gradient(180deg,
+    #004a70 0%,
+    #005f8e 30%,
+    #007aad 65%,
+    #00a8cc 100%
+  ) !important;
+  border-right: none !important;
+  box-shadow: 4px 0 20px rgba(0, 95, 142, 0.35) !important;
 }
 
+/* ─── Gloss overlay – dải sáng nhẹ ở trên cùng ─────────────────── */
+.admin-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 180px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.10) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Accent glow nhỏ phía dưới – dùng màu cam của web */
+.admin-sidebar::after {
+  content: '';
+  position: absolute;
+  bottom: -40px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle,
+    rgba(247, 127, 0, 0.12) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Logo bar ─────────────────────────────────────────────────── */
+.admin-logo {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  /* Kính mờ nhẹ */
+  background: rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+}
+
+.admin-logo-text {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #ffffff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+
+.admin-logo-collapsed {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Ant Menu overrides ───────────────────────────────────────── */
 .admin-sidebar .ant-menu {
   background: transparent !important;
+  border-inline-end: none !important;
 }
 
-.admin-sidebar .admin-service-menu > .ant-menu-submenu-title {
-  color: rgba(0, 0, 0, 0.88);
+/* Default item */
+.admin-sidebar .ant-menu-item,
+.admin-sidebar .ant-menu-submenu-title {
+  color: rgba(255, 255, 255, 0.82) !important;
+  border-radius: 10px !important;
+  margin-inline: 8px !important;
+  width: calc(100% - 16px) !important;
+  transition: background 0.2s, color 0.2s !important;
 }
 
-.admin-sidebar .ant-menu-item {
-  color: rgba(255, 255, 255, 0.85) !important;
+/* Icons */
+.admin-sidebar .ant-menu-item .anticon,
+.admin-sidebar .ant-menu-submenu-title .anticon {
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-size: 15px !important;
+  transition: color 0.2s !important;
 }
 
+/* Hover */
+.admin-sidebar .ant-menu-item:hover,
+.admin-sidebar .ant-menu-submenu-title:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+.admin-sidebar .ant-menu-item:hover .anticon,
+.admin-sidebar .ant-menu-submenu-title:hover .anticon {
+  color: #ffffff !important;
+}
+
+/* Selected / active — pill trắng bán trong suốt + viền mỏng */
 .admin-sidebar .ant-menu-item-selected {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-  color: #fff !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 2px 12px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(4px);
+}
+.admin-sidebar .ant-menu-item-selected .anticon {
+  color: #ffffff !important;
+}
+.admin-sidebar .ant-menu-item-selected a {
+  color: #ffffff !important;
+  font-weight: 700;
 }
 
-.admin-sidebar .ant-menu-item:hover {
-  color: #fff !important;
+/* Tất cả link trong menu */
+.admin-sidebar .ant-menu-item a,
+.admin-sidebar .ant-menu-submenu-title a {
+  color: inherit !important;
+  font-size: 0.875rem;
 }
 
+/* Sub-menu */
+.admin-sidebar .ant-menu-sub {
+  background: rgba(0, 0, 0, 0.10) !important;
+}
+.admin-sidebar .ant-menu-sub .ant-menu-item {
+  padding-left: 36px !important;
+  font-size: 0.83rem;
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 8px !important;
+}
+.admin-sidebar .ant-menu-sub .ant-menu-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Submenu arrow */
+.admin-sidebar .ant-menu-submenu-arrow {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.admin-sidebar .ant-menu-submenu-open > .ant-menu-submenu-title .ant-menu-submenu-arrow,
+.admin-sidebar .ant-menu-submenu-title:hover .ant-menu-submenu-arrow {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Divider */
+.admin-sidebar .ant-menu-item-divider {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Collapsed */
 .admin-sidebar.ant-layout-sider-collapsed .ant-menu-title-content {
   overflow: hidden;
   white-space: nowrap;
 }
-
-.admin-logo {
-  color: #fff !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-  position: relative;
-  z-index: 10;
+.admin-sidebar.ant-layout-sider-collapsed .ant-menu-item,
+.admin-sidebar.ant-layout-sider-collapsed .ant-menu-submenu-title {
+  margin-inline: 6px !important;
+  width: calc(100% - 12px) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Bubbles Animation */
+/* ─── Orb decorations (giữ nguyên div.bubble trong JSX) ─────────── */
 .bubbles-container {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -73,37 +243,58 @@
 
 .bubble {
   position: absolute;
-  bottom: -20px;
-  background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
-  animation: floatUp 5s infinite ease-in, pop 0.2s forwards;
-  animation-play-state: running;
+  animation: orbDrift 14s infinite ease-in-out;
+  opacity: 0;
 }
 
-/* Individual bubble settings */
-.bubble:nth-child(1) { width: 20px; height: 20px; left: 10%; animation-duration: 4s; animation-delay: 0s; }
-.bubble:nth-child(2) { width: 12px; height: 12px; left: 30%; animation-duration: 5s; animation-delay: 1s; }
-.bubble:nth-child(3) { width: 25px; height: 25px; left: 50%; animation-duration: 6s; animation-delay: 2s; }
-.bubble:nth-child(4) { width: 15px; height: 15px; left: 70%; animation-duration: 4.5s; animation-delay: 0.5s; }
-.bubble:nth-child(5) { width: 30px; height: 30px; left: 85%; animation-duration: 5.5s; animation-delay: 1.5s; }
-.bubble:nth-child(6) { width: 18px; height: 18px; left: 20%; animation-duration: 4.2s; animation-delay: 2.5s; }
-.bubble:nth-child(7) { width: 22px; height: 22px; left: 60%; animation-duration: 5.8s; animation-delay: 0.8s; }
+/* Dùng màu trắng/cyan hài hoà với nền xanh của web */
+.bubble:nth-child(1) {
+  width: 80px; height: 80px; left: 5%; top: 10%;
+  background: radial-gradient(circle, rgba(255,255,255,0.10), transparent 65%);
+  animation-duration: 11s; animation-delay: 0s;
+}
+.bubble:nth-child(2) {
+  width: 50px; height: 50px; left: 68%; top: 30%;
+  background: radial-gradient(circle, rgba(144,224,239,0.12), transparent 65%);
+  animation-duration: 15s; animation-delay: 2.5s;
+}
+.bubble:nth-child(3) {
+  width: 90px; height: 90px; left: 28%; top: 55%;
+  background: radial-gradient(circle, rgba(255,255,255,0.07), transparent 65%);
+  animation-duration: 18s; animation-delay: 4s;
+}
+.bubble:nth-child(4) {
+  width: 35px; height: 35px; left: 78%; top: 65%;
+  background: radial-gradient(circle, rgba(247,127,0,0.10), transparent 65%);
+  animation-duration: 12s; animation-delay: 1s;
+}
+.bubble:nth-child(5) {
+  width: 55px; height: 55px; left: 48%; top: 80%;
+  background: radial-gradient(circle, rgba(144,224,239,0.09), transparent 65%);
+  animation-duration: 14s; animation-delay: 3s;
+}
+.bubble:nth-child(6) {
+  width: 40px; height: 40px; left: 12%; top: 75%;
+  background: radial-gradient(circle, rgba(255,255,255,0.08), transparent 65%);
+  animation-duration: 10s; animation-delay: 5.5s;
+}
+.bubble:nth-child(7) {
+  width: 60px; height: 60px; left: 58%; top: 18%;
+  background: radial-gradient(circle, rgba(247,127,0,0.07), transparent 65%);
+  animation-duration: 16s; animation-delay: 1.8s;
+}
 
-@keyframes floatUp {
-  0% {
-    transform: translateY(0) scale(1);
-    opacity: 0.8;
-  }
-  90% {
-    transform: translateY(-80vh) scale(1.1);
-    opacity: 0.6;
-  }
-  95% {
-    transform: translateY(-90vh) scale(1.5); /* Expand before pop */
-    opacity: 0.3;
-  }
-  100% {
-    transform: translateY(-90vh) scale(2); /* Pop */
-    opacity: 0;
-  }
+@keyframes orbDrift {
+  0%   { opacity: 0;   transform: translate(0, 0) scale(1); }
+  20%  { opacity: 1; }
+  50%  { opacity: 0.8; transform: translate(10px, -14px) scale(1.06); }
+  80%  { opacity: 0.5; }
+  100% { opacity: 0;   transform: translate(-6px, 8px) scale(0.94); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-sidebar .bubble { animation: none; opacity: 0; }
+  .admin-sidebar::before,
+  .admin-sidebar::after { display: none; }
 }

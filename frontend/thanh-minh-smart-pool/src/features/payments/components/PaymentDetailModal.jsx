@@ -278,6 +278,7 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
           <Card size="small" title="2. Chi tiết vé / Dịch vụ thuê" style={{ marginBottom: 16, borderColor: '#e2e8f0' }}>
             <Table
               columns={itemColumns}
+              scroll={{ x: 560 }}
               dataSource={data.items || []}
               rowKey="id"
               pagination={false}
@@ -291,6 +292,7 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
             <Card size="small" title="3. Vé điện tử & QR Code được cấp phát" style={{ borderColor: '#e2e8f0' }}>
               <Table
                 columns={ticketColumns}
+                scroll={{ x: 640 }}
                 dataSource={data.tickets}
                 rowKey="ticketId"
                 pagination={false}

@@ -564,5 +564,5 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+  .auth-stage, .auth-stage * { transition: none !important; animation: none !important; }
 }

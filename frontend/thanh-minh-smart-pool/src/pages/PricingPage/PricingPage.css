@@ -124,7 +124,7 @@
 /* ---- Card list ---- */
 .pl-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
   gap: 24px;
 }
 
@@ -383,4 +383,10 @@
   .pl-hero h1 { font-size: 2rem; }
   .pl-info-grid { grid-template-columns: 1fr; }
   .pl-card-footer { flex-direction: column; align-items: flex-start; }
+  .pl-search { min-width: 0; max-width: none; flex-basis: 100%; }
+  .pl-search input { min-width: 0; }
+  .pl-card-body { padding: 20px 16px; }
+  .pl-info-cell { flex-wrap: wrap; }
+  .pl-cta-group { width: 100%; }
+  .pl-cta-btn { flex: 1 1 auto; white-space: normal; height: auto; min-height: 44px; padding-block: 10px; }
 }

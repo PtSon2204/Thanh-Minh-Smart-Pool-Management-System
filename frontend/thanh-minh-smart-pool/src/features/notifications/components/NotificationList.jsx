@@ -109,6 +109,7 @@ export default function NotificationList() {
       </div>
       <Table
         rowKey="id"
+        scroll={{ x: 720 }}
         columns={columns}
         dataSource={data}
         loading={loading}

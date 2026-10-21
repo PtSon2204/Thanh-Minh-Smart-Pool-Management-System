@@ -115,7 +115,7 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
         </Form.Item>
 
         {/* Giá + Hiệu lực — 2 cột */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="responsive-form-grid">
           <Form.Item
             label="Giá vé (VNĐ)"
             name="price"
