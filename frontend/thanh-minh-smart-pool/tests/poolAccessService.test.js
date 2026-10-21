@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hasAcceptedEntry, prepareTicketCode, shouldReconcileConfirmation } from '../src/features/tickets/services/poolAccessState.js'
+import { hasAcceptedEntry, prepareTicketCode, shouldReconcileConfirmation } from '../src/features/tickets/utils/poolAccessState.js'
 
 test('Given an accepted entry history item When checking reconciliation Then it identifies the recorded admission', () => {
   const entries = [{ status: 'Denied' }, { status: 'Allowed', ticketId: 'ticket-1' }]

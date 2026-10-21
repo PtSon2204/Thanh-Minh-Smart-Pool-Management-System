@@ -87,7 +87,7 @@ export default function ShiftManagementPage() {
       {query.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
       {query.isError && <Empty description="Không thể tải danh sách ca làm việc."><Button icon={<ReloadOutlined />} onClick={query.refetch}>Thử lại</Button></Empty>}
       {!query.isLoading && !query.isError && (query.data?.items?.length ?? 0) === 0 && <Empty description="Chưa có ca làm việc phù hợp." />}
-      {!query.isLoading && !query.isError && (query.data?.items?.length ?? 0) > 0 && <Table rowKey="id" columns={columns} dataSource={query.data.items} pagination={false} />}
+      {!query.isLoading && !query.isError && (query.data?.items?.length ?? 0) > 0 && <Table rowKey="id" columns={columns} dataSource={query.data.items} pagination={false} scroll={{ x: 800 }} />}
       {!query.isLoading && !query.isError && (query.data?.totalCount || 0) > 0 && <div className="admin-management-pagination"><Pagination current={pageIndex} pageSize={pageSize} total={query.data.totalCount} showSizeChanger pageSizeOptions={['10', '20', '50', '100']} onChange={(page, size) => { setPageIndex(page); setPageSize(size) }} /></div>}
     </section>
     <ShiftCreateDrawer open={isDrawerOpen} shift={selectedShift} onClose={() => { setDrawerOpen(false); setSelectedShift(null) }} />

@@ -146,6 +146,7 @@ export default function DashboardPage() {
         style={{ marginTop: 24, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
       >
         <Table 
+          scroll={{ x: 860 }}
           columns={auditLogColumns} 
           dataSource={auditLogData} 
           pagination={{ pageSize: 5 }}

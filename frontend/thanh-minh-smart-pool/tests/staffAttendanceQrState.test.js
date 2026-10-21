@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { claimAttendanceQrStart, reduceAttendanceQrSession } from '../src/features/staff/hooks/attendanceQrState.js'
+import { claimAttendanceQrStart, reduceAttendanceQrSession } from '../src/features/staff/state/attendanceQrState.js'
 
 const fixtureSession = {
   sessionId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',

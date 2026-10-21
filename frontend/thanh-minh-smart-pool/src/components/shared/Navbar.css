@@ -175,6 +175,55 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.navbar-cta .user-dropdown-trigger > span:last-child {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar-mobile-actions {
+  display: none;
+}
+
+.mobile-navigation,
+.mobile-navigation-account {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mobile-navigation-account {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.mobile-navigation a,
+.mobile-navigation button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primary-dark);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-navigation a:hover,
+.mobile-navigation button:hover,
+.mobile-navigation [aria-current="page"] {
+  background: var(--bg-soft);
 }
 
 .btn-ticket {
@@ -246,6 +295,10 @@ nav .voltage-button.btn-login .v-btn:hover {
   border: none;
   cursor: pointer;
   padding: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
 }
 
 .hamburger span {
@@ -258,10 +311,17 @@ nav .voltage-button.btn-login .v-btn:hover {
 }
 
 @media (max-width: 1024px) {
+  .navbar-mobile-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .hamburger { display: flex; }
   .navbar-nav { display: none; }
   .navbar-cta { display: none; }
   .navbar-top .container { flex-direction: column; gap: 4px; }
+}
+
+@media (max-width: 360px) {
+  .navbar-logo { gap: 6px; min-width: 0; }
+  .navbar-logo-sub { font-size: 0.6rem; letter-spacing: 0; }
+  .navbar-logo-img { width: 36px; height: 36px; }
 }
 
 .user-dropdown-trigger:hover {

@@ -562,6 +562,7 @@ export default function IncidentStatisticsPage() {
         >
           <Table
             columns={columns}
+            scroll={{ x: 1000 }}
             dataSource={data?.recentIncidents || []}
             rowKey="id"
             pagination={{

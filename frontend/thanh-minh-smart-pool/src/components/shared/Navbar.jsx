@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Dropdown, message } from 'antd'
+import { Avatar, Drawer, Dropdown, message } from 'antd'
 import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined, LockOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import './Navbar.css'
@@ -51,6 +51,13 @@ export default function Navbar() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuOpen(false)
   }, [location])
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1025px)')
+    const closeMenu = () => setMenuOpen(false)
+    desktop.addEventListener('change', closeMenu)
+    return () => desktop.removeEventListener('change', closeMenu)
+  }, [])
 
   const userMenu = {
     items: [
@@ -119,7 +126,7 @@ export default function Navbar() {
             ))}
           </ul>
 
-          <div className="navbar-cta" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div className="navbar-cta">
             {session ? (
               <>
                 {session.role === 'CUSTOMER' && <CartIcon />}
@@ -144,17 +151,44 @@ export default function Navbar() {
             )}
           </div>
 
-          <button
-            className="hamburger"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle menu"
-          >
-            <span />
-            <span />
-            <span />
-          </button>
+          <div className="navbar-mobile-actions">
+            {session?.role?.toUpperCase() === 'CUSTOMER' && <CartIcon />}
+            <button
+              className="hamburger"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Mở menu điều hướng"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-navigation"
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          </div>
         </div>
       </div>
+      <Drawer
+        title="Thanh Minh Smart Pool"
+        placement="right"
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        width={320}
+        rootClassName="mobile-navigation-drawer"
+      >
+        <div id="mobile-navigation" className="mobile-navigation">
+          {navItems.map(item => <Link key={item.to} to={item.to} aria-current={location.pathname === item.to ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
+          <div className="mobile-navigation-account">
+            {session ? <>
+              <strong>{profileData?.fullName || session.username}</strong>
+              {session.role?.toUpperCase() !== 'CUSTOMER' && <Link to="/admin" onClick={() => setMenuOpen(false)}>Trang quản trị</Link>}
+              {userMenu.items.map(item => <button key={item.key} type="button" onClick={() => { setMenuOpen(false); item.onClick() }}>{item.icon}{item.label}</button>)}
+            </> : <>
+              <Link to="/dang-ky" onClick={() => setMenuOpen(false)}>Đăng ký</Link>
+              <Link to="/dang-nhap" onClick={() => setMenuOpen(false)}>Đăng nhập</Link>
+            </>}
+          </div>
+        </div>
+      </Drawer>
     </nav>
   )
 }

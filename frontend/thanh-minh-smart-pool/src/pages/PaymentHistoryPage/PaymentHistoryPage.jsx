@@ -376,8 +376,8 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
             />
           </Col>
 
-          <Col xs={24} sm={12} md={3} style={{ textAlign: 'right' }}>
-            <Space>
+          <Col xs={24} style={{ textAlign: 'right' }}>
+            <Space wrap>
               <Tooltip title="Làm mới dữ liệu">
                 <Button
                   icon={<ReloadOutlined />}

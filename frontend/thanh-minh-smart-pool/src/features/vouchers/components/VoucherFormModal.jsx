@@ -177,7 +177,7 @@ export default function VoucherFormModal({ open, onClose, editingVoucher = null 
           marginBottom: '24px', border: '1px dashed #adc6ff'
         }}>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label={<Text strong>Loại ưu đãi</Text>}
                 name="discountType"
@@ -194,7 +194,7 @@ export default function VoucherFormModal({ open, onClose, editingVoucher = null 
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label={<Text strong>Mức giảm</Text>}
                 name="discountValue"
@@ -221,7 +221,7 @@ export default function VoucherFormModal({ open, onClose, editingVoucher = null 
         </div>
 
         <Row gutter={24}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               label={<Text strong style={{ color: '#096dd9' }}>Thời hạn sử dụng</Text>}
               name="dateRange"
@@ -235,7 +235,7 @@ export default function VoucherFormModal({ open, onClose, editingVoucher = null 
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               label={<Text strong style={{ color: '#096dd9' }}>Đơn tối thiểu (VNĐ)</Text>}
               name="minOrderValue"

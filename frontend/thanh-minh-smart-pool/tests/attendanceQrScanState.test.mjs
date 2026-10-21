@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { findPreviewAssignment, isQrPreviewActive, normalizeAttendanceAction, reconcileAttendanceScan, shouldShowExpiredQrNotice } from '../src/features/staff/hooks/attendanceQrScanState.js'
+import { findPreviewAssignment, isQrPreviewActive, normalizeAttendanceAction, reconcileAttendanceScan, shouldShowExpiredQrNotice } from '../src/features/staff/state/attendanceQrScanState.js'
 
 const preview = { shiftId: 'shift-1', workDate: '2026-10-19', action: 'CheckIn' }
 

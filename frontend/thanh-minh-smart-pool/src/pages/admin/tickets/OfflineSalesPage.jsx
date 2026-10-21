@@ -252,7 +252,7 @@ export default function OfflineSalesPage() {
         </Title>
         <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
           {tickets.map(tt => (
-            <Col span={8} key={tt.id}>
+            <Col xs={24} sm={12} xl={8} key={tt.id}>
               <Card
                 hoverable
                 onClick={() => handleSelectTicket(tt)}
@@ -312,10 +312,10 @@ export default function OfflineSalesPage() {
         `}
       </style>
 
-      <div className="pos-container" style={{ height: 'calc(100vh - 120px)', display: 'flex', gap: 24 }}>
+      <div className="pos-container">
         
         {/* Left Column: Ticket Types Menu */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
+        <div className="pos-catalog">
           <Title level={4} style={{ marginBottom: 16 }}>🎯 Màn hình bán vé (POS)</Title>
           <div style={{ flex: 1, overflowY: 'auto', paddingRight: 8 }}>
             {isLoading ? (
@@ -330,7 +330,7 @@ export default function OfflineSalesPage() {
         </div>
 
         {/* Right Column: Cart / Checkout */}
-        <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column' }}>
+        <div className="pos-checkout">
           <Title level={4} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 16, marginBottom: 16 }}>
             <ShoppingCartOutlined /> Giỏ Hàng
           </Title>
@@ -420,7 +420,7 @@ export default function OfflineSalesPage() {
                       optionFilterProp="label"
                       value={appliedVoucherError ? null : voucherCode || null}
                       onChange={val => { setVoucherCode(val || ''); setVoucherError(''); setAppliedVoucher(null) }}
-                      style={{ flex: 1, minWidth: 200 }}
+                      style={{ flex: 1, minWidth: 0 }}
                       disabled={cart.length === 0}
                       options={validVouchers.map(v => ({
                         value: v.code,

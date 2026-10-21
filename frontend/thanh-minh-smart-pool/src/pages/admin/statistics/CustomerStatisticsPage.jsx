@@ -427,6 +427,7 @@ export default function CustomerStatisticsPage() {
             rowKey="id"
             dataSource={data?.topCustomers || []}
             columns={topColumns}
+            scroll={{ x: 800 }}
             pagination={false}
             size="middle"
           />

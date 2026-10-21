@@ -31,7 +31,7 @@ export default function NotificationPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="admin-standard-page">
       <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
         <BellOutlined style={{ fontSize: 24, color: '#005f8e' }} />
         <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
