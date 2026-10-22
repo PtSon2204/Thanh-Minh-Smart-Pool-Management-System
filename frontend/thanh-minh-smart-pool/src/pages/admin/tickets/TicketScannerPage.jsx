@@ -47,8 +47,12 @@ export default function TicketScannerPage() {
   const [inputMode, setInputMode] = useState(null)
   const [phase, setPhase] = useState('idle')
   const [notice, setNotice] = useState(null)
+  const [scannerKey, setScannerKey] = useState(0)
+  const [scannerOpen, setScannerOpen] = useState(true)
 
   const reset = () => {
+    setScannerOpen(true)
+    setScannerKey((current) => current + 1)
     setLookup(null)
     setCode(null)
     setInputMode(null)
@@ -147,7 +151,10 @@ export default function TicketScannerPage() {
             value={source}
             onChange={(value) => { reset(); setSource(value) }}
           />
-          {source === INPUT_MODE.qr ? <QrScanner expectedPurpose={QR_PURPOSE.ticket} onDecoded={(payload) => lookupCode(payload, INPUT_MODE.qr)} /> : <Space.Compact style={{ width: '100%' }}>
+          {source === INPUT_MODE.qr ? <>
+            <Button onClick={() => setScannerOpen((current) => !current)}>{scannerOpen ? 'Dừng quét' : 'Bắt đầu quét'}</Button>
+            <QrScanner key={scannerKey} open={scannerOpen} expectedPurpose={QR_PURPOSE.ticket} onDecoded={(payload) => lookupCode(payload, INPUT_MODE.qr)} />
+          </> : <Space.Compact style={{ width: '100%' }}>
             <Input aria-label="Mã vé" maxLength={255} placeholder="Nhập mã vé" value={manualCode} onChange={(event) => setManualCode(event.target.value)} onPressEnter={() => lookupCode(manualCode, INPUT_MODE.manual)} />
             <Button type="primary" onClick={() => lookupCode(manualCode, INPUT_MODE.manual)} disabled={manualCode.length === 0}>Tra cứu vé</Button>
           </Space.Compact>}
