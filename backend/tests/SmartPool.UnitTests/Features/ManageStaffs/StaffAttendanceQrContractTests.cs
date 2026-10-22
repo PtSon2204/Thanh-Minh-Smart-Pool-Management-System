@@ -107,13 +107,15 @@ public sealed class StaffAttendanceQrContractTests
         Assert.Null(sender.AttendanceCommand);
     }
 
-    [Fact]
-    public async Task GivenResolvedOwnAssignment_WhenSalesScans_ThenTheControllerSendsOnlyServerOwnedQrAttendanceValues()
+    [Theory]
+    [InlineData(RoleEnum.SALES)]
+    [InlineData(RoleEnum.COACH)]
+    public async Task GivenResolvedOwnAssignment_WhenEligibleEmployeeScans_ThenTheControllerSendsOnlyServerOwnedQrAttendanceValues(RoleEnum role)
     {
         var employeeId = Guid.NewGuid();
         var assignmentId = Guid.NewGuid();
         var sender = new CapturingSender();
-        var controller = CreateController(sender, RoleEnum.SALES, employeeId, new ResolvingSessionStore(assignmentId, true));
+        var controller = CreateController(sender, role, employeeId, new ResolvingSessionStore(assignmentId, true));
 
         var result = await controller.Scan(new StaffAttendanceQrPayloadRequest { QrPayload = "accepted-by-fake-store" }, CancellationToken.None);
 
