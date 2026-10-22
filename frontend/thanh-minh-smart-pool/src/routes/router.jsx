@@ -38,6 +38,7 @@ import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage"
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import MaintenancePage from "../pages/admin/maintenance/MaintenancePage";
 import MaintenanceHistoryPage from "../pages/admin/maintenance/MaintenanceHistoryPage";
+import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 
 const router = createBrowserRouter([
   {
@@ -67,6 +68,15 @@ const router = createBrowserRouter([
   { path: '/xac-nhan-otp/dang-ky', element: <AuthPage /> },
   { path: '/xac-nhan-otp/quen-mat-khau', element: <AuthPage /> },
   { path: '/dat-lai-mat-khau', element: <AuthPage /> },
+
+  // Trang in hóa đơn điện tử – standalone, không bọc trong AdminLayout
+  {
+    element: <ProtectedRoute allowedRoles={["ADMIN", "SALES"]} />,
+    children: [
+      { path: '/admin/payments/invoices/:id/print', element: <InvoicePrintPage /> },
+    ],
+  },
+
   {
     element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />,
     children: [
