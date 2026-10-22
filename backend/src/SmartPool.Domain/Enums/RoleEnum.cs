@@ -8,5 +8,6 @@ public enum RoleEnum
     CUSTOMER,
     ADMIN,
     LIFEGUARD,
-    SALES
+    SALES,
+    COACH
 }

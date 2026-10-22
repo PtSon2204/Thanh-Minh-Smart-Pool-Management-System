@@ -36,8 +36,9 @@ public sealed class ChangeRolePermissionHandler(IRolePermissionOperations roles)
     {
         if (!string.Equals(role.Name, "LIFEGUARD", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(role.Name, "SALES", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(role.Name, "COACH", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(role.Name, "CUSTOMER", StringComparison.OrdinalIgnoreCase))
-            throw new RolePermissionConflictException("Chỉ có thể chỉnh quyền của LIFEGUARD, SALES hoặc CUSTOMER.");
+            throw new RolePermissionConflictException("Chỉ có thể chỉnh quyền của LIFEGUARD, SALES, COACH hoặc CUSTOMER.");
 
         JsonObject permissions;
         try

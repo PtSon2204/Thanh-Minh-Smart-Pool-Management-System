@@ -13,6 +13,6 @@ public sealed class ChangeUserRoleValidator : AbstractValidator<ChangeUserRoleCo
             .Must(role => !string.IsNullOrWhiteSpace(role) &&
                 Enum.GetNames<RoleEnum>().Any(name =>
                     string.Equals(name, role.Trim(), StringComparison.OrdinalIgnoreCase)))
-            .WithMessage("Vai trò phải là CUSTOMER, LIFEGUARD, SALES hoặc ADMIN.");
+            .WithMessage("Vai trò phải là CUSTOMER, LIFEGUARD, SALES, COACH hoặc ADMIN.");
     }
 }
