@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Badge, Drawer, Grid, message } from 'antd';
 import {
   MenuFoldOutlined,
@@ -174,8 +174,9 @@ export default function AdminLayout() {
       icon: <BarChartOutlined />,
       label: 'Thống kê',
       children: [
-        { key: '/admin/statistics/ticket-revenue', label: <Link to="/admin/statistics/ticket-revenue">Thống kê số tiền vé</Link> },
-        { key: '/admin/statistics/monthly-tickets', label: <Link to="/admin/statistics/monthly-tickets">Thống kê vé tháng</Link> },
+        { key: '/admin/statistics/ticket-revenue', label: <Link to="/admin/statistics/ticket-revenue">Thống kê bán vé</Link> },
+        { key: '/admin/statistics/inventory-costs', label: <Link to="/admin/statistics/inventory-costs">Thống kê số tiền nhập hàng</Link> },
+        { key: '/admin/statistics/sales-revenue', label: <Link to="/admin/statistics/sales-revenue">Thống kê doanh thu bán hàng</Link> },
         { key: '/admin/statistics/user-count', label: <Link to="/admin/statistics/user-count">Thống kê số lượng người dùng</Link> },
         { key: '/admin/statistics/incidents', label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link> },
         { key: '/admin/statistics/operations-costs', label: <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link> },
