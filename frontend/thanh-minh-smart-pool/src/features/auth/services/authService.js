@@ -16,6 +16,20 @@ const authService = {
     return loginResponseSchema.parse(response.data);
   },
 
+  async googleLogin(credential) {
+    const response = await apiClient.post('/api/auth/google', { credential }, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    return loginResponseSchema.parse(response.data);
+  },
+
+  async googleRegister(payload) {
+    const response = await apiClient.post('/api/auth/google/register', payload, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    return loginResponseSchema.parse(response.data);
+  },
+
   async logout() {
     const token = useAuthStore.getState().session?.refreshToken;
     useAuthStore.getState().setSession(null);

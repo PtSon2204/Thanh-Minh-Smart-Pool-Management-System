@@ -21,6 +21,7 @@ public sealed class ApiAuthorizationTests
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "admin", AuthorizationPolicies.AdminOnly, true)]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "SALES", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "LIFEGUARD", AuthorizationPolicies.AdminOnly, false)]
+    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "COACH", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "00000000-0000-0000-0000-000000000000", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "not-a-guid", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
@@ -53,6 +54,7 @@ public sealed class ApiAuthorizationTests
     [InlineData("admin", RoleEnum.ADMIN, true)]
     [InlineData("Sales", RoleEnum.SALES, true)]
     [InlineData("Lifeguard", RoleEnum.LIFEGUARD, true)]
+    [InlineData("Coach", RoleEnum.COACH, true)]
     [InlineData("CUSTOMER", RoleEnum.ADMIN, false)]
     public void HasRole_UsesCaseInsensitiveRoleClaims(string role, RoleEnum expectedRole, bool expected)
     {

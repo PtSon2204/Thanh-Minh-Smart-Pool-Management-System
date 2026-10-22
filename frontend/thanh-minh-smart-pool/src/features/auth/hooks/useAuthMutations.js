@@ -10,6 +10,22 @@ export function useLogin() {
   })
 }
 
+export function useGoogleLogin() {
+  return useMutation({
+    mutationFn: authService.googleLogin,
+    retry: false,
+    onSuccess: (session) => useAuthStore.getState().setSession(session),
+  })
+}
+
+export function useGoogleRegister() {
+  return useMutation({
+    mutationFn: authService.googleRegister,
+    retry: false,
+    onSuccess: (session) => useAuthStore.getState().setSession(session),
+  })
+}
+
 export function useRegister() {
   return useMutation({ mutationFn: authService.register, retry: false })
 }

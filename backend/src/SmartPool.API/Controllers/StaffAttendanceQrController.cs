@@ -131,7 +131,7 @@ public sealed class StaffAttendanceQrController : ControllerBase
     private bool TryGetEligibleEmployeeId(out Guid userId)
     {
         userId = GetUserId();
-        return userId != Guid.Empty && (User.HasRole(RoleEnum.SALES) || User.HasRole(RoleEnum.LIFEGUARD));
+        return userId != Guid.Empty && (User.HasRole(RoleEnum.SALES) || User.HasRole(RoleEnum.LIFEGUARD) || User.HasRole(RoleEnum.COACH));
     }
 
     private Guid GetUserId() => User.TryGetUserId(out var userId) ? userId : Guid.Empty;
