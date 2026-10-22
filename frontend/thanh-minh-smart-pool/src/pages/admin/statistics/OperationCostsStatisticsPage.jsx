@@ -14,6 +14,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { reportService } from '../../../features/reports/services/reportService';
+import { startSignalRConnection, onReceiveNotification } from '../../../services/signalrClient';
 
 const { Title, Text } = Typography;
 
@@ -103,6 +104,17 @@ export default function OperationCostsStatisticsPage() {
       ignore = true;
     };
   }, [period]);
+
+  useEffect(() => {
+    startSignalRConnection();
+    const unsub = onReceiveNotification((notif) => {
+      const type = (notif?.type || '').toUpperCase();
+      if (type === 'MAINTENANCE' || type === 'OPERATION' || type === 'COST' || type === 'SYSTEM' || type.startsWith('MT:')) {
+        handleReload();
+      }
+    });
+    return () => unsub();
+  }, [handleReload]);
 
   // Xuất file CSV bảng chi phí bảo trì & vận hành
   const handleExportCSV = () => {

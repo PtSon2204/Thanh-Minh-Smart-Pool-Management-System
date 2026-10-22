@@ -14,6 +14,7 @@ import {
   ResponsiveContainer, Legend
 } from 'recharts';
 import { reportService } from '../../../features/reports/services/reportService';
+import { startSignalRConnection, onReceiveNotification } from '../../../services/signalrClient';
 
 const { Title, Text } = Typography;
 
@@ -83,6 +84,17 @@ export default function TicketRevenueStatisticsPage() {
       ignore = true;
     };
   }, [period, ticketCategory]);
+
+  useEffect(() => {
+    startSignalRConnection();
+    const unsub = onReceiveNotification((notif) => {
+      const type = (notif?.type || '').toUpperCase();
+      if (type === 'TICKET' || type === 'ORDER' || type === 'SYSTEM' || type.includes('TICKET')) {
+        fetchData();
+      }
+    });
+    return () => unsub();
+  }, [fetchData]);
 
   // ============ COLUMNS cho bảng giao dịch ============
   const transactionColumns = [
