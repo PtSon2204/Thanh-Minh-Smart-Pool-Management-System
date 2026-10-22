@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Badge, Drawer, Grid, message } from 'antd';
 import {
   MenuFoldOutlined,
@@ -21,6 +21,7 @@ import {
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
+import { onReceiveNotification, startSignalRConnection } from '../../services/signalrClient';
 import authService from '../../features/auth/services/authService';
 import './AdminLayout.css';
 
@@ -70,8 +71,15 @@ export default function AdminLayout() {
       }
     };
     fetchUnread();
+    startSignalRConnection();
+    const unsub = onReceiveNotification(() => {
+      setUnreadCount((prev) => prev + 1);
+    });
     const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unsub();
+    };
   }, [location.pathname, isAdmin]);
 
   const roleLabelMap = {
@@ -174,17 +182,13 @@ export default function AdminLayout() {
       icon: <BarChartOutlined />,
       label: 'Thống kê',
       children: [
-        { key: '/admin/statistics/ticket-revenue', label: <Link to="/admin/statistics/ticket-revenue">Thống kê số tiền vé</Link> },
-        { key: '/admin/statistics/monthly-tickets', label: <Link to="/admin/statistics/monthly-tickets">Thống kê vé tháng</Link> },
+        { key: '/admin/statistics/ticket-revenue', label: <Link to="/admin/statistics/ticket-revenue">Thống kê bán vé</Link> },
+        { key: '/admin/statistics/inventory-costs', label: <Link to="/admin/statistics/inventory-costs">Thống kê số tiền nhập hàng</Link> },
+        { key: '/admin/statistics/sales-revenue', label: <Link to="/admin/statistics/sales-revenue">Thống kê doanh thu bán hàng</Link> },
         { key: '/admin/statistics/user-count', label: <Link to="/admin/statistics/user-count">Thống kê số lượng người dùng</Link> },
         { key: '/admin/statistics/incidents', label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link> },
         { key: '/admin/statistics/operations-costs', label: <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link> },
       ],
-    },
-    isAdmin && {
-      key: '/admin/notifications',
-      icon: <BellOutlined />,
-      label: <Link to="/admin/notifications">Thông báo hệ thống</Link>,
     },
   ].filter(Boolean);
 
@@ -298,9 +302,9 @@ export default function AdminLayout() {
           </div>
           
           <div className="admin-header-actions">
-            {isAdmin && <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
+            {isAdmin && <Link to="/admin" style={{ display: 'inline-flex' }} title="Thông báo hệ thống (tại Bảng điều khiển)">
               <Badge count={unreadCount} size="small" overflowCount={99}>
-                <Button type="text" shape="circle" aria-label="Thông báo hệ thống" icon={<BellOutlined style={{ fontSize: 18 }} />} />
+                <Button type="text" shape="circle" aria-label="Thông báo hệ thống tại Bảng điều khiển" icon={<BellOutlined style={{ fontSize: 18 }} />} />
               </Badge>
             </Link>}
             <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>

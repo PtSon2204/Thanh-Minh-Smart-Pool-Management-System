@@ -20,10 +20,8 @@ import ServicePage from "../pages/admin/services/ServicePage";
 import InventoryPage from "../pages/admin/services/InventoryPage";
 import RentalPage from "../pages/admin/rentals/RentalPage";
 import VoucherPage from "../pages/admin/vouchers/VoucherPage";
-import NotificationPage from "../pages/admin/notifications/NotificationPage";
 import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatisticsPage";
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
-import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatisticsPage";
 import OperationCostsStatisticsPage from "../pages/admin/statistics/OperationCostsStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
@@ -95,10 +93,9 @@ const router = createBrowserRouter([
               { path: 'equipments/maintenance-history', element: <MaintenanceHistoryPage /> },
               { path: 'equipment', element: <Navigate to="/admin/equipments/list-equipments" replace /> },
               { path: 'staff/shifts', element: <ShiftManagementPage /> },
-              { path: 'notifications', element: <NotificationPage /> },
+              { path: 'notifications', element: <Navigate to="/admin" replace /> },
               { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
               { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
-              { path: 'statistics/monthly-tickets', element: <MonthlyTicketsPage /> },
               { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
               { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
               { path: 'staff/profiles', element: <StaffProfilesPage /> },

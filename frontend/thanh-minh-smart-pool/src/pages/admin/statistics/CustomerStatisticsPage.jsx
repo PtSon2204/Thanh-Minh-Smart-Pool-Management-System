@@ -14,6 +14,7 @@ import {
   ResponsiveContainer, Legend
 } from 'recharts';
 import { reportService } from '../../../features/reports/services/reportService';
+import { startSignalRConnection, onReceiveNotification } from '../../../services/signalrClient';
 
 const { Title, Text } = Typography;
 
@@ -51,6 +52,17 @@ export default function CustomerStatisticsPage() {
       ignore = true;
     };
   }, [period]);
+
+  useEffect(() => {
+    startSignalRConnection();
+    const unsub = onReceiveNotification((notif) => {
+      const type = (notif?.type || '').toUpperCase();
+      if (type === 'USER' || type === 'CUSTOMER' || type === 'ENTRY' || type === 'SYSTEM' || type.includes('USER')) {
+        fetchData();
+      }
+    });
+    return () => unsub();
+  }, [fetchData]);
 
   const topColumns = [
     {
