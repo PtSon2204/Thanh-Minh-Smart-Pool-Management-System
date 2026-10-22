@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Badge, Drawer, Grid, message } from 'antd';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Layout, Menu, Button, Avatar, Dropdown, Badge, Drawer, Grid, message, notification } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -17,11 +17,14 @@ import {
   LogoutOutlined,
   LockOutlined,
   SecurityScanOutlined,
+  AlertOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
 import authService from '../../features/auth/services/authService';
+import { useAlarmSound } from '../../features/safety/hooks/useAlarmSound';
+import { useSafetyAlertSignalR } from '../../features/safety/hooks/useSafetyAlertSignalR';
 import './AdminLayout.css';
 
 const { Header, Sider, Content } = Layout;
@@ -31,9 +34,15 @@ function openKeysForPath(pathname) {
   if (pathname.startsWith('/admin/staff/attendance')) return ['staff', 'staff-attendance'];
   if (pathname.startsWith('/admin/staff/')) return ['staff'];
   if (pathname.startsWith('/admin/equipments/')) return ['equipments'];
-  if (pathname.startsWith('/admin/services') || pathname.startsWith('/admin/inventory') || pathname.startsWith('/admin/rentals')) return ['services'];
+  if (
+    pathname.startsWith('/admin/services') ||
+    pathname.startsWith('/admin/inventory') ||
+    pathname.startsWith('/admin/rentals')
+  )
+    return ['services'];
   if (pathname.startsWith('/admin/payments')) return ['payments'];
   if (pathname.startsWith('/admin/statistics')) return ['statistics'];
+  if (pathname.startsWith('/admin/safety')) return ['safety'];
   return [];
 }
 
@@ -43,11 +52,60 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const role = session?.role?.toUpperCase();
   const isAdmin = role === 'ADMIN';
+  const isLifeguard = role === 'LIFEGUARD';
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Global Safety Alert — phát âm thanh cảnh báo trên mọi thiết bị đang kết nối
+  const { startAlarm, stopAlarm } = useAlarmSound();
+  const stopAlarmTimerRef = useRef(null);
+  const [notifApi, notifContextHolder] = notification.useNotification();
+
+  const handleGlobalAlert = useCallback(
+    (payload) => {
+      startAlarm(payload.level);
+      notifApi.error({
+        message:
+          payload.level === 'EMERGENCY'
+            ? 'KHẨN CẤP — Cần cứu hộ ngay!'
+            : 'Cảnh báo an toàn',
+        description: (
+          <div>
+            <div>
+              <strong>Khu vực:</strong> {payload.zone}
+            </div>
+            {payload.description && (
+              <div>
+                <strong>Mô tả:</strong> {payload.description}
+              </div>
+            )}
+            <div>
+              <strong>Kích hoạt bởi:</strong> {payload.triggeredByName}
+            </div>
+          </div>
+        ),
+        duration: 30,
+        placement: 'topRight',
+        icon: <AlertOutlined style={{ color: '#dc2626' }} />,
+        style: { borderLeft: '4px solid #dc2626' },
+      });
+      if (stopAlarmTimerRef.current) clearTimeout(stopAlarmTimerRef.current);
+      stopAlarmTimerRef.current = setTimeout(() => stopAlarm(), 30000);
+    },
+    [startAlarm, stopAlarm, notifApi],
+  );
+
+  useSafetyAlertSignalR({ onAlert: handleGlobalAlert, enabled: true });
+
+  useEffect(() => {
+    return () => {
+      if (stopAlarmTimerRef.current) clearTimeout(stopAlarmTimerRef.current);
+      stopAlarm();
+    };
+  }, [stopAlarm]);
 
   useEffect(() => {
     const desktop = window.matchMedia('(min-width: 768px)');
@@ -58,7 +116,6 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!isAdmin) return undefined;
-
     const fetchUnread = async () => {
       try {
         const res = await notificationService.getNotifications({ page: 1, pageSize: 1 });
@@ -66,7 +123,7 @@ export default function AdminLayout() {
           setUnreadCount(res.unreadCount);
         }
       } catch {
-        // Ignored in layout if fails or not logged in
+        // ignored
       }
     };
     fetchUnread();
@@ -106,14 +163,29 @@ export default function AdminLayout() {
           key: 'staff-attendance',
           label: 'Chấm công nhân viên',
           children: [
-            { key: '/admin/staff/attendance', label: <Link to="/admin/staff/attendance">Check-in / Check-out</Link> },
-            { key: '/admin/staff/attendance/qr', label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link> },
+            {
+              key: '/admin/staff/attendance',
+              label: <Link to="/admin/staff/attendance">Check-in / Check-out</Link>,
+            },
+            {
+              key: '/admin/staff/attendance/qr',
+              label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link>,
+            },
           ],
         },
-        (role === 'SALES' || role === 'LIFEGUARD') && { key: '/admin/staff/attendance/scan', label: <Link to="/admin/staff/attendance/scan">Quét QR chấm công cá nhân</Link> },
-        isAdmin && { key: '/admin/staff/shifts', label: <Link to="/admin/staff/shifts">Ca làm việc</Link> },
+        (role === 'SALES' || role === 'LIFEGUARD') && {
+          key: '/admin/staff/attendance/scan',
+          label: <Link to="/admin/staff/attendance/scan">Quét QR chấm công cá nhân</Link>,
+        },
+        isAdmin && {
+          key: '/admin/staff/shifts',
+          label: <Link to="/admin/staff/shifts">Ca làm việc</Link>,
+        },
         { key: '/admin/staff/schedule', label: <Link to="/admin/staff/schedule">Lịch làm việc</Link> },
-        isAdmin && { key: '/admin/staff/profiles', label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link> },
+        isAdmin && {
+          key: '/admin/staff/profiles',
+          label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link>,
+        },
       ].filter(Boolean),
     },
     (isAdmin || role === 'SALES') && {
@@ -123,7 +195,10 @@ export default function AdminLayout() {
       children: [
         { key: '/admin/tickets/scanQR', label: <Link to="/admin/tickets/scanQR">Quét QR vào cổng</Link> },
         { key: '/admin/tickets/types', label: <Link to="/admin/tickets/types">Loại vé</Link> },
-        { key: '/admin/tickets/pos', label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link> },
+        {
+          key: '/admin/tickets/pos',
+          label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link>,
+        },
       ],
     },
     (isAdmin || role === 'SALES') && {
@@ -131,23 +206,42 @@ export default function AdminLayout() {
       icon: <TagOutlined />,
       label: <Link to="/admin/coupons">Quản lý mã giảm giá</Link>,
     },
-    isAdmin && {
-      key: '/admin/safety',
+    (isAdmin || isLifeguard) && {
+      key: 'safety',
       icon: <SecurityScanOutlined />,
       label: 'Giám sát an toàn',
-       children: [
-        { key: '/admin/safety/list-camera', label: <Link to="/admin/safety/list-camera">Danh sách camera</Link> },
-        { key: '/admin/safety/incident-history', label: <Link to="/admin/safety/incident-history">Lịch sử sự cố</Link> },
-      ],
+      children: [
+        isAdmin && {
+          key: '/admin/safety/list-camera',
+          label: <Link to="/admin/safety/list-camera">Danh sách camera</Link>,
+        },
+        {
+          key: '/admin/safety/activate-alerts',
+          label: <Link to="/admin/safety/activate-alerts">Kích hoạt cảnh báo</Link>,
+        },
+        {
+          key: '/admin/safety/incidents',
+          label: <Link to="/admin/safety/incidents">Lịch sử sự cố</Link>,
+        },
+      ].filter(Boolean),
     },
     isAdmin && {
       key: 'equipments',
       icon: <ToolOutlined />,
       label: 'Quản lý thiết bị',
       children: [
-        { key: '/admin/equipments/list-equipments', label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link> },
-        { key: '/admin/equipments/maintenance', label: <Link to="/admin/equipments/maintenance">Cấu hình lịch bảo trì</Link> },
-        { key: '/admin/equipments/maintenance-history', label: <Link to="/admin/equipments/maintenance-history">Lịch sử bảo trì</Link> },
+        {
+          key: '/admin/equipments/list-equipments',
+          label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link>,
+        },
+        {
+          key: '/admin/equipments/maintenance',
+          label: <Link to="/admin/equipments/maintenance">Cấu hình lịch bảo trì</Link>,
+        },
+        {
+          key: '/admin/equipments/maintenance-history',
+          label: <Link to="/admin/equipments/maintenance-history">Lịch sử bảo trì</Link>,
+        },
       ],
     },
     (isAdmin || role === 'SALES') && {
@@ -166,7 +260,10 @@ export default function AdminLayout() {
       icon: <TransactionOutlined />,
       label: 'Thanh toán và giao dịch',
       children: [
-        { key: '/admin/payments/invoices', label: <Link to="/admin/payments/invoices">Lịch sử thanh toán</Link> },
+        {
+          key: '/admin/payments/invoices',
+          label: <Link to="/admin/payments/invoices">Lịch sử thanh toán</Link>,
+        },
       ],
     },
     isAdmin && {
@@ -174,11 +271,28 @@ export default function AdminLayout() {
       icon: <BarChartOutlined />,
       label: 'Thống kê',
       children: [
-        { key: '/admin/statistics/ticket-revenue', label: <Link to="/admin/statistics/ticket-revenue">Thống kê số tiền vé</Link> },
-        { key: '/admin/statistics/monthly-tickets', label: <Link to="/admin/statistics/monthly-tickets">Thống kê vé tháng</Link> },
-        { key: '/admin/statistics/user-count', label: <Link to="/admin/statistics/user-count">Thống kê số lượng người dùng</Link> },
-        { key: '/admin/statistics/incidents', label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link> },
-        { key: '/admin/statistics/operations-costs', label: <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link> },
+        {
+          key: '/admin/statistics/ticket-revenue',
+          label: <Link to="/admin/statistics/ticket-revenue">Thống kê số tiền vé</Link>,
+        },
+        {
+          key: '/admin/statistics/monthly-tickets',
+          label: <Link to="/admin/statistics/monthly-tickets">Thống kê vé tháng</Link>,
+        },
+        {
+          key: '/admin/statistics/user-count',
+          label: <Link to="/admin/statistics/user-count">Thống kê số lượng người dùng</Link>,
+        },
+        {
+          key: '/admin/statistics/incidents',
+          label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link>,
+        },
+        {
+          key: '/admin/statistics/operations-costs',
+          label: (
+            <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link>
+          ),
+        },
       ],
     },
     isAdmin && {
@@ -209,117 +323,128 @@ export default function AdminLayout() {
 
   const userMenu = {
     items: [
-      {
-        key: 'profile',
-        icon: <UserOutlined />,
-        label: 'Hồ sơ cá nhân',
-      },
-      {
-        key: 'change-password',
-        icon: <LockOutlined />,
-        label: 'Đổi mật khẩu',
-      },
-      {
-        type: 'divider',
-      },
-      {
-        key: 'logout',
-        icon: <LogoutOutlined />,
-        label: 'Đăng xuất',
-        danger: true,
-      },
+      { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ cá nhân' },
+      { key: 'change-password', icon: <LockOutlined />, label: 'Đổi mật khẩu' },
+      { type: 'divider' },
+      { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
     ],
     onClick: handleUserMenuClick,
   };
 
   return (
-    <Layout className="admin-layout" style={{ minHeight: '100vh', background: '#e2e8f0' }}>
-      {isMobile ? <Drawer title="Thanh Minh Admin" placement="left" width={280} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} rootClassName="admin-navigation-drawer">
-        <Menu mode="inline" selectedKeys={[location.pathname]} defaultOpenKeys={openKeysForPath(location.pathname)} items={menuItems} onClick={() => setMobileMenuOpen(false)} />
-      </Drawer> : <Sider trigger={null} collapsible collapsed={collapsed} width={250} className="admin-sidebar">
-        <div className="bubbles-container">
-          <div className="bubble"></div>
-          <div className="bubble"></div>
-          <div className="bubble"></div>
-          <div className="bubble"></div>
-          <div className="bubble"></div>
-          <div className="bubble"></div>
-          <div className="bubble"></div>
-        </div>
-        <div className="admin-logo">
-          {collapsed
-            ? <span className="admin-logo-collapsed">TM</span>
-            : <span className="admin-logo-text">Thanh Minh Admin</span>
-          }
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          defaultOpenKeys={openKeysForPath(location.pathname)}
-          items={menuItems}
-          style={{ 
-            borderRight: 0, 
-            marginTop: 16, 
-            position: 'relative', 
-            zIndex: 10,
-            overflowY: 'auto',
-            height: 'calc(100vh - 80px)'
-          }}
-        />
-      </Sider>}
-      <Layout style={{ background: '#e2e8f0', minWidth: 0 }}>
-        <Header
-          className="admin-header"
-          style={{
-            padding: '0 24px',
-            background: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid #cbd5e1',
-            boxShadow: '0 1px 4px rgba(0, 21, 41, 0.04)',
-            zIndex: 1,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Button
-              type="text"
-              icon={isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              aria-label={isMobile ? 'Mở menu quản trị' : collapsed ? 'Mở rộng menu quản trị' : 'Thu gọn menu quản trị'}
-              aria-expanded={isMobile ? mobileMenuOpen : !collapsed}
-              onClick={() => isMobile ? setMobileMenuOpen(true) : setCollapsed(!collapsed)}
+    <>
+      {notifContextHolder}
+      <Layout className="admin-layout" style={{ minHeight: '100vh', background: '#e2e8f0' }}>
+        {isMobile ? (
+          <Drawer
+            title="Thanh Minh Admin"
+            placement="left"
+            width={280}
+            open={mobileMenuOpen}
+            onClose={() => setMobileMenuOpen(false)}
+            rootClassName="admin-navigation-drawer"
+          >
+            <Menu
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              defaultOpenKeys={openKeysForPath(location.pathname)}
+              items={menuItems}
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          </Drawer>
+        ) : (
+          <Sider trigger={null} collapsible collapsed={collapsed} width={250} className="admin-sidebar">
+            <div className="bubbles-container">
+              <div className="bubble" />
+              <div className="bubble" />
+              <div className="bubble" />
+              <div className="bubble" />
+              <div className="bubble" />
+              <div className="bubble" />
+              <div className="bubble" />
+            </div>
+            <div className="admin-logo">
+              {collapsed ? (
+                <span className="admin-logo-collapsed">TM</span>
+              ) : (
+                <span className="admin-logo-text">Thanh Minh Admin</span>
+              )}
+            </div>
+            <Menu
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              defaultOpenKeys={openKeysForPath(location.pathname)}
+              items={menuItems}
               style={{
-                fontSize: '16px',
-                width: 64,
-                height: 64,
-                marginLeft: isMobile ? -16 : -24,
+                borderRight: 0,
+                marginTop: 16,
+                position: 'relative',
+                zIndex: 10,
+                overflowY: 'auto',
+                height: 'calc(100vh - 80px)',
               }}
             />
-          </div>
-          
-          <div className="admin-header-actions">
-            {isAdmin && <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
-              <Badge count={unreadCount} size="small" overflowCount={99}>
-                <Button type="text" shape="circle" aria-label="Thông báo hệ thống" icon={<BellOutlined style={{ fontSize: 18 }} />} />
-              </Badge>
-            </Link>}
-            <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-              <button type="button" className="admin-account-trigger" aria-label="Menu tài khoản">
-                <Avatar style={{ backgroundColor: '#005f8e' }} icon={<UserOutlined />} />
-                <span className="admin-account-name">{session?.username ? `${session.username} (${roleDisplay})` : roleDisplay}</span>
-              </button>
-            </Dropdown>
-          </div>
-        </Header>
-        <Content
-          className="admin-content"
-          style={{
-            minHeight: 280,
-          }}
-        >
-          <Outlet />
-        </Content>
+          </Sider>
+        )}
+        <Layout style={{ background: '#e2e8f0', minWidth: 0 }}>
+          <Header
+            className="admin-header"
+            style={{
+              padding: '0 24px',
+              background: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px solid #cbd5e1',
+              boxShadow: '0 1px 4px rgba(0, 21, 41, 0.04)',
+              zIndex: 1,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <Button
+                type="text"
+                icon={isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                aria-label={
+                  isMobile
+                    ? 'Mở menu quản trị'
+                    : collapsed
+                      ? 'Mở rộng menu quản trị'
+                      : 'Thu gọn menu quản trị'
+                }
+                aria-expanded={isMobile ? mobileMenuOpen : !collapsed}
+                onClick={() => (isMobile ? setMobileMenuOpen(true) : setCollapsed(!collapsed))}
+                style={{ fontSize: '16px', width: 64, height: 64, marginLeft: isMobile ? -16 : -24 }}
+              />
+            </div>
+
+            <div className="admin-header-actions">
+              {isAdmin && (
+                <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
+                  <Badge count={unreadCount} size="small" overflowCount={99}>
+                    <Button
+                      type="text"
+                      shape="circle"
+                      aria-label="Thông báo hệ thống"
+                      icon={<BellOutlined style={{ fontSize: 18 }} />}
+                    />
+                  </Badge>
+                </Link>
+              )}
+              <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+                <button type="button" className="admin-account-trigger" aria-label="Menu tài khoản">
+                  <Avatar style={{ backgroundColor: '#005f8e' }} icon={<UserOutlined />} />
+                  <span className="admin-account-name">
+                    {session?.username ? `${session.username} (${roleDisplay})` : roleDisplay}
+                  </span>
+                </button>
+              </Dropdown>
+            </div>
+          </Header>
+          <Content className="admin-content" style={{ minHeight: 280 }}>
+            <Outlet />
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </>
   );
 }

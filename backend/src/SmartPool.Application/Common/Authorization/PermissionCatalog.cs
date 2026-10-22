@@ -20,7 +20,8 @@ public static class PermissionCatalog
         ["vouchers"] = ["read", "create", "update", "delete"],
         ["payments"] = ["read"],
         ["reports"] = ["read"],
-        ["notifications"] = ["read", "create", "update"]
+        ["notifications"] = ["read", "create", "update"],
+        ["safety_alerts"] = ["create", "read"]
     };
 
     public static IReadOnlyDictionary<string, string[]> All => Modules;

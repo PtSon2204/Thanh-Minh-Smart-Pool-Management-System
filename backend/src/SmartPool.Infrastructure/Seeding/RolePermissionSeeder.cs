@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -43,6 +43,7 @@ public static class RolePermissionSeeder
                 ["payments"]         = ["read"],
                 ["reports"]          = ["read"],
                 ["notifications"]    = ["read", "create", "update"],
+                ["safety_alerts"]    = ["read", "create"],
             },
 
             ["LIFEGUARD"] = new(StringComparer.Ordinal)
@@ -50,6 +51,7 @@ public static class RolePermissionSeeder
                 ["profiles"]         = ["read", "update"],
                 ["staff_schedule"]   = ["read"],
                 ["attendance"]       = ["read", "update"],
+                ["safety_alerts"]    = ["read", "create"],
             },
 
             ["SALES"] = new(StringComparer.Ordinal)

@@ -64,7 +64,7 @@ namespace SmartPool.API.Controllers
             {
                 var result = await _sender.Send(new SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderStatus.GetOrderStatusQuery { OrderId = orderId }, cancellationToken);
                 return Ok(result);
-            }
+            }   
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });

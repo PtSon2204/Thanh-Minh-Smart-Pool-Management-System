@@ -298,3 +298,10 @@
   .admin-sidebar::before,
   .admin-sidebar::after { display: none; }
 }
+
+/* ── Nút bật âm thanh cảnh báo ── */
+@keyframes pulse-red {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
