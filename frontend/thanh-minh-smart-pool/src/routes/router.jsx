@@ -39,6 +39,8 @@ import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import MaintenancePage from "../pages/admin/maintenance/MaintenancePage";
 import MaintenanceHistoryPage from "../pages/admin/maintenance/MaintenanceHistoryPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
+import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
+import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
 
 const router = createBrowserRouter([
   {
@@ -107,6 +109,14 @@ const router = createBrowserRouter([
               { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },
               { path: 'users', element: <UserManagementPage /> },
               { path: 'roles/permissions', element: <RolePermissionsPage /> },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD"]} />,
+            children: [
+              { path: 'safety/activate-alerts', element: <ActivateAlertPage /> },
+              { path: 'safety/incidents', element: <IncidentHistoryPage /> },
+              { path: 'safety/incident-history', element: <IncidentHistoryPage /> },
             ],
           },
           {
