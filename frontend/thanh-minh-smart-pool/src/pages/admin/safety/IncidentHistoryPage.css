@@ -1,0 +1,335 @@
+/* ================================================================
+   IncidentHistoryPage.css — Smart Pool Ocean Theme
+   ================================================================ */
+
+.incident-history-page {
+  padding-bottom: 24px;
+}
+
+/* ================================================================
+   Header
+   ================================================================ */
+.incident-page-header {
+  background: #ffffff;
+  padding: 16px 24px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 95, 142, 0.04);
+  border: 1px solid #dce8ef;
+  border-left: 4px solid #0077b6;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0077b6 0%, #00b4d8 100%);
+  color: #ffffff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0, 119, 182, 0.2);
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   Thẻ thống kê nhanh (Cân đối & Chuẩn màu Ocean Theme)
+   ================================================================ */
+.incident-stats-row {
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 95, 142, 0.04) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  overflow: hidden;
+  height: 100%;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 119, 182, 0.1) !important;
+}
+
+.stat-card .ant-card-body {
+  padding: 14px 18px !important;
+}
+
+/* Đường viền nhấn đầu thẻ */
+.stat-card-total {
+  border-top: 3px solid #0077b6 !important;
+}
+
+.stat-card-emergency {
+  border-top: 3px solid #dc2626 !important;
+}
+
+.stat-card-camera {
+  border-top: 3px solid #0ea5e9 !important;
+}
+
+.stat-card-lifeguard {
+  border-top: 3px solid #059669 !important;
+}
+
+/* Khung nội dung bên trong thẻ: Icon bên trái, Số + Nhãn bên phải */
+.stat-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stat-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.stat-icon-total {
+  background: #e0f2fe;
+  color: #0077b6;
+  border: 1px solid #bae6fd;
+}
+
+.stat-icon-emergency {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.stat-icon-camera {
+  background: #e0f7fa;
+  color: #0284c7;
+  border: 1px solid #b2ebf2;
+}
+
+.stat-icon-lifeguard {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.stat-card-total .stat-number {
+  color: #005f8e;
+}
+
+.stat-card-emergency .stat-number {
+  color: #dc2626;
+}
+
+.stat-card-camera .stat-number {
+  color: #0284c7;
+}
+
+.stat-card-lifeguard .stat-number {
+  color: #059669;
+}
+
+/* ================================================================
+   Filter Card
+   ================================================================ */
+.incident-filter-card {
+  border-radius: 12px !important;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 95, 142, 0.04) !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.incident-filter-card .ant-card-body {
+  padding: 14px 18px !important;
+}
+
+.incident-filter-card .ant-input,
+.incident-filter-card .ant-select-selector,
+.incident-filter-card .ant-picker {
+  border-radius: 8px !important;
+}
+
+.incident-filter-card .ant-input-affix-wrapper {
+  border-radius: 8px !important;
+}
+
+/* ================================================================
+   Table Card
+   ================================================================ */
+.incident-table-card {
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 95, 142, 0.04) !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  overflow: hidden;
+}
+
+.incident-code-badge {
+  font-family: monospace;
+  font-weight: 700;
+  color: #0077b6;
+  background: #e0f2fe;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #bae6fd;
+  font-size: 13px;
+  display: inline-block;
+}
+
+/* Custom Table Styling chuẩn tone xanh bể bơi */
+.incident-custom-table .ant-table-thead > tr > th {
+  background: #f0f8fc !important;
+  color: #005f8e !important;
+  font-weight: 700;
+  font-size: 13px;
+  border-bottom: 1px solid #dcebf3 !important;
+  padding: 12px 16px !important;
+}
+
+.incident-custom-table .ant-table-tbody > tr > td {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.incident-custom-table .ant-table-tbody > tr:hover > td {
+  background: #f0f9ff !important;
+}
+
+/* ================================================================
+   Modal Chi tiết
+   ================================================================ */
+.incident-detail-body {
+  padding: 4px 0;
+}
+
+.incident-detail-desc-box {
+  background: #f8fafc;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 14px;
+  color: #1e293b;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Khối hiển thị ảnh Camera AI */
+.incident-image-section {
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+.incident-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.incident-image-container {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0f172a;
+  text-align: center;
+  border: 1px solid #99f6e4;
+}
+
+.incident-camera-img {
+  cursor: pointer;
+  transition: transform 0.25s ease;
+  display: block;
+}
+
+.incident-image-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #64748b;
+  background: #ffffff;
+  padding: 8px 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.incident-image-zoom-hint {
+  font-style: italic;
+  color: #0d9488;
+  font-weight: 500;
+}
+
+/* Khối thông báo nguồn Cứu hộ viên phát hiện */
+.incident-manual-source-notice {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+.manual-source-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.manual-source-title {
+  font-weight: 700;
+  color: #0369a1;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.manual-source-desc {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+}
