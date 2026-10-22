@@ -33,11 +33,12 @@ public sealed class RefreshTokenService : IRefreshTokenService
     }
 
     public async Task<RefreshTokenResult?> CreateAsync(
-        Guid userId, string expectedPasswordHash, CancellationToken cancellationToken = default)
+        Guid userId, string? expectedPasswordHash, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
             throw new ArgumentException("A user ID is required to issue a refresh token.", nameof(userId));
-        ArgumentException.ThrowIfNullOrWhiteSpace(expectedPasswordHash);
+        if (expectedPasswordHash is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(expectedPasswordHash);
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         var user = await LockUserAsync(userId, cancellationToken);
@@ -104,7 +105,6 @@ public sealed class RefreshTokenService : IRefreshTokenService
         var user = await LockUserAsync(current.UserId, cancellationToken);
         if (user is null || user.IsDeleted == true ||
             !string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase) ||
-            string.IsNullOrWhiteSpace(user.PasswordHash) ||
             user.RoleId is null)
             return null;
 

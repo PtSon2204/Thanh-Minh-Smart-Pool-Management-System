@@ -156,6 +156,7 @@ namespace SmartPool.Infrastructure
             // Access token generation for login
             services.AddScoped<IAccessTokenService, AccessTokenService>();
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+            services.AddScoped<IGoogleIdTokenVerifier, GoogleIdTokenVerifier>();
 
             // Identity of the authenticated caller in the current HTTP request
             services.AddHttpContextAccessor();

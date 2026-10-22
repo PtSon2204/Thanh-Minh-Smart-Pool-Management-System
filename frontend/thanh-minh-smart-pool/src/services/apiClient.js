@@ -17,7 +17,7 @@ const tokenClient = axios.create(clientOptions)
 let refreshPromise = null
 
 function isPublicAuthRequest(url = '') {
-  return ['/api/auth/login', '/api/auth/refresh', '/api/auth/logout',
+  return ['/api/auth/login', '/api/auth/google', '/api/auth/google/register', '/api/auth/refresh', '/api/auth/logout',
     '/api/auth/register', '/api/auth/register/verify', '/api/auth/register/resend'].includes(url)
     || url.startsWith('/api/auth/password-reset/')
 }

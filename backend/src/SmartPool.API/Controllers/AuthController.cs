@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.Application.Features.Authentication.Commands.ChangePassword;
+using SmartPool.Application.Features.Authentication.Commands.GoogleLogin;
+using SmartPool.Application.Features.Authentication.Commands.GoogleRegister;
 using SmartPool.Application.Features.Authentication.Commands.Login;
 using SmartPool.Application.Features.Authentication.Commands.Logout;
 using SmartPool.Application.Features.Authentication.Commands.PasswordReset;
@@ -36,6 +38,38 @@ public sealed class AuthController : ControllerBase
         [FromBody] LoginCommand command,
         CancellationToken cancellationToken)
     {
+        return _sender.Send(command, cancellationToken);
+    }
+
+    /// <summary>Xác minh Google ID token và đăng nhập tài khoản Google đã đăng ký.</summary>
+    [AllowAnonymous]
+    [HttpPost("google")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public Task<IActionResult> GoogleLogin(
+        [FromBody] GoogleLoginCommand command, CancellationToken cancellationToken)
+    {
+        // The browser sends JSON with this custom header. Cross-origin form posts cannot
+        // supply it, and the configured CORS policy gates browser preflight requests.
+        if (!string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest",
+            StringComparison.Ordinal))
+            return Task.FromResult<IActionResult>(Forbid());
+        return _sender.Send(command, cancellationToken);
+    }
+
+    /// <summary>Tạo tài khoản khách hàng từ Google ID token đã xác minh và hoàn tất hồ sơ.</summary>
+    [AllowAnonymous]
+    [HttpPost("google/register")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public Task<IActionResult> GoogleRegister(
+        [FromBody] GoogleRegisterCommand command, CancellationToken cancellationToken)
+    {
+        if (!string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest",
+            StringComparison.Ordinal))
+            return Task.FromResult<IActionResult>(Forbid());
         return _sender.Send(command, cancellationToken);
     }
 
