@@ -30,6 +30,7 @@ public class SmartPoolDbContext : EfDbContext
     public virtual DbSet<Payment> Payments { get; set; }
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<Rental> Rentals { get; set; }
+    public virtual DbSet<RentalTransaction> RentalTransactions { get; set; }
     public virtual DbSet<Role> Roles { get; set; }
     public virtual DbSet<Shift> Shifts { get; set; }
     public virtual DbSet<Ticket> Tickets { get; set; }
@@ -63,6 +64,7 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new PaymentConfiguration());
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new RentalConfiguration());
+        modelBuilder.ApplyConfiguration(new RentalTransactionConfiguration());
         modelBuilder.ApplyConfiguration(new RoleConfiguration());
         modelBuilder.ApplyConfiguration(new ShiftConfiguration());
         modelBuilder.ApplyConfiguration(new TicketConfiguration());

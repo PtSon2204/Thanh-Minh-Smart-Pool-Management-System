@@ -10,4 +10,12 @@ public sealed class ReturnRentalQuantityResponse
     public int RentedQuantity { get; init; }
     public int TotalReturnedQuantity { get; init; }
     public int OutstandingQuantity { get; init; }
+    public Guid RequestId { get; init; }
+    public int NormalQuantity { get; init; }
+    public int DamagedQuantity { get; init; }
+    public int LostQuantity { get; init; }
+    public decimal RefundAmount { get; init; }
+    public decimal RetainedAmount { get; init; }
+    public decimal DepositAmount { get; init; }
+    public string OrderStatus { get; init; } = string.Empty;
 }

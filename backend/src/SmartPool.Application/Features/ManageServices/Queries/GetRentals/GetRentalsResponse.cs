@@ -16,6 +16,10 @@ namespace SmartPool.Application.Features.ManageServices.Queries.GetRentals
         public int Quantity { get; set; }
         public int ReturnedQuantity { get; set; }
         public int OutstandingQuantity { get; set; }
+        public int DamagedQuantity { get; set; }
+        public int LostQuantity { get; set; }
+        public int ResolvedQuantity { get; set; }
+        public bool CollectionVerified { get; set; }
         public Guid? NextRentalId { get; set; }
         public List<Guid> OutstandingRentalIds { get; set; } = [];
     }

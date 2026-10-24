@@ -26,19 +26,23 @@ public sealed class RentalQuantityReturnTests
         {
             checkout = await fixture.CreateOperations().CheckoutRentalAsync(new CheckoutRentalCommand
             {
-                ProductId = fixture.ProductId,
-                Quantity = 3,
+                RequestId = Guid.NewGuid(),
+                CustomerName = "QA customer",
+                CustomerPhone = "0900000000",
+                CollectionConfirmed = true,
                 OperatorId = fixture.OperatorId,
-                DepositPerUnit = 0
+                Items = [new() { ProductId = fixture.ProductId, Quantity = 3, ExpectedUnitPrice = 1m }]
             }, CancellationToken.None);
 
             Assert.Equal(7, await fixture.ReadStockAsync());
             var firstReturn = await fixture.CreateOperations().ReturnRentalQuantityAsync(
                 new ReturnRentalQuantityCommand
                 {
+                    RequestId = Guid.NewGuid(),
                     OrderId = checkout.OrderId,
                     ProductId = fixture.ProductId,
                     OperatorId = fixture.OperatorId,
+                    SettlementConfirmed = true,
                     RentalIds = checkout.Rentals.Take(1).Select(item => item.Id).ToList()
                 }, CancellationToken.None);
             Assert.Equal((1, 8, 2), (firstReturn.ReturnedQuantity, firstReturn.StockQuantity, firstReturn.OutstandingQuantity));
@@ -46,16 +50,18 @@ public sealed class RentalQuantityReturnTests
             var remainingIds = checkout.Rentals.Skip(1).Select(item => item.Id).ToList();
             var secondCommand = new ReturnRentalQuantityCommand
             {
+                RequestId = Guid.NewGuid(),
                 OrderId = checkout.OrderId,
                 ProductId = fixture.ProductId,
                 OperatorId = fixture.OperatorId,
+                SettlementConfirmed = true,
                 RentalIds = remainingIds
             };
             var secondReturn = await fixture.CreateOperations().ReturnRentalQuantityAsync(secondCommand, CancellationToken.None);
             var replay = await fixture.CreateOperations().ReturnRentalQuantityAsync(secondCommand, CancellationToken.None);
 
             Assert.Equal((2, 10, 0), (secondReturn.ReturnedQuantity, secondReturn.StockQuantity, secondReturn.OutstandingQuantity));
-            Assert.True(replay.AlreadyReturned);
+            Assert.Equal(JsonSerializer.Serialize(secondReturn), JsonSerializer.Serialize(replay));
             Assert.Equal(10, replay.StockQuantity);
             await using var context = fixture.CreateContext();
             var logs = await context.InventoryLogs.Where(log => log.ProductId == fixture.ProductId)
@@ -69,7 +75,9 @@ public sealed class RentalQuantityReturnTests
                 await using var context = fixture.CreateContext();
                 var rentalIds = checkout.Rentals.Select(item => item.Id).ToList();
                 await context.Rentals.Where(rental => rentalIds.Contains(rental.Id)).ExecuteDeleteAsync();
-                await context.OrderDetails.Where(detail => detail.Id == checkout.OrderDetailId).ExecuteDeleteAsync();
+                await context.RentalTransactions.Where(transaction => transaction.OrderId == checkout.OrderId).ExecuteDeleteAsync();
+                await context.Payments.Where(payment => payment.OrderId == checkout.OrderId).ExecuteDeleteAsync();
+                await context.OrderDetails.Where(detail => detail.OrderId == checkout.OrderId).ExecuteDeleteAsync();
                 await context.Orders.Where(order => order.Id == checkout.OrderId).ExecuteDeleteAsync();
             }
             await fixture.CleanupAsync();
@@ -128,11 +136,11 @@ public sealed class RentalQuantityReturnTests
             Assert.StartsWith("QA return ", root.GetProperty("productName").GetString());
             Assert.True(root.TryGetProperty("customerName", out _));
             Assert.True(root.TryGetProperty("customerPhone", out _));
-            Assert.Equal("Pending", root.GetProperty("orderStatus").GetString());
+            Assert.Equal("Renting", root.GetProperty("orderStatus").GetString());
             Assert.Equal(4, root.GetProperty("rentedQuantity").GetInt32());
             Assert.Equal(2, root.GetProperty("returnedQuantity").GetInt32());
             Assert.Equal(2, root.GetProperty("outstandingQuantity").GetInt32());
-            Assert.Equal(0m, root.GetProperty("totalDepositAmount").GetDecimal());
+            Assert.Equal(80000m, root.GetProperty("totalDepositAmount").GetDecimal());
             Assert.Equal(4, root.GetProperty("rentals").GetArrayLength());
             Assert.All(root.GetProperty("rentals").EnumerateArray(), rental =>
             {
@@ -232,8 +240,7 @@ public sealed class RentalQuantityReturnTests
             Assert.False(response.AlreadyReturned);
             Assert.Equal(5, response.StockQuantity);
             Assert.Equal((2, 2, 0), (response.RentedQuantity, response.TotalReturnedQuantity, response.OutstandingQuantity));
-            Assert.Equal(0, replay.ReturnedQuantity);
-            Assert.True(replay.AlreadyReturned);
+            Assert.Equal(JsonSerializer.Serialize(response), JsonSerializer.Serialize(replay));
             Assert.Equal(5, replay.StockQuantity);
             Assert.Equal(1, await fixture.ReadReturnLogCountAsync());
             Assert.Equal(2, await fixture.ReadReturnLogQuantityAsync());
@@ -307,7 +314,7 @@ public sealed class RentalQuantityReturnTests
                 try
                 {
                     await fixture.CreateOperations(context).ReturnRentalAsync(
-                        new ReturnRentalCommand { RentalId = fixture.RentalIds[0], OperatorId = fixture.OperatorId },
+                        new ReturnRentalCommand { RequestId = Guid.NewGuid(), SettlementConfirmed = true, RentalId = fixture.RentalIds[0], OperatorId = fixture.OperatorId },
                         CancellationToken.None);
                     return true;
                 }
@@ -358,7 +365,7 @@ public sealed class RentalQuantityReturnTests
         try
         {
             var response = await fixture.CreateOperations().ReturnRentalAsync(
-                new ReturnRentalCommand { RentalId = fixture.RentalIds[0], OperatorId = fixture.OperatorId },
+                new ReturnRentalCommand { RequestId = Guid.NewGuid(), SettlementConfirmed = true, RentalId = fixture.RentalIds[0], OperatorId = fixture.OperatorId },
                 CancellationToken.None);
 
             Assert.Equal(fixture.OrderId, response.Rental.OrderId);
@@ -382,7 +389,7 @@ public sealed class RentalQuantityReturnTests
         try
         {
             await fixture.CreateOperations().ReturnRentalAsync(
-                new ReturnRentalCommand { RentalId = fixture.RentalIds[0], OperatorId = fixture.OperatorId },
+                new ReturnRentalCommand { RequestId = Guid.NewGuid(), SettlementConfirmed = true, RentalId = fixture.RentalIds[0], OperatorId = fixture.OperatorId },
                 CancellationToken.None);
             var beforeStock = await fixture.ReadStockAsync();
             var beforeLogCount = await fixture.ReadReturnLogCountAsync();
@@ -479,6 +486,34 @@ public sealed class RentalQuantityReturnTests
             Assert.Equal((2, 4, 1, 1, 1), fixture.CleanupCounts);
         }
     }
+
+    [Fact]
+    public async Task GivenOneNormalAndOneDamagedUnit_WhenReturnedTogether_ThenDepositIsSplitAndOnlyNormalStockReturns()
+    {
+        await using var fixture = await RentalReturnFixture.CreateAsync(2, 0);
+        try
+        {
+            var damagedId = fixture.RentalIds[1];
+            var command = fixture.QuantityCommand([fixture.RentalIds[0]]);
+            command.DamagedRentalIds = [damagedId];
+            command.Reason = "Cracked housing";
+
+            await fixture.CreateOperations().ReturnRentalQuantityAsync(command, CancellationToken.None);
+
+            Assert.Equal(1, await fixture.ReadStockAsync());
+            await using var context = fixture.CreateContext();
+            var settlements = await context.RentalTransactions
+                .Where(item => item.OrderId == fixture.OrderId && item.Kind == "Settlement")
+                .ToListAsync();
+            Assert.Equal(40000m, settlements.Sum(item => item.DepositAmount));
+            Assert.Equal(20000m, settlements.Sum(item => item.RefundAmount));
+            Assert.Equal(20000m, settlements.Sum(item => item.RetainedAmount));
+        }
+        finally
+        {
+            await fixture.CleanupAsync();
+        }
+    }
 }
 
 internal sealed class RentalReturnFixture : IAsyncDisposable
@@ -536,8 +571,20 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
             context.Rentals.AddRange(fixture.RentalIds.Select(id => new Rental
             {
                 Id = id, OrderId = fixture.OrderId, ProductId = fixture.ProductId,
-                RentTime = now, DepositAmount = 0, Status = "Renting", UpdatedAt = now
+                RentTime = now, DepositAmount = 20000, FeeAmount = 1, ProductNameSnapshot = $"QA return {fixture.ProductId:N}", Status = "Renting", UpdatedAt = now
             }));
+            if (rentalCount > 0)
+            {
+                var payment = new Payment { Id = Guid.NewGuid(), OrderId = fixture.OrderId, Amount = rentalCount, PaymentMethod = "MANUAL", Status = "COMPLETED", CreatedAt = now, PaymentTime = now };
+                context.Payments.Add(payment);
+                context.RentalTransactions.Add(new RentalTransaction { Id = Guid.NewGuid(), OrderId = fixture.OrderId, PaymentId = payment.Id, Kind = "Collection", RequestHash = "fixture", FeeAmount = rentalCount, DepositAmount = rentalCount * 20000m, ConfirmedByUserId = operatorId, ConfirmedAtUtc = now, ResultJson = "{}" });
+                var order = context.Orders.Local.Single(item => item.Id == fixture.OrderId);
+                order.Status = "Renting";
+                order.CustomerName = "QA customer";
+                order.CustomerPhone = "0900000000";
+                order.TotalAmount = rentalCount;
+                order.FinalAmount = rentalCount;
+            }
             await context.SaveChangesAsync();
             fixture._setupComplete = true;
             return fixture;
@@ -553,7 +600,12 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
     public ServiceOperations CreateOperations(SmartPoolDbContext? context = null) => new(context ?? _context, _mapper);
     public ReturnRentalQuantityCommand QuantityCommand(List<Guid> ids) => new()
     {
-        OrderId = OrderId, ProductId = ProductId, OperatorId = OperatorId, RentalIds = ids
+        RequestId = Guid.NewGuid(),
+        OrderId = OrderId,
+        ProductId = ProductId,
+        OperatorId = OperatorId,
+        SettlementConfirmed = true,
+        RentalIds = ids
     };
 
     public async Task<int> ReadStockAsync()
@@ -606,8 +658,16 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
         context.Rentals.AddRange(rentalIds.Select(rentalId => new Rental
         {
             Id = rentalId, OrderId = OrderId, ProductId = productId, RentTime = now,
-            DepositAmount = 0, Status = "Renting", UpdatedAt = now
+            DepositAmount = 20000, FeeAmount = 1, ProductNameSnapshot = $"QA return {productId:N}", Status = "Renting", UpdatedAt = now
         }));
+        var collection = await context.RentalTransactions.SingleAsync(item => item.OrderId == OrderId && item.Kind == "Collection");
+        collection.FeeAmount += rentalIds.Length;
+        collection.DepositAmount += rentalIds.Length * 20000m;
+        var payment = await context.Payments.SingleAsync(item => item.OrderId == OrderId);
+        payment.Amount += rentalIds.Length;
+        var order = await context.Orders.SingleAsync(item => item.Id == OrderId);
+        order.TotalAmount += rentalIds.Length;
+        order.FinalAmount += rentalIds.Length;
         await context.SaveChangesAsync();
         RentalIds.AddRange(rentalIds);
         SecondProductId = productId;
@@ -622,6 +682,8 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
         var expectedLogs = await fixtureLogs.CountAsync();
         var logs = await fixtureLogs.ExecuteDeleteAsync();
         var rentals = await context.Rentals.Where(item => RentalIds.Contains(item.Id)).ExecuteDeleteAsync();
+        await context.RentalTransactions.Where(item => item.OrderId == OrderId).ExecuteDeleteAsync();
+        await context.Payments.Where(item => item.OrderId == OrderId).ExecuteDeleteAsync();
         var expectedDetails = SecondProductId.HasValue ? 2 : 1;
         var details = await context.OrderDetails.Where(item => item.OrderId == OrderId).ExecuteDeleteAsync();
         var orders = await context.Orders.Where(item => item.Id == OrderId).ExecuteDeleteAsync();

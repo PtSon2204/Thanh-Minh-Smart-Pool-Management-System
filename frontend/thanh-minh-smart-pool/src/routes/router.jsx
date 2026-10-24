@@ -17,7 +17,6 @@ import DashboardPage from "../pages/admin/dashboard/DashboardPage";
 import OfflineSalesPage from "../pages/admin/tickets/OfflineSalesPage";
 import TicketTypePage from "../pages/admin/tickets/TicketTypePage";
 import ServicePage from "../pages/admin/services/ServicePage";
-import InventoryPage from "../pages/admin/services/InventoryPage";
 import RentalPage from "../pages/admin/rentals/RentalPage";
 import VoucherPage from "../pages/admin/vouchers/VoucherPage";
 import NotificationPage from "../pages/admin/notifications/NotificationPage";
@@ -126,7 +125,7 @@ const router = createBrowserRouter([
               { path: 'tickets/types', element: <TicketTypePage /> },
               { path: 'tickets/scanQR', element: <TicketScannerPage /> },
               { path: 'services', element: <ServicePage /> },
-              { path: 'inventory', element: <InventoryPage /> },
+              { path: 'inventory', element: <Navigate to="/admin/services" replace /> },
               { path: 'rentals', element: <RentalPage /> },
               { path: 'coupons', element: <VoucherPage /> },
             ],

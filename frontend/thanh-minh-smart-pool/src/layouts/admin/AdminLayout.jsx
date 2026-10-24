@@ -250,8 +250,7 @@ export default function AdminLayout() {
       icon: <AppstoreOutlined />,
       label: 'Dịch vụ cho thuê',
       children: [
-        { key: '/admin/services', label: <Link to="/admin/services">Danh mục đồ cho thuê</Link> },
-        { key: '/admin/inventory', label: <Link to="/admin/inventory">Lịch sử cho thuê</Link> },
+        { key: '/admin/services', label: <Link to="/admin/services">Đồ cho thuê</Link> },
         { key: '/admin/rentals', label: <Link to="/admin/rentals">Giao dịch cho thuê</Link> },
       ],
     },
