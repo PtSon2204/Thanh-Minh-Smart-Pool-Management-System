@@ -185,18 +185,18 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("class_attendances_pkey");
 
+                    b.HasIndex("RegistrationId")
+                        .HasDatabaseName("ix_class_attendances_registration_id");
+
                     b.HasIndex("ReviewedByUserId")
                         .HasDatabaseName("ix_class_attendances_reviewed_by_user_id");
-
-                    b.HasIndex("SessionId")
-                        .HasDatabaseName("ix_class_attendances_session_id");
 
                     b.HasIndex("SubmittedByUserId")
                         .HasDatabaseName("ix_class_attendances_submitted_by_user_id");
 
-                    b.HasIndex("RegistrationId", "SessionId")
+                    b.HasIndex("SessionId", "RegistrationId")
                         .IsUnique()
-                        .HasDatabaseName("ux_class_attendances_registration_session");
+                        .HasDatabaseName("ux_class_attendances_session_registration");
 
                     b.HasIndex("Status", "SubmittedAt")
                         .HasDatabaseName("ix_class_attendances_status_submitted_at");
@@ -215,6 +215,23 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<Guid>("ClassId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("class_id");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -225,23 +242,15 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_user_id");
 
-                    b.Property<DateTime>("RequestedAt")
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime>("RegisteredAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("requested_at")
+                        .HasColumnName("registered_at")
                         .HasDefaultValueSql("now()");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reviewed_at");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("reviewed_by_user_id");
-
-                    b.Property<Guid>("SessionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("session_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -258,25 +267,26 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("class_registrations_pkey");
 
-                    b.HasAlternateKey("Id", "SessionId")
-                        .HasName("ak_class_registrations_id_session_id");
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_class_registrations_order_id");
 
-                    b.HasIndex("ReviewedByUserId")
-                        .HasDatabaseName("ix_class_registrations_reviewed_by_user_id");
+                    b.HasIndex("ClassId", "CustomerUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_class_registrations_class_customer");
 
                     b.HasIndex("CustomerUserId", "Status")
                         .HasDatabaseName("ix_class_registrations_customer_status");
 
-                    b.HasIndex("SessionId", "CustomerUserId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_class_registrations_session_customer");
-
-                    b.HasIndex("Status", "RequestedAt")
-                        .HasDatabaseName("ix_class_registrations_status_requested_at");
+                    b.HasIndex("Status", "RegisteredAt")
+                        .HasDatabaseName("ix_class_registrations_status_registered_at");
 
                     b.ToTable("class_registrations", "smart_pool", t =>
                         {
-                            t.HasCheckConstraint("ck_class_registrations_review_fields_pair", "(reviewed_by_user_id IS NULL) = (reviewed_at IS NULL)");
+                            t.HasCheckConstraint("ck_class_registrations_amount_nonnegative", "amount >= 0");
+
+                            t.HasCheckConstraint("ck_class_registrations_confirmed_after_registered", "confirmed_at IS NULL OR confirmed_at >= registered_at");
+
+                            t.HasCheckConstraint("ck_class_registrations_cancelled_after_registered", "cancelled_at IS NULL OR cancelled_at >= registered_at");
                         });
                 });
 
@@ -1408,11 +1418,24 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<decimal>("Fee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("fee");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
                         .HasColumnName("name");
+
+                    b.Property<DateTime>("RegistrationEndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registration_end_at");
+
+                    b.Property<DateTime>("RegistrationStartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registration_start_at");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1440,6 +1463,10 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("swim_classes", "smart_pool", t =>
                         {
                             t.HasCheckConstraint("ck_swim_classes_capacity_positive", "capacity > 0");
+
+                            t.HasCheckConstraint("ck_swim_classes_fee_nonnegative", "fee >= 0");
+
+                            t.HasCheckConstraint("ck_swim_classes_registration_time_order", "registration_start_at < registration_end_at");
                         });
                 });
 
@@ -1966,6 +1993,13 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassAttendance", b =>
                 {
+                    b.HasOne("SmartPool.Domain.Entities.ClassRegistration", "Registration")
+                        .WithMany("Attendances")
+                        .HasForeignKey("RegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_attendances_registration_id_fkey");
+
                     b.HasOne("SmartPool.Domain.Entities.User", "ReviewedByUser")
                         .WithMany()
                         .HasForeignKey("ReviewedByUserId")
@@ -1986,14 +2020,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("class_attendances_submitted_by_user_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.ClassRegistration", "Registration")
-                        .WithOne("Attendance")
-                        .HasForeignKey("SmartPool.Domain.Entities.ClassAttendance", "RegistrationId", "SessionId")
-                        .HasPrincipalKey("SmartPool.Domain.Entities.ClassRegistration", "Id", "SessionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("class_attendances_registration_session_fkey");
-
                     b.Navigation("Registration");
 
                     b.Navigation("ReviewedByUser");
@@ -2005,6 +2031,13 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassRegistration", b =>
                 {
+                    b.HasOne("SmartPool.Domain.Entities.SwimClass", "Class")
+                        .WithMany("Registrations")
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_registrations_class_id_fkey");
+
                     b.HasOne("SmartPool.Domain.Entities.User", "CustomerUser")
                         .WithMany()
                         .HasForeignKey("CustomerUserId")
@@ -2012,24 +2045,17 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("class_registrations_customer_user_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.User", "ReviewedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("class_registrations_reviewed_by_user_id_fkey");
-
-                    b.HasOne("SmartPool.Domain.Entities.ClassSession", "Session")
-                        .WithMany("Registrations")
-                        .HasForeignKey("SessionId")
+                    b.HasOne("SmartPool.Domain.Entities.Order", "Order")
+                        .WithMany("ClassRegistrations")
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("class_registrations_session_id_fkey");
+                        .HasConstraintName("class_registrations_order_id_fkey");
+
+                    b.Navigation("Class");
 
                     b.Navigation("CustomerUser");
 
-                    b.Navigation("ReviewedByUser");
-
-                    b.Navigation("Session");
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>
@@ -2401,14 +2427,12 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassRegistration", b =>
                 {
-                    b.Navigation("Attendance");
+                    b.Navigation("Attendances");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>
                 {
                     b.Navigation("Attendances");
-
-                    b.Navigation("Registrations");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
@@ -2439,6 +2463,8 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Order", b =>
                 {
+                    b.Navigation("ClassRegistrations");
+
                     b.Navigation("OrderDetails");
 
                     b.Navigation("Payments");
@@ -2465,6 +2491,8 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>
                 {
+                    b.Navigation("Registrations");
+
                     b.Navigation("Sessions");
                 });
 

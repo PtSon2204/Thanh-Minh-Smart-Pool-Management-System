@@ -10,6 +10,12 @@ public class SwimClass
 
     public int Capacity { get; set; }
 
+    public decimal Fee { get; set; }
+
+    public DateTime RegistrationStartAt { get; set; }
+
+    public DateTime RegistrationEndAt { get; set; }
+
     // Coach assigned to the class by default. A session may have a different coach.
     public Guid CoachUserId { get; set; }
 
@@ -26,4 +32,6 @@ public class SwimClass
     public virtual User CreatedByUser { get; set; } = null!;
 
     public virtual ICollection<ClassSession> Sessions { get; set; } = new List<ClassSession>();
+
+    public virtual ICollection<ClassRegistration> Registrations { get; set; } = new List<ClassRegistration>();
 }
