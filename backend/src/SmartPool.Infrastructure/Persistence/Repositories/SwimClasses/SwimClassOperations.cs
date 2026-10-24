@@ -9,7 +9,7 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
-public sealed class SwimClassOperations(SmartPoolDbContext context, TimeProvider timeProvider)
+public sealed partial class SwimClassOperations(SmartPoolDbContext context, TimeProvider timeProvider)
     : ISwimClassOperations
 {
     public async Task<CreateSwimClassResponse> CreateAsync(
@@ -17,14 +17,8 @@ public sealed class SwimClassOperations(SmartPoolDbContext context, TimeProvider
         Guid createdByUserId,
         CancellationToken cancellationToken)
     {
-        var eligibleCoach = await context.Employees.AsNoTracking().AnyAsync(employee =>
-            employee.UserId == request.CoachUserId &&
-            employee.Status != null && EF.Functions.ILike(employee.Status, "Working") &&
-            employee.User.IsDeleted != true &&
-            employee.User.Status != null && EF.Functions.ILike(employee.User.Status, "ACTIVE") &&
-            employee.User.Role != null && employee.User.Role.IsDeleted != true &&
-            EF.Functions.ILike(employee.User.Role.Name, RoleEnum.COACH.ToString()),
-            cancellationToken);
+        var eligibleCoach = await EligibleCoaches()
+            .AnyAsync(employee => employee.UserId == request.CoachUserId, cancellationToken);
 
         if (!eligibleCoach)
             throw new ValidationException(new[]
@@ -59,4 +53,11 @@ public sealed class SwimClassOperations(SmartPoolDbContext context, TimeProvider
             swimClass.RegistrationEndAt, swimClass.Status, swimClass.CreatedByUserId,
             swimClass.CreatedAt, swimClass.UpdatedAt);
     }
+
+    private IQueryable<Employee> EligibleCoaches() => context.Employees.AsNoTracking().Where(employee =>
+        employee.Status != null && EF.Functions.ILike(employee.Status, "Working") &&
+        employee.User.IsDeleted != true &&
+        employee.User.Status != null && EF.Functions.ILike(employee.User.Status, "ACTIVE") &&
+        employee.User.Role != null && employee.User.Role.IsDeleted != true &&
+        EF.Functions.ILike(employee.User.Role.Name, RoleEnum.COACH.ToString()));
 }
