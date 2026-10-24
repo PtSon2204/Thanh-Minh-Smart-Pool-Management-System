@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SmartPool.Infrastructure.Persistence.DbContext;
+using SmartPool.Domain.Entities;
 using System.Text.Json;
 
 namespace SmartPool.Infrastructure.Seeding;
@@ -68,6 +69,13 @@ public static class RolePermissionSeeder
                 ["vouchers"]         = ["read"],
             },
 
+            ["COACH"] = new(StringComparer.Ordinal)
+            {
+                ["profiles"]         = ["read", "update"],
+                ["staff_schedule"]   = ["read"],
+                ["attendance"]       = ["read", "update"],
+            },
+
             ["CUSTOMER"] = new(StringComparer.Ordinal)
             {
                 ["profiles"]         = ["read", "update"],
@@ -88,28 +96,51 @@ public static class RolePermissionSeeder
 
         logger.LogInformation("[RolePermissionSeeder] Bắt đầu đồng bộ permissions...");
 
-        var roles = await db.Roles
-            .Where(r => r.IsDeleted != true)
-            .ToListAsync(ct);
+        var roles = await db.Roles.ToListAsync(ct);
 
         int totalUpdated = 0;
 
         foreach (var (roleName, desiredModules) in RolePermissions)
         {
-            var role = roles.FirstOrDefault(r =>
+            var roleActivated = false;
+            var role = roles.FirstOrDefault(r => r.IsDeleted != true &&
                 string.Equals(r.Name.Trim(), roleName, StringComparison.OrdinalIgnoreCase));
 
             if (role is null)
             {
-                logger.LogWarning("[RolePermissionSeeder] Role '{Role}' chưa có trong DB — bỏ qua.", roleName);
-                continue;
+                if (roleName != "COACH")
+                {
+                    logger.LogWarning("[RolePermissionSeeder] Role '{Role}' chưa có trong DB — bỏ qua.", roleName);
+                    continue;
+                }
+
+                role = roles.FirstOrDefault(r =>
+                    string.Equals(r.Name.Trim(), roleName, StringComparison.OrdinalIgnoreCase));
+                if (role is null)
+                {
+                    role = new Role { Id = Guid.NewGuid(), Name = roleName, IsDeleted = false };
+                    db.Roles.Add(role);
+                    roles.Add(role);
+                    roleActivated = true;
+                }
+                else
+                {
+                    role.IsDeleted = false;
+                    roleActivated = true;
+                }
             }
 
             // Parse JSON hiện tại từ DB
             var current = ParsePermissions(role.Permissions);
 
             // Merge: chỉ thêm action còn thiếu, giữ nguyên những gì đã có
-            bool changed = current.Remove("salaries");
+            bool changed = roleActivated;
+            if (roleName == "COACH" && role.Name != roleName)
+            {
+                role.Name = roleName;
+                changed = true;
+            }
+            changed = current.Remove("salaries") || changed;
             if (roleName is "LIFEGUARD" or "SALES")
                 changed = current.Remove("shifts") || changed;
 

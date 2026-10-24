@@ -119,6 +119,229 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("attendance_logs", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassAttendance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("image_url");
+
+                    b.Property<Guid>("RegistrationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("registration_id");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("SubmittedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("class_attendances_pkey");
+
+                    b.HasIndex("ReviewedByUserId")
+                        .HasDatabaseName("ix_class_attendances_reviewed_by_user_id");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("ix_class_attendances_session_id");
+
+                    b.HasIndex("SubmittedByUserId")
+                        .HasDatabaseName("ix_class_attendances_submitted_by_user_id");
+
+                    b.HasIndex("RegistrationId", "SessionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_class_attendances_registration_session");
+
+                    b.HasIndex("Status", "SubmittedAt")
+                        .HasDatabaseName("ix_class_attendances_status_submitted_at");
+
+                    b.ToTable("class_attendances", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_class_attendances_review_fields_pair", "(reviewed_by_user_id IS NULL) = (reviewed_at IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CustomerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_user_id");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("class_registrations_pkey");
+
+                    b.HasAlternateKey("Id", "SessionId")
+                        .HasName("ak_class_registrations_id_session_id");
+
+                    b.HasIndex("ReviewedByUserId")
+                        .HasDatabaseName("ix_class_registrations_reviewed_by_user_id");
+
+                    b.HasIndex("CustomerUserId", "Status")
+                        .HasDatabaseName("ix_class_registrations_customer_status");
+
+                    b.HasIndex("SessionId", "CustomerUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_class_registrations_session_customer");
+
+                    b.HasIndex("Status", "RequestedAt")
+                        .HasDatabaseName("ix_class_registrations_status_requested_at");
+
+                    b.ToTable("class_registrations", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_class_registrations_review_fields_pair", "(reviewed_by_user_id IS NULL) = (reviewed_at IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancel_reason");
+
+                    b.Property<Guid>("ClassId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("class_id");
+
+                    b.Property<Guid>("CoachUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("coach_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime>("EndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("class_sessions_pkey");
+
+                    b.HasIndex("ClassId", "StartsAt")
+                        .HasDatabaseName("ix_class_sessions_class_starts_at");
+
+                    b.HasIndex("CoachUserId", "StartsAt")
+                        .HasDatabaseName("ix_class_sessions_coach_starts_at");
+
+                    b.ToTable("class_sessions", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_class_sessions_time_order", "starts_at < ends_at");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1155,6 +1378,71 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("shifts", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("integer")
+                        .HasColumnName("capacity");
+
+                    b.Property<Guid>("CoachUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("coach_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("swim_classes_pkey");
+
+                    b.HasIndex("CoachUserId")
+                        .HasDatabaseName("ix_swim_classes_coach_user_id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_swim_classes_status");
+
+                    b.ToTable("swim_classes", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_swim_classes_capacity_positive", "capacity > 0");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Ticket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1676,6 +1964,95 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("PerformedByUser");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassAttendance", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("class_attendances_reviewed_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.ClassSession", "Session")
+                        .WithMany("Attendances")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_attendances_session_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "SubmittedByUser")
+                        .WithMany()
+                        .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_attendances_submitted_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.ClassRegistration", "Registration")
+                        .WithOne("Attendance")
+                        .HasForeignKey("SmartPool.Domain.Entities.ClassAttendance", "RegistrationId", "SessionId")
+                        .HasPrincipalKey("SmartPool.Domain.Entities.ClassRegistration", "Id", "SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_attendances_registration_session_fkey");
+
+                    b.Navigation("Registration");
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("Session");
+
+                    b.Navigation("SubmittedByUser");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassRegistration", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "CustomerUser")
+                        .WithMany()
+                        .HasForeignKey("CustomerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_registrations_customer_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("class_registrations_reviewed_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.ClassSession", "Session")
+                        .WithMany("Registrations")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_registrations_session_id_fkey");
+
+                    b.Navigation("CustomerUser");
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.SwimClass", "Class")
+                        .WithMany("Sessions")
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_sessions_class_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "CoachUser")
+                        .WithMany()
+                        .HasForeignKey("CoachUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("class_sessions_coach_user_id_fkey");
+
+                    b.Navigation("Class");
+
+                    b.Navigation("CoachUser");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", "User")
@@ -1918,6 +2295,27 @@ namespace SmartPool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "CoachUser")
+                        .WithMany()
+                        .HasForeignKey("CoachUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("swim_classes_coach_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("swim_classes_created_by_user_id_fkey");
+
+                    b.Navigation("CoachUser");
+
+                    b.Navigation("CreatedByUser");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Ticket", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.TicketType", "TicketType")
@@ -2001,6 +2399,18 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Inspector");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassRegistration", b =>
+                {
+                    b.Navigation("Attendance");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>
+                {
+                    b.Navigation("Attendances");
+
+                    b.Navigation("Registrations");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.Navigation("EmployeeShifts");
@@ -2051,6 +2461,11 @@ namespace SmartPool.Infrastructure.Migrations
             modelBuilder.Entity("SmartPool.Domain.Entities.Shift", b =>
                 {
                     b.Navigation("EmployeeShifts");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>
+                {
+                    b.Navigation("Sessions");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Ticket", b =>

@@ -53,6 +53,7 @@ public sealed partial class StaffOperations : IStaffOperations
             .Where(user => user.IsDeleted != true && user.Employee == null && user.Role != null && user.Role.IsDeleted != true &&
                 (EF.Functions.ILike(user.Role.Name, RoleEnum.LIFEGUARD.ToString()) ||
                  EF.Functions.ILike(user.Role.Name, RoleEnum.SALES.ToString()) ||
+                 EF.Functions.ILike(user.Role.Name, RoleEnum.COACH.ToString()) ||
                  EF.Functions.ILike(user.Role.Name, RoleEnum.ADMIN.ToString())))
             .Include(user => user.UserProfile).OrderBy(user => user.Username).ToListAsync(cancellationToken);
         return new GetStaffOptionsResponse { Users = mapper.Map<List<EligibleUserResponse>>(users) };
@@ -96,7 +97,7 @@ public sealed partial class StaffOperations : IStaffOperations
             new StaffConflictException("Ca làm việc là cố định và không thể tạo hoặc thay đổi."));
 
     private static bool IsEligibleEmploymentRole(string? roleName) =>
-        new[] { RoleEnum.LIFEGUARD, RoleEnum.SALES, RoleEnum.ADMIN }
+        new[] { RoleEnum.LIFEGUARD, RoleEnum.SALES, RoleEnum.COACH, RoleEnum.ADMIN }
             .Any(role => string.Equals(roleName, role.ToString(), StringComparison.OrdinalIgnoreCase));
     private static (int Page, int PageSize) Normalize(int page, int pageSize) => (Math.Max(1, page), Math.Clamp(pageSize, 1, 100));
 }

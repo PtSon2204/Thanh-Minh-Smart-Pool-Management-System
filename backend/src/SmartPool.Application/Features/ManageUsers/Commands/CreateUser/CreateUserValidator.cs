@@ -12,7 +12,7 @@ public sealed class CreateUserValidator : AbstractValidator<CreateUserCommand>
             .Must(role => !string.IsNullOrWhiteSpace(role) &&
                 Enum.GetNames<RoleEnum>().Any(name =>
                     string.Equals(name, role.Trim(), StringComparison.OrdinalIgnoreCase)))
-            .WithMessage("Vai trò phải là CUSTOMER, LIFEGUARD, SALES hoặc ADMIN.");
+            .WithMessage("Vai trò phải là CUSTOMER, LIFEGUARD, SALES, COACH hoặc ADMIN.");
 
         RuleFor(command => command).CustomAsync(async (command, context, cancellationToken) =>
         {

@@ -11,9 +11,9 @@ namespace SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs
             RuleFor(item => item.PageSize).InclusiveBetween(1, 100).WithMessage("Kích thước trang phải từ 1 đến 100.");
             RuleFor(item => item.RoleName)
                 .Must(role => string.IsNullOrWhiteSpace(role) || new[]
-                    { RoleEnum.ADMIN, RoleEnum.LIFEGUARD, RoleEnum.SALES }
+                    { RoleEnum.ADMIN, RoleEnum.LIFEGUARD, RoleEnum.SALES, RoleEnum.COACH }
                     .Any(value => string.Equals(role, value.ToString(), StringComparison.OrdinalIgnoreCase)))
-                .WithMessage("Vai trò phải là ADMIN, LIFEGUARD hoặc SALES.");
+                .WithMessage("Vai trò phải là ADMIN, LIFEGUARD, SALES hoặc COACH.");
         }
     }
 }
