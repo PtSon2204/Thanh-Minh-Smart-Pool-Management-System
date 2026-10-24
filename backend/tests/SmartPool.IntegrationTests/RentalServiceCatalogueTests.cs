@@ -42,18 +42,27 @@ public sealed class RentalServiceCatalogueTests
             Assert.Equal(5, created.StockQuantity);
             var checkout = await operations.CheckoutRentalAsync(new CheckoutRentalCommand
             {
-                ProductId = created.Id, Quantity = 2, DepositPerUnit = 10000m, OperatorId = operatorId
+                RequestId = Guid.NewGuid(),
+                CustomerName = "QA customer",
+                CustomerPhone = "0900000000",
+                CollectionConfirmed = true,
+                OperatorId = operatorId,
+                Items = [new() { ProductId = created.Id, Quantity = 2, ExpectedUnitPrice = 20000m }]
             }, default);
 
             Assert.Equal(40000m, checkout.FinalAmount);
             Assert.Equal(2, checkout.Rentals.Count);
-            Assert.All(checkout.Rentals, rental => Assert.Equal(10000m, rental.DepositAmount));
+            Assert.All(checkout.Rentals, rental => Assert.Equal(20000m, rental.DepositAmount));
             Assert.Equal(3, await context.Products.AsNoTracking().Where(item => item.Id == created.Id)
                 .Select(item => item.StockQuantity).SingleAsync());
 
             var returned = await operations.ReturnRentalQuantityAsync(new ReturnRentalQuantityCommand
             {
-                OrderId = checkout.OrderId, ProductId = created.Id, OperatorId = operatorId,
+                RequestId = Guid.NewGuid(),
+                OrderId = checkout.OrderId,
+                ProductId = created.Id,
+                OperatorId = operatorId,
+                SettlementConfirmed = true,
                 RentalIds = checkout.Rentals.Select(rental => rental.Id).ToList()
             }, default);
             Assert.Equal(5, returned.StockQuantity);
@@ -73,6 +82,8 @@ public sealed class RentalServiceCatalogueTests
                 .Select(rental => rental.OrderId).Distinct().ToArrayAsync();
             await cleanup.InventoryLogs.Where(log => products.Contains(log.ProductId)).ExecuteDeleteAsync();
             await cleanup.Rentals.Where(rental => products.Contains(rental.ProductId)).ExecuteDeleteAsync();
+            await cleanup.RentalTransactions.Where(transaction => orders.Contains(transaction.OrderId)).ExecuteDeleteAsync();
+            await cleanup.Payments.Where(payment => orders.Contains(payment.OrderId)).ExecuteDeleteAsync();
             await cleanup.OrderDetails.Where(detail => orders.Contains(detail.OrderId)).ExecuteDeleteAsync();
             await cleanup.Orders.Where(order => orders.Contains(order.Id)).ExecuteDeleteAsync();
             await cleanup.Products.Where(product => product.Name == name).ExecuteDeleteAsync();

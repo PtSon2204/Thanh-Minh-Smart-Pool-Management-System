@@ -1,6 +1,7 @@
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageServices.Commands.AdjustStock;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
+using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
 using SmartPool.Application.Features.ManageServices.Commands.SetServiceStatus;
@@ -21,6 +22,7 @@ public interface IServiceOperations
     Task<PagedResponse<GetRentalsResponse>> GetRentalsAsync(GetRentalsQuery query, CancellationToken cancellationToken);
     Task<GetRentalDetailsResponse> GetRentalDetailsAsync(GetRentalDetailsQuery query, CancellationToken cancellationToken);
     Task<CheckoutRentalResponse> CheckoutRentalAsync(CheckoutRentalCommand command, CancellationToken cancellationToken);
+    Task<QuoteRentalResponse> QuoteRentalAsync(QuoteRentalCommand command, CancellationToken cancellationToken);
     Task<ReturnRentalResponse> ReturnRentalAsync(ReturnRentalCommand command, CancellationToken cancellationToken);
     Task<ReturnRentalQuantityResponse> ReturnRentalQuantityAsync(ReturnRentalQuantityCommand command, CancellationToken cancellationToken);
 }
