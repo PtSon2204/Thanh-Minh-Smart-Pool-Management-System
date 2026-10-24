@@ -1,0 +1,117 @@
+.swim-class-create-page {
+  --swim-border: #dce8ef;
+  --swim-muted: #61758a;
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  padding-bottom: 28px;
+}
+
+.swim-class-page-header,
+.swim-class-step-panel,
+.swim-class-create-page .ant-card {
+  background: #fff;
+  border: 1px solid var(--swim-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(16, 49, 74, .045);
+}
+
+.swim-class-page-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 26px 30px;
+}
+
+.swim-class-page-title { align-items: center; display: flex; gap: 18px; min-width: 0; }
+.swim-class-page-icon {
+  align-items: center;
+  background: #e6f5fb;
+  border: 1px solid #c4e7f4;
+  border-radius: 13px;
+  color: #0077b6;
+  display: inline-flex;
+  flex: 0 0 50px;
+  font-size: 23px;
+  height: 50px;
+  justify-content: center;
+}
+.swim-class-eyebrow { color: #0077b6; font-size: 11px; font-weight: 800; letter-spacing: .11em; }
+.swim-class-page-header h2.ant-typography { color: #12344b; font-size: 25px; line-height: 1.25; margin: 3px 0 4px; }
+.swim-class-page-header .ant-typography-secondary { color: var(--swim-muted); }
+.swim-class-page-header > .ant-tag { flex-shrink: 0; margin: 4px 0 0; }
+.swim-class-step-panel { padding: 24px 34px; }
+.swim-class-top-alert { margin: 0; }
+
+.swim-class-create-page .ant-card { min-width: 0; }
+.swim-class-create-page .ant-card .ant-card-head { border-bottom-color: var(--swim-border); min-height: 61px; }
+.swim-class-create-page .ant-card .ant-card-head-title { color: #173c55; font-size: 16px; font-weight: 700; }
+.swim-class-create-page .ant-card .ant-card-head-title .anticon { color: #0077b6; margin-right: 8px; }
+.swim-class-form-card { overflow: hidden; }
+.swim-class-form-card > .ant-card-body { padding: 27px 30px; }
+.swim-class-card-intro { color: var(--swim-muted); line-height: 1.6; margin: 0 0 22px; }
+.swim-class-form-alert { margin-bottom: 22px; }
+.swim-class-form-grid { display: grid; gap: 0 22px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.swim-class-span-full { grid-column: 1 / -1; }
+.swim-class-full-width { width: 100%; }
+.swim-class-create-page .ant-form-item-label > label { color: #294a5e; font-weight: 650; }
+.swim-class-create-page .ant-form-item-extra { color: var(--swim-muted); font-size: 12px; padding-top: 5px; }
+.swim-class-create-page .ant-input,
+.swim-class-create-page .ant-select-selector,
+.swim-class-create-page .ant-picker,
+.swim-class-create-page .ant-input-number { border-color: #cbdde7; }
+.swim-class-time-note { align-items: center; color: var(--swim-muted); display: flex; font-size: 12px; gap: 7px; margin: 0 0 24px; }
+.swim-class-time-note .anticon { color: #0077b6; }
+.swim-class-actions { border-top: 1px solid var(--swim-border); display: flex; justify-content: flex-end; padding-top: 20px; }
+
+.swim-class-schedule-layout { align-items: start; display: grid; gap: 20px; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); }
+.swim-class-summary-card { position: sticky; top: 18px; }
+.swim-class-summary-card h3 { color: #163a53; font-size: 17px; margin: 0 0 16px; }
+.swim-class-summary-row { border-top: 1px solid #edf2f5; display: flex; gap: 12px; justify-content: space-between; padding: 12px 0; }
+.swim-class-summary-row span { color: var(--swim-muted); flex: 0 0 38%; font-size: 13px; }
+.swim-class-summary-row strong { color: #193e56; font-size: 13px; line-height: 1.5; text-align: right; overflow-wrap: anywhere; }
+.swim-class-draft-id { display: block; font-size: 11px; overflow-wrap: anywhere; padding-top: 10px; }
+.swim-class-schedule-main { display: grid; gap: 20px; min-width: 0; }
+.swim-class-session-card { background: #f8fbfd; border: 1px solid #dbeaf2; border-radius: 9px; margin-bottom: 14px; padding: 17px 19px 3px; }
+.swim-class-session-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 11px; }
+.swim-class-session-heading span { color: #005f8e; font-size: 14px; font-weight: 750; }
+.swim-class-add-session { border-color: #83bdd8; color: #005f8e; margin: 4px 0 20px; width: 100%; }
+.swim-class-conflict-list { margin: 8px 0 0; padding-left: 19px; }
+.swim-class-conflict-list li + li { margin-top: 6px; }
+.swim-class-saved-list { display: grid; gap: 0; }
+.swim-class-saved-row { align-items: center; border-bottom: 1px solid #eaf0f4; display: flex; gap: 15px; min-width: 0; padding: 13px 0; }
+.swim-class-saved-row:first-child { padding-top: 0; }
+.swim-class-saved-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.swim-class-saved-number { align-items: center; background: #e8f5fa; border-radius: 8px; color: #006da4; display: flex; flex: 0 0 36px; font-size: 12px; font-weight: 800; height: 36px; justify-content: center; }
+.swim-class-saved-row > div { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.swim-class-saved-row strong { color: #234b61; font-size: 13px; }
+.swim-class-saved-row > div span { color: var(--swim-muted); font-size: 12px; }
+.swim-class-saved-row .ant-tag { margin: 0; }
+.swim-class-activate-card .ant-card-body { align-items: center; display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; }
+.swim-class-activate-card .ant-card-body > div:first-child { flex: 1 1 260px; }
+.swim-class-activate-card strong { color: #173c55; font-size: 15px; }
+.swim-class-activate-card p { color: var(--swim-muted); margin: 4px 0 0; }
+.swim-class-activate-card .swim-class-form-alert { flex-basis: 100%; margin: 0; order: 3; }
+.swim-class-complete-card .ant-result { padding-bottom: 18px; }
+.swim-class-complete-meta { align-items: center; border-top: 1px solid var(--swim-border); color: var(--swim-muted); display: flex; gap: 12px; justify-content: center; overflow-wrap: anywhere; padding: 16px; }
+
+@media (max-width: 1050px) {
+  .swim-class-schedule-layout { grid-template-columns: 1fr; }
+  .swim-class-summary-card { position: static; }
+}
+
+@media (max-width: 640px) {
+  .swim-class-create-page { gap: 12px; }
+  .swim-class-page-header { flex-direction: column; padding: 19px; }
+  .swim-class-page-title { align-items: flex-start; gap: 12px; }
+  .swim-class-page-icon { flex-basis: 42px; height: 42px; font-size: 20px; }
+  .swim-class-page-header h2.ant-typography { font-size: 20px; }
+  .swim-class-step-panel { padding: 18px 15px; }
+  .swim-class-form-card > .ant-card-body { padding: 18px 16px; }
+  .swim-class-form-grid { display: block; }
+  .swim-class-actions .ant-btn,
+  .swim-class-activate-card .ant-btn { width: 100%; }
+  .swim-class-saved-row { flex-wrap: wrap; }
+  .swim-class-saved-row .ant-tag { margin-left: 51px; }
+}
