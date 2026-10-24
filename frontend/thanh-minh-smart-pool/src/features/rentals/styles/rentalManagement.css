@@ -30,7 +30,7 @@
 }
 
 .rental-quantity-cell {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(72px, 100%), 1fr));
   gap: var(--space-2);
   text-align: center;
 }
@@ -47,7 +47,15 @@
 }
 
 .rental-status-cell {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
   justify-items: start;
+}
+
+.rental-status-cell .ant-tag {
+  margin-inline-end: 0;
 }
 
 .rental-row-actions {
@@ -55,6 +63,27 @@
   flex-wrap: wrap;
   gap: var(--space-1);
   justify-content: flex-end;
+}
+
+.rental-list-page .rental-icon-actions {
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+}
+
+.rental-list-page .rental-icon-actions .ant-btn.admin-action-button {
+  flex: 0 0 36px;
+  padding-inline: 0;
+  width: 36px;
+}
+
+.rental-list-page .rental-mobile-card-actions {
+  justify-content: flex-start;
+}
+
+.rental-list-page .rental-mobile-card-actions .ant-btn.admin-action-button {
+  flex: 0 0 44px;
+  height: 44px;
+  width: 44px;
 }
 
 .rental-details-stack,
@@ -87,6 +116,16 @@
 
 .rental-return-field .ant-input-number {
   width: 100%;
+}
+
+.rental-return-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+}
+
+.rental-return-grid .ant-form-item {
+  margin-bottom: 0;
 }
 
 .rental-product-pagination {
@@ -132,9 +171,21 @@
   vertical-align: middle;
 }
 
-.rental-table .ant-table-cell-fix-right,
-.rental-table .ant-table-cell-fix-right-first {
-  background: var(--admin-surface);
+.service-list-table .rental-table .ant-table-tbody > tr > td {
+  padding-block: var(--space-1);
+  padding-inline: var(--space-3);
+}
+
+.rental-table .rental-quantity-cell {
+  display: grid;
+  gap: var(--space-1) var(--space-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  text-align: center;
+}
+
+.rental-table .rental-quantity-cell strong {
+  display: block;
+  font-size: 14px;
 }
 
 .rental-list-page {
@@ -196,6 +247,12 @@
   margin-top: var(--space-1);
 }
 
+.rental-history-note {
+  color: var(--list-muted);
+  font-size: 12px;
+  margin: var(--space-2) 0 0;
+}
+
 .rental-reference-value {
   overflow-wrap: anywhere;
 }
@@ -219,7 +276,7 @@
     border: 1px solid var(--list-divider);
     border-radius: var(--list-radius);
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-2);
     min-width: 0;
     padding: var(--space-3);
   }
@@ -231,6 +288,11 @@
 
   .rental-mobile-card-actions .ant-btn {
     flex: 1;
+  }
+
+  .rental-mobile-card .rental-quantity-cell {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-2);
   }
 
   .rental-return-drawer .ant-drawer-content-wrapper {
@@ -253,7 +315,7 @@
     border: 1px solid var(--list-divider);
     border-radius: var(--list-radius);
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-2);
     min-width: 0;
     padding: var(--space-3);
   }
@@ -265,6 +327,11 @@
 
   .rental-mobile-card-actions .ant-btn {
     flex: 1 1 112px;
+  }
+
+  .rental-mobile-card .rental-quantity-cell {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-2);
   }
 
   .rental-product-name {

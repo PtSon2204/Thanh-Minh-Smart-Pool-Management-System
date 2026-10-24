@@ -43,6 +43,72 @@
   min-width: 164px;
 }
 
+.rental-checkout-line,
+.rental-quote-preview {
+  background: var(--list-canvas);
+  border: 1px solid var(--list-divider);
+  border-radius: var(--list-radius);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+}
+
+.rental-checkout-line-heading,
+.rental-quote-totals,
+.rental-quote-lines > div {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.rental-checkout-line .ant-form-item {
+  margin-bottom: var(--space-3);
+}
+
+.rental-line-stock,
+.rental-quote-lines span {
+  color: var(--list-muted);
+  font-size: 12px;
+}
+
+.rental-add-line {
+  margin-bottom: var(--space-4);
+}
+
+.rental-quote-preview .ant-typography {
+  margin-top: 0;
+}
+
+.rental-quote-lines,
+.rental-quote-totals {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.rental-quote-lines > div {
+  align-items: start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+}
+
+.rental-quote-lines strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rental-quote-totals {
+  border-top: 1px solid var(--list-divider);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.rental-quote-totals span {
+  align-items: center;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
 @media (max-width: 520px) {
   .rental-checkout-drawer .ant-drawer-content-wrapper {
     width: 100vw !important;
@@ -59,5 +125,15 @@
 
   .admin-action-submit {
     width: 100%;
+  }
+
+  .rental-checkout-line,
+  .rental-quote-preview {
+    padding: var(--space-3);
+  }
+
+  .rental-quote-lines > div {
+    gap: var(--space-1);
+    grid-template-columns: minmax(0, 1fr);
   }
 }

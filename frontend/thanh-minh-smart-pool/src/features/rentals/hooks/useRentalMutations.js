@@ -25,6 +25,10 @@ export function useCheckoutRental() {
   })
 }
 
+export function useRentalQuote() {
+  return useMutation({ mutationFn: rentalService.quote })
+}
+
 export function useReturnRental() {
   const queryClient = useQueryClient()
 
@@ -50,7 +54,7 @@ export function useReturnRentalQuantity() {
       queryClient.invalidateQueries({ queryKey: RENTAL_DETAILS_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: INVENTORY_HISTORY_QUERY_KEY })
-      message.success('Đã nhận lại số lượng sản phẩm đã chọn.')
+      message.success('Đã ghi nhận xử lý trả hàng và quyết toán cọc.')
     },
   })
 }

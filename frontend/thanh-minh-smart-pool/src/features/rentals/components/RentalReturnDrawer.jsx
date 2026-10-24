@@ -1,34 +1,95 @@
-import { Alert, Button, Drawer, InputNumber, Spin, Typography } from 'antd'
-import { useState } from 'react'
+import { Alert, Button, Checkbox, Drawer, Form, Input, InputNumber, Spin, Typography } from 'antd'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getRentalErrorMessage, useReturnRentalQuantity } from '../hooks/useRentalMutations'
+import { createRentalRequestId, isRentalRequestOutcomeUncertain } from '../utils/rentalRequests'
+
+const DEPOSIT_PER_UNIT = 20000
+const currencyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+
+function freezeReturnPayload(payload) {
+  return Object.freeze({
+    ...payload,
+    rentalIds: Object.freeze([...payload.rentalIds]),
+    damagedRentalIds: Object.freeze([...payload.damagedRentalIds]),
+    lostRentalIds: Object.freeze([...payload.lostRentalIds]),
+  })
+}
 
 export default function RentalReturnDrawer({ open, details, detailsError, detailsLoading, onClose, onConflict, onRetryDetails }) {
-  const [quantity, setQuantity] = useState(1)
-  const [frozenRentalIds, setFrozenRentalIds] = useState(null)
+  const [form] = Form.useForm()
+  const [frozenReturn, setFrozenReturn] = useState(null)
   const [selectionRefreshed, setSelectionRefreshed] = useState(false)
+  const submitting = useRef(false)
   const mutation = useReturnRentalQuantity()
+  const resetReturnMutation = mutation.reset
+  const normalQuantity = Form.useWatch('normalQuantity', form) || 0
+  const damagedQuantity = Form.useWatch('damagedQuantity', form) || 0
+  const lostQuantity = Form.useWatch('lostQuantity', form) || 0
+  const selectedQuantity = normalQuantity + damagedQuantity + lostQuantity
   const maximum = Math.min(details?.outstandingQuantity || 0, 100)
-  const selectedQuantity = frozenRentalIds?.length || quantity
-  const canConfirm = maximum > 0 && Number.isInteger(selectedQuantity) && selectedQuantity >= 1 && selectedQuantity <= maximum
+  const isLegacy = details?.collectionVerified === false
+  const requiresReason = damagedQuantity + lostQuantity > 0
+  const isLocked = Boolean(frozenReturn)
+  const outstandingRentals = useMemo(() => (details?.rentals || []).filter((record) => record.status === 'Renting'), [details?.rentals])
+  const availableIds = details?.outstandingRentalIds || outstandingRentals.map((record) => record.id)
+  const depositByRentalId = useMemo(() => new Map(outstandingRentals.map((record) => [record.id, record.depositAmount ?? DEPOSIT_PER_UNIT])), [outstandingRentals])
+  const selectedIds = isLocked ? {
+    normal: frozenReturn.rentalIds,
+    damaged: frozenReturn.damagedRentalIds,
+    lost: frozenReturn.lostRentalIds,
+  } : {
+    normal: availableIds.slice(0, normalQuantity),
+    damaged: availableIds.slice(normalQuantity, normalQuantity + damagedQuantity),
+    lost: availableIds.slice(normalQuantity + damagedQuantity, selectedQuantity),
+  }
+  const refundAmount = selectedIds.normal.reduce((total, id) => total + (depositByRentalId.get(id) ?? DEPOSIT_PER_UNIT), 0)
+  const retainedAmount = [...selectedIds.damaged, ...selectedIds.lost].reduce((total, id) => total + (depositByRentalId.get(id) ?? DEPOSIT_PER_UNIT), 0)
+  const canConfirm = isLocked || (!isLegacy && maximum > 0 && selectedQuantity >= 1 && selectedQuantity <= maximum && selectedIds.normal.length + selectedIds.damaged.length + selectedIds.lost.length === selectedQuantity)
 
-  const handleSubmit = () => {
-    if (!canConfirm || mutation.isPending || !details) return
-    setSelectionRefreshed(false)
-    const rentalIds = frozenRentalIds || (details.outstandingRentalIds || []).slice(0, selectedQuantity)
-    if (rentalIds.length !== selectedQuantity) return
-    setFrozenRentalIds(rentalIds)
+  useEffect(() => {
+    if (!open || !details || frozenReturn) return
+    form.resetFields()
+    form.setFieldsValue({ normalQuantity: Math.min(1, maximum), damagedQuantity: 0, lostQuantity: 0, settlementConfirmed: false })
+    resetReturnMutation()
+  }, [details, form, frozenReturn, maximum, open, resetReturnMutation])
+
+  const handleSubmit = async () => {
+    if (!canConfirm || mutation.isPending || submitting.current || !details) return
+    submitting.current = true
+    let payload = frozenReturn
+
+    if (!payload) {
+      try {
+        const values = await form.validateFields()
+        payload = freezeReturnPayload({
+          requestId: createRentalRequestId(),
+          rentalIds: selectedIds.normal,
+          damagedRentalIds: selectedIds.damaged,
+          lostRentalIds: selectedIds.lost,
+          settlementConfirmed: true,
+          reason: values.reason?.trim() || null,
+        })
+        setFrozenReturn(payload)
+      } catch {
+        submitting.current = false
+        return null
+      }
+    }
+
+    resetReturnMutation()
     mutation.mutate(
-      { orderId: details.orderId, productId: details.productId, rentalIds },
+      { orderId: details.orderId, productId: details.productId, ...payload },
       {
         onSuccess: onClose,
+        onSettled: () => { submitting.current = false },
         onError: async (error) => {
+          if (isRentalRequestOutcomeUncertain(error)) return
+          setFrozenReturn(null)
           if (error?.response?.status === 409) {
             const refreshed = await onConflict()
             if (refreshed?.data) {
-              setFrozenRentalIds(null)
-              setQuantity(1)
+              form.setFieldsValue({ normalQuantity: 1, damagedQuantity: 0, lostQuantity: 0, reason: undefined, settlementConfirmed: false })
               setSelectionRefreshed(true)
-              mutation.reset()
             }
           }
         },
@@ -37,26 +98,37 @@ export default function RentalReturnDrawer({ open, details, detailsError, detail
   }
 
   const close = () => {
-    if (!mutation.isPending) onClose()
+    if (!mutation.isPending && !isLocked) onClose()
   }
 
-  return <Drawer rootClassName="rental-return-drawer" title="Nhận lại sản phẩm thuê" open={open} onClose={close} closable={!mutation.isPending} mask={{ closable: !mutation.isPending }} push={false} size="default" styles={{ body: { overflowY: 'auto' } }}>
+  return <Drawer rootClassName="rental-return-drawer" title="Nhận lại và quyết toán cọc" open={open} onClose={close} closable={!mutation.isPending && !isLocked} mask={{ closable: !mutation.isPending && !isLocked }} push={false} size="default" styles={{ body: { overflowY: 'auto' } }}>
     {detailsLoading && <div className="admin-management-state"><Spin size="large" /></div>}
     {!detailsLoading && detailsError && <Alert type="error" showIcon message="Không thể tải lựa chọn trả hàng" description={getRentalErrorMessage(detailsError, 'Không thể tải chi tiết đơn thuê.')} action={<Button size="small" onClick={onRetryDetails}>Thử lại</Button>} />}
     {!detailsLoading && !detailsError && !details && <Alert type="warning" showIcon message="Không tìm thấy chi tiết đơn thuê để nhận lại." />}
-    {!detailsLoading && !detailsError && details && <div className="rental-return-stack">
-      <Typography.Paragraph>Chọn số lượng cần nhận lại. Hệ thống chỉ xử lý tối đa 100 đơn vị mỗi lần.</Typography.Paragraph>
-      {mutation.error && <Alert type="error" showIcon message="Không thể nhận lại sản phẩm" description={getRentalErrorMessage(mutation.error, 'Yêu cầu chưa xác định kết quả. Bạn có thể thử lại với đúng số lượng đã chọn.')} />}
-      {selectionRefreshed && <Alert type="info" showIcon message="Dữ liệu đã được cập nhật" description="Hãy chọn lại số lượng và xác nhận một yêu cầu mới." />}
-      {frozenRentalIds && <Alert type="info" showIcon message="Đã giữ nguyên lựa chọn trả hàng" description="Lần thử lại sẽ dùng đúng tập bản ghi đã chọn. Đóng biểu mẫu để chọn lại." />}
-      <label className="rental-return-field"><span>Số lượng nhận lại</span><InputNumber min={1} max={maximum} precision={0} value={selectedQuantity} disabled={mutation.isPending || Boolean(frozenRentalIds)} onChange={(value) => setQuantity(value || 0)} /></label>
-      <div className="rental-quantity-summary" aria-label="Xem trước số lượng sau khi nhận lại">
-        <span><strong>{details.outstandingQuantity}</strong> còn lại trước khi nhận</span>
-        <span><strong>{selectedQuantity}</strong> sẽ nhận lại</span>
-        <span><strong>{Math.max(0, details.outstandingQuantity - selectedQuantity)}</strong> còn lại sau khi nhận</span>
-        <span><strong>+{selectedQuantity}</strong> tăng tồn kho dự kiến</span>
+    {!detailsLoading && !detailsError && details && <Form form={form} layout="vertical" preserve={false} className="rental-return-stack" disabled={isLegacy || isLocked} onValuesChange={() => { if (!isLocked && mutation.isError) resetReturnMutation() }}>
+      <Typography.Paragraph>Phân loại từng đơn vị. Chỉ đơn vị trả bình thường mới tăng tồn kho. Đơn vị hư hỏng hoặc thất lạc giữ toàn bộ cọc.</Typography.Paragraph>
+      {isLegacy && <Alert type="warning" showIcon message="Lịch sử cũ chưa xác minh" description="Lịch sử cũ chưa xác nhận thu cọc. Không thể quyết toán tiền hoặc thay đổi tồn kho từ màn hình này." />}
+      {mutation.error && <Alert type="error" showIcon message="Không thể quyết toán trả hàng" description={isLocked ? 'Kết quả quyết toán chưa xác định. Hãy thử lại đúng yêu cầu đã được giữ nguyên.' : getRentalErrorMessage(mutation.error, 'Không thể xử lý trả hàng.')} />}
+      {selectionRefreshed && <Alert type="info" showIcon message="Dữ liệu đã được cập nhật" description="Hãy chọn lại các số lượng và xác nhận yêu cầu mới." />}
+      {isLocked && <Alert type="info" showIcon message="Đã giữ nguyên yêu cầu quyết toán" description="Lần thử lại sẽ dùng đúng các đơn vị và phân loại đã chọn." />}
+      <div className="rental-return-grid">
+        <Form.Item label="Trả bình thường" name="normalQuantity" rules={[{ type: 'integer', min: 0, message: 'Nhập số nguyên không âm.' }]}><InputNumber min={0} max={maximum} precision={0} /></Form.Item>
+        <Form.Item label="Hư hỏng" name="damagedQuantity" rules={[{ type: 'integer', min: 0, message: 'Nhập số nguyên không âm.' }]}><InputNumber min={0} max={maximum} precision={0} /></Form.Item>
+        <Form.Item label="Thất lạc" name="lostQuantity" rules={[{ type: 'integer', min: 0, message: 'Nhập số nguyên không âm.' }]}><InputNumber min={0} max={maximum} precision={0} /></Form.Item>
       </div>
-      <Button type="primary" loading={mutation.isPending} disabled={!canConfirm || mutation.isPending} onClick={handleSubmit}>{frozenRentalIds ? 'Thử lại yêu cầu' : 'Xác nhận nhận lại'}</Button>
-    </div>}
+      {requiresReason && <Form.Item label="Lý do hư hỏng hoặc thất lạc" name="reason" rules={[{ required: true, whitespace: true, message: 'Nhập lý do cho đơn vị hư hỏng hoặc thất lạc.' }, { max: 500, message: 'Lý do không vượt quá 500 ký tự.' }]}><Input.TextArea rows={3} /></Form.Item>}
+      <div className="rental-quantity-summary" aria-label="Xem trước quyết toán trả hàng">
+        <span><strong>{details.outstandingQuantity}</strong> còn lại trước khi xử lý</span>
+        <span><strong>{normalQuantity}</strong> trả bình thường, tăng tồn kho</span>
+        <span><strong>{damagedQuantity}</strong> hư hỏng, không tăng tồn kho</span>
+        <span><strong>{lostQuantity}</strong> thất lạc, không tăng tồn kho</span>
+        <span><strong>{currencyFormatter.format(refundAmount)}</strong> hoàn cọc dự kiến</span>
+        <span><strong>{currencyFormatter.format(retainedAmount)}</strong> giữ cọc dự kiến</span>
+      </div>
+      <Form.Item name="settlementConfirmed" valuePropName="checked" rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('Xác nhận hoàn hoặc giữ cọc trước khi xử lý.')) }]}>
+        <Checkbox>Xác nhận đã hoàn cọc hoặc giữ cọc đúng theo xem trước.</Checkbox>
+      </Form.Item>
+      <Button type="primary" loading={mutation.isPending} disabled={!canConfirm || mutation.isPending} onClick={handleSubmit}>{isLocked ? 'Thử lại yêu cầu đã giữ' : 'Xác nhận trả hàng và quyết toán'}</Button>
+    </Form>}
   </Drawer>
 }
