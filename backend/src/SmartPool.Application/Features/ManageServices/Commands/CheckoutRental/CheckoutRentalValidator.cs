@@ -7,13 +7,20 @@ namespace SmartPool.Application.Features.ManageServices.Commands.CheckoutRental
         public CheckoutRentalValidator()
         {
             RuleFor(command => command.OperatorId).NotEmpty().WithMessage("Mã nhân viên không hợp lệ.");
-            RuleFor(command => command.ProductId).NotEmpty().WithMessage("Mã sản phẩm không hợp lệ.");
-            RuleFor(command => command.Quantity).GreaterThan(0).WithMessage("Số lượng thuê phải lớn hơn 0.");
-            RuleFor(command => command.DepositPerUnit).GreaterThanOrEqualTo(0).WithMessage("Tiền cọc không được âm.");
-            RuleFor(command => command.CustomerName).MaximumLength(255).When(command => command.CustomerName is not null)
-                .WithMessage("Tên khách hàng không được vượt quá 255 ký tự.");
-            RuleFor(command => command.CustomerPhone).MaximumLength(20).When(command => command.CustomerPhone is not null)
-                .WithMessage("Số điện thoại không được vượt quá 20 ký tự.");
+            RuleFor(command => command.RequestId).NotEmpty();
+            RuleFor(command => command.CollectionConfirmed).Equal(true).WithMessage("Xác nhận đã thu đủ phí thuê và tiền cọc.");
+            RuleFor(command => command.CustomerName).NotEmpty().MaximumLength(255).WithMessage("Nhập tên khách hàng hợp lệ.");
+            RuleFor(command => command.CustomerPhone).NotEmpty().MaximumLength(20).WithMessage("Nhập số điện thoại khách hàng.");
+            RuleFor(command => command.Items).NotNull().NotEmpty();
+            RuleFor(command => command.Items).Must(items => items is null || (items.Count <= 20 && items.All(item => item is not null) && items.Sum(item => (long)item.Quantity) <= 100 && items.Select(item => item.ProductId).Distinct().Count() == items.Count))
+                .WithMessage("Chọn các sản phẩm khác nhau, tối đa 100 đơn vị mỗi đơn.");
+            When(command => command.Items is not null && command.Items.All(item => item is not null), () =>
+                RuleForEach(command => command.Items).ChildRules(line =>
+                {
+                    line.RuleFor(item => item.ProductId).NotEmpty();
+                    line.RuleFor(item => item.Quantity).InclusiveBetween(1, 100);
+                    line.RuleFor(item => item.ExpectedUnitPrice).GreaterThanOrEqualTo(0);
+                }));
         }
     }
 }

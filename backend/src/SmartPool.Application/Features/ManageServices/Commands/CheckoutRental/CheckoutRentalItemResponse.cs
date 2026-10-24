@@ -10,6 +10,7 @@ namespace SmartPool.Application.Features.ManageServices.Commands.CheckoutRental
         public DateTime? RentTime { get; set; }
         public DateTime? ReturnTime { get; set; }
         public decimal? DepositAmount { get; set; }
+        public decimal? FeeAmount { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? OrderStatus { get; set; }
     }

@@ -22,13 +22,31 @@ function formatDate(value) {
   return value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '-'
 }
 
+function groupStatus(rental) {
+  if (rental.outstandingQuantity > 0) return ['processing', 'Đang thuê']
+  if ((rental.damagedQuantity || 0) > 0 || (rental.lostQuantity || 0) > 0) return ['warning', 'Đã xử lý']
+  return ['success', 'Trả bình thường']
+}
+
+function RentalActions({ rental, onDetails, onReturn, disabled }) {
+  return <>
+    <Tooltip title="Xem chi tiết" trigger={['hover', 'focus']}>
+      <Button className="admin-action-button admin-action-button--view" icon={<EyeOutlined />} aria-label={`Xem chi tiết ${rental.productName}`} onClick={() => onDetails(rental)} />
+    </Tooltip>
+    {rental.outstandingQuantity > 0 && <Tooltip title={rental.collectionVerified === false ? 'Chưa xác minh thu tiền' : 'Nhận lại'} trigger={['hover', 'focus']}>
+      <Button className="admin-action-button admin-action-button--positive" icon={<RollbackOutlined />} aria-label={`Nhận lại ${rental.productName}`} disabled={disabled || rental.collectionVerified === false} onClick={() => onReturn(rental)} />
+    </Tooltip>}
+  </>
+}
+
 function RentalMobileCards({ rentals, onDetails, onReturn, disabled }) {
   return <div className="rental-mobile-list">
     {rentals.map((rental) => <article className="rental-mobile-card" key={`${rental.orderId}-${rental.productId}`}>
-      <div className="rental-mobile-card-heading"><strong>{rental.productName}</strong><Tag color={rental.outstandingQuantity === 0 ? 'success' : 'processing'}>{rental.outstandingQuantity === 0 ? 'Đã trả hết' : 'Đang thuê'}</Tag></div>
+      <div className="rental-mobile-card-heading"><strong>{rental.productName}</strong><Tag color={groupStatus(rental)[0]}>{groupStatus(rental)[1]}</Tag></div>
       <span>Mã đơn: {rental.orderId.slice(0, 8).toUpperCase()}</span>
-      <div className="rental-quantity-cell"><span><strong>{rental.quantity}</strong> đã thuê</span><span><strong>{rental.returnedQuantity}</strong> đã trả</span><span><strong>{rental.outstandingQuantity}</strong> còn lại</span></div>
-      <div className="admin-action-group rental-mobile-card-actions"><Button className="admin-action-button admin-action-button--view" icon={<EyeOutlined />} onClick={() => onDetails(rental)}>Xem chi tiết</Button>{rental.outstandingQuantity > 0 && <Button className="admin-action-button admin-action-button--positive" icon={<RollbackOutlined />} disabled={disabled} onClick={() => onReturn(rental)}>Nhận lại</Button>}</div>
+      {rental.collectionVerified === false && <Tag color="warning">Chưa xác minh thu tiền</Tag>}
+      <div className="rental-quantity-cell"><span><strong>{rental.quantity}</strong> đã thuê</span><span><strong>{rental.returnedQuantity}</strong> bình thường</span><span><strong>{rental.damagedQuantity || 0}</strong> hư hỏng</span><span><strong>{rental.lostQuantity || 0}</strong> thất lạc</span><span><strong>{rental.outstandingQuantity}</strong> còn lại</span></div>
+      <div className="admin-action-group rental-mobile-card-actions rental-icon-actions"><RentalActions rental={rental} onDetails={onDetails} onReturn={onReturn} disabled={disabled} /></div>
     </article>)}
   </div>
 }
@@ -54,15 +72,15 @@ export default function RentalPage() {
 
   const columns = [
     {
-      title: 'Đơn thuê', dataIndex: 'productName', key: 'productName', width: 340,
+      title: 'Đơn thuê', dataIndex: 'productName', key: 'productName', width: '30%',
       render: (value, rental) => <div className="rental-order-cell"><Tooltip title={value}><strong className="rental-product-name">{value}</strong></Tooltip><span>Mã đơn: {rental.orderId.slice(0, 8).toUpperCase()}</span>{rental.customerName && <span>{rental.customerName}{rental.customerPhone ? ` · ${rental.customerPhone}` : ''}</span>}</div>,
     },
-    { title: 'Số lượng', key: 'quantity', width: 204, render: (_, rental) => <div className="rental-quantity-cell"><span><strong>{rental.quantity}</strong> đã thuê</span><span><strong>{rental.returnedQuantity}</strong> đã trả</span><span><strong>{rental.outstandingQuantity}</strong> còn lại</span></div> },
-    { title: 'Thuê lúc', dataIndex: 'rentTime', key: 'rentTime', width: 160, render: formatDate },
-    { title: 'Tiền cọc tổng', dataIndex: 'depositAmount', key: 'depositAmount', width: 150, align: 'right', render: (value) => value == null ? '-' : <span className="service-number-cell">{currencyFormatter.format(value)}</span> },
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 126, render: (_, rental) => <div className="rental-status-cell"><Tag color={rental.outstandingQuantity === 0 ? 'success' : 'processing'}>{rental.outstandingQuantity === 0 ? 'Đã trả hết' : 'Đang thuê'}</Tag>{rental.outstandingQuantity > 0 && <span>Còn {rental.outstandingQuantity}</span>}</div> },
-    {
-      title: 'Thao tác', key: 'actions', width: 256, fixed: 'right', align: 'right', render: (_, rental) => <div className="admin-action-group rental-row-actions"><Button className="admin-action-button admin-action-button--view" size="small" icon={<EyeOutlined />} onClick={() => setDetailsRental(rental)}>Xem chi tiết</Button>{rental.outstandingQuantity > 0 && <Button className="admin-action-button admin-action-button--positive" size="small" icon={<RollbackOutlined />} disabled={isPending} onClick={() => { setDetailsRental(rental); setReturnRequested(true) }}>Nhận lại</Button>}</div>,
+     { title: 'Số lượng', key: 'quantity', width: '24%', render: (_, rental) => <div className="rental-quantity-cell"><span><strong>{rental.quantity}</strong> đã thuê</span><span><strong>{rental.returnedQuantity}</strong> bình thường</span><span><strong>{rental.damagedQuantity || 0}</strong> hư hỏng</span><span><strong>{rental.lostQuantity || 0}</strong> thất lạc</span><span><strong>{rental.outstandingQuantity}</strong> còn lại</span></div> },
+     { title: 'Thuê lúc', dataIndex: 'rentTime', key: 'rentTime', width: '11%', render: formatDate },
+     { title: 'Cọc nhóm SP', dataIndex: 'depositAmount', key: 'depositAmount', width: '11%', align: 'right', render: (value) => value == null ? '-' : <span className="service-number-cell">{currencyFormatter.format(value)}</span> },
+     { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: '12%', render: (_, rental) => <div className="rental-status-cell"><Tag color={groupStatus(rental)[0]}>{groupStatus(rental)[1]}</Tag>{rental.orderStatus === 'Completed' && <Tag color="success">Đơn hoàn tất</Tag>}{rental.collectionVerified === false && <Tag color="warning">Chưa xác minh thu tiền</Tag>}{rental.outstandingQuantity > 0 && <span>Còn {rental.outstandingQuantity}</span>}</div> },
+     {
+        title: 'Thao tác', key: 'actions', width: '12%', align: 'right', render: (_, rental) => <div className="admin-action-group rental-row-actions rental-icon-actions"><RentalActions rental={rental} onDetails={setDetailsRental} onReturn={(selected) => { setDetailsRental(selected); setReturnRequested(true) }} disabled={isPending} /></div>,
     },
   ]
 
@@ -71,14 +89,14 @@ export default function RentalPage() {
       <ServiceListHeader title="Giao dịch cho thuê" action={<Button type="primary" icon={<PlusOutlined />} onClick={() => { checkoutMutation.reset(); setCheckoutOpen(true) }}>Tạo đơn thuê</Button>} />
       <section className="service-list-toolbar" aria-label="Bộ lọc giao dịch cho thuê">
         <div className="service-list-filters">
-        <label className="service-filter-control"><span>Trạng thái</span><Select allowClear aria-label="Lọc theo trạng thái thuê" placeholder="Tất cả trạng thái" disabled={isPending} value={status} onChange={resetPage(setStatus)} options={[{ label: 'Đang thuê', value: 'Renting' }, { label: 'Đã trả hết', value: 'Returned' }]} /></label>
+        <label className="service-filter-control"><span>Trạng thái</span><Select allowClear aria-label="Lọc theo trạng thái thuê" placeholder="Tất cả trạng thái" disabled={isPending} value={status} onChange={resetPage(setStatus)} options={[{ label: 'Đang thuê', value: 'Renting' }, { label: 'Trả bình thường', value: 'Returned' }, { label: 'Đã xử lý', value: 'Resolved' }, { label: 'Đơn hoàn tất', value: 'Completed' }]} /></label>
         <label className="service-filter-control"><span>Ngày (UTC)</span><DatePicker allowClear aria-label="Lọc theo ngày thuê UTC" placeholder="Chọn ngày UTC" disabled={isPending} value={date ? dayjs(date) : null} onChange={(value) => resetPage(setDate)(value ? value.format('YYYY-MM-DD') : undefined)} /></label>
         </div>
       </section>
       <section className="service-list-table" aria-label="Danh sách giao dịch cho thuê">
         {rentalsQuery.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
         {rentalsQuery.isError && <RetryEmpty description="Không thể tải danh sách giao dịch cho thuê." onRetry={rentalsQuery.refetch} />}
-        {!rentalsQuery.isLoading && !rentalsQuery.isError && <><Table className="rental-table" rowKey={(rental) => `${rental.orderId}-${rental.productId}`} columns={columns} dataSource={rentalsQuery.data?.items || []} pagination={false} scroll={{ x: 1128 }} tableLayout="fixed" locale={{ emptyText: 'Chưa có giao dịch cho thuê phù hợp.' }} /><RentalMobileCards rentals={rentalsQuery.data?.items || []} disabled={isPending} onDetails={setDetailsRental} onReturn={(rental) => { setDetailsRental(rental); setReturnRequested(true) }} /></>}
+        {!rentalsQuery.isLoading && !rentalsQuery.isError && <><Table className="rental-table" rowKey={(rental) => `${rental.orderId}-${rental.productId}`} columns={columns} dataSource={rentalsQuery.data?.items || []} pagination={false} tableLayout="fixed" locale={{ emptyText: 'Chưa có giao dịch cho thuê phù hợp.' }} /><RentalMobileCards rentals={rentalsQuery.data?.items || []} disabled={isPending} onDetails={setDetailsRental} onReturn={(rental) => { setDetailsRental(rental); setReturnRequested(true) }} /></>}
         {!rentalsQuery.isLoading && !rentalsQuery.isError && (rentalsQuery.data?.totalCount || 0) > 0 && <div className="admin-management-pagination"><Pagination current={pageIndex} pageSize={pageSize} total={rentalsQuery.data.totalCount} disabled={isPending} showSizeChanger pageSizeOptions={['10', '20', '50', '100']} onChange={(page, size) => { setPageIndex(page); setPageSize(size) }} showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`} /></div>}
       </section>
       <RentalCheckoutDrawer key={checkoutOpen ? 'checkout-open' : 'checkout-closed'} open={checkoutOpen} mutation={checkoutMutation} onClose={() => setCheckoutOpen(false)} onSuccess={() => setCheckoutOpen(false)} />

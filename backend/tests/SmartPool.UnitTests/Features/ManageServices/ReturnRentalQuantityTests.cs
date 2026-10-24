@@ -11,10 +11,7 @@ public sealed class ReturnRentalQuantityTests
     public void GivenRepeatedRentalIdentity_WhenValidating_ThenItIsRejected()
     {
         var repeatedId = Guid.NewGuid();
-        var result = new ReturnRentalQuantityValidator().Validate(new ReturnRentalQuantityCommand
-        {
-            RentalIds = [repeatedId, repeatedId]
-        });
+        var result = new ReturnRentalQuantityValidator().Validate(CreateCommand([repeatedId, repeatedId]));
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
@@ -24,7 +21,7 @@ public sealed class ReturnRentalQuantityTests
     [MemberData(nameof(InvalidRentalSelections))]
     public void GivenInvalidRentalSelection_WhenValidating_ThenItIsRejected(List<Guid>? ids)
     {
-        var result = new ReturnRentalQuantityValidator().Validate(new ReturnRentalQuantityCommand { RentalIds = ids });
+        var result = new ReturnRentalQuantityValidator().Validate(CreateCommand(ids));
         Assert.False(result.IsValid);
     }
 
@@ -36,7 +33,7 @@ public sealed class ReturnRentalQuantityTests
         var id = Guid.NewGuid();
 
         await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(
-            new ReturnRentalQuantityCommand { RentalIds = [id, id] }, CancellationToken.None));
+            CreateCommand([id, id]), CancellationToken.None));
 
         operations.Verify(repository => repository.ReturnRentalQuantityAsync(
             It.IsAny<ReturnRentalQuantityCommand>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -55,7 +52,7 @@ public sealed class ReturnRentalQuantityTests
         var ids = Enumerable.Range(1, 101).Select(CreateRentalId).ToList();
 
         var exception = await Record.ExceptionAsync(() => handler.Handle(
-            new ReturnRentalQuantityCommand { RentalIds = ids }, CancellationToken.None));
+            CreateCommand(ids), CancellationToken.None));
 
         Assert.Equal(0, repositoryCalls);
         Assert.IsType<ValidationException>(exception);
@@ -66,7 +63,7 @@ public sealed class ReturnRentalQuantityTests
     {
         var ids = Enumerable.Range(1, 100).Select(CreateRentalId).ToList();
 
-        var result = new ReturnRentalQuantityValidator().Validate(new ReturnRentalQuantityCommand { RentalIds = ids });
+        var result = new ReturnRentalQuantityValidator().Validate(CreateCommand(ids));
 
         Assert.True(result.IsValid);
     }
@@ -80,4 +77,10 @@ public sealed class ReturnRentalQuantityTests
 
     private static Guid CreateRentalId(int value) =>
         Guid.Parse($"00000000-0000-0000-0000-{value:D12}");
+
+    private static ReturnRentalQuantityCommand CreateCommand(List<Guid>? ids) => new()
+    {
+        RequestId = Guid.NewGuid(), OrderId = Guid.NewGuid(), ProductId = Guid.NewGuid(),
+        OperatorId = Guid.NewGuid(), SettlementConfirmed = true, RentalIds = ids
+    };
 }

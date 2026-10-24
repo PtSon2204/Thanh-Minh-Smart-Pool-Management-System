@@ -1143,6 +1143,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("deposit_amount")
                         .HasDefaultValueSql("0");
 
+                    b.Property<decimal?>("FeeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("fee_amount");
+
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid")
                         .HasColumnName("order_id");
@@ -1151,15 +1156,28 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("product_id");
 
+                    b.Property<string>("ProductNameSnapshot")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("product_name_snapshot");
+
                     b.Property<DateTime?>("RentTime")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("rent_time")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTime?>("ResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at_utc");
+
                     b.Property<DateTime?>("ReturnTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("return_time");
+
+                    b.Property<Guid?>("SettlementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("settlement_id");
 
                     b.Property<string>("Status")
                         .ValueGeneratedOnAdd()
@@ -1181,7 +1199,107 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("rentals", "smart_pool");
+                    b.HasIndex("SettlementId");
+
+                    b.ToTable("rentals", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_rentals_issued_snapshot", "fee_amount IS NULL OR (fee_amount >= 0 AND deposit_amount = 20000 AND product_name_snapshot IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.RentalTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("ConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at_utc");
+
+                    b.Property<Guid>("ConfirmedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("confirmed_by_user_id");
+
+                    b.Property<decimal>("DepositAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("deposit_amount");
+
+                    b.Property<decimal>("FeeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("fee_amount");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payment_id");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("refund_amount");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("result_json");
+
+                    b.Property<decimal>("RetainedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("retained_amount");
+
+                    b.HasKey("Id")
+                        .HasName("rental_transactions_pkey");
+
+                    b.HasIndex("ConfirmedByUserId");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rental_transactions_collection_order")
+                        .HasFilter("kind = 'Collection'");
+
+                    b.HasIndex("PaymentId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("OrderId", "ConfirmedAtUtc")
+                        .HasDatabaseName("ix_rental_transactions_order_time");
+
+                    b.ToTable("rental_transactions", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_rental_transactions_amounts", "(kind = 'Collection' AND refund_amount = 0 AND retained_amount = 0 AND product_id IS NULL) OR (kind = 'Settlement' AND fee_amount = 0 AND deposit_amount = refund_amount + retained_amount AND product_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_rental_transactions_kind", "kind IN ('Collection', 'Settlement')");
+
+                            t.HasCheckConstraint("ck_rental_transactions_nonnegative", "fee_amount >= 0 AND deposit_amount >= 0 AND refund_amount >= 0 AND retained_amount >= 0");
+                        });
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Role", b =>
@@ -2142,9 +2260,39 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("rentals_product_id_fkey");
 
+                    b.HasOne("SmartPool.Domain.Entities.RentalTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("SettlementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Order");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.RentalTransaction", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ConfirmedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.Payment", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SmartPool.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>

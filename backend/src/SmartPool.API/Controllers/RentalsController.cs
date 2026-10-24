@@ -7,6 +7,7 @@ using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
+using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
@@ -44,6 +45,11 @@ namespace SmartPool.API.Controllers
             return await SendAsync(new GetRentalDetailsQuery { OrderId = orderId, ProductId = productId }, cancellationToken);
         }
 
+        [HttpPost("quote")]
+        [RequirePermission("rentals", "create")]
+        public Task<IActionResult> Quote([FromBody] QuoteRentalCommand command, CancellationToken cancellationToken) =>
+            SendAsync(command, cancellationToken);
+
         /// <summary>Tạo đơn thuê và trừ tồn kho theo giao dịch nguyên tử.</summary>
         [HttpPost]
         [RequirePermission("rentals", "create")]
@@ -79,14 +85,16 @@ namespace SmartPool.API.Controllers
         [HttpPost("{rentalId:guid}/return")]
         [RequirePermission("rentals", "update")]
         [ProducesResponseType(typeof(ReturnRentalResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> Return(Guid rentalId, CancellationToken cancellationToken)
+        public async Task<IActionResult> Return(Guid rentalId, [FromBody] ReturnRentalCommand command, CancellationToken cancellationToken)
         {
             if (!TryGetOperatorId(out var operatorId))
             {
                 return Forbid();
             }
 
-            return await SendAsync(new ReturnRentalCommand { RentalId = rentalId, OperatorId = operatorId }, cancellationToken);
+            command.RentalId = rentalId;
+            command.OperatorId = operatorId;
+            return await SendAsync(command, cancellationToken);
         }
 
         /// <summary>Trả một số lượng lượt thuê đã chọn theo giao dịch nguyên tử.</summary>
