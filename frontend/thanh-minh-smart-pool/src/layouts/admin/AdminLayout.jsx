@@ -18,6 +18,7 @@ import {
   LockOutlined,
   SecurityScanOutlined,
   AlertOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
@@ -153,6 +154,11 @@ export default function AdminLayout() {
       key: '/admin/roles/permissions',
       icon: <SafetyCertificateOutlined />,
       label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
+    },
+    isAdmin && {
+      key: '/admin/classes/create',
+      icon: <BookOutlined />,
+      label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
     },
     {
       key: 'staff',

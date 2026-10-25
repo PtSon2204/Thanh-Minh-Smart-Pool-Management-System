@@ -40,6 +40,7 @@ import MaintenanceHistoryPage from "../pages/admin/maintenance/MaintenanceHistor
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
+import CreateSwimClassPage from "../pages/admin/classes/CreateSwimClassPage";
 
 const router = createBrowserRouter([
   {
@@ -103,6 +104,7 @@ const router = createBrowserRouter([
               { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
               { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
               { path: 'staff/profiles', element: <StaffProfilesPage /> },
+              { path: 'classes/create', element: <CreateSwimClassPage /> },
               { path: 'payments/invoices', element: <PaymentHistoryPage /> },
               { path: 'staff/attendance', element: <StaffAttendancePage /> },
               { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },

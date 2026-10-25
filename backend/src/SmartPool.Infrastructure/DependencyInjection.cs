@@ -3,6 +3,7 @@ using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 using SmartPool.Infrastructure.Persistence.Repositories.Maintenance;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
+using SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 using SmartPool.Infrastructure.Persistence.Repositories.Tickets;
 using SmartPool.Infrastructure.Persistence.Repositories.Vouchers;
 using CloudinaryDotNet;
@@ -181,6 +182,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IMaintenanceOperations, MaintenanceOperations>();
             services.AddHostedService<MaintenanceReminderWorker>();
             services.AddScoped<IStaffOperations, StaffOperations>();
+            services.AddScoped<ISwimClassOperations, SwimClassOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();

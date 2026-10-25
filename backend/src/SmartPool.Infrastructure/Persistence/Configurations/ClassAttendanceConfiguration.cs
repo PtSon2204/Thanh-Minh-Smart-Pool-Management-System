@@ -34,13 +34,11 @@ public sealed class ClassAttendanceConfiguration : IEntityTypeConfiguration<Clas
             .HasForeignKey(e => e.SessionId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("class_attendances_session_id_fkey");
-        // The composite FK guarantees that the selected registration belongs to this session.
         entity.HasOne(e => e.Registration)
-            .WithOne(e => e.Attendance)
-            .HasForeignKey<ClassAttendance>(e => new { e.RegistrationId, e.SessionId })
-            .HasPrincipalKey<ClassRegistration>(e => new { e.Id, e.SessionId })
+            .WithMany(e => e.Attendances)
+            .HasForeignKey(e => e.RegistrationId)
             .OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("class_attendances_registration_session_fkey");
+            .HasConstraintName("class_attendances_registration_id_fkey");
         entity.HasOne(e => e.SubmittedByUser)
             .WithMany()
             .HasForeignKey(e => e.SubmittedByUserId)
@@ -52,10 +50,10 @@ public sealed class ClassAttendanceConfiguration : IEntityTypeConfiguration<Clas
             .OnDelete(DeleteBehavior.SetNull)
             .HasConstraintName("class_attendances_reviewed_by_user_id_fkey");
 
-        entity.HasIndex(e => new { e.RegistrationId, e.SessionId })
+        entity.HasIndex(e => new { e.SessionId, e.RegistrationId })
             .IsUnique()
-            .HasDatabaseName("ux_class_attendances_registration_session");
-        entity.HasIndex(e => e.SessionId).HasDatabaseName("ix_class_attendances_session_id");
+            .HasDatabaseName("ux_class_attendances_session_registration");
+        entity.HasIndex(e => e.RegistrationId).HasDatabaseName("ix_class_attendances_registration_id");
         entity.HasIndex(e => new { e.Status, e.SubmittedAt }).HasDatabaseName("ix_class_attendances_status_submitted_at");
         entity.HasIndex(e => e.SubmittedByUserId).HasDatabaseName("ix_class_attendances_submitted_by_user_id");
         entity.HasIndex(e => e.ReviewedByUserId).HasDatabaseName("ix_class_attendances_reviewed_by_user_id");
