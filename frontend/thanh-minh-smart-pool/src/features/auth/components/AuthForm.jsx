@@ -92,7 +92,7 @@ export default function AuthForm({ isRegister }) {
         navigate(
           ["ADMIN", "LIFEGUARD", "SALES"].includes(session.role.toUpperCase())
             ? "/admin"
-            : "/",
+            : session.role.toUpperCase() === "COACH" ? "/admin/classes" : "/",
         );
       } catch (error) {
         if (error?.response?.status === 409 &&
@@ -169,6 +169,8 @@ export default function AuthForm({ isRegister }) {
             ? "/admin/tickets/pos"
             : role === "LIFEGUARD"
               ? "/admin/staff/schedule"
+              : role === "COACH"
+                ? "/admin/classes"
               : "/";
       navigate(destination);
     } catch (error) {
@@ -249,7 +251,7 @@ export default function AuthForm({ isRegister }) {
       fullName: `${values.familyName} ${values.givenName}`.trim(),
     }} onSuccess={(session) => {
       clearPasswords();
-      navigate(['ADMIN', 'LIFEGUARD', 'SALES'].includes(session.role.toUpperCase()) ? '/admin' : '/');
+      navigate(['ADMIN', 'LIFEGUARD', 'SALES'].includes(session.role.toUpperCase()) ? '/admin' : session.role.toUpperCase() === 'COACH' ? '/admin/classes' : '/');
     }} onCancel={() => setGoogleCredential(null)} />;
   }
 

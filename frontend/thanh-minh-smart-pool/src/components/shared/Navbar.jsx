@@ -26,6 +26,10 @@ export default function Navbar() {
   const navigate = useNavigate()
 
   const { session } = useAuthStore()
+  const role = session?.role?.toUpperCase()
+  const visibleNavItems = role === 'CUSTOMER'
+    ? [...navItems, { label: 'Lớp học bơi', to: '/lop-hoc' }]
+    : navItems
 
   async function handleLogout() {
     try {
@@ -61,11 +65,23 @@ export default function Navbar() {
 
   const userMenu = {
     items: [
-      {
+      role === 'CUSTOMER' && {
         key: '0',
         icon: <UserOutlined />,
         label: 'Thẻ của tôi',
         onClick: () => navigate('/the-cua-toi')
+      },
+      role === 'COACH' && {
+        key: 'classes',
+        icon: <EditOutlined />,
+        label: 'Lớp được phân công',
+        onClick: () => navigate('/admin/classes')
+      },
+      role === 'ADMIN' && {
+        key: 'admin',
+        icon: <EditOutlined />,
+        label: 'Trang quản trị',
+        onClick: () => navigate('/admin')
       },
       {
         key: '1',
@@ -79,7 +95,7 @@ export default function Navbar() {
         label: 'Đổi mật khẩu',
         onClick: () => navigate('/doi-mat-khau')
       },
-      { key: '3', icon: <ShoppingOutlined />, label: 'Lịch sử thanh toán', onClick: () => navigate('/lich-su-thanh-toan') },
+      role === 'CUSTOMER' && { key: '3', icon: <ShoppingOutlined />, label: 'Lịch sử thanh toán', onClick: () => navigate('/lich-su-thanh-toan') },
       {
         key: '4',
         icon: <LogoutOutlined />,
@@ -87,7 +103,7 @@ export default function Navbar() {
         danger: true,
         onClick: () => { void handleLogout() }
       }
-    ]
+    ].filter(Boolean)
   }
 
   return (
@@ -104,7 +120,7 @@ export default function Navbar() {
           </Link>
 
           <ul className="navbar-nav">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <li key={item.to} className="nav-item">
                 <Link
                   to={item.to}
@@ -176,11 +192,11 @@ export default function Navbar() {
         rootClassName="mobile-navigation-drawer"
       >
         <div id="mobile-navigation" className="mobile-navigation">
-          {navItems.map(item => <Link key={item.to} to={item.to} aria-current={location.pathname === item.to ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
+          {visibleNavItems.map(item => <Link key={item.to} to={item.to} aria-current={location.pathname === item.to ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
           <div className="mobile-navigation-account">
             {session ? <>
               <strong>{profileData?.fullName || session.username}</strong>
-              {session.role?.toUpperCase() !== 'CUSTOMER' && <Link to="/admin" onClick={() => setMenuOpen(false)}>Trang quản trị</Link>}
+              {role !== 'CUSTOMER' && <Link to={role === 'COACH' ? '/admin/classes' : '/admin'} onClick={() => setMenuOpen(false)}>{role === 'COACH' ? 'Lớp được phân công' : 'Trang quản trị'}</Link>}
               {userMenu.items.map(item => <button key={item.key} type="button" onClick={() => { setMenuOpen(false); item.onClick() }}>{item.icon}{item.label}</button>)}
             </> : <>
               <Link to="/dang-ky" onClick={() => setMenuOpen(false)}>Đăng ký</Link>

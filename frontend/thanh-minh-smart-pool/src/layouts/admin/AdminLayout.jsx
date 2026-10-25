@@ -52,6 +52,9 @@ export default function AdminLayout() {
   const { session } = useAuthStore();
   const navigate = useNavigate();
   const role = session?.role?.toUpperCase();
+  const selectedMenuPath = location.pathname.startsWith('/admin/classes/') && location.pathname !== '/admin/classes/create'
+    ? '/admin/classes'
+    : location.pathname;
   const isAdmin = role === 'ADMIN';
   const isLifeguard = role === 'LIFEGUARD';
   const [collapsed, setCollapsed] = useState(false);
@@ -134,6 +137,7 @@ export default function AdminLayout() {
 
   const roleLabelMap = {
     ADMIN: 'Quản trị viên',
+    COACH: 'Huấn luyện viên',
     LIFEGUARD: 'Nhân viên cứu hộ',
     SALES: 'Nhân viên bán vé',
   };
@@ -159,6 +163,11 @@ export default function AdminLayout() {
       key: '/admin/classes/create',
       icon: <BookOutlined />,
       label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
+    },
+    (isAdmin || role === 'COACH') && {
+      key: '/admin/classes',
+      icon: <BookOutlined />,
+      label: <Link to="/admin/classes">{isAdmin ? 'Danh sách lớp dạy bơi' : 'Lớp được phân công'}</Link>,
     },
     {
       key: 'staff',
@@ -351,7 +360,7 @@ export default function AdminLayout() {
           >
             <Menu
               mode="inline"
-              selectedKeys={[location.pathname]}
+              selectedKeys={[selectedMenuPath]}
               defaultOpenKeys={openKeysForPath(location.pathname)}
               items={menuItems}
               onClick={() => setMobileMenuOpen(false)}
@@ -377,7 +386,7 @@ export default function AdminLayout() {
             </div>
             <Menu
               mode="inline"
-              selectedKeys={[location.pathname]}
+              selectedKeys={[selectedMenuPath]}
               defaultOpenKeys={openKeysForPath(location.pathname)}
               items={menuItems}
               style={{

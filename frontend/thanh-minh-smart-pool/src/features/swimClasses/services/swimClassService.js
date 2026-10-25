@@ -3,6 +3,8 @@ import apiClient from '../../../services/apiClient'
 const BASE = '/api/swim-classes'
 
 export const swimClassService = {
+  getClasses: (params, signal) => apiClient.get(BASE, { params, signal }).then(({ data }) => data),
+  getClassById: (classId, signal) => apiClient.get(`${BASE}/${classId}`, { signal }).then(({ data }) => data),
   createClass: (payload) => apiClient.post(BASE, payload).then(({ data }) => data),
   createSessions: (classId, sessions) => apiClient.post(`${BASE}/${classId}/sessions`, { sessions }).then(({ data }) => data),
   activate: (classId) => apiClient.post(`${BASE}/${classId}/activate`).then(({ data }) => data),

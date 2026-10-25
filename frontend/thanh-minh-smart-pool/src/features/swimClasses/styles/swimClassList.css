@@ -1,0 +1,30 @@
+.swim-class-list-page { display: grid; gap: 20px; min-width: 0; padding-bottom: 28px; }
+.swim-class-list-page--customer { max-width: 1280px; margin: 30px auto 60px; padding: 0 20px; }
+.swim-class-list-header, .swim-class-list-panel { background: #fff; border: 1px solid #dce8ef; border-radius: 12px; box-shadow: 0 2px 8px rgba(16, 49, 74, .045); }
+.swim-class-list-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 30px; }
+.swim-class-list-heading { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.swim-class-list-icon { align-items: center; background: #e6f5fb; border: 1px solid #c4e7f4; border-radius: 13px; color: #0077b6; display: inline-flex; flex: 0 0 50px; font-size: 23px; height: 50px; justify-content: center; }
+.swim-class-list-heading h1 { color: #12344b; font-size: 25px; line-height: 1.25; margin: 0 0 5px; }
+.swim-class-list-heading p { color: #61758a; margin: 0; }
+.swim-class-list-panel { min-width: 0; padding: 22px 26px; }
+.swim-class-list-panel-heading { align-items: center; display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.swim-class-list-panel-heading h2 { color: #173c55; font-size: 17px; margin: 0; }
+.swim-class-list-count { background: #e6f5fb; border-radius: 16px; color: #006da4; font-size: 13px; margin-left: 10px; padding: 3px 9px; }
+.swim-class-list-filter-fields { display: flex; flex-wrap: wrap; gap: 14px; }
+.swim-class-list-filter-fields label { display: grid; flex: 1 1 220px; gap: 7px; max-width: 380px; }
+.swim-class-list-filter-fields label span { color: #294a5e; font-size: 13px; font-weight: 650; }
+.swim-class-list-filter-fields .ant-select { width: 100%; }
+.swim-class-list-name { display: grid; gap: 3px; min-width: 0; }
+.swim-class-list-name strong { color: #173c55; }
+.swim-class-list-name span { color: #61758a; display: -webkit-box; font-size: 12px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.swim-class-list-dates { color: #294a5e; display: grid; font-size: 12px; gap: 2px; }
+.swim-class-list-pagination { display: flex; justify-content: flex-end; padding-top: 18px; }
+.swim-class-list-page .ant-table-wrapper { min-width: 0; }
+@media (max-width: 640px) {
+  .swim-class-list-page { gap: 12px; }
+  .swim-class-list-header { align-items: flex-start; flex-direction: column; padding: 19px; }
+  .swim-class-list-heading h1 { font-size: 20px; }
+  .swim-class-list-panel { padding: 17px 14px; }
+  .swim-class-list-page--customer { margin-top: 18px; padding: 0 12px; }
+  .swim-class-list-pagination { justify-content: center; }
+}
