@@ -58,8 +58,8 @@ public sealed class EquipmentApiTests
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:DefaultConnection"] = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection"),
-            ["ConnectionStrings:Redis"] = "localhost:6379",
+            ["ConnectionStrings:DefaultConnection"] = IntegrationTestDatabase.GetConnectionString(),
+            ["ConnectionStrings:Redis"] = IntegrationTestSettings.RedisConnection,
             ["JwtSettings:SecretKey"] = "equipment-integration-test-signing-key-at-least-32-bytes",
             ["JwtSettings:Issuer"] = "equipment-tests",
             ["JwtSettings:Audience"] = "equipment-tests",

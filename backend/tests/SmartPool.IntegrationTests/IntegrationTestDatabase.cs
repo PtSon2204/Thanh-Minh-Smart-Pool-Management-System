@@ -9,7 +9,6 @@ internal static class IntegrationTestDatabase
 {
     private const string ConnectionVariable = "ConnectionStrings__DefaultConnection";
     private const string EnvironmentPathVariable = "SMARTPOOL_TEST_ENV_PATH";
-    private const string BootstrapVariable = "SMARTPOOL_TEST_BOOTSTRAP";
     private static readonly SemaphoreSlim InitializationGate = new(1, 1);
     private static readonly object DataSourceGate = new();
     private static NpgsqlDataSource? dataSource;
@@ -18,14 +17,13 @@ internal static class IntegrationTestDatabase
 
     public static async Task<DbContextOptions<SmartPoolDbContext>> CreateOptionsAsync()
     {
-        var connectionString = LoadConnectionString();
-        ValidateTarget(connectionString);
+        var connectionString = GetConnectionString();
 
         var options = new DbContextOptionsBuilder<SmartPoolDbContext>()
             .UseNpgsql(GetDataSource(connectionString))
             .Options;
 
-        if (string.Equals(Environment.GetEnvironmentVariable(BootstrapVariable), "true", StringComparison.OrdinalIgnoreCase))
+        if (IntegrationTestSettings.Bootstrap)
         {
             await InitializeAsync(options);
         }
@@ -52,6 +50,13 @@ internal static class IntegrationTestDatabase
         }
     }
 
+    internal static string GetConnectionString()
+    {
+        var connectionString = LoadConnectionString();
+        ValidateTarget(connectionString);
+        return connectionString;
+    }
+
     private static string LoadConnectionString()
     {
         var connectionString = Environment.GetEnvironmentVariable(ConnectionVariable);
@@ -70,39 +75,10 @@ internal static class IntegrationTestDatabase
 
             Env.Load(configuredPath);
         }
-        else
-        {
-            var discoveredPath = FindEnvironmentFile()
-                ?? throw new InvalidOperationException(
-                    $"Set {ConnectionVariable}, set {EnvironmentPathVariable}, or provide src/SmartPool.API/.env.");
-            Env.Load(discoveredPath);
-        }
-
-        return Environment.GetEnvironmentVariable(ConnectionVariable)
-            ?? throw new InvalidOperationException($"{ConnectionVariable} is unavailable.");
+        return Environment.GetEnvironmentVariable(ConnectionVariable) ?? IntegrationTestSettings.DefaultConnection;
     }
 
-    private static string? FindEnvironmentFile()
-    {
-        foreach (var start in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
-        {
-            var directory = new DirectoryInfo(start);
-            while (directory is not null)
-            {
-                var candidate = Path.Combine(directory.FullName, "src", "SmartPool.API", ".env");
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-
-                directory = directory.Parent;
-            }
-        }
-
-        return null;
-    }
-
-    private static void ValidateTarget(string connectionString)
+    internal static void ValidateTarget(string connectionString)
     {
         var connection = new NpgsqlConnectionStringBuilder(connectionString);
         var allowedDatabase = string.Equals(connection.Database, "smartpool_test", StringComparison.Ordinal)
