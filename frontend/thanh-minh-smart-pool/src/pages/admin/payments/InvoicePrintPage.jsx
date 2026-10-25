@@ -4,37 +4,16 @@ import { Spin, Alert } from 'antd'
 import dayjs from 'dayjs'
 import { usePaymentDetail } from '../../../features/payments/hooks/usePayments'
 import logoImg from '../../../assets/logo-be-boi-thanh-minh.png'
+import {
+  formatCurrency,
+  getInvoicePageState,
+  getMethodLabel,
+  getStatusLabel,
+  getTicketCategoryLabel,
+  getTicketStatusLabel,
+  numberToVietnameseWords,
+} from './invoicePrintUtils'
 import './InvoicePrintPage.css'
-
-const formatCurrency = (val) => {
-  if (val === null || val === undefined) return '0 ₫'
-  return new Intl.NumberFormat('vi-VN').format(val) + ' ₫'
-}
-
-const getStatusLabel = (status) => {
-  if (status === 'COMPLETED') return { label: 'Đã thanh toán', cls: 'status-completed' }
-  if (status === 'FAILED') return { label: 'Thất bại', cls: 'status-failed' }
-  return { label: 'Chờ xử lý', cls: 'status-pending' }
-}
-
-const getMethodLabel = (method) => {
-  if (method === 'BANK_TRANSFER' || method === 'TRANSFER') return 'Chuyển khoản ngân hàng'
-  if (method === 'CASH') return 'Tiền mặt'
-  return method || '---'
-}
-
-const getTicketCategoryLabel = (cat) => {
-  if (cat === 'VE_THANG') return 'Vé tháng'
-  if (cat === 'VE_LUOT') return 'Vé lượt'
-  return cat || ''
-}
-
-const getTicketStatusLabel = (st) => {
-  if (st === 'ACTIVE') return 'Còn hiệu lực'
-  if (st === 'EXPIRED') return 'Đã hết hạn'
-  if (st === 'USED') return 'Đã sử dụng'
-  return st || '---'
-}
 
 export default function InvoicePrintPage() {
   const { id } = useParams()
@@ -50,7 +29,9 @@ export default function InvoicePrintPage() {
     }
   }, [data])
 
-  if (isLoading) {
+  const pageState = getInvoicePageState({ data, isLoading, error })
+
+  if (pageState === 'loading') {
     return (
       <div className="invoice-loading">
         <Spin size="large" tip="Đang tải dữ liệu hóa đơn..." />
@@ -58,7 +39,7 @@ export default function InvoicePrintPage() {
     )
   }
 
-  if (error || !data) {
+  if (pageState === 'error') {
     return (
       <div className="invoice-loading">
         <Alert
@@ -327,51 +308,4 @@ export default function InvoicePrintPage() {
       </div>
     </div>
   )
-}
-
-// ---- Helper: convert number to Vietnamese words (simplified) ----
-function numberToVietnameseWords(num) {
-  if (!num || isNaN(num)) return 'Không'
-  const ones = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín']
-  const teens = [
-    'mười', 'mười một', 'mười hai', 'mười ba', 'mười bốn', 'mười lăm',
-    'mười sáu', 'mười bảy', 'mười tám', 'mười chín',
-  ]
-  const tens = [
-    '', '', 'hai mươi', 'ba mươi', 'bốn mươi', 'năm mươi',
-    'sáu mươi', 'bảy mươi', 'tám mươi', 'chín mươi',
-  ]
-
-  const toWords = (n) => {
-    if (n === 0) return ''
-    if (n < 10) return ones[n]
-    if (n < 20) return teens[n - 10]
-    if (n < 100) {
-      const t = Math.floor(n / 10)
-      const o = n % 10
-      return tens[t] + (o ? ' ' + (o === 5 ? 'lăm' : ones[o]) : '')
-    }
-    if (n < 1000) {
-      const h = Math.floor(n / 100)
-      const rem = n % 100
-      return ones[h] + ' trăm' + (rem ? ' ' + toWords(rem) : '')
-    }
-    if (n < 1_000_000) {
-      const th = Math.floor(n / 1000)
-      const rem = n % 1000
-      return toWords(th) + ' nghìn' + (rem ? ' ' + toWords(rem) : '')
-    }
-    if (n < 1_000_000_000) {
-      const m = Math.floor(n / 1_000_000)
-      const rem = n % 1_000_000
-      return toWords(m) + ' triệu' + (rem ? ' ' + toWords(rem) : '')
-    }
-    const b = Math.floor(n / 1_000_000_000)
-    const rem = n % 1_000_000_000
-    return toWords(b) + ' tỷ' + (rem ? ' ' + toWords(rem) : '')
-  }
-
-  const rounded = Math.round(num)
-  const words = toWords(rounded)
-  return words.charAt(0).toUpperCase() + words.slice(1)
 }
