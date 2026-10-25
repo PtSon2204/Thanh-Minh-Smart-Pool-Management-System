@@ -10,46 +10,47 @@ public sealed class ClassRegistrationConfiguration : IEntityTypeConfiguration<Cl
     {
         entity.ToTable("class_registrations", "smart_pool", table =>
         {
-            table.HasCheckConstraint(
-                "ck_class_registrations_review_fields_pair",
-                "(reviewed_by_user_id IS NULL) = (reviewed_at IS NULL)");
+            table.HasCheckConstraint("ck_class_registrations_amount_nonnegative", "amount >= 0");
+            table.HasCheckConstraint("ck_class_registrations_confirmed_after_registered", "confirmed_at IS NULL OR confirmed_at >= registered_at");
+            table.HasCheckConstraint("ck_class_registrations_cancelled_after_registered", "cancelled_at IS NULL OR cancelled_at >= registered_at");
         });
 
         entity.HasKey(e => e.Id).HasName("class_registrations_pkey");
-        entity.HasAlternateKey(e => new { e.Id, e.SessionId }).HasName("ak_class_registrations_id_session_id");
         entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
-        entity.Property(e => e.SessionId).HasColumnName("session_id").IsRequired();
+        entity.Property(e => e.ClassId).HasColumnName("class_id").IsRequired();
         entity.Property(e => e.CustomerUserId).HasColumnName("customer_user_id").IsRequired();
+        entity.Property(e => e.OrderId).HasColumnName("order_id");
+        entity.Property(e => e.Amount).HasColumnName("amount").HasPrecision(18, 2).IsRequired();
         entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
-        entity.Property(e => e.RequestedAt).HasColumnName("requested_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
-        entity.Property(e => e.ReviewedByUserId).HasColumnName("reviewed_by_user_id");
-        entity.Property(e => e.ReviewedAt).HasColumnName("reviewed_at").HasColumnType("timestamp with time zone");
+        entity.Property(e => e.RegisteredAt).HasColumnName("registered_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
+        entity.Property(e => e.ConfirmedAt).HasColumnName("confirmed_at").HasColumnType("timestamp with time zone");
+        entity.Property(e => e.CancelledAt).HasColumnName("cancelled_at").HasColumnType("timestamp with time zone");
         entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
         entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
 
-        entity.HasOne(e => e.Session)
+        entity.HasOne(e => e.Class)
             .WithMany(e => e.Registrations)
-            .HasForeignKey(e => e.SessionId)
+            .HasForeignKey(e => e.ClassId)
             .OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("class_registrations_session_id_fkey");
+            .HasConstraintName("class_registrations_class_id_fkey");
         entity.HasOne(e => e.CustomerUser)
             .WithMany()
             .HasForeignKey(e => e.CustomerUserId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("class_registrations_customer_user_id_fkey");
-        entity.HasOne(e => e.ReviewedByUser)
-            .WithMany()
-            .HasForeignKey(e => e.ReviewedByUserId)
-            .OnDelete(DeleteBehavior.SetNull)
-            .HasConstraintName("class_registrations_reviewed_by_user_id_fkey");
+        entity.HasOne(e => e.Order)
+            .WithMany(e => e.ClassRegistrations)
+            .HasForeignKey(e => e.OrderId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("class_registrations_order_id_fkey");
 
-        entity.HasIndex(e => new { e.SessionId, e.CustomerUserId })
+        entity.HasIndex(e => new { e.ClassId, e.CustomerUserId })
             .IsUnique()
-            .HasDatabaseName("ux_class_registrations_session_customer");
+            .HasDatabaseName("ux_class_registrations_class_customer");
         entity.HasIndex(e => new { e.CustomerUserId, e.Status })
             .HasDatabaseName("ix_class_registrations_customer_status");
-        entity.HasIndex(e => new { e.Status, e.RequestedAt })
-            .HasDatabaseName("ix_class_registrations_status_requested_at");
-        entity.HasIndex(e => e.ReviewedByUserId).HasDatabaseName("ix_class_registrations_reviewed_by_user_id");
+        entity.HasIndex(e => new { e.Status, e.RegisteredAt })
+            .HasDatabaseName("ix_class_registrations_status_registered_at");
+        entity.HasIndex(e => e.OrderId).HasDatabaseName("ix_class_registrations_order_id");
     }
 }

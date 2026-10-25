@@ -25,7 +25,5 @@ public class ClassSession
 
     public virtual User CoachUser { get; set; } = null!;
 
-    public virtual ICollection<ClassRegistration> Registrations { get; set; } = new List<ClassRegistration>();
-
     public virtual ICollection<ClassAttendance> Attendances { get; set; } = new List<ClassAttendance>();
 }
