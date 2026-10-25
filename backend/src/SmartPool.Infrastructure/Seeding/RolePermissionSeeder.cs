@@ -31,7 +31,7 @@ public static class RolePermissionSeeder
                 ["staff"]            = ["read", "create", "update"],
                 ["shifts"]           = ["read", "create", "update"],
                 ["staff_schedule"]   = ["read", "create", "delete"],
-                ["swim_classes"]     = ["create", "update"],
+                ["swim_classes"]     = ["read", "create", "update"],
                 ["class_sessions"]   = ["create"],
                 ["attendance"]       = ["read", "update"],
                 ["ticket_lookup"]    = ["read"],
@@ -75,12 +75,14 @@ public static class RolePermissionSeeder
             {
                 ["profiles"]         = ["read", "update"],
                 ["staff_schedule"]   = ["read"],
+                ["swim_classes"]     = ["read"],
                 ["attendance"]       = ["read", "update"],
             },
 
             ["CUSTOMER"] = new(StringComparer.Ordinal)
             {
                 ["profiles"]         = ["read", "update"],
+                ["swim_classes"]     = ["read"],
                 ["customer_tickets"] = ["read", "create", "update"],
                 ["ticket_types"]     = ["read"],
                 ["vouchers"]         = ["read"],
