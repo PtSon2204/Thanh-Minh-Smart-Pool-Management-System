@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
+using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
@@ -12,16 +14,7 @@ public sealed partial class SwimClassOperations
         string role,
         CancellationToken cancellationToken)
     {
-        var query = context.SwimClasses.AsNoTracking().AsQueryable();
-
-        query = role switch
-        {
-            "ADMIN" => query,
-            "CUSTOMER" => query.Where(swimClass => swimClass.Status == "Active"),
-            "COACH" => query.Where(swimClass =>
-                swimClass.Sessions.Any(session => session.CoachUserId == userId)),
-            _ => throw new UnauthorizedAccessException("Không có quyền xem danh sách lớp dạy bơi.")
-        };
+        var query = VisibleTo(userId, role);
 
         var name = request.SearchTerm?.Trim();
         if (!string.IsNullOrEmpty(name))
@@ -68,6 +61,85 @@ public sealed partial class SwimClassOperations
             TotalCount = totalCount,
             PageIndex = request.PageIndex,
             PageSize = request.PageSize
+        };
+    }
+
+    public async Task<SwimClassDetailResponse?> GetByIdAsync(
+        Guid classId,
+        Guid userId,
+        string role,
+        CancellationToken cancellationToken)
+    {
+        var swimClass = await VisibleTo(userId, role)
+            .Where(item => item.Id == classId)
+            .Select(item => new
+            {
+                item.Id,
+                item.Name,
+                item.Description,
+                item.Capacity,
+                item.Fee,
+                item.CoachUserId,
+                CoachName = item.CoachUser.UserProfile != null
+                    ? item.CoachUser.UserProfile.FullName
+                    : item.CoachUser.Username,
+                item.RegistrationStartAt,
+                item.RegistrationEndAt,
+                item.Status,
+                item.CreatedByUserId,
+                ConfirmedStudentCount = item.Registrations.Count(
+                    registration => registration.Status == "Confirmed"),
+                item.CreatedAt,
+                item.UpdatedAt
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (swimClass is null) return null;
+
+        var sessions = await context.ClassSessions.AsNoTracking()
+            .Where(session => session.ClassId == classId)
+            .OrderBy(session => session.StartsAt)
+            .ThenBy(session => session.Id)
+            .Select(session => new SwimClassSessionDetail(
+                session.Id,
+                session.CoachUserId,
+                session.CoachUser.UserProfile != null
+                    ? session.CoachUser.UserProfile.FullName
+                    : session.CoachUser.Username,
+                session.StartsAt,
+                session.EndsAt,
+                session.Status,
+                session.CancelReason))
+            .ToListAsync(cancellationToken);
+
+        return new SwimClassDetailResponse(
+            swimClass.Id,
+            swimClass.Name,
+            swimClass.Description,
+            swimClass.Capacity,
+            swimClass.Fee,
+            swimClass.CoachUserId,
+            swimClass.CoachName,
+            swimClass.RegistrationStartAt,
+            swimClass.RegistrationEndAt,
+            swimClass.Status,
+            swimClass.CreatedByUserId,
+            swimClass.ConfirmedStudentCount,
+            swimClass.CreatedAt,
+            swimClass.UpdatedAt,
+            sessions);
+    }
+
+    private IQueryable<SwimClass> VisibleTo(Guid userId, string role)
+    {
+        var query = context.SwimClasses.AsNoTracking();
+        return role switch
+        {
+            "ADMIN" => query,
+            "CUSTOMER" => query.Where(swimClass => swimClass.Status == "Active"),
+            "COACH" => query.Where(swimClass =>
+                swimClass.Sessions.Any(session => session.CoachUserId == userId)),
+            _ => throw new UnauthorizedAccessException("Không có quyền xem lớp dạy bơi.")
         };
     }
 }
