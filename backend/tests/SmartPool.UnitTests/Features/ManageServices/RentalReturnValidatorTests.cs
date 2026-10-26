@@ -88,7 +88,6 @@ public sealed class RentalReturnValidatorTests
     public void GivenDamagedBatchWithoutReason_WhenValidating_ThenItIsRejected()
     {
         var command = ValidBatch([]);
-        command.RentalIds = [];
         command.DamagedRentalIds = [Guid.NewGuid()];
         command.Reason = null;
 
@@ -102,7 +101,6 @@ public sealed class RentalReturnValidatorTests
     public void GivenDamagedBatchReasonBeyondItsMaximum_WhenValidating_ThenItIsRejected()
     {
         var command = ValidBatch([]);
-        command.RentalIds = [];
         command.DamagedRentalIds = [Guid.NewGuid()];
         command.Reason = new string('R', 501);
 
