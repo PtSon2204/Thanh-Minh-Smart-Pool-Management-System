@@ -23,7 +23,6 @@ import {
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
-import { onReceiveNotification, startSignalRConnection } from '../../services/signalrClient';
 import authService from '../../features/auth/services/authService';
 import { useAlarmSound } from '../../features/safety/hooks/useAlarmSound';
 import { useSafetyAlertSignalR } from '../../features/safety/hooks/useSafetyAlertSignalR';
@@ -132,15 +131,8 @@ export default function AdminLayout() {
       }
     };
     fetchUnread();
-    startSignalRConnection();
-    const unsub = onReceiveNotification(() => {
-      setUnreadCount((prev) => prev + 1);
-    });
     const interval = setInterval(fetchUnread, 30000);
-    return () => {
-      clearInterval(interval);
-      unsub();
-    };
+    return () => clearInterval(interval);
   }, [location.pathname, isAdmin]);
 
   const roleLabelMap = {
@@ -295,7 +287,11 @@ export default function AdminLayout() {
       children: [
         {
           key: '/admin/statistics/ticket-revenue',
-          label: <Link to="/admin/statistics/ticket-revenue">Thống kê bán vé</Link>,
+          label: <Link to="/admin/statistics/ticket-revenue">Thống kê số tiền vé</Link>,
+        },
+        {
+          key: '/admin/statistics/monthly-tickets',
+          label: <Link to="/admin/statistics/monthly-tickets">Thống kê vé tháng</Link>,
         },
         {
           key: '/admin/statistics/user-count',
@@ -312,6 +308,11 @@ export default function AdminLayout() {
           ),
         },
       ],
+    },
+    isAdmin && {
+      key: '/admin/notifications',
+      icon: <BellOutlined />,
+      label: <Link to="/admin/notifications">Thông báo hệ thống</Link>,
     },
   ].filter(Boolean);
 
@@ -432,12 +433,12 @@ export default function AdminLayout() {
 
             <div className="admin-header-actions">
               {isAdmin && (
-                <Link to="/admin" style={{ display: 'inline-flex' }} title="Thông báo hệ thống (tại Bảng điều khiển)">
+                <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
                   <Badge count={unreadCount} size="small" overflowCount={99}>
                     <Button
                       type="text"
                       shape="circle"
-                      aria-label="Thông báo hệ thống tại Bảng điều khiển"
+                      aria-label="Thông báo hệ thống"
                       icon={<BellOutlined style={{ fontSize: 18 }} />}
                     />
                   </Badge>

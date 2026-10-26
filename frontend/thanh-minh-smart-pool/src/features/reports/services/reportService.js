@@ -12,10 +12,17 @@ export const reportService = {
 
   /**
    * Lấy dữ liệu thống kê doanh thu bán vé
-   * @param {Object} params - { period: 'today' | '7days' | '30days' | 'month' | 'custom', ticketCategory: 'all' | 'VE_LUOT' | 'VE_THANG', fromDate, toDate }
+   * @param {Object} params - { period: 'today' | '7days' | '30days' | 'month' | 'custom', fromDate, toDate }
    */
   getTicketRevenueStatistics: (params = {}) =>
     apiClient.get(`${BASE}/ticket-revenue`, { params }).then((res) => res.data),
+
+  /**
+   * Lấy dữ liệu báo cáo thống kê vé tháng & hội viên
+   * @param {Object} params - { filter: 'all' | 'active' | 'expiring_soon' | 'expired' }
+   */
+  getMonthlyTicketStatistics: (params = {}) =>
+    apiClient.get(`${BASE}/monthly-tickets`, { params }).then((res) => res.data),
 
   /**
    * Lấy dữ liệu báo cáo thống kê sự cố vận hành & an toàn bể bơi
