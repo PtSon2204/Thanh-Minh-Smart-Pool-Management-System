@@ -8,6 +8,7 @@
 .swim-class-detail-icon { align-items: center; background: #e6f5fb; border: 1px solid #c4e7f4; border-radius: 13px; color: #0077b6; display: inline-flex; flex: 0 0 50px; font-size: 23px; height: 50px; justify-content: center; }
 .swim-class-detail-heading small { color: #0077b6; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
 .swim-class-detail-heading h1 { color: #12344b; font-size: 25px; line-height: 1.25; margin: 4px 0 0; }
+.swim-class-detail-header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; }
 .swim-class-detail-panel { min-width: 0; padding: 24px 28px; }
 .swim-class-detail-section-title { align-items: center; color: #0077b6; display: flex; gap: 10px; margin-bottom: 18px; }
 .swim-class-detail-section-title h2 { color: #173c55; font-size: 17px; margin: 0; }
@@ -36,6 +37,7 @@
 .swim-class-timetable-time { color: #13445f; font-size: 12px; line-height: 1.4; }
 .swim-class-timetable-coach { color: #425e70; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .swim-class-timetable-event .ant-tag { justify-self: start; margin: 0; white-space: normal; }
+.swim-class-timetable-edit { justify-self: start; }
 .swim-class-timetable-cancel-reason { color: #b42318; font-size: 11px; line-height: 1.4; margin: 0; overflow-wrap: anywhere; }
 .swim-class-timetable-no-week { background: #f6f9fb; border-radius: 7px; color: #61758a; font-size: 13px; margin: 12px 0 0; padding: 10px 12px; }
 .swim-class-detail-actions > p { color: #61758a; margin: 0 0 16px; }
@@ -43,6 +45,7 @@
 .swim-class-detail-action-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
 .swim-class-detail-session-editor { margin-top: 18px; padding-bottom: 0; }
 .swim-class-detail-session-editor .swim-class-form-card { box-shadow: none; }
+.swim-class-edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 @media (max-width: 640px) {
   .swim-class-detail-page { gap: 12px; }
   .swim-class-detail-page--customer { margin-top: 18px; padding: 0 12px; }

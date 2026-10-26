@@ -14,6 +14,32 @@ export function useCreateSwimClass() {
   return useMutation({ mutationFn: swimClassService.createClass })
 }
 
+export function useUpdateSwimClass() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ classId, payload }) => swimClassService.updateClass(classId, payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['swim-classes'] }),
+        queryClient.invalidateQueries({ queryKey: ['swim-class-detail'] }),
+      ])
+    },
+  })
+}
+
+export function useUpdateClassSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ classId, sessionId, payload }) => swimClassService.updateSession(classId, sessionId, payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['swim-classes'] }),
+        queryClient.invalidateQueries({ queryKey: ['swim-class-detail'] }),
+      ])
+    },
+  })
+}
+
 export function useCreateClassSessions() {
   const queryClient = useQueryClient()
   return useMutation({

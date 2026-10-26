@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Spin } from 'antd'
-import { ArrowLeftOutlined, BookOutlined, ReloadOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useSwimClassDetail } from '../hooks/useSwimClasses'
@@ -8,6 +8,8 @@ import SwimClassStatusTag from './SwimClassStatusTag'
 import SwimClassDetailSummary from './SwimClassDetailSummary'
 import SwimClassSessionSchedule from './SwimClassSessionSchedule'
 import SwimClassDraftActions from './SwimClassDraftActions'
+import SwimClassEditModal from './SwimClassEditModal'
+import SwimClassSessionEditModal from './SwimClassSessionEditModal'
 import '../styles/swimClassManagement.css'
 import '../styles/swimClassDetail.css'
 
@@ -19,6 +21,8 @@ export default function SwimClassDetailView() {
   const backPath = role === 'CUSTOMER' ? '/lop-hoc' : '/admin/classes'
   const detail = useSwimClassDetail(classId, session?.id)
   const [now, setNow] = useState(() => Date.now())
+  const [editingClass, setEditingClass] = useState(false)
+  const [editingSession, setEditingSession] = useState(null)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000)
@@ -44,11 +48,19 @@ export default function SwimClassDetailView() {
       {swimClass && !detail.isError && <>
         <header className="swim-class-detail-header">
           <div className="swim-class-detail-heading"><span className="swim-class-detail-icon"><BookOutlined /></span><div><small>CHI TIẾT LỚP DẠY BƠI</small><h1>{swimClass.name}</h1></div></div>
-          <SwimClassStatusTag status={swimClass.status} />
+          <div className="swim-class-detail-header-actions">
+            {role === 'ADMIN' && <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Chỉnh sửa</Button>}
+            <SwimClassStatusTag status={swimClass.status} />
+          </div>
         </header>
         <SwimClassDetailSummary swimClass={swimClass} now={now} />
-        <SwimClassSessionSchedule sessions={swimClass.sessions || []} now={now} />
+        <SwimClassSessionSchedule sessions={swimClass.sessions || []} now={now}
+          onEditSession={role === 'ADMIN' && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined} />
         {role === 'ADMIN' && swimClass.status === 'Draft' && <SwimClassDraftActions swimClass={swimClass} now={now} />}
+        {role === 'ADMIN' && editingClass && <SwimClassEditModal swimClass={swimClass} open
+          onClose={() => setEditingClass(false)} onReload={() => detail.refetch()} />}
+        {role === 'ADMIN' && editingSession && <SwimClassSessionEditModal classId={swimClass.id} session={editingSession}
+          onClose={() => setEditingSession(null)} onReload={() => detail.refetch()} />}
       </>}
     </div>
   </ConfigProvider>
