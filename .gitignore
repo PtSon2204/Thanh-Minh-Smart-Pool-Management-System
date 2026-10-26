@@ -167,3 +167,7 @@ ARCHITECTURE.md
 
 #bỏ folder docs
 docs/
+.claude/
+
+# Bỏ qua tất cả file Markdown
+*.md
