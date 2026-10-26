@@ -1,6 +1,7 @@
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateClassSessions;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.ActivateSwimClass;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Common.Models;
@@ -24,6 +25,10 @@ public interface ISwimClassOperations
     Task<CreateSwimClassResponse> CreateAsync(
         CreateSwimClassCommand request,
         Guid createdByUserId,
+        CancellationToken cancellationToken);
+
+    Task<UpdateSwimClassResponse> UpdateAsync(
+        UpdateSwimClassCommand request,
         CancellationToken cancellationToken);
 
     Task<CreateClassSessionsResponse> CreateSessionsAsync(
