@@ -19,7 +19,6 @@ import TicketTypePage from "../pages/admin/tickets/TicketTypePage";
 import ServicePage from "../pages/admin/services/ServicePage";
 import RentalPage from "../pages/admin/rentals/RentalPage";
 import VoucherPage from "../pages/admin/vouchers/VoucherPage";
-import NotificationPage from "../pages/admin/notifications/NotificationPage";
 import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatisticsPage";
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
@@ -144,7 +143,7 @@ const router = createBrowserRouter([
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              { path: "notifications", element: <NotificationPage /> },
+              { path: "notifications", element: <Navigate to="/admin" replace /> },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,
