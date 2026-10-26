@@ -53,6 +53,7 @@ export default function TicketScannerPage() {
   const reset = () => {
     setScannerOpen(true)
     setScannerKey((current) => current + 1)
+    setManualCode('')
     setLookup(null)
     setCode(null)
     setInputMode(null)
