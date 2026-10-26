@@ -1,0 +1,55 @@
+.swim-class-detail-page { display: grid; gap: 18px; min-width: 0; padding-bottom: 28px; }
+.swim-class-detail-page--customer { max-width: 1100px; margin: 28px auto 60px; padding: 0 20px; }
+.swim-class-detail-back { justify-self: start; color: #006da4; padding-left: 0; }
+.swim-class-detail-loading { align-items: center; display: flex; justify-content: center; min-height: 260px; }
+.swim-class-detail-header, .swim-class-detail-panel { background: #fff; border: 1px solid #dce8ef; border-radius: 12px; box-shadow: 0 2px 8px rgba(16, 49, 74, .045); }
+.swim-class-detail-header { align-items: center; display: flex; gap: 18px; justify-content: space-between; padding: 24px 30px; }
+.swim-class-detail-heading { align-items: center; display: flex; gap: 16px; min-width: 0; }
+.swim-class-detail-icon { align-items: center; background: #e6f5fb; border: 1px solid #c4e7f4; border-radius: 13px; color: #0077b6; display: inline-flex; flex: 0 0 50px; font-size: 23px; height: 50px; justify-content: center; }
+.swim-class-detail-heading small { color: #0077b6; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
+.swim-class-detail-heading h1 { color: #12344b; font-size: 25px; line-height: 1.25; margin: 4px 0 0; }
+.swim-class-detail-panel { min-width: 0; padding: 24px 28px; }
+.swim-class-detail-section-title { align-items: center; color: #0077b6; display: flex; gap: 10px; margin-bottom: 18px; }
+.swim-class-detail-section-title h2 { color: #173c55; font-size: 17px; margin: 0; }
+.swim-class-detail-section-title > span { background: #e6f5fb; border-radius: 14px; color: #006da4; font-size: 12px; margin-left: auto; padding: 3px 9px; }
+.swim-class-detail-description { color: #425e70; line-height: 1.6; margin: 0 0 22px; white-space: pre-wrap; }
+.swim-class-detail-facts { display: grid; gap: 0 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.swim-class-detail-facts > div { border-top: 1px solid #edf2f5; display: flex; gap: 12px; justify-content: space-between; padding: 14px 0; }
+.swim-class-detail-facts dt { color: #61758a; font-size: 13px; }
+.swim-class-detail-facts dt .anticon { color: #0077b6; margin-right: 6px; }
+.swim-class-detail-facts dd { color: #173c55; font-size: 13px; font-weight: 700; margin: 0; text-align: right; overflow-wrap: anywhere; }
+.swim-class-detail-timezone { color: #61758a; font-size: 12px; margin: 12px 0 0; }
+.swim-class-timetable-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 16px; }
+.swim-class-timetable-nav, .swim-class-timetable-shortcuts { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.swim-class-timetable-nav strong { color: #173c55; font-size: 14px; min-width: 190px; text-align: center; }
+.swim-class-timetable-scroll { border: 1px solid #dce8ef; border-radius: 10px; max-width: 100%; overflow-x: auto; }
+.swim-class-timetable-grid { display: grid; grid-template-columns: repeat(7, minmax(142px, 1fr)); min-width: 994px; }
+.swim-class-timetable-day { border-right: 1px solid #e6edf2; min-width: 0; }
+.swim-class-timetable-day:last-child { border-right: 0; }
+.swim-class-timetable-day-header { align-items: center; background: #f1f7fa; border-bottom: 1px solid #dce8ef; color: #294a5e; display: flex; flex-direction: column; font-size: 12px; gap: 3px; padding: 12px 5px; text-align: center; }
+.swim-class-timetable-day-header strong { color: #173c55; font-size: 15px; }
+.swim-class-timetable-day.is-today .swim-class-timetable-day-header { background: #e2f3fb; color: #006da4; }
+.swim-class-timetable-day-body { display: grid; align-content: start; gap: 8px; min-height: 180px; padding: 9px; }
+.swim-class-timetable-empty-day { color: #8798a6; font-size: 12px; padding-top: 10px; text-align: center; }
+.swim-class-timetable-event { background: #eaf6fc; border: 1px solid #bee4f3; border-left: 3px solid #0077b6; border-radius: 8px; display: grid; gap: 6px; min-width: 0; padding: 10px 8px; }
+.swim-class-timetable-event.is-cancelled { background: #fff5f3; border-color: #f7d1cb; border-left-color: #dc4a37; }
+.swim-class-timetable-time { color: #13445f; font-size: 12px; line-height: 1.4; }
+.swim-class-timetable-coach { color: #425e70; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.swim-class-timetable-event .ant-tag { justify-self: start; margin: 0; white-space: normal; }
+.swim-class-timetable-cancel-reason { color: #b42318; font-size: 11px; line-height: 1.4; margin: 0; overflow-wrap: anywhere; }
+.swim-class-timetable-no-week { background: #f6f9fb; border-radius: 7px; color: #61758a; font-size: 13px; margin: 12px 0 0; padding: 10px 12px; }
+.swim-class-detail-actions > p { color: #61758a; margin: 0 0 16px; }
+.swim-class-detail-actions > .ant-alert { margin-bottom: 16px; }
+.swim-class-detail-action-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.swim-class-detail-session-editor { margin-top: 18px; padding-bottom: 0; }
+.swim-class-detail-session-editor .swim-class-form-card { box-shadow: none; }
+@media (max-width: 640px) {
+  .swim-class-detail-page { gap: 12px; }
+  .swim-class-detail-page--customer { margin-top: 18px; padding: 0 12px; }
+  .swim-class-detail-header { align-items: flex-start; flex-direction: column; padding: 19px; }
+  .swim-class-detail-heading h1 { font-size: 20px; }
+  .swim-class-detail-panel { padding: 19px 16px; }
+  .swim-class-detail-facts { grid-template-columns: 1fr; }
+  .swim-class-timetable-nav { justify-content: center; width: 100%; }
+  .swim-class-timetable-shortcuts { justify-content: center; width: 100%; }
+}

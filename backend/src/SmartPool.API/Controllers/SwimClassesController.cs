@@ -8,6 +8,9 @@ using SmartPool.Application.Features.ManageSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.ActivateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateClassSessions;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
+using SmartPool.Application.Common.Models;
 
 namespace SmartPool.API.Controllers;
 
@@ -15,6 +18,33 @@ namespace SmartPool.API.Controllers;
 [Route("api/swim-classes")]
 public sealed class SwimClassesController(ISender sender) : ControllerBase
 {
+    [HttpGet]
+    [Authorize]
+    [RequirePermission("swim_classes", "read")]
+    [ProducesResponseType(typeof(PagedResponse<SwimClassListItem>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetList(
+        [FromQuery] GetSwimClassesQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        return await ExecuteAsync(async () => Ok(await sender.Send(query, cancellationToken)));
+    }
+
+    [HttpGet("{classId:guid}")]
+    [Authorize]
+    [RequirePermission("swim_classes", "read")]
+    [ProducesResponseType(typeof(SwimClassDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid classId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        return await ExecuteAsync(async () =>
+            Ok(await sender.Send(new GetSwimClassByIdQuery(classId), cancellationToken)));
+    }
+
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [RequirePermission("swim_classes", "create")]
