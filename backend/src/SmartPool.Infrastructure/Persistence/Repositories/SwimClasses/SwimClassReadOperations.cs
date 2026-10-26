@@ -109,7 +109,8 @@ public sealed partial class SwimClassOperations
                 session.StartsAt,
                 session.EndsAt,
                 session.Status,
-                session.CancelReason))
+                session.CancelReason,
+                session.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         return new SwimClassDetailResponse(

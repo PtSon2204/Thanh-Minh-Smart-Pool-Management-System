@@ -3,13 +3,19 @@ using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
+using Microsoft.Extensions.Logging;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
-public sealed partial class SwimClassOperations(SmartPoolDbContext context, TimeProvider timeProvider)
+public sealed partial class SwimClassOperations(
+    SmartPoolDbContext context,
+    TimeProvider timeProvider,
+    INotificationService notificationService,
+    ILogger<SwimClassOperations> logger)
     : ISwimClassOperations
 {
     public async Task<CreateSwimClassResponse> CreateAsync(

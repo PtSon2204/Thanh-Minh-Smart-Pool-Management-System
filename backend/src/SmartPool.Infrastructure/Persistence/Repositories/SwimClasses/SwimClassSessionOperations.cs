@@ -82,7 +82,7 @@ public sealed partial class SwimClassOperations
         }).ToArray();
 
         context.ClassSessions.AddRange(sessions);
-        swimClass.UpdatedAt = now;
+        swimClass.UpdatedAt = NextVersionTimestamp(now, swimClass.UpdatedAt);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -121,7 +121,7 @@ public sealed partial class SwimClassOperations
                 "Lớp cần ít nhất một buổi học sắp tới với Coach đang hoạt động trước khi kích hoạt.");
 
         swimClass.Status = "Active";
-        swimClass.UpdatedAt = now;
+        swimClass.UpdatedAt = NextVersionTimestamp(now, swimClass.UpdatedAt);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new ActivateSwimClassResponse(swimClass.Id, swimClass.Status, swimClass.UpdatedAt);

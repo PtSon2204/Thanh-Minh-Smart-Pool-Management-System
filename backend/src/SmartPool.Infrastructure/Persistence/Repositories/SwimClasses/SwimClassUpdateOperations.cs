@@ -18,6 +18,10 @@ public sealed partial class SwimClassOperations
             .SingleOrDefaultAsync(item => item.Id == request.ClassId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy lớp dạy bơi.");
 
+        if (swimClass.UpdatedAt != request.ExpectedUpdatedAt.UtcDateTime)
+            throw new SmartPool.Application.Features.ManageSwimClasses.SwimClassStateConflictException(
+                "Lớp đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.");
+
         var eligibleCoach = await EligibleCoaches()
             .AnyAsync(employee => employee.UserId == request.CoachUserId, cancellationToken);
         if (!eligibleCoach)
@@ -38,18 +42,50 @@ public sealed partial class SwimClassOperations
         SwimClassUpdatePolicy.EnsureCapacityAndFee(
             request.Capacity, confirmedStudents, swimClass.Fee, request.Fee, hasRegistration);
 
-        swimClass.Name = request.Name.Trim();
-        swimClass.Description = string.IsNullOrWhiteSpace(request.Description)
+        var name = request.Name.Trim();
+        var description = string.IsNullOrWhiteSpace(request.Description)
             ? null : request.Description.Trim();
+        var registrationStartAt = request.RegistrationStartAt.UtcDateTime;
+        var registrationEndAt = request.RegistrationEndAt.UtcDateTime;
+        var changed = swimClass.Name != name || swimClass.Description != description ||
+            swimClass.Capacity != request.Capacity || swimClass.Fee != request.Fee ||
+            swimClass.CoachUserId != request.CoachUserId ||
+            swimClass.RegistrationStartAt != registrationStartAt ||
+            swimClass.RegistrationEndAt != registrationEndAt;
+        var oldCoachUserId = swimClass.CoachUserId;
+
+        swimClass.Name = name;
+        swimClass.Description = description;
         swimClass.Capacity = request.Capacity;
         swimClass.Fee = request.Fee;
         swimClass.CoachUserId = request.CoachUserId;
-        swimClass.RegistrationStartAt = request.RegistrationStartAt.UtcDateTime;
-        swimClass.RegistrationEndAt = request.RegistrationEndAt.UtcDateTime;
-        swimClass.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+        swimClass.RegistrationStartAt = registrationStartAt;
+        swimClass.RegistrationEndAt = registrationEndAt;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        swimClass.UpdatedAt = NextVersionTimestamp(now, swimClass.UpdatedAt);
+
+        var notifications = new List<SmartPool.Domain.Entities.Notification>();
+        if (changed)
+        {
+            var futureCoachIds = await context.ClassSessions.AsNoTracking()
+                .Where(item => item.ClassId == request.ClassId &&
+                    item.Status != "Cancelled" && item.StartsAt > now)
+                .Select(item => item.CoachUserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            futureCoachIds.Add(oldCoachUserId);
+            futureCoachIds.Add(request.CoachUserId);
+            notifications = await AddClassNotificationsAsync(
+                request.ClassId, futureCoachIds,
+                "Thông tin lớp dạy bơi thay đổi",
+                $"Thông tin lớp {name} đã được cập nhật. Vui lòng xem lại chi tiết lớp.",
+                "swim_class_updated", now, cancellationToken);
+        }
 
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        await PublishClassNotificationsAsync(request.ClassId, notifications);
 
         return new UpdateSwimClassResponse(
             swimClass.Id, swimClass.Name, swimClass.Description, swimClass.Capacity,

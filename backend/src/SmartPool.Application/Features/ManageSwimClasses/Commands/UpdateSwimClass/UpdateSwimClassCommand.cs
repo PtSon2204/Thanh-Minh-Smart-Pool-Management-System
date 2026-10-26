@@ -15,6 +15,9 @@ public sealed class UpdateSwimClassCommand : IRequest<UpdateSwimClassResponse>
     public Guid CoachUserId { get; set; }
 
     [JsonConverter(typeof(OffsetRequiredDateTimeOffsetConverter))]
+    public DateTimeOffset ExpectedUpdatedAt { get; set; }
+
+    [JsonConverter(typeof(OffsetRequiredDateTimeOffsetConverter))]
     public DateTimeOffset RegistrationStartAt { get; set; }
 
     [JsonConverter(typeof(OffsetRequiredDateTimeOffsetConverter))]
