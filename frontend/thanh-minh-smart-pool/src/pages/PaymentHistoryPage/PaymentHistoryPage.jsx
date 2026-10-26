@@ -156,6 +156,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
       key: 'paymentMethod',
       width: 150,
       render: (method) => {
+        if (method === 'MANUAL') return <span className="method-pill"><AuditOutlined /><span>Nhân viên xác nhận</span></span>
         const isTransfer = method === 'BANK_TRANSFER' || method === 'TRANSFER'
         return isTransfer ? (
           <span className="method-pill method-transfer">
@@ -359,6 +360,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
               options={[
                 { value: 'CASH', label: 'Tiền mặt' },
                 { value: 'BANK_TRANSFER', label: 'Chuyển khoản' },
+                { value: 'MANUAL', label: 'Nhân viên xác nhận' },
               ]}
             />
           </Col>

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import HomePage from "../pages/HomePage/HomePage";
 import AboutPage from "../pages/AboutPage/AboutPage";
@@ -17,7 +17,6 @@ import DashboardPage from "../pages/admin/dashboard/DashboardPage";
 import OfflineSalesPage from "../pages/admin/tickets/OfflineSalesPage";
 import TicketTypePage from "../pages/admin/tickets/TicketTypePage";
 import ServicePage from "../pages/admin/services/ServicePage";
-import InventoryPage from "../pages/admin/services/InventoryPage";
 import RentalPage from "../pages/admin/rentals/RentalPage";
 import VoucherPage from "../pages/admin/vouchers/VoucherPage";
 import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatisticsPage";
@@ -37,95 +36,183 @@ import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import MaintenancePage from "../pages/admin/maintenance/MaintenancePage";
 import MaintenanceHistoryPage from "../pages/admin/maintenance/MaintenanceHistoryPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
+import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
+import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
+import CreateSwimClassPage from "../pages/admin/classes/CreateSwimClassPage";
+import SwimClassListPage from "../pages/admin/classes/SwimClassListPage";
+import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
+import SwimClassDetailPage from "../pages/admin/classes/SwimClassDetailPage";
+import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
 
 const router = createBrowserRouter([
   {
     element: <MainLayout />,
     children: [
-      { path: '/', element: <HomePage /> },
-      { path: '/gioi-thieu', element: <AboutPage /> },
-      { path: '/bang-gia', element: <PricingPage /> },
-      { path: '/lien-he', element: <ContactPage /> },
+      { path: "/", element: <HomePage /> },
+      { path: "/gioi-thieu", element: <AboutPage /> },
+      { path: "/bang-gia", element: <PricingPage /> },
+      { path: "/lien-he", element: <ContactPage /> },
       {
-        element: <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["CUSTOMER", "ADMIN", "LIFEGUARD", "SALES"]} />,
+        element: (
+          <ProtectedRoute
+            redirectTo="/dang-nhap"
+            allowedRoles={["CUSTOMER", "ADMIN", "LIFEGUARD", "SALES", "COACH"]}
+          />
+        ),
         children: [
-          { path: '/ho-so', element: <ProfilePage /> },
-          { path: '/doi-mat-khau', element: <ChangePasswordPage /> },
-          { path: '/the-cua-toi', element: <MyCardPage /> },
-          { path: '/lich-su-thanh-toan', element: <PaymentHistoryPage isCustomerView /> },
+          { path: "/ho-so", element: <ProfilePage /> },
+          { path: "/doi-mat-khau", element: <ChangePasswordPage /> },
+          { path: "/the-cua-toi", element: <MyCardPage /> },
+          {
+            path: "/lich-su-thanh-toan",
+            element: <PaymentHistoryPage isCustomerView />,
+          },
         ],
       },
-      { path: '*', element: <NotFoundPage /> },
+      {
+        element: (
+          <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["CUSTOMER"]} />
+        ),
+        children: [
+          { path: "/lop-hoc", element: <SwimClassCatalogPage /> },
+          {
+            path: "/lop-hoc/:classId",
+            element: <SwimClassCatalogDetailPage />,
+          },
+        ],
+      },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
-  { path: '/401', element: <Error401Page /> },
-  { path: '/unauthorized', element: <Error401Page /> },
-  { path: '/dang-nhap', element: <AuthPage /> },
-  { path: '/dang-ky', element: <AuthPage /> },
-  { path: '/quen-mat-khau', element: <AuthPage /> },
-  { path: '/xac-nhan-otp/dang-ky', element: <AuthPage /> },
-  { path: '/xac-nhan-otp/quen-mat-khau', element: <AuthPage /> },
-  { path: '/dat-lai-mat-khau', element: <AuthPage /> },
+  { path: "/401", element: <Error401Page /> },
+  { path: "/unauthorized", element: <Error401Page /> },
+  { path: "/dang-nhap", element: <AuthPage /> },
+  { path: "/dang-ky", element: <AuthPage /> },
+  { path: "/quen-mat-khau", element: <AuthPage /> },
+  { path: "/xac-nhan-otp/dang-ky", element: <AuthPage /> },
+  { path: "/xac-nhan-otp/quen-mat-khau", element: <AuthPage /> },
+  { path: "/dat-lai-mat-khau", element: <AuthPage /> },
 
   // Trang in hóa đơn điện tử – standalone, không bọc trong AdminLayout
   {
     element: <ProtectedRoute allowedRoles={["ADMIN", "SALES"]} />,
     children: [
-      { path: '/admin/payments/invoices/:id/print', element: <InvoicePrintPage /> },
+      {
+        path: "/admin/payments/invoices/:id/print",
+        element: <InvoicePrintPage />,
+      },
     ],
   },
 
   {
-    element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />,
+    element: (
+      <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES", "COACH"]} />
+    ),
     children: [
       {
-        path: '/admin',
+        path: "/admin",
         element: <AdminLayout />,
         children: [
-          { path: 'doi-mat-khau', element: <ChangePasswordPage /> },
-          { path: 'staff/schedule', element: <StaffSchedulePage /> },
+          { path: "doi-mat-khau", element: <ChangePasswordPage /> },
+          { path: "staff/schedule", element: <StaffSchedulePage /> },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN", "COACH"]} />,
+            children: [
+              { path: "classes", element: <SwimClassListPage /> },
+              { path: "classes/:classId", element: <SwimClassDetailPage /> },
+            ],
+          },
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
               { index: true, element: <DashboardPage /> },
-              { path: 'equipments/list-equipments', element: <EquipmentPage /> },
-              { path: 'equipments/maintenance', element: <MaintenancePage /> },
-              { path: 'equipments/maintenance-history', element: <MaintenanceHistoryPage /> },
-              { path: 'equipment', element: <Navigate to="/admin/equipments/list-equipments" replace /> },
-              { path: 'staff/shifts', element: <ShiftManagementPage /> },
-              { path: 'notifications', element: <Navigate to="/admin" replace /> },
-              { path: 'statistics/user-count', element: <CustomerStatisticsPage /> },
-              { path: 'statistics/ticket-revenue', element: <TicketRevenueStatisticsPage /> },
-              { path: 'statistics/incidents', element: <IncidentStatisticsPage /> },
-              { path: 'statistics/operations-costs', element: <OperationCostsStatisticsPage /> },
-              { path: 'staff/profiles', element: <StaffProfilesPage /> },
-              { path: 'payments/invoices', element: <PaymentHistoryPage /> },
-              { path: 'staff/attendance', element: <StaffAttendancePage /> },
-              { path: 'staff/attendance/qr', element: <StaffQrAttendancePage /> },
-              { path: 'users', element: <UserManagementPage /> },
-              { path: 'roles/permissions', element: <RolePermissionsPage /> },
+              {
+                path: "equipments/list-equipments",
+                element: <EquipmentPage />,
+              },
+              { path: "equipments/maintenance", element: <MaintenancePage /> },
+              {
+                path: "equipments/maintenance-history",
+                element: <MaintenanceHistoryPage />,
+              },
+              {
+                path: "equipment",
+                element: (
+                  <Navigate to="/admin/equipments/list-equipments" replace />
+                ),
+              },
+              { path: "staff/shifts", element: <ShiftManagementPage /> },
+              { path: "notifications", element: <Navigate to="/admin" replace /> },
+              {
+                path: "statistics/user-count",
+                element: <CustomerStatisticsPage />,
+              },
+              {
+                path: "statistics/ticket-revenue",
+                element: <TicketRevenueStatisticsPage />,
+              },
+              {
+                path: "statistics/incidents",
+                element: <IncidentStatisticsPage />,
+              },
+              {
+                path: "statistics/operations-costs",
+                element: <OperationCostsStatisticsPage />,
+              },
+              { path: "staff/profiles", element: <StaffProfilesPage /> },
+              { path: "classes/create", element: <CreateSwimClassPage /> },
+              { path: "payments/invoices", element: <PaymentHistoryPage /> },
+              { path: "staff/attendance", element: <StaffAttendancePage /> },
+              {
+                path: "staff/attendance/qr",
+                element: <StaffQrAttendancePage />,
+              },
+              { path: "users", element: <UserManagementPage /> },
+              { path: "roles/permissions", element: <RolePermissionsPage /> },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD"]} />,
+            children: [
+              {
+                path: "safety/activate-alerts",
+                element: <ActivateAlertPage />,
+              },
+              { path: "safety/incidents", element: <IncidentHistoryPage /> },
+              {
+                path: "safety/incident-history",
+                element: <IncidentHistoryPage />,
+              },
             ],
           },
           {
             element: <ProtectedRoute allowedRoles={["ADMIN", "SALES"]} />,
             children: [
-              { path: 'tickets/pos', element: <OfflineSalesPage /> },
-              { path: 'tickets/types', element: <TicketTypePage /> },
-              { path: 'tickets/scanQR', element: <TicketScannerPage /> },
-              { path: 'services', element: <ServicePage /> },
-              { path: 'inventory', element: <InventoryPage /> },
-              { path: 'rentals', element: <RentalPage /> },
-              { path: 'coupons', element: <VoucherPage /> },
+              { path: "tickets/pos", element: <OfflineSalesPage /> },
+              { path: "tickets/types", element: <TicketTypePage /> },
+              { path: "tickets/scanQR", element: <TicketScannerPage /> },
+              { path: "services", element: <ServicePage /> },
+              {
+                path: "inventory",
+                element: <Navigate to="/admin/services" replace />,
+              },
+              { path: "rentals", element: <RentalPage /> },
+              { path: "coupons", element: <VoucherPage /> },
             ],
           },
           {
             element: <ProtectedRoute allowedRoles={["SALES", "LIFEGUARD"]} />,
-            children: [{ path: 'staff/attendance/scan', element: <StaffAttendanceScanPage /> }],
+            children: [
+              {
+                path: "staff/attendance/scan",
+                element: <StaffAttendanceScanPage />,
+              },
+            ],
           },
         ],
       },
     ],
   },
-])
+]);
 
-export default router
+export default router;

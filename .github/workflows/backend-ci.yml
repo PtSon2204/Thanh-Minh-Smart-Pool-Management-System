@@ -29,18 +29,28 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 56379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
     env:
       ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=smartpool_test;Username=postgres;Password=postgres
       SMARTPOOL_TEST_BOOTSTRAP: "true"
+      SMARTPOOL_TEST_REDIS_CONNECTION: localhost:56379,abortConnect=true,connectTimeout=5000
     defaults:
       run:
         working-directory: ./backend
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 

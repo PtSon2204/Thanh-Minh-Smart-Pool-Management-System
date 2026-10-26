@@ -188,6 +188,36 @@
   overflow-wrap: anywhere;
 }
 
+.service-items-page .service-item-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.service-items-page .service-item-actions .ant-btn.admin-action-button {
+  flex: 0 0 36px;
+  padding-inline: 0;
+  width: 36px;
+}
+
+.service-items-page .service-desktop-table .ant-table-container {
+  min-width: 0;
+}
+
+.service-items-page .service-desktop-table .ant-table-tbody > tr > td {
+  padding: var(--space-3);
+}
+
+.service-items-page .service-mobile-card .service-item-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.service-items-page .service-mobile-card .service-item-actions .ant-btn {
+  flex: 0 0 44px;
+  height: 44px;
+  width: 44px;
+}
+
 .service-number-cell,
 .inventory-stock-preview strong {
   font-variant-numeric: tabular-nums;

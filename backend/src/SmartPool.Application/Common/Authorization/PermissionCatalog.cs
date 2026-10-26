@@ -8,6 +8,8 @@ public static class PermissionCatalog
         ["staff"] = ["read", "create", "update"],
         ["shifts"] = ["read", "create", "update"],
         ["staff_schedule"] = ["read", "create", "delete"],
+        ["swim_classes"] = ["read", "create", "update"],
+        ["class_sessions"] = ["create"],
         ["attendance"] = ["read", "update"],
         ["ticket_lookup"] = ["read"],
         ["pool_entry"] = ["read", "create"],
@@ -20,7 +22,8 @@ public static class PermissionCatalog
         ["vouchers"] = ["read", "create", "update", "delete"],
         ["payments"] = ["read"],
         ["reports"] = ["read"],
-        ["notifications"] = ["read", "create", "update"]
+        ["notifications"] = ["read", "create", "update"],
+        ["safety_alerts"] = ["create", "read"]
     };
 
     public static IReadOnlyDictionary<string, string[]> All => Modules;

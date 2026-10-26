@@ -30,6 +30,7 @@ public class SmartPoolDbContext : EfDbContext
     public virtual DbSet<Payment> Payments { get; set; }
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<Rental> Rentals { get; set; }
+    public virtual DbSet<RentalTransaction> RentalTransactions { get; set; }
     public virtual DbSet<Role> Roles { get; set; }
     public virtual DbSet<Shift> Shifts { get; set; }
     public virtual DbSet<Ticket> Tickets { get; set; }
@@ -40,6 +41,10 @@ public class SmartPoolDbContext : EfDbContext
     public DbSet<Warning> Warnings { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<WaterQualityLog> WaterQualityLogs { get; set; }
+    public DbSet<SwimClass> SwimClasses { get; set; }
+    public DbSet<ClassSession> ClassSessions { get; set; }
+    public DbSet<ClassRegistration> ClassRegistrations { get; set; }
+    public DbSet<ClassAttendance> ClassAttendances { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +64,7 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new PaymentConfiguration());
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new RentalConfiguration());
+        modelBuilder.ApplyConfiguration(new RentalTransactionConfiguration());
         modelBuilder.ApplyConfiguration(new RoleConfiguration());
         modelBuilder.ApplyConfiguration(new ShiftConfiguration());
         modelBuilder.ApplyConfiguration(new TicketConfiguration());
@@ -71,5 +77,9 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new WarningConfiguration());
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
         modelBuilder.ApplyConfiguration(new WaterQualityLogConfiguration());
+        modelBuilder.ApplyConfiguration(new SwimClassConfiguration());
+        modelBuilder.ApplyConfiguration(new ClassSessionConfiguration());
+        modelBuilder.ApplyConfiguration(new ClassRegistrationConfiguration());
+        modelBuilder.ApplyConfiguration(new ClassAttendanceConfiguration());
     }
 }

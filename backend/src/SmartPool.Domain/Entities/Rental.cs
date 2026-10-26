@@ -17,6 +17,14 @@ public partial class Rental
 
     public decimal? DepositAmount { get; set; }
 
+    public decimal? FeeAmount { get; set; }
+
+    public string? ProductNameSnapshot { get; set; }
+
+    public Guid? SettlementId { get; set; }
+
+    public DateTime? ResolvedAtUtc { get; set; }
+
     public string? Status { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

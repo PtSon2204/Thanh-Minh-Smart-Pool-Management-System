@@ -60,8 +60,9 @@ namespace SmartPool.API
             // Tự động sync role permissions vào DB khi app khởi động.
             // Thêm tính năng mới? Sửa RolePermissionSeeder.cs là đủ.
             await RolePermissionSeeder.SeedAsync(app.Services);
+            await ShiftSeeder.SeedAsync(app.Services);
 
-                app.Run();
+            app.Run();
         }
     }
 }

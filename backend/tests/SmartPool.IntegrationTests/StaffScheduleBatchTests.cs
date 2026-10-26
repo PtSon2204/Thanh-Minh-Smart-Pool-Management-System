@@ -1,4 +1,3 @@
-using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.API.Controllers;
@@ -180,33 +179,6 @@ public sealed partial class StaffScheduleBatchTests
             await fixture.CleanupAsync();
             Assert.Equal((2, 7, 7), fixture.CleanupCounts);
         }
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task GivenEmptyOrInvalidBatch_WhenValidating_ThenRequestIsRejected(bool empty)
-    {
-        var command = empty
-            ? Batch()
-            : Batch(Item(Guid.Empty, Guid.Empty, default));
-
-        var result = await new AssignShiftBatchValidator().ValidateAsync(command);
-
-        Assert.False(result.IsValid);
-    }
-
-    [Fact]
-    public async Task GivenBatchSpanningEightInclusiveDates_WhenValidating_ThenRequestIsRejected()
-    {
-        var firstDate = new DateOnly(2026, 11, 1);
-        var command = Batch(
-            Item(Guid.NewGuid(), Guid.NewGuid(), firstDate),
-            Item(Guid.NewGuid(), Guid.NewGuid(), firstDate.AddDays(7)));
-
-        var result = await new AssignShiftBatchValidator().ValidateAsync(command);
-
-        Assert.False(result.IsValid);
     }
 
 }

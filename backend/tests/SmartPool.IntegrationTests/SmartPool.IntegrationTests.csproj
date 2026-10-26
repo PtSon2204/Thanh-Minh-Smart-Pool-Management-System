@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="appsettings.IntegrationTests.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\SmartPool.API\SmartPool.API.csproj" />
     <ProjectReference Include="..\..\src\SmartPool.Infrastructure\SmartPool.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\SmartPool.Application\SmartPool.Application.csproj" />

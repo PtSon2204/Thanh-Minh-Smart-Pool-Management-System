@@ -182,14 +182,14 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
                     <MoneyCollectOutlined style={{ color: '#16a34a' }} />
                   )}
                   <Text strong>
-                    {isTransfer ? 'Chuyển khoản' : data.paymentMethod === 'CASH' ? 'Tiền mặt' : data.paymentMethod}
+                    {isTransfer ? 'Chuyển khoản' : data.paymentMethod === 'MANUAL' ? 'Nhân viên xác nhận' : data.paymentMethod === 'CASH' ? 'Tiền mặt' : data.paymentMethod}
                   </Text>
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="Mã tham chiếu (Ref)">
                 <Text>{data.transactionRef || '---'}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Số tiền thanh toán">
+              <Descriptions.Item label={data.paymentMethod === 'MANUAL' ? 'Phí thuê đã thu (không gồm cọc)' : 'Số tiền thanh toán'}>
                 <Text strong style={{ color: '#ea580c', fontSize: '16px' }}>
                   {formatCurrency(data.amount)}
                 </Text>

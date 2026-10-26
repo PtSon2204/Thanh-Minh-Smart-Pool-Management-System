@@ -21,6 +21,7 @@ public sealed class ApiAuthorizationTests
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "admin", AuthorizationPolicies.AdminOnly, true)]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "SALES", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "LIFEGUARD", AuthorizationPolicies.AdminOnly, false)]
+    [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "COACH", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "00000000-0000-0000-0000-000000000000", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "not-a-guid", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
     [InlineData(true, "", "ADMIN", AuthorizationPolicies.AdminOnly, false)]
@@ -53,6 +54,7 @@ public sealed class ApiAuthorizationTests
     [InlineData("admin", RoleEnum.ADMIN, true)]
     [InlineData("Sales", RoleEnum.SALES, true)]
     [InlineData("Lifeguard", RoleEnum.LIFEGUARD, true)]
+    [InlineData("Coach", RoleEnum.COACH, true)]
     [InlineData("CUSTOMER", RoleEnum.ADMIN, false)]
     public void HasRole_UsesCaseInsensitiveRoleClaims(string role, RoleEnum expectedRole, bool expected)
     {
@@ -87,7 +89,7 @@ public sealed class ApiAuthorizationTests
             typeof(ServicesController), typeof(StaffsController), typeof(ShiftsController),
             typeof(RentalsController), typeof(PoolAccessController), typeof(TicketController),
             typeof(NotificationsController), typeof(PaymentsController), typeof(ReportsController),
-            typeof(ProfilesController)
+            typeof(ProfilesController), typeof(SwimClassesController)
         };
         var actions = controllers.SelectMany(controller => controller.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
             .Where(method => method.GetCustomAttributes<HttpMethodAttribute>().Any())
@@ -151,6 +153,60 @@ public sealed class ApiAuthorizationTests
             CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", role), null, policy);
 
         Assert.Equal(expected, result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("ADMIN", true, true)]
+    [InlineData("ADMIN", false, false)]
+    [InlineData("COACH", true, false)]
+    public async Task CreateSwimClass_RequiresAdminAndCreatePermission(
+        string role, bool hasPermission, bool expected)
+    {
+        var reader = new Mock<IRolePermissionReader>();
+        reader.Setup(item => item.ReadCurrentPermissionsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hasPermission ? "{\"swim_classes\":[\"create\"]}" : "{}");
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(reader.Object);
+        services.AddApiAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var metadata = typeof(SwimClassesController).GetMethod(nameof(SwimClassesController.Create))!
+            .GetCustomAttributes<AuthorizeAttribute>();
+        var policy = await AuthorizationPolicy.CombineAsync(
+            provider.GetRequiredService<IAuthorizationPolicyProvider>(), metadata);
+        Assert.NotNull(policy);
+
+        var result = await provider.GetRequiredService<IAuthorizationService>().AuthorizeAsync(
+            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", role), null, policy);
+
+        Assert.Equal(expected, result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(nameof(SwimClassesController.CreateSessions), "class_sessions", "create")]
+    [InlineData(nameof(SwimClassesController.Activate), "swim_classes", "update")]
+    public async Task ClassSchedulingEndpoints_RequireAdminAndTheirPermission(
+        string action, string module, string permission)
+    {
+        var reader = new Mock<IRolePermissionReader>();
+        reader.Setup(item => item.ReadCurrentPermissionsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync($"{{\"{module}\":[\"{permission}\"]}}");
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(reader.Object);
+        services.AddApiAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var metadata = typeof(SwimClassesController).GetMethod(action)!
+            .GetCustomAttributes<AuthorizeAttribute>();
+        var policy = await AuthorizationPolicy.CombineAsync(
+            provider.GetRequiredService<IAuthorizationPolicyProvider>(), metadata);
+        Assert.NotNull(policy);
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+
+        Assert.True((await authorization.AuthorizeAsync(
+            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ADMIN"), null, policy)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(
+            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "COACH"), null, policy)).Succeeded);
     }
 
     private static ClaimsPrincipal CreatePrincipal(bool isAuthenticated, string userId, string role)

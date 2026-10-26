@@ -36,6 +36,17 @@ export const registerFormSchema = z
     path: ['givenName'],
   })
 
+export const googleRegisterFormSchema = z.object({
+  username: z.string().trim().min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự.')
+    .max(100, 'Tên đăng nhập không được vượt quá 100 ký tự.')
+    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._]*[A-Za-z0-9])?$/,
+      'Tên đăng nhập chỉ dùng chữ cái, số, dấu chấm và gạch dưới.'),
+  phone: z.string().trim().regex(/^(?:0|\+84)[35789]\d{8}$/,
+    'Số điện thoại Việt Nam không hợp lệ.'),
+  fullName: z.string().trim().min(1, 'Nhập họ và tên.')
+    .max(255, 'Họ và tên không được vượt quá 255 ký tự.'),
+})
+
 export const forgotPasswordFormSchema = z.object({
   email: z.string().trim().max(150, 'Email không được vượt quá 150 ký tự.').email('Email không hợp lệ.'),
 })

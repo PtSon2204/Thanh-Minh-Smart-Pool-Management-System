@@ -91,6 +91,86 @@ public sealed class PoolAccessMonthlyAdmissionTests
         }
     }
 
+    [Theory]
+    [InlineData("inactive_ticket", "TicketInactive")]
+    [InlineData("inactive_type", "TicketTypeInactive")]
+    [InlineData("future_issue", "IssueDateInFuture")]
+    [InlineData("missing_monthly_expiry", "MonthlyExpiryMissing")]
+    [InlineData("expired", "TicketExpired")]
+    [InlineData("unsupported_category", "UnsupportedCategory")]
+    public async Task GivenIneligibleTicket_WhenLookingItUp_ThenTheEligibilityReasonIsReturnedWithoutWriting(string scenario, string reason)
+    {
+        await using var fixture = await AdmissionFixture.CreateAsync();
+        try
+        {
+            switch (scenario)
+            {
+                case "inactive_ticket":
+                    await fixture.Context.Tickets.Where(ticket => ticket.Id == fixture.TicketId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(ticket => ticket.Status, "Used"));
+                    break;
+                case "inactive_type":
+                    await fixture.Context.TicketTypes.Where(type => type.Id == fixture.TicketTypeId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(type => type.IsActive, false));
+                    break;
+                case "future_issue":
+                    await fixture.Context.Tickets.Where(ticket => ticket.Id == fixture.TicketId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(ticket => ticket.IssueDate,
+                            DateTime.SpecifyKind(new DateTime(2026, 10, 6), DateTimeKind.Utc)));
+                    break;
+                case "missing_monthly_expiry":
+                    await fixture.Context.Tickets.Where(ticket => ticket.Id == fixture.TicketId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(ticket => ticket.ExpiryDate, (DateTime?)null));
+                    break;
+                case "expired":
+                    await fixture.Context.Tickets.Where(ticket => ticket.Id == fixture.TicketId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(ticket => ticket.ExpiryDate,
+                            DateTime.SpecifyKind(new DateTime(2026, 10, 4), DateTimeKind.Utc)));
+                    break;
+                case "unsupported_category":
+                    await fixture.Context.TicketTypes.Where(type => type.Id == fixture.TicketTypeId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(type => type.TicketCategory, "UNSUPPORTED"));
+                    break;
+            }
+
+            var response = await fixture.CreateOperations(DateTimeOffset.Parse("2026-10-05T10:00:00Z"))
+                .LookupAsync(fixture.QrCode, CancellationToken.None);
+
+            Assert.False(response.IsValid);
+            Assert.Equal(reason, response.Reason);
+            Assert.Empty(await fixture.ReadTicketLogsAsync());
+        }
+        finally
+        {
+            await fixture.CleanupAsync();
+        }
+    }
+
+    [Fact]
+    public async Task GivenUnknownTicket_WhenConfirming_ThenItWritesOneDeniedLogWithoutATicketId()
+    {
+        await using var fixture = await AdmissionFixture.CreateAsync();
+        var instant = DateTimeOffset.Parse("2026-10-05T10:00:00Z");
+        try
+        {
+            var result = await fixture.CreateOperations(instant).ConfirmAsync(
+                $"UNKNOWN_{Guid.NewGuid():N}", "Qr", fixture.OperatorId, CancellationToken.None);
+            var log = await fixture.Context.EntryLogs.SingleAsync(entry => entry.TicketId == null
+                && entry.OperatorId == fixture.OperatorId && entry.ScanTime == instant.UtcDateTime);
+
+            Assert.False(result.Allowed);
+            Assert.Equal("TicketNotFound", result.Reason);
+            Assert.Equal("Denied", log.Status);
+            Assert.Equal("TicketNotFound", log.Message);
+        }
+        finally
+        {
+            await fixture.Context.EntryLogs.Where(entry => entry.TicketId == null
+                && entry.OperatorId == fixture.OperatorId && entry.ScanTime == instant.UtcDateTime).ExecuteDeleteAsync();
+            await fixture.CleanupAsync();
+        }
+    }
+
     [Fact]
     public async Task GivenAcceptedEntry_WhenConfirmingAgainAfterFiveSeconds_ThenItDeniesAndWritesDeniedLog()
     {

@@ -54,8 +54,6 @@ public sealed class AccessTokenService : IAccessTokenService
         ArgumentNullException.ThrowIfNull(user);
         if (user.Id == Guid.Empty || string.IsNullOrWhiteSpace(role))
             throw new ArgumentException("A user ID and role are required to issue an access token.");
-        if (string.IsNullOrWhiteSpace(user.PasswordHash))
-            throw new ArgumentException("A password hash is required to issue an access token.");
 
         var issuedAtUtc = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()).UtcDateTime;
         var expiresAtUtc = issuedAtUtc.AddMinutes(_expirationMinutes);
@@ -88,17 +86,19 @@ public sealed class AccessTokenService : IAccessTokenService
         try { provided = Convert.FromHexString(tokenPasswordVersion); }
         catch (FormatException) { return false; }
 
-        var passwordHash = await _context.Users.AsNoTracking().Where(user =>
+        var account = await _context.Users.AsNoTracking().Where(user =>
             user.Id == userId && user.IsDeleted != true &&
             user.Status != null && EF.Functions.ILike(user.Status, "ACTIVE") &&
             user.Role != null && user.Role.IsDeleted != true &&
             EF.Functions.ILike(user.Role.Name, tokenRole))
-            .Select(user => user.PasswordHash).FirstOrDefaultAsync(cancellationToken);
-        return !string.IsNullOrWhiteSpace(passwordHash) &&
-            CryptographicOperations.FixedTimeEquals(provided, ComputePasswordVersion(userId, passwordHash));
+            .Select(user => new { user.Id, user.PasswordHash })
+            .FirstOrDefaultAsync(cancellationToken);
+        return account is not null &&
+            CryptographicOperations.FixedTimeEquals(provided,
+                ComputePasswordVersion(userId, account.PasswordHash));
     }
 
-    private byte[] ComputePasswordVersion(Guid userId, string passwordHash) =>
+    private byte[] ComputePasswordVersion(Guid userId, string? passwordHash) =>
         HMACSHA256.HashData(_passwordVersionKey,
             Encoding.UTF8.GetBytes($"{userId:N}:{passwordHash}"));
 }

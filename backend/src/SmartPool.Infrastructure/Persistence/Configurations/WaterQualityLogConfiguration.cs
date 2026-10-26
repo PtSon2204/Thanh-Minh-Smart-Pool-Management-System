@@ -18,7 +18,7 @@ public sealed class WaterQualityLogConfiguration : IEntityTypeConfiguration<Wate
                     OR
                     (source = 'Device' AND inspected_by IS NULL AND equipment_id IS NOT NULL
                         AND source_event_id IS NOT NULL AND length(btrim(source_event_id)) > 0)
-                    """);
+                    """.Replace("\r\n", "\n"));
         });
         entity.HasKey(e => e.Id).HasName("water_quality_logs_pkey");
         entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");

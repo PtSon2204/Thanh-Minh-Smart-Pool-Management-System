@@ -24,7 +24,7 @@ public sealed class UsersController : ControllerBase
         _sender = sender;
     }
 
-    /// <summary>Admin tạo tài khoản với vai trò CUSTOMER, LIFEGUARD, SALES hoặc ADMIN.</summary>
+    /// <summary>Admin tạo tài khoản với vai trò CUSTOMER, LIFEGUARD, SALES, COACH hoặc ADMIN.</summary>
     /// <response code="201">Tạo tài khoản và hồ sơ thành công.</response>
     /// <response code="400">Dữ liệu đầu vào không hợp lệ.</response>
     /// <response code="401">Chưa đăng nhập.</response>
