@@ -4,14 +4,14 @@ public static class SwimClassUpdatePolicy
 {
     public static void EnsureCapacityAndFee(
         int requestedCapacity,
-        int confirmedStudents,
+        int occupiedPlaces,
         decimal currentFee,
         decimal requestedFee,
         bool hasRegistration)
     {
-        if (requestedCapacity < confirmedStudents)
+        if (requestedCapacity < occupiedPlaces)
             throw new SwimClassStateConflictException(
-                $"Sức chứa không được nhỏ hơn {confirmedStudents} học viên đã xác nhận.");
+                $"Sức chứa không được nhỏ hơn {occupiedPlaces} chỗ đã xác nhận hoặc đang chờ thanh toán.");
 
         if (requestedFee != currentFee && hasRegistration)
             throw new SwimClassStateConflictException(

@@ -155,7 +155,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 Message = "Confirmed and tickets generated."
             };
 
-            var orderDetails = await _orderDetailRepo.FindAsync(od => od.OrderId == order.Id, cancellationToken);
+            var orderDetails = await _orderDetailRepo.FindAsync(
+                od => od.OrderId == order.Id && od.ItemType == "TICKET", cancellationToken);
 
             DateTime issueDate = _timeProvider.GetUtcNow().UtcDateTime;
 

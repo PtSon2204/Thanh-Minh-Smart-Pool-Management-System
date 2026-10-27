@@ -84,6 +84,7 @@ public static class RolePermissionSeeder
                 ["profiles"]         = ["read", "update"],
                 ["swim_classes"]     = ["read"],
                 ["customer_tickets"] = ["read", "create", "update"],
+                ["class_registrations"] = ["create"],
                 ["ticket_types"]     = ["read"],
                 ["vouchers"]         = ["read"],
             },

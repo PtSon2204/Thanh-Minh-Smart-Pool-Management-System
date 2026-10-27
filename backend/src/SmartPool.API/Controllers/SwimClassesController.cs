@@ -10,6 +10,7 @@ using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateClassSessi
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassSession;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.RegisterForSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Common.Models;
@@ -61,6 +62,24 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         return await ExecuteAsync(async () =>
             StatusCode(StatusCodes.Status201Created,
                 await sender.Send(command, cancellationToken)));
+    }
+
+    [HttpPost("{classId:guid}/registrations")]
+    [Authorize(Roles = "CUSTOMER")]
+    [RequirePermission("class_registrations", "create")]
+    [ProducesResponseType(typeof(RegisterForSwimClassResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(RegisterForSwimClassResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Register(Guid classId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        return await ExecuteAsync(async () =>
+        {
+            var result = await sender.Send(new RegisterForSwimClassCommand(classId), cancellationToken);
+            return result.ExistingOrder ? Ok(result) : StatusCode(StatusCodes.Status201Created, result);
+        });
     }
 
     [HttpPut("{classId:guid}")]
