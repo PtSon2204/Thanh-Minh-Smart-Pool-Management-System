@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Row,
   Col,
@@ -44,27 +44,40 @@ export default function WaterQualityAnalyticsTab({ onViewDetail }) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'day'), dayjs()]);
-
-  const fetchAnalytics = async () => {
-    try {
-      setLoading(true);
-      const params = {};
-      if (dateRange && dateRange[0] && dateRange[1]) {
-        params.fromDate = dateRange[0].startOf('day').toISOString();
-        params.toDate = dateRange[1].endOf('day').toISOString();
-      }
-      const res = await waterQualityService.getAnalytics(params);
-      setData(res);
-    } catch (err) {
-      console.error('Lỗi tải thống kê chất lượng nước:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [dateRange]);
+    let ignore = false;
+    const params = {};
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      params.fromDate = dateRange[0].startOf('day').toISOString();
+      params.toDate = dateRange[1].endOf('day').toISOString();
+    }
+
+    waterQualityService
+      .getAnalytics(params)
+      .then((res) => {
+        if (!ignore) {
+          setData(res);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error('Lỗi tải thống kê chất lượng nước:', err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [dateRange, reloadKey]);
+
+  const handleManualReload = () => {
+    setLoading(true);
+    setReloadKey((prev) => prev + 1);
+  };
 
   const alertColumns = [
     {
@@ -129,12 +142,15 @@ export default function WaterQualityAnalyticsTab({ onViewDetail }) {
             <Text strong>Khoảng thời gian phân tích:</Text>
             <RangePicker
               value={dateRange}
-              onChange={(dates) => setDateRange(dates)}
+              onChange={(dates) => {
+                setLoading(true);
+                setDateRange(dates);
+              }}
               format="DD/MM/YYYY"
               allowClear={false}
             />
           </Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchAnalytics} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={handleManualReload} loading={loading}>
             Làm mới dữ liệu
           </Button>
         </div>

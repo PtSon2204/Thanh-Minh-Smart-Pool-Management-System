@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Modal,
   Form,
@@ -6,11 +6,9 @@ import {
   DatePicker,
   Radio,
   Input,
-  Alert,
   Tag,
   Space,
   Typography,
-  Divider,
   message,
 } from 'antd';
 import {
@@ -25,11 +23,17 @@ import { waterQualityService } from '../services/waterQualityService';
 
 const { Text, Paragraph } = Typography;
 
+const DEFAULT_PREVIEW = {
+  status: 'WithinLimits',
+  recommendation: 'Chất lượng nước đạt chuẩn (pH: 7.40, Clo: 2.00 mg/L). Duy trì lọc tuần hoàn và đo định kỳ.',
+  findings: [],
+  suggestedChemicals: [],
+};
+
 export default function CreateWaterQualityLogModal({ visible, onCancel, onSuccess }) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [preview, setPreview] = useState(null);
-  const [evaluating, setEvaluating] = useState(false);
+  const [preview, setPreview] = useState(DEFAULT_PREVIEW);
 
   // Live evaluation based on values
   const handleValuesChange = useCallback((changedValues, allValues) => {
@@ -38,7 +42,6 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
     const isClear = allValues.isWaterClear;
 
     if (ph !== undefined && ph !== null && cl !== undefined && cl !== null && ph >= 0 && cl >= 0) {
-      setEvaluating(true);
       waterQualityService
         .previewEvaluation({
           phValue: Number(ph),
@@ -46,30 +49,16 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
           isWaterClear: isClear,
         })
         .then((res) => setPreview(res))
-        .catch(() => setPreview(null))
-        .finally(() => setEvaluating(false));
+        .catch(() => setPreview(null));
     } else {
       setPreview(null);
     }
   }, []);
 
-  useEffect(() => {
-    if (visible) {
-      form.resetFields();
-      form.setFieldsValue({
-        inspectionTime: dayjs(),
-        phValue: 7.4,
-        freeChlorineMgL: 2.0,
-        isWaterClear: true,
-      });
-      handleValuesChange({}, {
-        inspectionTime: dayjs(),
-        phValue: 7.4,
-        freeChlorineMgL: 2.0,
-        isWaterClear: true,
-      });
-    }
-  }, [visible, form, handleValuesChange]);
+  const handleModalAfterClose = () => {
+    form.resetFields();
+    setPreview(DEFAULT_PREVIEW);
+  };
 
   const handleSubmit = async () => {
     try {
@@ -142,6 +131,7 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
       open={visible}
       onOk={handleSubmit}
       onCancel={onCancel}
+      afterClose={handleModalAfterClose}
       confirmLoading={submitting}
       okText="Lưu phiếu đo"
       cancelText="Hủy"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -9,7 +9,6 @@ import {
   Select,
   Typography,
   Tabs,
-  Badge,
   Tooltip,
 } from 'antd';
 import {
@@ -38,6 +37,7 @@ export default function WaterQualityPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Filters
   const [dateRange, setDateRange] = useState(null);
@@ -48,45 +48,56 @@ export default function WaterQualityPage() {
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const fetchLogs = async () => {
-    try {
-      setLoading(true);
-      const params = {
-        pageIndex,
-        pageSize,
-      };
-      if (dateRange && dateRange[0] && dateRange[1]) {
-        params.fromDate = dateRange[0].startOf('day').toISOString();
-        params.toDate = dateRange[1].endOf('day').toISOString();
-      }
-      if (statusFilter) {
-        params.status = statusFilter;
-      }
-
-      const res = await waterQualityService.getLogs(params);
-      setLogs(res.items || []);
-      setTotalCount(res.totalCount || 0);
-    } catch (err) {
-      console.error('Lỗi tải danh sách phiếu đo nước:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (activeTab === 'logs') {
-      fetchLogs();
+    if (activeTab !== 'logs') return undefined;
+
+    let ignore = false;
+    const params = {
+      pageIndex,
+      pageSize,
+    };
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      params.fromDate = dateRange[0].startOf('day').toISOString();
+      params.toDate = dateRange[1].endOf('day').toISOString();
     }
-  }, [pageIndex, pageSize, dateRange, statusFilter, activeTab]);
+    if (statusFilter) {
+      params.status = statusFilter;
+    }
+
+    waterQualityService
+      .getLogs(params)
+      .then((res) => {
+        if (!ignore) {
+          setLogs(res.items || []);
+          setTotalCount(res.totalCount || 0);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error('Lỗi tải danh sách phiếu đo nước:', err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [pageIndex, pageSize, dateRange, statusFilter, activeTab, reloadKey]);
 
   const handleOpenDetail = (record) => {
     setSelectedLog(record);
     setDetailDrawerVisible(true);
   };
 
+  const handleManualRefresh = () => {
+    setLoading(true);
+    setReloadKey((prev) => prev + 1);
+  };
+
   const handleCreateSuccess = () => {
     setPageIndex(1);
-    fetchLogs();
+    handleManualRefresh();
   };
 
   const columns = [
@@ -278,7 +289,10 @@ export default function WaterQualityPage() {
                   <Space wrap>
                     <RangePicker
                       value={dateRange}
-                      onChange={setDateRange}
+                      onChange={(dates) => {
+                        setLoading(true);
+                        setDateRange(dates);
+                      }}
                       format="DD/MM/YYYY"
                       placeholder={['Từ ngày', 'Đến ngày']}
                     />
@@ -287,7 +301,10 @@ export default function WaterQualityPage() {
                       allowClear
                       style={{ width: 160 }}
                       value={statusFilter}
-                      onChange={setStatusFilter}
+                      onChange={(val) => {
+                        setLoading(true);
+                        setStatusFilter(val);
+                      }}
                       options={[
                         { value: 'WithinLimits', label: 'Đạt chuẩn' },
                         { value: 'Warning', label: 'Cảnh báo' },
@@ -297,7 +314,7 @@ export default function WaterQualityPage() {
                   </Space>
 
                   <Space>
-                    <Button icon={<ReloadOutlined />} onClick={fetchLogs} loading={loading}>
+                    <Button icon={<ReloadOutlined />} onClick={handleManualRefresh} loading={loading}>
                       Làm mới
                     </Button>
                   </Space>
@@ -314,6 +331,7 @@ export default function WaterQualityPage() {
                     total: totalCount,
                     showSizeChanger: true,
                     onChange: (page, size) => {
+                      setLoading(true);
                       setPageIndex(page);
                       setPageSize(size);
                     },
