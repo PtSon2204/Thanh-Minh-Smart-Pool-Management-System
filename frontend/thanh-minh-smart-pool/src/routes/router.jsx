@@ -44,6 +44,7 @@ import SwimClassListPage from "../pages/admin/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
 import SwimClassDetailPage from "../pages/admin/classes/SwimClassDetailPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
+import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 
 const router = createBrowserRouter([
   {
@@ -188,6 +189,7 @@ const router = createBrowserRouter([
                 path: "safety/incident-history",
                 element: <IncidentHistoryPage />,
               },
+              { path: "water-quality", element: <WaterQualityPage /> },
             ],
           },
           {

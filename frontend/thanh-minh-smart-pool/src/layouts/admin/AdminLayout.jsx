@@ -19,6 +19,7 @@ import {
   SecurityScanOutlined,
   AlertOutlined,
   BookOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
@@ -247,6 +248,11 @@ export default function AdminLayout() {
           label: <Link to="/admin/safety/incidents">Lịch sử sự cố</Link>,
         },
       ].filter(Boolean),
+    },
+    (isAdmin || isLifeguard) && {
+      key: '/admin/water-quality',
+      icon: <ExperimentOutlined />,
+      label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
     },
     isAdmin && {
       key: 'equipments',

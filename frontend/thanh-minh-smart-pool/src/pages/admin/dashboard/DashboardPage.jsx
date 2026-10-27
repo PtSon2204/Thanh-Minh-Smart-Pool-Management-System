@@ -53,6 +53,9 @@ const renderTypeTag = (type) => {
   if (t === 'WARNING') {
     return <Tag color="gold">Cảnh báo</Tag>;
   }
+  if (t === 'CUSTOMER' || t === 'USER') {
+    return <Tag color="cyan">Khách hàng</Tag>;
+  }
   return <Tag color="blue">Hệ thống</Tag>;
 };
 
@@ -193,6 +196,18 @@ export default function DashboardPage() {
             totalTicketsSold: res.totalTicketsSold ?? prev.totalTicketsSold,
             totalRevenue: res.totalRevenue ?? prev.totalRevenue,
             revenueGrowthRate: res.revenueGrowthRate ?? prev.revenueGrowthRate,
+          }));
+        });
+      }
+
+      // Nếu có khách hàng mới đăng ký, tự động cập nhật số liệu tổng khách hàng
+      if (t === 'CUSTOMER' || t === 'USER' || t.includes('CUSTOMER')) {
+        reportService.getCustomerStatistics({ period: 'month' }).then((res) => {
+          if (!isMounted || !res) return;
+          setStats((prev) => ({
+            ...prev,
+            totalCustomers: res.totalCustomers ?? prev.totalCustomers,
+            customerGrowthRate: res.growthRate ?? prev.growthRate,
           }));
         });
       }
