@@ -19,10 +19,12 @@ import {
   SecurityScanOutlined,
   AlertOutlined,
   BookOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
+import { onReceiveNotification, startSignalRConnection } from '../../services/signalrClient';
 import authService from '../../features/auth/services/authService';
 import { useAlarmSound } from '../../features/safety/hooks/useAlarmSound';
 import { useSafetyAlertSignalR } from '../../features/safety/hooks/useSafetyAlertSignalR';
@@ -131,8 +133,15 @@ export default function AdminLayout() {
       }
     };
     fetchUnread();
+    startSignalRConnection();
+    const unsub = onReceiveNotification(() => {
+      setUnreadCount((prev) => prev + 1);
+    });
     const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unsub();
+    };
   }, [location.pathname, isAdmin]);
 
   const roleLabelMap = {
@@ -240,6 +249,11 @@ export default function AdminLayout() {
         },
       ].filter(Boolean),
     },
+    (isAdmin || isLifeguard) && {
+      key: '/admin/water-quality',
+      icon: <ExperimentOutlined />,
+      label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
+    },
     isAdmin && {
       key: 'equipments',
       icon: <ToolOutlined />,
@@ -308,11 +322,6 @@ export default function AdminLayout() {
           ),
         },
       ],
-    },
-    isAdmin && {
-      key: '/admin/notifications',
-      icon: <BellOutlined />,
-      label: <Link to="/admin/notifications">Thông báo hệ thống</Link>,
     },
   ].filter(Boolean);
 
@@ -433,12 +442,12 @@ export default function AdminLayout() {
 
             <div className="admin-header-actions">
               {isAdmin && (
-                <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
+                <Link to="/admin" style={{ display: 'inline-flex' }} title="Thông báo hệ thống (tại Bảng điều khiển)">
                   <Badge count={unreadCount} size="small" overflowCount={99}>
                     <Button
                       type="text"
                       shape="circle"
-                      aria-label="Thông báo hệ thống"
+                      aria-label="Thông báo hệ thống tại Bảng điều khiển"
                       icon={<BellOutlined style={{ fontSize: 18 }} />}
                     />
                   </Badge>

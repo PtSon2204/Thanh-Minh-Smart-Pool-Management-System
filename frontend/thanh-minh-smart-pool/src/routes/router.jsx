@@ -19,7 +19,6 @@ import TicketTypePage from "../pages/admin/tickets/TicketTypePage";
 import ServicePage from "../pages/admin/services/ServicePage";
 import RentalPage from "../pages/admin/rentals/RentalPage";
 import VoucherPage from "../pages/admin/vouchers/VoucherPage";
-import NotificationPage from "../pages/admin/notifications/NotificationPage";
 import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatisticsPage";
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
@@ -45,6 +44,7 @@ import SwimClassListPage from "../pages/admin/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
 import SwimClassDetailPage from "../pages/admin/classes/SwimClassDetailPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
+import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 
 const router = createBrowserRouter([
   {
@@ -144,7 +144,7 @@ const router = createBrowserRouter([
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              { path: "notifications", element: <NotificationPage /> },
+              { path: "notifications", element: <Navigate to="/admin" replace /> },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,
@@ -189,6 +189,7 @@ const router = createBrowserRouter([
                 path: "safety/incident-history",
                 element: <IncidentHistoryPage />,
               },
+              { path: "water-quality", element: <WaterQualityPage /> },
             ],
           },
           {

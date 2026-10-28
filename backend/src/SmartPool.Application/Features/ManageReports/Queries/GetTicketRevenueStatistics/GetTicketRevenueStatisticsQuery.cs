@@ -11,4 +11,9 @@ public sealed record GetTicketRevenueStatisticsQuery : IRequest<TicketRevenueSta
     public string Period { get; init; } = "7days";
     public DateTime? FromDate { get; init; }
     public DateTime? ToDate { get; init; }
+
+    /// <summary>
+    /// Phân loại vé: "all" (Tất cả), "VE_LUOT" (Vé lượt), "VE_THANG" (Vé tháng)
+    /// </summary>
+    public string? TicketCategory { get; init; } = "all";
 }

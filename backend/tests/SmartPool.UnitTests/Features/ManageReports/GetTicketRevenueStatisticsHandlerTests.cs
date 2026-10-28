@@ -488,4 +488,70 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         Assert.Single(result.RecentTransactions);
         Assert.Equal("Khách vãng lai", result.RecentTransactions[0].CustomerName);
     }
+
+    [Fact(DisplayName = "UTCID16 (N) - Lọc theo vé lượt (TicketCategory = 'VE_LUOT') -> Chỉ tính doanh thu và số lượng của vé lượt")]
+    public async Task UTCID16_FilterBySingleTicketCategory_OnlyCalculatesSingleTickets()
+    {
+        var now = DateTime.UtcNow;
+        var ttSingle = new TicketType { Id = Guid.NewGuid(), Name = "Vé lượt người lớn", Price = 50_000, TicketCategory = "VE_LUOT" };
+        var ttMonthly = new TicketType { Id = Guid.NewGuid(), Name = "Vé tháng người lớn", Price = 500_000, TicketCategory = "VE_THANG" };
+
+        var o1 = new Order { Id = Guid.NewGuid(), FinalAmount = 50_000, IsDeleted = false, CreatedAt = now };
+        var o2 = new Order { Id = Guid.NewGuid(), FinalAmount = 500_000, IsDeleted = false, CreatedAt = now };
+
+        var details = new List<OrderDetail>
+        {
+            new() { Id = Guid.NewGuid(), OrderId = o1.Id, ItemId = ttSingle.Id, ItemType = "TICKET", Quantity = 2, UnitPrice = 50_000 },
+            new() { Id = Guid.NewGuid(), OrderId = o2.Id, ItemId = ttMonthly.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 500_000 }
+        };
+
+        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
+        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
+        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+
+        var handler = CreateHandler();
+        var query = new GetTicketRevenueStatisticsQuery { Period = "today", TicketCategory = "VE_LUOT" };
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        Assert.Equal(2, result.TotalTicketsSold);
+        Assert.Equal(100_000m, result.TotalRevenue);
+        Assert.All(result.TicketTypeRevenues, r => Assert.Contains("lượt", r.Name.ToLowerInvariant()));
+    }
+
+    [Fact(DisplayName = "UTCID17 (N) - Lọc theo vé tháng (TicketCategory = 'VE_THANG') -> Chỉ tính doanh thu và số lượng của vé tháng")]
+    public async Task UTCID17_FilterByMonthlyTicketCategory_OnlyCalculatesMonthlyTickets()
+    {
+        var now = DateTime.UtcNow;
+        var ttSingle = new TicketType { Id = Guid.NewGuid(), Name = "Vé lượt người lớn", Price = 50_000, TicketCategory = "VE_LUOT" };
+        var ttMonthly = new TicketType { Id = Guid.NewGuid(), Name = "Vé tháng người lớn", Price = 500_000, TicketCategory = "VE_THANG" };
+
+        var o1 = new Order { Id = Guid.NewGuid(), FinalAmount = 50_000, IsDeleted = false, CreatedAt = now };
+        var o2 = new Order { Id = Guid.NewGuid(), FinalAmount = 500_000, IsDeleted = false, CreatedAt = now };
+
+        var details = new List<OrderDetail>
+        {
+            new() { Id = Guid.NewGuid(), OrderId = o1.Id, ItemId = ttSingle.Id, ItemType = "TICKET", Quantity = 2, UnitPrice = 50_000 },
+            new() { Id = Guid.NewGuid(), OrderId = o2.Id, ItemId = ttMonthly.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 500_000 }
+        };
+
+        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
+        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
+        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+
+        var handler = CreateHandler();
+        var query = new GetTicketRevenueStatisticsQuery { Period = "today", TicketCategory = "VE_THANG" };
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        Assert.Equal(1, result.TotalTicketsSold);
+        Assert.Equal(500_000m, result.TotalRevenue);
+        Assert.All(result.TicketTypeRevenues, r => Assert.Contains("tháng", r.Name.ToLowerInvariant()));
+    }
 }

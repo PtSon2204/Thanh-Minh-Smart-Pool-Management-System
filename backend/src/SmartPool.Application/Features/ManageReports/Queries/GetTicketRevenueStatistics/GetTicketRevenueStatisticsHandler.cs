@@ -44,6 +44,11 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
         var now = DateTime.UtcNow;
         var (fromDate, toDate, daysCount) = ResolveDateRange(request, now);
 
+        var categoryFilter = request.TicketCategory?.Trim().ToUpperInvariant() ?? "ALL";
+        bool isAll = categoryFilter == "ALL" || string.IsNullOrEmpty(categoryFilter);
+        bool isSingle = !isAll && (categoryFilter == "VE_LUOT" || categoryFilter == "SINGLE" || categoryFilter == "LUOT");
+        bool isMonthly = !isAll && (categoryFilter == "VE_THANG" || categoryFilter == "MONTHLY" || categoryFilter == "THANG");
+
         // Lấy dữ liệu từ DB
         var allOrders = (await _orderRepo.GetAllAsync(cancellationToken)).ToList();
         var allOrderDetails = (await _orderDetailRepo.GetAllAsync(cancellationToken)).ToList();
@@ -53,31 +58,68 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
         var allUsers = (await _userRepo.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
         var allProfiles = (await _profileRepo.GetAllAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
 
-        // Lọc orders trong khoảng thời gian & có trạng thái hợp lệ (không bị xóa)
-        var filteredOrders = allOrders
+        bool MatchesCategory(TicketType? tt)
+        {
+            if (isAll) return true;
+            if (tt == null) return false;
+            var cat = tt.TicketCategory?.Trim().ToUpperInvariant() ?? "";
+            var name = tt.Name?.ToLowerInvariant() ?? "";
+            if (isSingle)
+                return cat == "VE_LUOT" || cat == "SINGLE" || name.Contains("lượt") || name.Contains("ngày") || name.Contains("ngay");
+            if (isMonthly)
+                return cat == "VE_THANG" || cat == "MONTHLY" || name.Contains("tháng") || name.Contains("thang");
+            return true;
+        }
+
+        // 1. Lọc orders trong khoảng thời gian & có trạng thái hợp lệ (không bị xóa)
+        var dateFilteredOrders = allOrders
             .Where(o => o.IsDeleted != true && o.CreatedAt >= fromDate && o.CreatedAt <= toDate)
             .ToList();
+        var dateOrderIds = dateFilteredOrders.Select(o => o.Id).ToHashSet();
+
+        // 2. OrderDetails liên quan đến ticket trong các order hợp lệ & khớp category
+        var ticketDetails = allOrderDetails
+            .Where(od => dateOrderIds.Contains(od.OrderId) &&
+                         od.ItemType.Equals("Ticket", StringComparison.OrdinalIgnoreCase) &&
+                         (!allTicketTypes.TryGetValue(od.ItemId, out var tt) || MatchesCategory(tt)))
+            .ToList();
+
+        var matchedOrderIds = ticketDetails.Select(od => od.OrderId).ToHashSet();
+
+        var filteredOrders = isAll
+            ? dateFilteredOrders
+            : dateFilteredOrders.Where(o => matchedOrderIds.Contains(o.Id)).ToList();
 
         // Lọc orders kỳ trước để tính growth rate
         var prevDays = (toDate - fromDate).Days;
         var prevFrom = fromDate.AddDays(-prevDays);
-        var prevOrders = allOrders
+        var prevDateOrders = allOrders
             .Where(o => o.IsDeleted != true && o.CreatedAt >= prevFrom && o.CreatedAt < fromDate)
             .ToList();
+        var prevDateOrderIds = prevDateOrders.Select(o => o.Id).ToHashSet();
 
-        // OrderDetails liên quan đến ticket (ItemType = "Ticket")
-        var ticketOrderIds = filteredOrders.Select(o => o.Id).ToHashSet();
-        var ticketDetails = allOrderDetails
-            .Where(od => ticketOrderIds.Contains(od.OrderId) && 
-                   od.ItemType.Equals("Ticket", StringComparison.OrdinalIgnoreCase))
+        var prevTicketDetails = allOrderDetails
+            .Where(od => prevDateOrderIds.Contains(od.OrderId) &&
+                         od.ItemType.Equals("Ticket", StringComparison.OrdinalIgnoreCase) &&
+                         (!allTicketTypes.TryGetValue(od.ItemId, out var tt) || MatchesCategory(tt)))
             .ToList();
+        var prevMatchedOrderIds = prevTicketDetails.Select(od => od.OrderId).ToHashSet();
+
+        var prevOrders = isAll
+            ? prevDateOrders
+            : prevDateOrders.Where(o => prevMatchedOrderIds.Contains(o.Id)).ToList();
 
         // === 1. KPI CARDS ===
         int totalTicketsSold = ticketDetails.Sum(od => od.Quantity);
-        decimal totalRevenue = filteredOrders.Sum(o => o.FinalAmount);
+        decimal totalRevenue = isAll
+            ? filteredOrders.Sum(o => o.FinalAmount)
+            : ticketDetails.Sum(od => od.UnitPrice * od.Quantity);
         decimal avgOrderValue = filteredOrders.Count > 0 ? totalRevenue / filteredOrders.Count : 0;
 
-        decimal prevRevenue = prevOrders.Sum(o => o.FinalAmount);
+        decimal prevRevenue = isAll
+            ? prevOrders.Sum(o => o.FinalAmount)
+            : prevTicketDetails.Sum(od => od.UnitPrice * od.Quantity);
+
         double growthRate = prevRevenue > 0
             ? (double)((totalRevenue - prevRevenue) / prevRevenue * 100)
             : (totalRevenue > 0 ? 100 : 0);
@@ -93,7 +135,7 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
             dailyRevenues.Add(new DailyRevenueDto
             {
                 Date = day.ToString("dd/MM"),
-                Revenue = dayOrders.Sum(o => o.FinalAmount),
+                Revenue = isAll ? dayOrders.Sum(o => o.FinalAmount) : dayTicketDetails.Sum(od => od.UnitPrice * od.Quantity),
                 TicketCount = dayTicketDetails.Sum(od => od.Quantity)
             });
         }
@@ -101,7 +143,8 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
         // === 3. TICKET TYPE SALES (Pie Chart) ===
         var ticketTypeSalesColors = new[] { "#0284c7", "#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#ec4899", "#6366f1" };
         var ticketsByType = allTickets
-            .Where(t => t.IsDeleted != true && t.CreatedAt >= fromDate && t.CreatedAt <= toDate)
+            .Where(t => t.IsDeleted != true && t.CreatedAt >= fromDate && t.CreatedAt <= toDate &&
+                        allTicketTypes.TryGetValue(t.TicketTypeId, out var tt) && MatchesCategory(tt))
             .GroupBy(t => t.TicketTypeId)
             .Select((g, idx) =>
             {
@@ -159,7 +202,9 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
             {
                 var orderDetails = allOrderDetails.Where(od => od.OrderId == o.Id).ToList();
                 var ticketDetail = orderDetails.FirstOrDefault(od =>
-                    od.ItemType.Equals("Ticket", StringComparison.OrdinalIgnoreCase));
+                    od.ItemType.Equals("Ticket", StringComparison.OrdinalIgnoreCase) &&
+                    allTicketTypes.TryGetValue(od.ItemId, out var tt) && MatchesCategory(tt))
+                    ?? orderDetails.FirstOrDefault(od => od.ItemType.Equals("Ticket", StringComparison.OrdinalIgnoreCase));
 
                 string ticketTypeName = "—";
                 if (ticketDetail != null && allTicketTypes.TryGetValue(ticketDetail.ItemId, out var tt))
@@ -185,18 +230,19 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
                     Phone = o.CustomerPhone,
                     TicketType = ticketTypeName,
                     Quantity = orderDetails.Sum(od => od.Quantity),
-                    TotalAmount = o.FinalAmount,
+                    TotalAmount = isAll ? o.FinalAmount : orderDetails.Where(od => allTicketTypes.TryGetValue(od.ItemId, out var tt) && MatchesCategory(tt)).Sum(od => od.UnitPrice * od.Quantity),
                     PaymentMethod = paymentMethod,
                     Status = o.Status ?? "Pending",
                     CreatedAt = o.CreatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—"
                 };
             })
+            .Where(t => isAll || t.TotalAmount > 0)
             .ToList();
 
         // Fallback: nếu không có data thực, trả demo data
         if (!filteredOrders.Any())
         {
-            return BuildDemoResponse(fromDate, toDate, daysCount);
+            return BuildDemoResponse(fromDate, toDate, daysCount, isSingle, isMonthly);
         }
 
         return new TicketRevenueStatisticsResponse
@@ -232,7 +278,8 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
     /// <summary>
     /// Trả về dữ liệu demo khi chưa có giao dịch thực.
     /// </summary>
-    private static TicketRevenueStatisticsResponse BuildDemoResponse(DateTime from, DateTime to, int daysCount)
+    private static TicketRevenueStatisticsResponse BuildDemoResponse(
+        DateTime from, DateTime to, int daysCount, bool isSingle, bool isMonthly)
     {
         var rng = new Random(42);
         var dailyRevenues = new List<DailyRevenueDto>();
@@ -241,8 +288,9 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
 
         for (var day = from.Date; day <= to.Date; day = day.AddDays(1))
         {
-            var ticketCount = rng.Next(8, 45);
-            var revenue = ticketCount * rng.Next(35000, 85000);
+            var ticketCount = isMonthly ? rng.Next(2, 10) : (isSingle ? rng.Next(8, 35) : rng.Next(8, 45));
+            var pricePerTicket = isMonthly ? rng.Next(150000, 250000) : (isSingle ? rng.Next(35000, 60000) : rng.Next(35000, 85000));
+            var revenue = ticketCount * pricePerTicket;
             totalTickets += ticketCount;
             totalRev += revenue;
 
@@ -254,6 +302,44 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
             });
         }
 
+        var allSales = new List<TicketTypeSalesDto>
+        {
+            new() { Name = "Vé lượt người lớn",  Value = 165, Color = "#0284c7" },
+            new() { Name = "Vé lượt trẻ em",     Value = 80,  Color = "#06b6d4" },
+            new() { Name = "Vé tháng người lớn", Value = 32,  Color = "#8b5cf6" },
+            new() { Name = "Vé tháng trẻ em",    Value = 14,  Color = "#ec4899" },
+        };
+
+        var allRevs = new List<TicketTypeRevenueDto>
+        {
+            new() { Name = "Vé lượt người lớn",  Revenue = 8_250_000, Count = 165 },
+            new() { Name = "Vé lượt trẻ em",     Revenue = 4_000_000, Count = 80  },
+            new() { Name = "Vé tháng người lớn", Revenue = 6_400_000, Count = 32  },
+            new() { Name = "Vé tháng trẻ em",    Revenue = 2_800_000, Count = 14  },
+        };
+
+        var allTxs = new List<RecentTransactionDto>
+        {
+            new() { Id = Guid.NewGuid(), CustomerName = "Nguyễn Văn An",    Phone = "0901.234.567", TicketType = "Vé lượt người lớn",  Quantity = 2, TotalAmount = 100_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm") },
+            new() { Id = Guid.NewGuid(), CustomerName = "Trần Thị Mai",     Phone = "0912.345.678", TicketType = "Vé tháng người lớn", Quantity = 1, TotalAmount = 200_000, PaymentMethod = "Chuyển khoản", Status = "Completed", CreatedAt = DateTime.UtcNow.AddHours(-2).ToString("dd/MM/yyyy HH:mm") },
+            new() { Id = Guid.NewGuid(), CustomerName = "Lê Hoàng Nam",     Phone = "0923.456.789", TicketType = "Vé lượt trẻ em",     Quantity = 3, TotalAmount = 150_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddHours(-5).ToString("dd/MM/yyyy HH:mm") },
+            new() { Id = Guid.NewGuid(), CustomerName = "Phạm Thanh Hương", Phone = "0934.567.890", TicketType = "Vé lượt người lớn",  Quantity = 1, TotalAmount = 50_000,  PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-1).ToString("dd/MM/yyyy HH:mm") },
+            new() { Id = Guid.NewGuid(), CustomerName = "Đỗ Minh Tuấn",    Phone = "0945.678.901", TicketType = "Vé tháng trẻ em",    Quantity = 1, TotalAmount = 200_000, PaymentMethod = "Chuyển khoản", Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-1).ToString("dd/MM/yyyy HH:mm") },
+            new() { Id = Guid.NewGuid(), CustomerName = "Vũ Thị Lan",      Phone = "0956.789.012", TicketType = "Vé lượt người lớn",  Quantity = 2, TotalAmount = 100_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-2).ToString("dd/MM/yyyy HH:mm") },
+        };
+
+        var filteredSales = allSales
+            .Where(s => isSingle ? s.Name.Contains("lượt") : (isMonthly ? s.Name.Contains("tháng") : true))
+            .ToList();
+
+        var filteredRevs = allRevs
+            .Where(r => isSingle ? r.Name.Contains("lượt") : (isMonthly ? r.Name.Contains("tháng") : true))
+            .ToList();
+
+        var filteredTxs = allTxs
+            .Where(t => isSingle ? t.TicketType.Contains("lượt") : (isMonthly ? t.TicketType.Contains("tháng") : true))
+            .ToList();
+
         return new TicketRevenueStatisticsResponse
         {
             TotalTicketsSold = totalTickets,
@@ -261,29 +347,9 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
             AverageOrderValue = totalTickets > 0 ? Math.Round(totalRev / totalTickets, 0) : 0,
             RevenueGrowthRate = 12.5,
             DailyRevenues = dailyRevenues,
-            TicketTypeSales = new List<TicketTypeSalesDto>
-            {
-                new() { Name = "Vé lượt người lớn",  Value = 165, Color = "#0284c7" },
-                new() { Name = "Vé lượt trẻ em",     Value = 80,  Color = "#06b6d4" },
-                new() { Name = "Vé tháng người lớn", Value = 32,  Color = "#8b5cf6" },
-                new() { Name = "Vé tháng trẻ em",    Value = 14,  Color = "#ec4899" },
-            },
-            TicketTypeRevenues = new List<TicketTypeRevenueDto>
-            {
-                new() { Name = "Vé lượt người lớn",  Revenue = 8_250_000, Count = 165 },
-                new() { Name = "Vé lượt trẻ em",     Revenue = 4_000_000, Count = 80  },
-                new() { Name = "Vé tháng người lớn", Revenue = 6_400_000, Count = 32  },
-                new() { Name = "Vé tháng trẻ em",    Revenue = 2_800_000, Count = 14  },
-            },
-            RecentTransactions = new List<RecentTransactionDto>
-            {
-                new() { Id = Guid.NewGuid(), CustomerName = "Nguyễn Văn An",    Phone = "0901.234.567", TicketType = "Vé lượt người lớn",  Quantity = 2, TotalAmount = 100_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm") },
-                new() { Id = Guid.NewGuid(), CustomerName = "Trần Thị Mai",     Phone = "0912.345.678", TicketType = "Vé tháng người lớn", Quantity = 1, TotalAmount = 200_000, PaymentMethod = "Chuyển khoản", Status = "Completed", CreatedAt = DateTime.UtcNow.AddHours(-2).ToString("dd/MM/yyyy HH:mm") },
-                new() { Id = Guid.NewGuid(), CustomerName = "Lê Hoàng Nam",     Phone = "0923.456.789", TicketType = "Vé lượt trẻ em",     Quantity = 3, TotalAmount = 150_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddHours(-5).ToString("dd/MM/yyyy HH:mm") },
-                new() { Id = Guid.NewGuid(), CustomerName = "Phạm Thanh Hương", Phone = "0934.567.890", TicketType = "Vé lượt người lớn",  Quantity = 1, TotalAmount = 50_000,  PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-1).ToString("dd/MM/yyyy HH:mm") },
-                new() { Id = Guid.NewGuid(), CustomerName = "Đỗ Minh Tuấn",    Phone = "0945.678.901", TicketType = "Vé tháng trẻ em",    Quantity = 1, TotalAmount = 200_000, PaymentMethod = "Chuyển khoản", Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-1).ToString("dd/MM/yyyy HH:mm") },
-                new() { Id = Guid.NewGuid(), CustomerName = "Vũ Thị Lan",      Phone = "0956.789.012", TicketType = "Vé lượt người lớn",  Quantity = 2, TotalAmount = 100_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-2).ToString("dd/MM/yyyy HH:mm") },
-            }
+            TicketTypeSales = filteredSales,
+            TicketTypeRevenues = filteredRevs,
+            RecentTransactions = filteredTxs
         };
     }
 }
