@@ -1,9 +1,11 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SmartPool.API.Controllers;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments.Maintenance;
+using SmartPool.Application.Features.ManageEquipments.Maintenance.Queries.GetMaintenanceSchedules;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories.Maintenance;
@@ -15,7 +17,7 @@ public sealed class MaintenanceListTests
     [Fact(DisplayName = "UTCID01 (N) - Query danh sách có search/filter/pagination -> Forward nguyên query và trả danh sách")]
     public async Task UTCID01_ListValidQuery_DelegatesAndReturnsList()
     {
-        var query = new MaintenanceListQuery
+        var query = new GetMaintenanceSchedulesQuery
         {
             SearchTerm = "máy bơm",
             Status = "Overdue",
@@ -33,11 +35,11 @@ public sealed class MaintenanceListTests
                 PageSize = 20
             },
             new MaintenanceSummary(21, 8, 3, 10));
-        var operations = new Mock<IMaintenanceOperations>(MockBehavior.Strict);
+        var sender = new Mock<ISender>(MockBehavior.Strict);
         using var cts = new CancellationTokenSource();
-        operations.Setup(o => o.GetListAsync(query, cts.Token)).ReturnsAsync(expected);
+        sender.Setup(s => s.Send(query, cts.Token)).ReturnsAsync(expected);
 
-        var result = await Controller(operations).List(query, cts.Token);
+        var result = await Controller(sender).List(query, cts.Token);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Same(expected, ok.Value);
@@ -46,24 +48,24 @@ public sealed class MaintenanceListTests
         Assert.Equal("Overdue", query.Status);
         Assert.Equal(2, query.PageIndex);
         Assert.Equal(20, query.PageSize);
-        operations.Verify(o => o.GetListAsync(query, cts.Token), Times.Once);
-        operations.VerifyNoOtherCalls();
+        sender.Verify(s => s.Send(query, cts.Token), Times.Once);
+        sender.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID02 (A) - GetListAsync ném MaintenanceException -> Controller trả status code của lỗi")]
     public async Task UTCID02_MaintenanceException_ReturnsItsStatusCode()
     {
-        var query = new MaintenanceListQuery();
-        var operations = new Mock<IMaintenanceOperations>(MockBehavior.Strict);
-        operations.Setup(o => o.GetListAsync(query, CancellationToken.None))
+        var query = new GetMaintenanceSchedulesQuery();
+        var sender = new Mock<ISender>(MockBehavior.Strict);
+        sender.Setup(s => s.Send(query, CancellationToken.None))
             .ThrowsAsync(new MaintenanceException(400, "Thông tin phân trang không hợp lệ."));
 
-        var result = await Controller(operations).List(query, CancellationToken.None);
+        var result = await Controller(sender).List(query, CancellationToken.None);
 
         var response = Assert.IsType<ObjectResult>(result);
         Assert.Equal(400, response.StatusCode);
-        operations.Verify(o => o.GetListAsync(query, CancellationToken.None), Times.Once);
-        operations.VerifyNoOtherCalls();
+        sender.Verify(s => s.Send(query, CancellationToken.None), Times.Once);
+        sender.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID03 (A) - PageIndex bằng 0 -> GetListAsync ném MaintenanceException 400")]
@@ -101,8 +103,8 @@ public sealed class MaintenanceListTests
             "Trạng thái lọc không hợp lệ.");
     }
 
-    private static MaintenanceController Controller(Mock<IMaintenanceOperations> operations) =>
-        new(operations.Object, NullLogger<MaintenanceController>.Instance);
+    private static MaintenanceController Controller(Mock<ISender> sender) =>
+        new(sender.Object, NullLogger<MaintenanceController>.Instance);
 
     private static async Task AssertInvalidQuery(MaintenanceListQuery query, string expectedMessage)
     {

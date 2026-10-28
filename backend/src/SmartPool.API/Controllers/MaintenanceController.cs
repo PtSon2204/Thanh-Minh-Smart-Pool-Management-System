@@ -85,7 +85,11 @@ public sealed class MaintenanceController : ControllerBase
     private async Task<IActionResult> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken,
         int successStatus = StatusCodes.Status200OK)
     {
-        try { return StatusCode(successStatus, await _sender.Send(request, cancellationToken)); }
+        try
+        {
+            var result = await _sender.Send(request, cancellationToken);
+            return successStatus == StatusCodes.Status200OK ? Ok(result) : StatusCode(successStatus, result);
+        }
         catch (ValidationException exception)
         {
             return BadRequest(new
