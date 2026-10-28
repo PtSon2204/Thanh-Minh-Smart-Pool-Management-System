@@ -1,11 +1,13 @@
 using System.Text.Json;
 using FluentValidation;
 using FluentValidation.Results;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SmartPool.API.Controllers;
 using SmartPool.Application.Features.ManageEquipments.Maintenance;
+using SmartPool.Application.Features.ManageEquipments.Maintenance.Commands.UpdateMaintenanceSchedule;
 using SmartPool.Application.Interfaces.Repositories;
 
 namespace SmartPool.UnitTests.Features.ManageEquipments.Maintenance;
@@ -16,95 +18,96 @@ public sealed class MaintenanceUpdateTests
     public async Task UTCID01_UpdateValidSchedule_ReturnsUpdatedSchedule()
     {
         var id = Guid.NewGuid();
-        var request = ValidRequest();
-        var expected = new MaintenanceItem(id, request.EquipmentId, "Máy bơm", "Khu A", request.TaskName,
-            request.RepeatUnit, request.RepeatEvery, request.StartDate, request.AssignedTo, "Nhân viên A",
-            request.RemindBeforeDays, "Pending", false, null);
-        var operations = new Mock<IMaintenanceOperations>(MockBehavior.Strict);
+        var command = ValidCommand();
+        var expected = new MaintenanceItem(id, command.EquipmentId, "Máy bơm", "Khu A", command.TaskName,
+            command.RepeatUnit, command.RepeatEvery, command.StartDate, command.AssignedTo, "Nhân viên A",
+            command.RemindBeforeDays, "Pending", false, null);
+        var sender = new Mock<ISender>(MockBehavior.Strict);
         using var cts = new CancellationTokenSource();
-        operations.Setup(o => o.UpdateAsync(id, request, cts.Token)).ReturnsAsync(expected);
+        sender.Setup(s => s.Send(command, cts.Token)).ReturnsAsync(expected);
 
-        var result = await Controller(operations).Update(id, request, cts.Token);
+        var result = await Controller(sender).Update(id, command, cts.Token);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Same(expected, ok.Value);
-        operations.Verify(o => o.UpdateAsync(id, request, cts.Token), Times.Once);
-        operations.VerifyNoOtherCalls();
+        Assert.Equal(id, command.Id);
+        sender.Verify(s => s.Send(command, cts.Token), Times.Once);
+        sender.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID02 (A) - UpdateAsync ném MaintenanceException 404 -> Controller trả 404")]
     public async Task UTCID02_ScheduleNotFound_ReturnsNotFoundStatus()
     {
         var id = Guid.NewGuid();
-        var request = ValidRequest();
-        var operations = new Mock<IMaintenanceOperations>(MockBehavior.Strict);
-        operations.Setup(o => o.UpdateAsync(id, request, CancellationToken.None))
+        var command = ValidCommand();
+        var sender = new Mock<ISender>(MockBehavior.Strict);
+        sender.Setup(s => s.Send(command, CancellationToken.None))
             .ThrowsAsync(new MaintenanceException(404, "Không tìm thấy lịch bảo trì."));
 
-        var result = await Controller(operations).Update(id, request, CancellationToken.None);
+        var result = await Controller(sender).Update(id, command, CancellationToken.None);
 
         var response = Assert.IsType<ObjectResult>(result);
         Assert.Equal(404, response.StatusCode);
         AssertResponseMessage(response, "Không tìm thấy lịch bảo trì.");
-        operations.Verify(o => o.UpdateAsync(id, request, CancellationToken.None), Times.Once);
-        operations.VerifyNoOtherCalls();
+        sender.Verify(s => s.Send(command, CancellationToken.None), Times.Once);
+        sender.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID03 (A) - UpdateAsync ném ValidationException -> Controller trả HTTP 400 kèm errors")]
     public async Task UTCID03_ValidationException_ReturnsBadRequestWithErrors()
     {
         var id = Guid.NewGuid();
-        var request = ValidRequest();
-        var operations = new Mock<IMaintenanceOperations>(MockBehavior.Strict);
-        operations.Setup(o => o.UpdateAsync(id, request, CancellationToken.None))
+        var command = ValidCommand();
+        var sender = new Mock<ISender>(MockBehavior.Strict);
+        sender.Setup(s => s.Send(command, CancellationToken.None))
             .ThrowsAsync(new ValidationException([new ValidationFailure("TaskName", "Nhập tên công việc.")]));
 
-        var result = await Controller(operations).Update(id, request, CancellationToken.None);
+        var result = await Controller(sender).Update(id, command, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal(400, badRequest.StatusCode);
         AssertResponseMessage(badRequest, "Vui lòng kiểm tra thông tin lịch bảo trì.");
         using var body = JsonDocument.Parse(JsonSerializer.Serialize(badRequest.Value));
         Assert.Equal("Nhập tên công việc.", body.RootElement.GetProperty("errors").GetProperty("TaskName")[0].GetString());
-        operations.Verify(o => o.UpdateAsync(id, request, CancellationToken.None), Times.Once);
-        operations.VerifyNoOtherCalls();
+        sender.Verify(s => s.Send(command, CancellationToken.None), Times.Once);
+        sender.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID04 (A) - UpdateAsync ném lỗi xung đột 409 -> Controller giữ status code")]
     public async Task UTCID04_Conflict_ReturnsConflictStatus()
     {
         var id = Guid.NewGuid();
-        var request = ValidRequest();
+        var command = ValidCommand();
         const string message = "Chỉ cập nhật lịch đang chờ hoặc tạm dừng.";
-        var operations = new Mock<IMaintenanceOperations>(MockBehavior.Strict);
-        operations.Setup(o => o.UpdateAsync(id, request, CancellationToken.None))
+        var sender = new Mock<ISender>(MockBehavior.Strict);
+        sender.Setup(s => s.Send(command, CancellationToken.None))
             .ThrowsAsync(new MaintenanceException(409, message));
 
-        var result = await Controller(operations).Update(id, request, CancellationToken.None);
+        var result = await Controller(sender).Update(id, command, CancellationToken.None);
 
         var response = Assert.IsType<ObjectResult>(result);
         Assert.Equal(409, response.StatusCode);
         AssertResponseMessage(response, message);
-        operations.Verify(o => o.UpdateAsync(id, request, CancellationToken.None), Times.Once);
-        operations.VerifyNoOtherCalls();
+        sender.Verify(s => s.Send(command, CancellationToken.None), Times.Once);
+        sender.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID05 (A) - UpdateAsync ném exception hệ thống -> Controller trả HTTP 500")]
     public async Task UTCID05_UnexpectedException_ReturnsInternalServerError()
     {
         var id = Guid.NewGuid();
-        var request = ValidRequest();
-        var operations = new Mock<IMaintenanceOperations>(MockBehavior.Strict);
-        operations.Setup(o => o.UpdateAsync(id, request, CancellationToken.None))
+        var command = ValidCommand();
+        var sender = new Mock<ISender>(MockBehavior.Strict);
+        sender.Setup(s => s.Send(command, CancellationToken.None))
             .ThrowsAsync(new InvalidOperationException("Database unavailable"));
 
-        var result = await Controller(operations).Update(id, request, CancellationToken.None);
+        var result = await Controller(sender).Update(id, command, CancellationToken.None);
 
         var response = Assert.IsType<ObjectResult>(result);
         Assert.Equal(500, response.StatusCode);
         AssertResponseMessage(response, "Không thể xử lý lịch bảo trì. Vui lòng thử lại.");
-        operations.Verify(o => o.UpdateAsync(id, request, CancellationToken.None), Times.Once);
-        operations.VerifyNoOtherCalls();
+        sender.Verify(s => s.Send(command, CancellationToken.None), Times.Once);
+        sender.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID06 (B) - Request tại giới hạn hợp lệ -> Validator chấp nhận")]
@@ -220,8 +223,19 @@ public sealed class MaintenanceUpdateTests
         AssertError(request, nameof(MaintenanceRequest.RemindBeforeDays), "Nhắc trước từ 0 đến 365 ngày.");
     }
 
-    private static MaintenanceController Controller(Mock<IMaintenanceOperations> operations) =>
-        new(operations.Object, NullLogger<MaintenanceController>.Instance);
+    private static MaintenanceController Controller(Mock<ISender> sender) =>
+        new(sender.Object, NullLogger<MaintenanceController>.Instance);
+
+    private static UpdateMaintenanceScheduleCommand ValidCommand() => new()
+    {
+        EquipmentId = Guid.NewGuid(),
+        TaskName = "Vệ sinh máy bơm",
+        RepeatUnit = "Month",
+        RepeatEvery = 1,
+        StartDate = new DateOnly(2026, 10, 27),
+        AssignedTo = Guid.NewGuid(),
+        RemindBeforeDays = 3
+    };
 
     private static MaintenanceRequest ValidRequest() => new()
     {
