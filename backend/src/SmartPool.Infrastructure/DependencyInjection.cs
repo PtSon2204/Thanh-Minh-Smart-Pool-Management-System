@@ -1,7 +1,6 @@
 using SmartPool.Infrastructure.Persistence.Repositories.Users;
 using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
-using SmartPool.Infrastructure.Persistence.Repositories.Maintenance;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 using SmartPool.Infrastructure.Persistence.Repositories.Tickets;
@@ -179,8 +178,6 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
             services.AddScoped<IEquipmentOperations, EquipmentOperations>();
-            services.AddScoped<IMaintenanceOperations, MaintenanceOperations>();
-            services.AddHostedService<MaintenanceReminderWorker>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<ISwimClassOperations, SwimClassOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();

@@ -41,7 +41,6 @@ public sealed class CreateEquipmentUseCaseTests
         Assert.False(saved.IsDeleted);
         Assert.Equal(time.GetUtcNow().UtcDateTime, saved.CreatedAt);
         Assert.Equal(saved.CreatedAt, saved.UpdatedAt);
-        Assert.Empty(saved.MaintenanceSchedules);
         Assert.Equal(saved.Id, result.Id);
         Assert.Equal(saved.Name, result.Name);
         Assert.Equal(saved.Category, result.Category);

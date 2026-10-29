@@ -32,6 +32,11 @@ public sealed class DailyInspectionConfiguration : IEntityTypeConfiguration<Dail
             .WithMany()
             .HasForeignKey(d => d.ShiftId)
             .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false)
             .HasConstraintName("daily_inspections_shift_id_fkey");
+
+        entity.HasIndex(d => new { d.InspectionDate, d.ShiftId })
+            .IsUnique()
+            .HasDatabaseName("uq_daily_inspections_date_shift");
     }
 }

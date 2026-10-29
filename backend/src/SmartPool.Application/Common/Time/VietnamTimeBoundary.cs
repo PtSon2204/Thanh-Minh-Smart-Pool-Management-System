@@ -8,6 +8,12 @@ public static class VietnamTimeBoundary
     public static DateOnly GetDate(TimeProvider timeProvider) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), VietnamTimeZone).DateTime);
 
+    public static TimeOnly GetTime(TimeProvider timeProvider) =>
+        TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), VietnamTimeZone).DateTime);
+
+    public static DateTime GetVietnamNow(TimeProvider timeProvider) =>
+        TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), VietnamTimeZone).DateTime;
+
     public static (DateTime StartUtc, DateTime EndUtc) GetUtcDayBounds(DateOnly date)
     {
         var localStart = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);

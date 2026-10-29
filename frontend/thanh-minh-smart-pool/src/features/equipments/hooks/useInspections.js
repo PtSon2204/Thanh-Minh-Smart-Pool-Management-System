@@ -17,7 +17,6 @@ export function useSubmitInspection() {
       queryClient.invalidateQueries({ queryKey: ['equipment-inspection-form'] })
       queryClient.invalidateQueries({ queryKey: ['equipment-inspections'] })
       queryClient.invalidateQueries({ queryKey: ['equipments'] })
-      queryClient.invalidateQueries({ queryKey: ['maintenance-list'] })
     },
   })
 }

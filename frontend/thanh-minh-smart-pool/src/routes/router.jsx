@@ -23,7 +23,6 @@ import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatistics
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatisticsPage";
-import OperationCostsStatisticsPage from "../pages/admin/statistics/OperationCostsStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
 import StaffSchedulePage from "../pages/admin/staff/StaffSchedulePage";
@@ -35,8 +34,6 @@ import UserManagementPage from "../pages/admin/users/UserManagementPage";
 import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage";
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
-import MaintenancePage from "../pages/admin/maintenance/MaintenancePage";
-import MaintenanceHistoryPage from "../pages/admin/maintenance/MaintenanceHistoryPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
@@ -133,11 +130,6 @@ const router = createBrowserRouter([
                 path: "equipments/list-equipments",
                 element: <EquipmentPage />,
               },
-              { path: "equipments/maintenance", element: <MaintenancePage /> },
-              {
-                path: "equipments/maintenance-history",
-                element: <MaintenanceHistoryPage />,
-              },
               {
                 path: "equipment",
                 element: (
@@ -161,10 +153,6 @@ const router = createBrowserRouter([
               {
                 path: "statistics/incidents",
                 element: <IncidentStatisticsPage />,
-              },
-              {
-                path: "statistics/operations-costs",
-                element: <OperationCostsStatisticsPage />,
               },
               { path: "staff/profiles", element: <StaffProfilesPage /> },
               { path: "classes/create", element: <CreateSwimClassPage /> },

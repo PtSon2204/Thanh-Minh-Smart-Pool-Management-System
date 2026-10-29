@@ -82,7 +82,7 @@ export default function DailyInspectionHistory() {
     {
       title: 'Thời gian',
       key: 'time',
-      width: 170,
+      width: 150,
       render: (_, record) => (
         <div>
           <strong>{dayjs(record.inspectionDate).format('DD/MM/YYYY')}</strong>
@@ -93,16 +93,26 @@ export default function DailyInspectionHistory() {
       ),
     },
     {
+      title: 'Ca trực',
+      key: 'shift',
+      width: 120,
+      render: (_, record) => (
+        <Tag color={record.shiftName?.includes('sáng') ? 'orange' : 'purple'}>
+          {record.shiftName || 'Ca trực'}
+        </Tag>
+      ),
+    },
+    {
       title: 'Người kiểm tra',
       dataIndex: 'inspectorName',
       key: 'inspectorName',
-      width: 180,
+      width: 160,
       render: (name) => <strong>{name || 'Nhân viên'}</strong>,
     },
     {
       title: 'Kết quả',
       key: 'overallStatus',
-      width: 160,
+      width: 150,
       render: (_, record) => {
         const isPassed = record.overallStatus === 'Passed'
         return isPassed ? (
@@ -111,7 +121,7 @@ export default function DailyInspectionHistory() {
           </Tag>
         ) : (
           <Tag icon={<ExclamationCircleOutlined />} color="error">
-            Cần bảo trì ({record.issuesCount})
+            Có sự cố ({record.issuesCount})
           </Tag>
         )
       },
@@ -119,7 +129,7 @@ export default function DailyInspectionHistory() {
     {
       title: 'Thiết bị kiểm tra',
       key: 'summary',
-      width: 180,
+      width: 160,
       render: (_, record) => (
         <div>
           <span>{record.totalItems} thiết bị</span>
@@ -145,7 +155,7 @@ export default function DailyInspectionHistory() {
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 130,
+      width: 110,
       align: 'center',
       render: (_, record) => (
         <Button
@@ -185,7 +195,7 @@ export default function DailyInspectionHistory() {
                 options={[
                   { label: 'Tất cả kết quả', value: '' },
                   { label: 'Đạt chuẩn (Passed)', value: 'Passed' },
-                  { label: 'Cần bảo trì (ActionRequired)', value: 'ActionRequired' },
+                  { label: 'Có sự cố (ActionRequired)', value: 'ActionRequired' },
                 ]}
               />
             </div>

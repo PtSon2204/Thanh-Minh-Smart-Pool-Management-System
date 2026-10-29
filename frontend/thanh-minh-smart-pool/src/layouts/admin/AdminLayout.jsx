@@ -267,14 +267,6 @@ export default function AdminLayout() {
           key: '/admin/equipments/list-equipments',
           label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link>,
         },
-        isAdmin && {
-          key: '/admin/equipments/maintenance',
-          label: <Link to="/admin/equipments/maintenance">Cấu hình lịch bảo trì</Link>,
-        },
-        isAdmin && {
-          key: '/admin/equipments/maintenance-history',
-          label: <Link to="/admin/equipments/maintenance-history">Lịch sử bảo trì</Link>,
-        },
       ].filter(Boolean),
     },
     (isAdmin || role === 'SALES') && {
@@ -318,12 +310,6 @@ export default function AdminLayout() {
         {
           key: '/admin/statistics/incidents',
           label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link>,
-        },
-        {
-          key: '/admin/statistics/operations-costs',
-          label: (
-            <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link>
-          ),
         },
       ],
     },

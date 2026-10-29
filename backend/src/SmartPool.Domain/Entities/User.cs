@@ -33,10 +33,6 @@ public partial class User
 
     public virtual ICollection<InventoryLog> InventoryLogs { get; set; } = new List<InventoryLog>();
 
-    public virtual ICollection<MaintenanceLog> MaintenanceLogs { get; set; } = new List<MaintenanceLog>();
-
-    public virtual ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; } = new List<MaintenanceSchedule>();
-
     public virtual ICollection<DailyInspection> DailyInspections { get; set; } = new List<DailyInspection>();
 
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();

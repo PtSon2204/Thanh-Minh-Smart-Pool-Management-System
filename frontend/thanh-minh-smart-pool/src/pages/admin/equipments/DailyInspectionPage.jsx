@@ -54,7 +54,7 @@ export default function DailyInspectionPage() {
                 Kiểm tra thiết bị đầu ca (Daily Safety Checklist)
               </h1>
               <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: 14 }}>
-                Quy trình kiểm tra vận hành & an toàn trước ca làm việc. Thiết bị phát hiện sự cố sẽ tự động chuyển sang bảo trì và tạo lịch sửa chữa.
+                Quy trình kiểm tra vận hành & an toàn trước ca làm việc. Thiết bị phát hiện sự cố sẽ được ghi nhận để thông báo xử lý.
               </p>
             </div>
           </div>

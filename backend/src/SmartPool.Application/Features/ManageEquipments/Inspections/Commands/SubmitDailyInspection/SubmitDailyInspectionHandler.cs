@@ -1,19 +1,19 @@
+using System;
+using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
 using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
-using SmartPool.Application.Features.ManageEquipments.Maintenance;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
-using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 
 public sealed class SubmitDailyInspectionHandler(
     IRepository<DailyInspection> inspectionRepository,
-    IRepository<Equipment> equipmentRepository,
-    IRepository<MaintenanceSchedule> scheduleRepository,
     IRepository<Notification> notificationRepository,
     IRepository<User> userRepository,
     IUnitOfWork unitOfWork,
@@ -29,6 +29,43 @@ public sealed class SubmitDailyInspectionHandler(
 
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var today = VietnamTimeBoundary.GetDate(timeProvider);
+        var currentTime = VietnamTimeBoundary.GetTime(timeProvider);
+
+        var shiftDef = FixedShifts.FindById(command.ShiftId)
+            ?? throw new ValidationException("Ca trực không hợp lệ. Chỉ chấp nhận Ca sáng hoặc Ca chiều.");
+
+        // Rule 1: Khung giờ kiểm tra — Chỉ mở trước ca trực 30 phút cho đến khi ca kết thúc
+        if (!shiftDef.IsInInspectionWindow(currentTime))
+        {
+            if (currentTime < shiftDef.AllowedFromTime)
+            {
+                throw new ValidationException(
+                    $"Chưa đến thời gian mở kiểm tra cho {shiftDef.Name}. " +
+                    $"Hệ thống chỉ cho phép nộp biên bản trước ca trực 30 phút (từ {shiftDef.AllowedFromTime:HH\\:mm}).");
+            }
+            else
+            {
+                throw new ValidationException(
+                    $"{shiftDef.Name} ({shiftDef.StartTime:HH\\:mm} - {shiftDef.EndTime:HH\\:mm}) đã kết thúc ca trực. " +
+                    $"Không thể nộp biên bản kiểm tra cho ca này.");
+            }
+        }
+
+        // Rule 2: Mỗi ca trực chỉ được gửi 1 lần duy nhất trong ngày
+        var existingInspections = await inspectionRepository.FindAsync(
+            x => x.InspectionDate == today && x.ShiftId == command.ShiftId,
+            cancellationToken);
+
+        var existing = existingInspections.FirstOrDefault();
+        if (existing != null)
+        {
+            var prevInspector = await userRepository.GetByIdAsync(existing.InspectorId, cancellationToken);
+            var prevInspectorName = prevInspector?.UserProfile?.FullName ?? prevInspector?.Username ?? "Cứu hộ";
+
+            throw new ValidationException(
+                $"{shiftDef.Name} ngày {today:dd/MM/yyyy} đã được hoàn thành kiểm tra lúc {existing.InspectionTime:HH\\:mm} bởi {prevInspectorName}. " +
+                $"Mỗi ca trực chỉ được nộp biên bản kiểm tra 1 lần duy nhất.");
+        }
 
         var failedItems = command.Items.Where(i => !i.IsPassed).ToList();
         var hasIssues = failedItems.Count > 0;
@@ -57,50 +94,9 @@ public sealed class SubmitDailyInspectionHandler(
 
         await inspectionRepository.AddAsync(inspection, cancellationToken);
 
-        // 2. Closed-loop flow: For each failed item, lock device and create maintenance task
+        // 2. Notify Admins if there are failed items
         if (hasIssues)
         {
-            foreach (var item in failedItems)
-            {
-                var equipment = await equipmentRepository.GetByIdAsync(item.EquipmentId, cancellationToken);
-                if (equipment != null && equipment.IsDeleted != true)
-                {
-                    // Lock equipment status
-                    equipment.Status = EquipmentStatuses.Maintenance;
-                    equipment.UpdatedAt = nowUtc;
-                    equipmentRepository.Update(equipment);
-
-                    // Create maintenance schedule
-                    var config = new MaintenanceConfiguration
-                    {
-                        SeriesId = Guid.NewGuid(),
-                        Sequence = 0,
-                        AnchorSequence = 0,
-                        AnchorDate = today,
-                        TaskName = $"[Sự cố đầu ca] {equipment.Name}: {item.Note?.Trim()}",
-                        RepeatUnit = "None",
-                        RepeatEvery = 1,
-                        RemindBeforeDays = 0,
-                        PreviousEquipmentStatus = EquipmentStatuses.Active
-                    };
-
-                    var schedule = new MaintenanceSchedule
-                    {
-                        Id = Guid.NewGuid(),
-                        EquipmentId = equipment.Id,
-                        AssignedTo = null,
-                        PlannedDate = today,
-                        Description = config.Serialize(),
-                        Status = "Pending",
-                        CreatedAt = nowUtc,
-                        UpdatedAt = nowUtc
-                    };
-
-                    await scheduleRepository.AddAsync(schedule, cancellationToken);
-                }
-            }
-
-            // 3. Notify Admins
             var admins = await userRepository.FindAsync(
                 u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() == "ADMIN",
                 cancellationToken);
@@ -112,8 +108,8 @@ public sealed class SubmitDailyInspectionHandler(
                     Id = Guid.NewGuid(),
                     UserId = admin.Id,
                     Type = $"INSP:{inspection.Id:N}",
-                    Title = "Cảnh báo thiết bị gặp sự cố đầu ca",
-                    Content = $"{inspectorName} đã kiểm tra đầu ca ngày {today:dd/MM/yyyy} và phát hiện {failedItems.Count} thiết bị gặp sự cố. Các thiết bị đã được tự động khóa để bảo trì.",
+                    Title = $"Cảnh báo sự cố thiết bị ({shiftDef.Name})",
+                    Content = $"{inspectorName} đã kiểm tra đầu {shiftDef.Name.ToLower()} ngày {today:dd/MM/yyyy} và ghi nhận {failedItems.Count} thiết bị gặp sự cố.",
                     IsRead = false,
                     CreatedAt = nowUtc
                 };
@@ -128,7 +124,8 @@ public sealed class SubmitDailyInspectionHandler(
             Id = inspection.Id,
             InspectorId = inspection.InspectorId,
             InspectorName = inspectorName,
-            ShiftId = inspection.ShiftId,
+            ShiftId = inspection.ShiftId ?? command.ShiftId,
+            ShiftName = shiftDef.Name,
             InspectionDate = inspection.InspectionDate,
             InspectionTime = inspection.InspectionTime,
             OverallStatus = inspection.OverallStatus,

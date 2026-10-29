@@ -65,6 +65,11 @@ export default function DailyInspectionDetailsModal({ open, inspection, onClose 
       destroyOnClose
     >
       <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }} style={{ marginBottom: 16 }}>
+        <Descriptions.Item label="Ca trực">
+          <Tag color={inspection.shiftName?.includes('sáng') ? 'orange' : 'purple'}>
+            <strong>{inspection.shiftName || 'Ca trực'}</strong>
+          </Tag>
+        </Descriptions.Item>
         <Descriptions.Item label="Người kiểm tra">
           <strong>{inspection.inspectorName || 'Nhân viên'}</strong>
         </Descriptions.Item>
@@ -76,7 +81,7 @@ export default function DailyInspectionDetailsModal({ open, inspection, onClose 
             {isPassed ? 'Đạt chuẩn vận hành' : 'Phát hiện sự cố (Cần xử lý)'}
           </Tag>
         </Descriptions.Item>
-        <Descriptions.Item label="Thống kê">
+        <Descriptions.Item label="Thống kê" span={2}>
           <span>{inspection.totalItems} thiết bị ({inspection.issuesCount} hỏng hóc)</span>
         </Descriptions.Item>
         {inspection.notes && (

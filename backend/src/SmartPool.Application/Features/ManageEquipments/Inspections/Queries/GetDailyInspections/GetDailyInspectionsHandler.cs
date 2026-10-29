@@ -46,12 +46,15 @@ public sealed class GetDailyInspectionsHandler(
         var dtos = items.Select(x =>
         {
             var parsedItems = ParseItems(x.ItemsJson);
+            var shiftDef = x.ShiftId.HasValue ? FixedShifts.FindById(x.ShiftId.Value) : null;
+
             return new DailyInspectionDto
             {
                 Id = x.Id,
                 InspectorId = x.InspectorId,
                 InspectorName = users.GetValueOrDefault(x.InspectorId, "Nhân viên"),
-                ShiftId = x.ShiftId,
+                ShiftId = x.ShiftId ?? Guid.Empty,
+                ShiftName = shiftDef?.Name ?? "Chưa phân ca",
                 InspectionDate = x.InspectionDate,
                 InspectionTime = x.InspectionTime,
                 OverallStatus = x.OverallStatus,

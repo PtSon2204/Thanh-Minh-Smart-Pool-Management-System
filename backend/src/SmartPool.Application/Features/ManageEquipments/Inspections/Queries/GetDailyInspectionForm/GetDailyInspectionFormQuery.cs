@@ -3,4 +3,4 @@ using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspectionForm;
 
-public sealed record GetDailyInspectionFormQuery : IRequest<IReadOnlyList<DailyInspectionFormItemDto>>;
+public sealed class GetDailyInspectionFormQuery : IRequest<DailyInspectionFormResponseDto>;

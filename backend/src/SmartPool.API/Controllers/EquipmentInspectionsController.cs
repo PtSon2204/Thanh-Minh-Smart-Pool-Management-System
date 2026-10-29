@@ -26,14 +26,22 @@ public sealed class EquipmentInspectionsController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách các thiết bị cần kiểm tra vận hành / an toàn trước khi vào ca làm.
+    /// Lấy danh sách các thiết bị cần kiểm tra vận hành / an toàn trước khi vào ca làm kèm thông tin trạng thái các ca trực hôm nay.
     /// </summary>
     [HttpGet("form")]
-    [ProducesResponseType(typeof(IReadOnlyList<DailyInspectionFormItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DailyInspectionFormResponseDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetInspectionForm(CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetDailyInspectionFormQuery(), cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _sender.Send(new GetDailyInspectionFormQuery(), cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Lỗi lấy form kiểm tra thiết bị đầu ca.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Không thể lấy danh mục thiết bị và thông tin ca trực. Vui lòng thử lại." });
+        }
     }
 
     /// <summary>
@@ -42,9 +50,7 @@ public sealed class EquipmentInspectionsController : ControllerBase
     /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(DailyInspectionDto), StatusCodes.Status201Created)]
-    public async Task<IActionResult> SubmitInspection(
-        [FromBody] SubmitDailyInspectionCommand command,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitInspection([FromBody] SubmitDailyInspectionCommand command, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var inspectorId))
             return Unauthorized(new { message = "Không xác định được danh tính nhân viên." });
@@ -77,11 +83,17 @@ public sealed class EquipmentInspectionsController : ControllerBase
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<DailyInspectionDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetInspections(
-        [FromQuery] GetDailyInspectionsQuery query,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> GetInspections([FromQuery] GetDailyInspectionsQuery query, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(query, cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _sender.Send(query, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Lỗi lấy lịch sử kiểm tra thiết bị.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Không thể lấy lịch sử kiểm tra thiết bị. Vui lòng thử lại." });
+        }
     }
 }

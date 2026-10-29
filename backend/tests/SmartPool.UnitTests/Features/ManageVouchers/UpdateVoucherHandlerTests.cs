@@ -216,8 +216,8 @@ public class UpdateVoucherHandlerTests
         command.DiscountType = "FIXED_AMOUNT";
         command.DiscountValue = 1;
         command.MinOrderValue = 0;
-        command.StartDate = new DateTime(2026, 10, 1);
-        command.EndDate = new DateTime(2026, 10, 2);
+        command.StartDate = DateTime.UtcNow.Date.AddDays(1);
+        command.EndDate = DateTime.UtcNow.Date.AddDays(2);
 
         Assert.True(new UpdateVoucherValidator().Validate(command).IsValid);
     }

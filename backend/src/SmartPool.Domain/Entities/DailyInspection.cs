@@ -34,5 +34,5 @@ public partial class DailyInspection
 
     public virtual User Inspector { get; set; } = null!;
 
-    public virtual EmployeeShift? Shift { get; set; }
+    public virtual Shift? Shift { get; set; }
 }
