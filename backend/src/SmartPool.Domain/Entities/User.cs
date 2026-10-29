@@ -9,6 +9,9 @@ public partial class User
 
     public Guid? RoleId { get; set; }
 
+    // Approved Coach capability in addition to the primary role.
+    public bool IsCoach { get; set; }
+
     public string? Username { get; set; }
 
     public string? PasswordHash { get; set; }
@@ -42,6 +45,7 @@ public partial class User
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
 
     public virtual Role? Role { get; set; }
+
 
     public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 

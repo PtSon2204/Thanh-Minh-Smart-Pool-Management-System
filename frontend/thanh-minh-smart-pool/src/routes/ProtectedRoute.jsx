@@ -55,10 +55,11 @@ export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
 
   // 2. Kiểm tra vai trò (Role-based access control)
   if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = session.role ? session.role.toUpperCase() : ''
+    const userRoles = (session.roles?.length ? session.roles : [session.role])
+      .filter(Boolean).map((role) => role.toUpperCase())
     const normalizedAllowedRoles = allowedRoles.map((r) => r.toUpperCase())
 
-    if (!normalizedAllowedRoles.includes(userRole)) {
+    if (!normalizedAllowedRoles.some((role) => userRoles.includes(role))) {
       return (
         <Navigate
           to={forbiddenRedirectTo}

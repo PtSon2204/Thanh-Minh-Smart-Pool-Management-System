@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Pagination } from 'antd'
-import { BookOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { BookOutlined, PlusOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useSwimClasses } from '../hooks/useSwimClasses'
 import SwimClassListFilters from './SwimClassListFilters'
@@ -11,11 +11,15 @@ import '../styles/swimClassList.css'
 export default function SwimClassListView() {
   const session = useAuthStore(state => state.session)
   const navigate = useNavigate()
-  const role = session?.role?.toUpperCase()
+  const location = useLocation()
+  const roles = (session?.roles?.length ? session.roles : [session?.role])
+    .filter(Boolean).map(item => item.toUpperCase())
+  const role = location.pathname.startsWith('/admin/classes') && roles.includes('COACH')
+    && session?.role?.toUpperCase() !== 'ADMIN' ? 'COACH' : session?.role?.toUpperCase()
   const isAdmin = role === 'ADMIN'
   const [search, setSearch] = useState('')
   const [params, setParams] = useState({ searchTerm: '', status: undefined, pageIndex: 1, pageSize: 10 })
-  const list = useSwimClasses(params, session?.id)
+  const list = useSwimClasses({ ...params, scope: role === 'COACH' ? 'coach' : undefined }, session?.id)
   const filtered = Boolean(params.searchTerm || params.status)
 
   useEffect(() => {
@@ -41,6 +45,7 @@ export default function SwimClassListView() {
       <header className="swim-class-list-header">
         <div className="swim-class-list-heading"><span className="swim-class-list-icon"><BookOutlined /></span><div><h1>{title}</h1><p>{intro}</p></div></div>
         {isAdmin && <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => navigate('/admin/classes/create')}>Tạo lớp</Button>}
+        {role === 'CUSTOMER' && <Button icon={<UserOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Lớp học của tôi</Button>}
       </header>
 
       <SwimClassListFilters search={search} status={params.status} showStatus={role !== 'CUSTOMER'}

@@ -52,6 +52,9 @@ export default function AdminLayout() {
   const { session } = useAuthStore();
   const navigate = useNavigate();
   const role = session?.role?.toUpperCase();
+  const roles = (session?.roles?.length ? session.roles : [session?.role])
+    .filter(Boolean).map((item) => item.toUpperCase());
+  const isCoach = roles.includes('COACH');
   const selectedMenuPath = location.pathname.startsWith('/admin/classes/') && location.pathname !== '/admin/classes/create'
     ? '/admin/classes'
     : location.pathname;
@@ -164,7 +167,7 @@ export default function AdminLayout() {
       icon: <BookOutlined />,
       label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
     },
-    (isAdmin || role === 'COACH') && {
+    (isAdmin || isCoach) && {
       key: '/admin/classes',
       icon: <BookOutlined />,
       label: <Link to="/admin/classes">{isAdmin ? 'Danh sách lớp dạy bơi' : 'Lớp được phân công'}</Link>,

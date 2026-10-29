@@ -255,6 +255,13 @@ public sealed class UserOperations : IUserOperations
         if (role is null)
             throw new RoleChangeConflictException("Vai trò chưa được cấu hình hoặc đã ngừng sử dụng.");
 
+        if (requestedRole == RoleEnum.COACH && user.RoleId != role.Id)
+            throw new RoleChangeConflictException(
+                "Quyền Coach bổ sung chỉ được cấp sau khi duyệt chứng chỉ.");
+        if (user.IsCoach && requestedRole != RoleEnum.CUSTOMER && user.RoleId != role.Id)
+            throw new RoleChangeConflictException(
+                "Cần thu hồi quyền Coach trước khi thay đổi vai trò Customer chính.");
+
         if (actorId == userId && requestedRole != RoleEnum.ADMIN)
             throw new RoleChangeForbiddenException();
 
