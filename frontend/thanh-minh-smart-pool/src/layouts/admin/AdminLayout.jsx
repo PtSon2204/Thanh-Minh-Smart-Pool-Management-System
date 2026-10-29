@@ -254,24 +254,20 @@ export default function AdminLayout() {
       icon: <ExperimentOutlined />,
       label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
     },
-    isAdmin && {
+    (isAdmin || isLifeguard) && {
       key: 'equipments',
       icon: <ToolOutlined />,
       label: 'Quản lý thiết bị',
       children: [
         {
+          key: '/admin/equipments/daily-inspections',
+          label: <Link to="/admin/equipments/daily-inspections">Kiểm tra đầu ca (Checklist)</Link>,
+        },
+        isAdmin && {
           key: '/admin/equipments/list-equipments',
           label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link>,
         },
-        {
-          key: '/admin/equipments/maintenance',
-          label: <Link to="/admin/equipments/maintenance">Cấu hình lịch bảo trì</Link>,
-        },
-        {
-          key: '/admin/equipments/maintenance-history',
-          label: <Link to="/admin/equipments/maintenance-history">Lịch sử bảo trì</Link>,
-        },
-      ],
+      ].filter(Boolean),
     },
     (isAdmin || role === 'SALES') && {
       key: 'services',
@@ -314,12 +310,6 @@ export default function AdminLayout() {
         {
           key: '/admin/statistics/incidents',
           label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link>,
-        },
-        {
-          key: '/admin/statistics/operations-costs',
-          label: (
-            <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link>
-          ),
         },
       ],
     },

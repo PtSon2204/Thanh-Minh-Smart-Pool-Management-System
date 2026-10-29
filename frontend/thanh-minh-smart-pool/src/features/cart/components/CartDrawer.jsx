@@ -109,9 +109,6 @@ export default function CartDrawer() {
           ) : (
             items.map((item) => (
               <div key={item.id} className="cart-item">
-                <div className="cart-item-image-wrapper">
-                  <img src={item.image || 'https://via.placeholder.com/60'} alt={item.name} className="cart-item-image" />
-                </div>
                 <div className="cart-item-details">
                   <div className="cart-item-header">
                     <Text strong className="cart-item-title">{item.name}</Text>

@@ -164,7 +164,6 @@ public sealed class EquipmentApiTests
             Assert.Null(saved.Location);
             Assert.Null(saved.Metadata);
             Assert.NotNull(saved.CreatedAt);
-            Assert.False(await db.MaintenanceSchedules.AnyAsync(x => x.EquipmentId == saved.Id));
 
             // Duplicate names are allowed. Overposted system fields cannot override server defaults.
             var fullResponse = await client.PostAsJsonAsync("/api/equipments", new

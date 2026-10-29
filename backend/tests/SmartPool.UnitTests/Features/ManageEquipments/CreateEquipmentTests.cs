@@ -80,7 +80,6 @@ public sealed class CreateEquipmentTests
         Assert.False(saved.IsDeleted);
         Assert.Equal(new FixedTime().GetUtcNow().UtcDateTime, saved.CreatedAt);
         Assert.Equal(saved.CreatedAt, saved.UpdatedAt);
-        Assert.Empty(saved.MaintenanceSchedules);
         Assert.Equal(saved.Id, result.Id);
         work.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }

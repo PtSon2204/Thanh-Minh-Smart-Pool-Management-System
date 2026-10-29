@@ -19,6 +19,14 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.CreateVoucher
             RuleFor(item => item.MinOrderValue)
                 .GreaterThanOrEqualTo(0).When(item => item.MinOrderValue.HasValue)
                 .WithMessage("Giá trị đơn hàng tối thiểu không được âm.");
+
+            RuleFor(item => item.StartDate)
+                .Must(d => !d.HasValue || d.Value.AddHours(7).Date >= DateTime.UtcNow.AddHours(7).Date)
+                .WithMessage("Ngày bắt đầu phải là ngày hiện tại hoặc tương lai.");
+
+            RuleFor(item => item.EndDate)
+                .Must(d => !d.HasValue || d.Value.AddHours(7).Date >= DateTime.UtcNow.AddHours(7).Date)
+                .WithMessage("Ngày kết thúc phải là ngày hiện tại hoặc tương lai.");
                 
             RuleFor(item => item.EndDate)
                 .GreaterThan(item => item.StartDate).When(item => item.StartDate.HasValue && item.EndDate.HasValue)

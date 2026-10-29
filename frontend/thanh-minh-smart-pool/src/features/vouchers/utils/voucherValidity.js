@@ -8,7 +8,22 @@ export const VoucherStatus = {
 // Dates from the API represent instants; the end of the validity interval is exclusive.
 export function getVoucherStatus(voucher, now = Date.now()) {
   if (!voucher || voucher.isDeleted === true) return VoucherStatus.LOCKED
-  if (voucher.endDate && !(Date.parse(voucher.endDate) > now)) return VoucherStatus.EXPIRED
+  
+  if (voucher.endDate) {
+    const endMs = Date.parse(voucher.endDate)
+    const endDateObj = new Date(endMs)
+    let effectiveEndMs = endMs
+
+    // Nếu endDate rơi vào 00:00:00 (người dùng chọn ngày mà không chỉnh giờ cụ thể),
+    // hạn sử dụng thực tế được tính đến cuối ngày đó (23:59:59.999).
+    if (endDateObj.getHours() === 0 && endDateObj.getMinutes() === 0 && endDateObj.getSeconds() === 0) {
+      endDateObj.setHours(23, 59, 59, 999)
+      effectiveEndMs = endDateObj.getTime()
+    }
+
+    if (!(effectiveEndMs > now)) return VoucherStatus.EXPIRED
+  }
+
   if (voucher.isActive !== true) return VoucherStatus.LOCKED
   if (voucher.startDate && !(Date.parse(voucher.startDate) <= now)) return VoucherStatus.SCHEDULED
   return VoucherStatus.ACTIVE
