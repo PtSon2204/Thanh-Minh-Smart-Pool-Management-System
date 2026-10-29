@@ -33,6 +33,30 @@ public sealed class StaffEmploymentCommandValidatorTests
     }
 
     [Fact]
+    public void GivenInactiveEmployment_WhenCreating_ThenItIsAccepted()
+    {
+        var result = new CreateStaffValidator().Validate(new CreateStaffCommand
+        {
+            UserId = Guid.NewGuid(), JoinDate = new DateOnly(2026, 10, 5), Status = "Inactive"
+        });
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void GivenWorkingEmployment_WhenUpdating_ThenItIsAccepted()
+    {
+        var result = new UpdateStaffValidator().Validate(new UpdateStaffCommand
+        {
+            UserId = Guid.NewGuid(), Status = "Working"
+        });
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
     public void GivenMissingJoinDate_WhenCreatingEmployment_ThenItIsRejected()
     {
         var result = new CreateStaffValidator().Validate(new CreateStaffCommand
