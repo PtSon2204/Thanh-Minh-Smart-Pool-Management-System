@@ -47,6 +47,30 @@ public sealed class StaffAttendanceQrContractTests
         Assert.False(state.CanResolve(now.AddSeconds(60), settings));
     }
 
+    [Theory]
+    [InlineData(29, true)]
+    [InlineData(30, false)]
+    public void GivenDifferentTokenAndRotationLifetimes_WhenResolving_ThenItUsesTheTokenLifetime(int seconds, bool expectedEligible)
+    {
+        var now = new DateTimeOffset(2026, 10, 18, 7, 0, 0, TimeSpan.Zero);
+        var state = new StaffAttendanceQrSessionState(now, now.AddMinutes(15));
+        var settings = new StaffAttendanceQrSettings { TokenLifetimeSeconds = 30, RotationIntervalSeconds = 90 };
+
+        Assert.Equal(expectedEligible, state.CanResolve(now.AddSeconds(seconds), settings));
+    }
+
+    [Theory]
+    [InlineData(89, false)]
+    [InlineData(90, true)]
+    public void GivenDifferentTokenAndRotationLifetimes_WhenRotating_ThenItUsesTheRotationInterval(int seconds, bool expectedEligible)
+    {
+        var now = new DateTimeOffset(2026, 10, 18, 7, 0, 0, TimeSpan.Zero);
+        var state = new StaffAttendanceQrSessionState(now, now.AddMinutes(15), Generation: 1);
+        var settings = new StaffAttendanceQrSettings { TokenLifetimeSeconds = 30, RotationIntervalSeconds = 90 };
+
+        Assert.Equal(expectedEligible, state.CanRotate(1, now.AddSeconds(seconds), settings));
+    }
+
     [Fact]
     public void GivenStaleGenerationOrActionWindowEnd_WhenRotatingOrIssuing_ThenTheContractRejectsTheStaleGenerationAndCapsExpiry()
     {
@@ -144,9 +168,14 @@ public sealed class StaffAttendanceQrContractTests
     public void GivenQrAttendanceEndpoints_WhenInspectingContracts_ThenEachRequiresAttendanceUpdateAndExposesNoClientIdentityOrTimestamp()
     {
         var methods = typeof(StaffAttendanceQrController).GetMethods()
-            .Where(method => method.DeclaringType == typeof(StaffAttendanceQrController)).ToArray();
+            .Where(method => method.DeclaringType == typeof(StaffAttendanceQrController)
+                && method.Name is "CreateSession" or "RotateSession" or "StopSession" or "Preview" or "Scan")
+            .ToArray();
 
-        Assert.All(methods.Where(method => method.Name is "CreateSession" or "RotateSession" or "StopSession" or "Preview" or "Scan"), method =>
+        Assert.Equal(5, methods.Length);
+        Assert.Equal(new[] { "CreateSession", "Preview", "RotateSession", "Scan", "StopSession" },
+            methods.Select(method => method.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.All(methods, method =>
             Assert.Equal("permission:attendance:update", method.GetCustomAttributes(typeof(RequirePermissionAttribute), false)
                 .Cast<RequirePermissionAttribute>().Single().Policy));
         Assert.DoesNotContain(typeof(StaffAttendanceQrPayloadRequest).GetProperties(), property => property.Name is "EmployeeId" or "Timestamp");

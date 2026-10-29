@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
 
@@ -7,6 +9,7 @@ public sealed class RentalIssueValidatorTests
 {
     [Theory]
     [InlineData(0, false)]
+    [InlineData(1, true)]
     [InlineData(100, true)]
     [InlineData(101, false)]
     public void GivenCheckoutQuantity_WhenValidating_ThenItAppliesTheUnitBoundary(int quantity, bool expectedValid)
@@ -187,6 +190,143 @@ public sealed class RentalIssueValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == "Items[0].ProductId");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void GivenMissingCheckoutName_WhenValidating_ThenTheNameIsRejected(string? name)
+    {
+        var command = ValidCheckout();
+        command.CustomerName = name;
+
+        var result = new CheckoutRentalValidator().Validate(command);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CustomerName));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void GivenMissingCheckoutPhone_WhenValidating_ThenThePhoneIsRejected(string? phone)
+    {
+        var command = ValidCheckout();
+        command.CustomerPhone = phone;
+
+        var result = new CheckoutRentalValidator().Validate(command);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CustomerPhone));
+    }
+
+    [Fact]
+    public void GivenCheckoutNameAtItsMaximum_WhenValidating_ThenItIsAccepted()
+    {
+        var command = ValidCheckout();
+        command.CustomerName = new string('N', 255);
+
+        var result = new CheckoutRentalValidator().Validate(command);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void GivenCheckoutPhoneAtItsMaximum_WhenValidating_ThenItIsAccepted()
+    {
+        var command = ValidCheckout();
+        command.CustomerPhone = new string('1', 20);
+
+        var result = new CheckoutRentalValidator().Validate(command);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("[null]")]
+    public void GivenInvalidCheckoutItemsJson_WhenValidating_ThenItemsAreRejected(string itemsJson)
+    {
+        var json = JsonSerializer.SerializeToNode(ValidCheckout());
+        Assert.NotNull(json);
+        json[nameof(CheckoutRentalCommand.Items)] = JsonNode.Parse(itemsJson);
+        var command = json.Deserialize<CheckoutRentalCommand>();
+        Assert.NotNull(command);
+        // OperatorId comes from server context, not the JSON payload.
+        command.OperatorId = Guid.NewGuid();
+
+        var result = new CheckoutRentalValidator().Validate(command);
+
+        Assert.False(result.IsValid);
+        Assert.NotEmpty(result.Errors);
+        Assert.All(result.Errors, error => Assert.Equal(nameof(CheckoutRentalCommand.Items), error.PropertyName));
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("[null]")]
+    public void GivenInvalidQuoteItemsJson_WhenValidating_ThenItemsAreRejected(string itemsJson)
+    {
+        var command = JsonSerializer.Deserialize<QuoteRentalCommand>($$"""{"Items":{{itemsJson}}}""");
+        Assert.NotNull(command);
+
+        var result = new QuoteRentalValidator().Validate(command);
+
+        Assert.False(result.IsValid);
+        Assert.NotEmpty(result.Errors);
+        Assert.All(result.Errors, error => Assert.Equal(nameof(QuoteRentalCommand.Items), error.PropertyName));
+    }
+
+    [Fact]
+    public void GivenQuoteQuantityBelowItsMinimum_WhenValidating_ThenTheQuantityIsRejected()
+    {
+        var command = new QuoteRentalCommand { Items = [new() { ProductId = Guid.NewGuid(), Quantity = 0 }] };
+
+        var result = new QuoteRentalValidator().Validate(command);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.PropertyName == "Items[0].Quantity");
+    }
+
+    [Theory]
+    [InlineData(20, true)]
+    [InlineData(21, false)]
+    public void GivenQuoteLineCountAtItsBoundary_WhenValidating_ThenItAppliesTheLineLimit(int lineCount, bool expectedValid)
+    {
+        var command = new QuoteRentalCommand
+        {
+            Items = Enumerable.Range(1, lineCount)
+                .Select(_ => new QuoteRentalLine { ProductId = Guid.NewGuid(), Quantity = 1 })
+                .ToList()
+        };
+
+        var result = new QuoteRentalValidator().Validate(command);
+
+        Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            Assert.Contains(result.Errors, error => error.PropertyName == nameof(QuoteRentalCommand.Items));
+    }
+
+    [Fact]
+    public void GivenQuoteAggregateQuantityAtOneHundred_WhenValidating_ThenItIsAccepted()
+    {
+        var command = new QuoteRentalCommand
+        {
+            Items = [new() { ProductId = Guid.NewGuid(), Quantity = 50 }, new() { ProductId = Guid.NewGuid(), Quantity = 50 }]
+        };
+
+        var result = new QuoteRentalValidator().Validate(command);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     private static CheckoutRentalCommand ValidCheckout() => new()
