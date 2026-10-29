@@ -254,24 +254,28 @@ export default function AdminLayout() {
       icon: <ExperimentOutlined />,
       label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
     },
-    isAdmin && {
+    (isAdmin || isLifeguard) && {
       key: 'equipments',
       icon: <ToolOutlined />,
       label: 'Quản lý thiết bị',
       children: [
         {
+          key: '/admin/equipments/daily-inspections',
+          label: <Link to="/admin/equipments/daily-inspections">Kiểm tra đầu ca (Checklist)</Link>,
+        },
+        isAdmin && {
           key: '/admin/equipments/list-equipments',
           label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link>,
         },
-        {
+        isAdmin && {
           key: '/admin/equipments/maintenance',
           label: <Link to="/admin/equipments/maintenance">Cấu hình lịch bảo trì</Link>,
         },
-        {
+        isAdmin && {
           key: '/admin/equipments/maintenance-history',
           label: <Link to="/admin/equipments/maintenance-history">Lịch sử bảo trì</Link>,
         },
-      ],
+      ].filter(Boolean),
     },
     (isAdmin || role === 'SALES') && {
       key: 'services',

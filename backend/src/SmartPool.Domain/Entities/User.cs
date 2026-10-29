@@ -37,6 +37,8 @@ public partial class User
 
     public virtual ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; } = new List<MaintenanceSchedule>();
 
+    public virtual ICollection<DailyInspection> DailyInspections { get; set; } = new List<DailyInspection>();
+
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
@@ -47,4 +49,3 @@ public partial class User
 
     public virtual UserProfile? UserProfile { get; set; }
 }
-

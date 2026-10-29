@@ -24,6 +24,7 @@ public class SmartPoolDbContext : EfDbContext
     public virtual DbSet<InventoryLog> InventoryLogs { get; set; }
     public virtual DbSet<MaintenanceLog> MaintenanceLogs { get; set; }
     public virtual DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
+    public virtual DbSet<DailyInspection> DailyInspections { get; set; }
     public virtual DbSet<Notification> Notifications { get; set; }
     public virtual DbSet<Order> Orders { get; set; }
     public virtual DbSet<OrderDetail> OrderDetails { get; set; }
@@ -58,6 +59,7 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new InventoryLogConfiguration());
         modelBuilder.ApplyConfiguration(new MaintenanceLogConfiguration());
         modelBuilder.ApplyConfiguration(new MaintenanceScheduleConfiguration());
+        modelBuilder.ApplyConfiguration(new DailyInspectionConfiguration());
         modelBuilder.ApplyConfiguration(new NotificationConfiguration());
         modelBuilder.ApplyConfiguration(new OrderConfiguration());
         modelBuilder.ApplyConfiguration(new OrderDetailConfiguration());

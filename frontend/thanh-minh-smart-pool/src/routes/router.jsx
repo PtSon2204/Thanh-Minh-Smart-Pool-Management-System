@@ -34,6 +34,7 @@ import TicketScannerPage from "../pages/admin/tickets/TicketScannerPage";
 import UserManagementPage from "../pages/admin/users/UserManagementPage";
 import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage";
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
+import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
 import MaintenancePage from "../pages/admin/maintenance/MaintenancePage";
 import MaintenanceHistoryPage from "../pages/admin/maintenance/MaintenanceHistoryPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
@@ -190,6 +191,10 @@ const router = createBrowserRouter([
                 element: <IncidentHistoryPage />,
               },
               { path: "water-quality", element: <WaterQualityPage /> },
+              {
+                path: "equipments/daily-inspections",
+                element: <DailyInspectionPage />,
+              },
             ],
           },
           {
