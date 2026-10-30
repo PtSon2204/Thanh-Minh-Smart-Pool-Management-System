@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, DatePicker, Form, Modal, Select, message } from 'antd'
-import { useSwimClassCoaches, useUpdateClassSession } from '../hooks/useSwimClassManagement'
+import { Alert, Button, DatePicker, Form, Modal, message } from 'antd'
+import { useUpdateClassSession } from '../hooks/useSwimClassManagement'
 import { applyClassServerErrors, classServerMessage } from '../utils/classDisplay'
 import { formatVietnamTime, utcTimeToVietnamPicker, vietnamPickerTimeToUtc } from '../utils/classSchedule'
 
@@ -11,21 +11,12 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
   const [error, setError] = useState(null)
   const [conflicts, setConflicts] = useState([])
   const update = useUpdateClassSession()
-  const coachesQuery = useSwimClassCoaches(Boolean(session))
-  const coachOptions = (coachesQuery.data || []).map(coach => ({
-    value: coach.userId,
-    label: coach.fullName || coach.username || coach.email || coach.userId,
-  }))
-  if (session && !coachOptions.some(item => item.value === session.coachUserId)) {
-    coachOptions.unshift({ value: session.coachUserId, label: `${session.coachName || session.coachUserId} (không còn trong danh sách Coach đang làm việc)`, disabled: true })
-  }
 
   useEffect(() => {
     if (!session) return
     form.setFieldsValue({
       startsAt: utcTimeToVietnamPicker(session.startsAt),
       endsAt: utcTimeToVietnamPicker(session.endsAt),
-      coachUserId: session.coachUserId,
     })
   }, [session, form])
 
@@ -39,7 +30,6 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
         payload: {
           startsAt: vietnamPickerTimeToUtc(values.startsAt),
           endsAt: vietnamPickerTimeToUtc(values.endsAt),
-          coachUserId: values.coachUserId,
           expectedUpdatedAt: session.updatedAt,
         },
       })
@@ -60,11 +50,10 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
     {conflicts.length > 0 && <Alert className="swim-class-form-alert" type="warning" showIcon title="Lịch bị trùng"
       description={<ul className="swim-class-conflict-list">{conflicts.map((item, index) =>
         <li key={`${item.conflictingSessionId || index}-${item.reason}`}>
-          {item.reason === 'coach_overlap' ? 'Coach đã được phân công ở lớp khác' : 'Lớp đã có buổi học cùng giờ'}.
+          {item.reason === 'coach_overlap' ? 'Coach đã được phân công ở lớp khác'
+            : item.reason === 'pool_overlap' ? 'Bể đã có lớp khác trong khung giờ này' : 'Lớp đã có buổi học cùng giờ'}.
           {' '}Khung giờ yêu cầu: {formatVietnamTime(item.startsAt)}–{formatVietnamTime(item.endsAt)}
         </li>)}</ul>} />}
-    {coachesQuery.isError && <Alert className="swim-class-form-alert" type="warning" showIcon
-      title="Không tải được danh sách Coach" action={<Button size="small" onClick={() => coachesQuery.refetch()}>Thử lại</Button>} />}
     <Form form={form} layout="vertical" onFinish={submit} disabled={update.isPending}
       onValuesChange={() => { setError(null); setConflicts([]) }}>
       <div className="swim-class-form-grid">
@@ -77,17 +66,20 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
           { required: true, message: 'Chọn giờ kết thúc.' },
           ({ getFieldValue }) => ({ validator(_, value) {
             const start = getFieldValue('startsAt')
-            return !value || !start || vietnamPickerTimeToUtc(value) > vietnamPickerTimeToUtc(start)
+            if (!value || !start) return Promise.resolve()
+            if (!value.isSame(start, 'day')) return Promise.reject(new Error('Giờ kết thúc phải cùng ngày với giờ bắt đầu.'))
+            return vietnamPickerTimeToUtc(value) > vietnamPickerTimeToUtc(start)
               ? Promise.resolve() : Promise.reject(new Error('Giờ kết thúc phải sau giờ bắt đầu.'))
           } }),
-        ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format="DD/MM/YYYY HH:mm" /></Form.Item>
-        <Form.Item className="swim-class-span-full" label="Coach phụ trách" name="coachUserId" rules={[{ required: true, message: 'Chọn Coach phụ trách.' }]}>
-          <Select showSearch optionFilterProp="label" loading={coachesQuery.isLoading} options={coachOptions} />
-        </Form.Item>
+        ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format="DD/MM/YYYY HH:mm"
+          disabledDate={date => {
+            const start = form.getFieldValue('startsAt')
+            return Boolean(start && !date.isSame(start, 'day'))
+          }} /></Form.Item>
       </div>
       <p className="swim-class-detail-timezone">Thời gian nhập theo giờ Việt Nam (UTC+7).</p>
       <div className="swim-class-edit-actions"><Button onClick={onClose} disabled={update.isPending}>Hủy</Button>
-        <Button type="primary" htmlType="submit" loading={update.isPending} disabled={coachesQuery.isError}>Lưu thay đổi</Button></div>
+        <Button type="primary" htmlType="submit" loading={update.isPending}>Lưu thay đổi</Button></div>
     </Form>
   </Modal>
 }

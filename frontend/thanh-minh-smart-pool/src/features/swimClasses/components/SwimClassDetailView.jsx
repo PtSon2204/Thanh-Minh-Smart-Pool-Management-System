@@ -21,10 +21,11 @@ export default function SwimClassDetailView() {
   const session = useAuthStore(state => state.session)
   const roles = (session?.roles?.length ? session.roles : [session?.role])
     .filter(Boolean).map(item => item.toUpperCase())
-  const role = location.pathname.startsWith('/admin/classes') && roles.includes('COACH')
-    && session?.role?.toUpperCase() !== 'ADMIN' ? 'COACH' : session?.role?.toUpperCase()
+  const role = location.pathname.startsWith('/coach/classes') && roles.includes('COACH')
+    ? 'COACH' : session?.role?.toUpperCase()
   const fromMyClasses = role === 'CUSTOMER' && location.state?.fromMyClasses === true
-  const backPath = role === 'CUSTOMER' ? (fromMyClasses ? '/lop-hoc-cua-toi' : '/lop-hoc') : '/admin/classes'
+  const backPath = role === 'COACH' ? '/coach/classes'
+    : (fromMyClasses ? '/lop-hoc-cua-toi' : '/lop-hoc')
   const detail = useSwimClassDetail(classId, session?.id, role === 'COACH' ? 'coach' : undefined)
   const [now, setNow] = useState(() => Date.now())
   const [editingClass, setEditingClass] = useState(false)
@@ -36,11 +37,12 @@ export default function SwimClassDetailView() {
   }, [])
 
   const swimClass = detail.data
+  const isOwner = role === 'COACH' && swimClass?.createdByUserId === session?.id
   const notFound = detail.error?.response?.status === 404
   const forbidden = detail.error?.response?.status === 403
 
   return <ConfigProvider theme={{ token: { colorPrimary: '#0077b6', colorInfo: '#0077b6', borderRadius: 8 } }}>
-    <div className={`swim-class-detail-page${role === 'CUSTOMER' ? ' swim-class-detail-page--customer' : ''}`}>
+    <div className={`swim-class-detail-page${role === 'CUSTOMER' ? ' swim-class-detail-page--customer' : ' swim-class-detail-page--coach'}`}>
       <Button className="swim-class-detail-back" type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(backPath)}>{fromMyClasses ? 'Lớp học của tôi' : 'Danh sách lớp'}</Button>
 
       {detail.isPending && <div className="swim-class-detail-loading"><Spin size="large" tip="Đang tải lớp học..." /></div>}
@@ -55,7 +57,7 @@ export default function SwimClassDetailView() {
         <header className="swim-class-detail-header">
           <div className="swim-class-detail-heading"><span className="swim-class-detail-icon"><BookOutlined /></span><div><small>CHI TIẾT LỚP DẠY BƠI</small><h1>{swimClass.name}</h1></div></div>
           <div className="swim-class-detail-header-actions">
-            {role === 'ADMIN' && <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Chỉnh sửa</Button>}
+            {isOwner && <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Chỉnh sửa</Button>}
             <SwimClassStatusTag status={swimClass.status} />
           </div>
         </header>
@@ -64,11 +66,11 @@ export default function SwimClassDetailView() {
           userId={session.id} now={now} onRefresh={() => detail.refetch()}
           initialPaymentOpen={location.state?.openPayment === true} />}
         <SwimClassSessionSchedule sessions={swimClass.sessions || []} now={now}
-          onEditSession={role === 'ADMIN' && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined} />
-        {role === 'ADMIN' && swimClass.status === 'Draft' && <SwimClassDraftActions swimClass={swimClass} now={now} />}
-        {role === 'ADMIN' && editingClass && <SwimClassEditModal swimClass={swimClass} open
+          onEditSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined} />
+        {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <SwimClassDraftActions swimClass={swimClass} now={now} />}
+        {isOwner && editingClass && <SwimClassEditModal swimClass={swimClass} open
           onClose={() => setEditingClass(false)} onReload={() => detail.refetch()} />}
-        {role === 'ADMIN' && editingSession && <SwimClassSessionEditModal classId={swimClass.id} session={editingSession}
+        {isOwner && editingSession && <SwimClassSessionEditModal classId={swimClass.id} session={editingSession}
           onClose={() => setEditingSession(null)} onReload={() => detail.refetch()} />}
       </>}
     </div>

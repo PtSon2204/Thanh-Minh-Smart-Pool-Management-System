@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { swimClassService } from '../services/swimClassService'
+import { useAuthStore } from '../../auth/store/authStore'
 
 export function useSwimClassCoaches(enabled) {
+  const session = useAuthStore(state => state.session)
   return useQuery({
-    queryKey: ['swim-class-coaches'],
-    queryFn: ({ signal }) => swimClassService.getCoaches(signal),
+    queryKey: ['swim-class-coaches', session?.id],
+    queryFn: async () => [{ userId: session.id, username: session.username }],
     staleTime: 60_000,
-    enabled,
+    enabled: Boolean(enabled && session?.id),
   })
 }
 

@@ -90,8 +90,8 @@ export default function Navbar() {
       isCoach && {
         key: 'classes',
         icon: <TeamOutlined />,
-        label: 'Lớp được phân công',
-        onClick: () => navigate('/admin/classes')
+        label: 'Quản lý lớp dạy',
+        onClick: () => navigate('/coach/classes')
       },
       role === 'ADMIN' && {
         key: 'admin',
@@ -212,7 +212,7 @@ export default function Navbar() {
           <div className="mobile-navigation-account">
             {session ? <>
               <strong>{profileData?.fullName || session.username}</strong>
-              {(isCoach || (role && !isCustomer)) && <Link to={isCoach ? '/admin/classes' : '/admin'} onClick={() => setMenuOpen(false)}>{isCoach ? 'Lớp được phân công' : 'Trang quản trị'}</Link>}
+              {(isCoach || (role && !isCustomer)) && <Link to={isCoach ? '/coach/classes' : '/admin'} onClick={() => setMenuOpen(false)}>{isCoach ? 'Quản lý lớp dạy' : 'Trang quản trị'}</Link>}
               {userMenu.items.map(item => <button key={item.key} type="button" onClick={() => { setMenuOpen(false); item.onClick() }}>{item.icon}{item.label}</button>)}
             </> : <>
               <Link to="/dang-ky" onClick={() => setMenuOpen(false)}>Đăng ký</Link>

@@ -116,7 +116,7 @@ export default function CoachApplicationPage() {
                   onClick={updateAccess}>Cập nhật quyền trong phiên đăng nhập</Button>}
                 {application.status === 'Revoked' && isCoach && <Button loading={refreshing}
                   onClick={updateAccess}>Cập nhật quyền trong phiên đăng nhập</Button>}
-                {application.status === 'Approved' && isCoach && <Link className="coach-app-primary-link" to="/admin/classes">Xem khu vực Coach</Link>}
+                {application.status === 'Approved' && isCoach && <Link className="coach-app-primary-link" to="/coach/classes">Quản lý lớp của tôi</Link>}
               </> : <div className="coach-app-empty"><FileImageOutlined /><h2>Chưa có yêu cầu</h2>
                 <p>Chọn ảnh chứng chỉ để bắt đầu đăng ký trở thành Coach.</p></div>}
             </Card>

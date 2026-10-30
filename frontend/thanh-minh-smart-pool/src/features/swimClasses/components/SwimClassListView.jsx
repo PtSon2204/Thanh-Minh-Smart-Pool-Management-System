@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Pagination } from 'antd'
-import { BookOutlined, PlusOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons'
+import { CompassOutlined, PlusOutlined, ReloadOutlined, ScheduleOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useSwimClasses } from '../hooks/useSwimClasses'
@@ -14,9 +14,8 @@ export default function SwimClassListView() {
   const location = useLocation()
   const roles = (session?.roles?.length ? session.roles : [session?.role])
     .filter(Boolean).map(item => item.toUpperCase())
-  const role = location.pathname.startsWith('/admin/classes') && roles.includes('COACH')
-    && session?.role?.toUpperCase() !== 'ADMIN' ? 'COACH' : session?.role?.toUpperCase()
-  const isAdmin = role === 'ADMIN'
+  const role = location.pathname.startsWith('/coach/classes') && roles.includes('COACH')
+    ? 'COACH' : session?.role?.toUpperCase()
   const [search, setSearch] = useState('')
   const [params, setParams] = useState({ searchTerm: '', status: undefined, pageIndex: 1, pageSize: 10 })
   const list = useSwimClasses({ ...params, scope: role === 'COACH' ? 'coach' : undefined }, session?.id)
@@ -35,20 +34,22 @@ export default function SwimClassListView() {
     setParams(previous => ({ ...previous, searchTerm: '', status: undefined, pageIndex: 1 }))
   }
 
-  const title = isAdmin ? 'Quản lý lớp dạy bơi' : role === 'COACH' ? 'Lớp được phân công' : 'Lớp dạy bơi'
-  const intro = isAdmin ? 'Theo dõi lớp, lịch nhận đăng ký và số học viên đã xác nhận.'
-    : role === 'COACH' ? 'Các lớp có buổi học được phân công cho bạn.'
-      : 'Khám phá các lớp học bơi đang hoạt động.'
+  const title = role === 'COACH' ? 'Lớp dạy của tôi' : 'Lớp dạy bơi'
+  const intro = role === 'COACH' ? 'Tạo lớp, sắp lịch và theo dõi các lớp bạn phụ trách.'
+    : 'Khám phá các lớp học bơi đang hoạt động.'
 
   return <ConfigProvider theme={{ token: { colorPrimary: '#0077b6', colorInfo: '#0077b6', borderRadius: 8 } }}>
-    <div className={`swim-class-list-page${role === 'CUSTOMER' ? ' swim-class-list-page--customer' : ''}`}>
+    <div className={`swim-class-list-page${role === 'CUSTOMER' ? ' swim-class-list-page--customer' : ' swim-class-list-page--coach'}`}>
       <header className="swim-class-list-header">
-        <div className="swim-class-list-heading"><span className="swim-class-list-icon"><BookOutlined /></span><div><h1>{title}</h1><p>{intro}</p></div></div>
-        {isAdmin && <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => navigate('/admin/classes/create')}>Tạo lớp</Button>}
-        {role === 'CUSTOMER' && <Button icon={<UserOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Lớp học của tôi</Button>}
+        <div className="swim-class-list-heading"><span className="swim-class-list-icon"><CompassOutlined /></span><div>
+          <small>{role === 'COACH' ? 'KHU VỰC COACH' : 'KHÁM PHÁ LỚP HỌC'}</small>
+          <h1>{title}</h1><p>{intro}</p>
+        </div></div>
+        {role === 'COACH' && <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => navigate('/coach/classes/create')}>Tạo lớp</Button>}
+        {role === 'CUSTOMER' && <Button icon={<ScheduleOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Lớp học của tôi</Button>}
       </header>
 
-      <SwimClassListFilters search={search} status={params.status} showStatus={role !== 'CUSTOMER'}
+      <SwimClassListFilters search={search} status={params.status} showStatus={role === 'COACH'}
         onSearchChange={setSearch}
         onStatusChange={status => setParams(previous => ({ ...previous, status, pageIndex: 1 }))}
         onReset={resetFilters} />
@@ -61,7 +62,7 @@ export default function SwimClassListView() {
         {list.isError ? <Alert type="error" showIcon title={list.error?.response?.status === 403 ? 'Bạn không có quyền xem danh sách lớp.' : 'Không thể tải danh sách lớp.'} action={<Button onClick={() => list.refetch()}>Thử lại</Button>} />
           : <>
             <SwimClassListTable items={list.data?.items || []} loading={list.isFetching} filtered={filtered}
-              onView={classId => navigate(role === 'CUSTOMER' ? `/lop-hoc/${classId}` : `/admin/classes/${classId}`)} />
+              onView={classId => navigate(role === 'COACH' ? `/coach/classes/${classId}` : `/lop-hoc/${classId}`)} />
             <div className="swim-class-list-pagination">
               <Pagination current={params.pageIndex} pageSize={params.pageSize} total={list.data?.totalCount || 0} showSizeChanger pageSizeOptions={[10, 20, 50, 100]}
                 showTotal={total => `${total.toLocaleString('vi-VN')} lớp`}

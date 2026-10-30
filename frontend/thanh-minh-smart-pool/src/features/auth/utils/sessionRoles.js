@@ -12,6 +12,6 @@ export function getLandingPath(session) {
   if (primary === 'ADMIN') return '/admin'
   if (primary === 'SALES') return '/admin/tickets/pos'
   if (primary === 'LIFEGUARD') return '/admin/staff/schedule'
-  if (hasSessionRole(session, 'COACH')) return '/admin/classes'
+  if (hasSessionRole(session, 'COACH')) return '/coach/classes'
   return '/'
 }
