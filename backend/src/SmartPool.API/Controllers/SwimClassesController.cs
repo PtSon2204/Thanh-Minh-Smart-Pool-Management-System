@@ -71,7 +71,6 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     [Authorize(Roles = "CUSTOMER")]
     [RequirePermission("class_registrations", "create")]
     [ProducesResponseType(typeof(RegisterForSwimClassResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(RegisterForSwimClassResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -81,7 +80,7 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         return await ExecuteAsync(async () =>
         {
             var result = await sender.Send(new RegisterForSwimClassCommand(classId), cancellationToken);
-            return result.ExistingOrder ? Ok(result) : StatusCode(StatusCodes.Status201Created, result);
+            return StatusCode(StatusCodes.Status201Created, result);
         });
     }
 

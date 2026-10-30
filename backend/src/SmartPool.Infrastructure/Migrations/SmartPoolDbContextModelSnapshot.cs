@@ -215,11 +215,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("amount");
-
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cancelled_at");
@@ -242,10 +237,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_user_id");
 
-                    b.Property<Guid?>("OrderId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("order_id");
-
                     b.Property<DateTime>("RegisteredAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -267,9 +258,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("class_registrations_pkey");
 
-                    b.HasIndex("OrderId")
-                        .HasDatabaseName("ix_class_registrations_order_id");
-
                     b.HasIndex("ClassId", "CustomerUserId")
                         .IsUnique()
                         .HasDatabaseName("ux_class_registrations_class_customer");
@@ -282,11 +270,11 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.ToTable("class_registrations", "smart_pool", t =>
                         {
-                            t.HasCheckConstraint("ck_class_registrations_amount_nonnegative", "amount >= 0");
-
                             t.HasCheckConstraint("ck_class_registrations_cancelled_after_registered", "cancelled_at IS NULL OR cancelled_at >= registered_at");
 
                             t.HasCheckConstraint("ck_class_registrations_confirmed_after_registered", "confirmed_at IS NULL OR confirmed_at >= registered_at");
+
+                            t.HasCheckConstraint("ck_class_registrations_status", "status IN ('Confirmed', 'Cancelled')");
                         });
                 });
 
@@ -2090,17 +2078,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("class_registrations_customer_user_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.Order", "Order")
-                        .WithMany("ClassRegistrations")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("class_registrations_order_id_fkey");
-
                     b.Navigation("Class");
 
                     b.Navigation("CustomerUser");
 
-                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>
@@ -2122,6 +2103,25 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("CoachUser");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.DailyInspection", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "Inspector")
+                        .WithMany("DailyInspections")
+                        .HasForeignKey("InspectorId")
+                        .IsRequired()
+                        .HasConstraintName("daily_inspections_inspector_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.Shift", "Shift")
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("daily_inspections_shift_id_fkey");
+
+                    b.Navigation("Inspector");
+
+                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
@@ -2453,8 +2453,6 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Order", b =>
                 {
-                    b.Navigation("ClassRegistrations");
-
                     b.Navigation("OrderDetails");
 
                     b.Navigation("Payments");

@@ -45,9 +45,6 @@ public sealed partial class SwimClassOperations
                     .Select(session => (DateTime?)session.StartsAt)
                     .FirstOrDefault(),
                 item.Status,
-                item.OrderId,
-                item.Order != null ? item.Order.Status : null,
-                item.Amount,
                 item.RegisteredAt,
                 item.ConfirmedAt,
                 item.CancelledAt))
@@ -69,8 +66,8 @@ public sealed partial class SwimClassOperations
         context.ClassRegistrations.AsNoTracking()
             .Where(item => item.ClassId == classId && item.CustomerUserId == customerUserId)
             .Select(item => new MyClassRegistrationSnapshot(
-                item.Id, item.ClassId, item.CustomerUserId, item.OrderId,
-                item.Amount, item.Status))
+                item.Id, item.ClassId, item.CustomerUserId, item.Status,
+                item.RegisteredAt, item.ConfirmedAt, item.CancelledAt))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResponse<SwimClassListItem>> GetListAsync(

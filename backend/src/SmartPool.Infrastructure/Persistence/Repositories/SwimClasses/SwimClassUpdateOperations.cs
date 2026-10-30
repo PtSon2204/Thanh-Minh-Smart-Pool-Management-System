@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateSwimClass;
-using SmartPool.Application.Common.Helpers;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
@@ -27,15 +26,9 @@ public sealed partial class SwimClassOperations
         var registrations = context.ClassRegistrations.AsNoTracking()
             .Where(item => item.ClassId == request.ClassId);
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var occupiedPlaces = await registrations.CountAsync(item =>
-            item.Status == "Confirmed" ||
-            (item.Status == "PendingPayment" && item.Order != null &&
-             (item.Order.Status == "COMPLETED" ||
-              ((item.Order.Status == "PENDING" || item.Order.Status == "PARTIAL") &&
-               item.Order.CreatedAt > now.Subtract(OnlineOrderPaymentPolicy.Lifetime)))),
+        var occupiedPlaces = await registrations.CountAsync(item => item.Status == "Confirmed",
             cancellationToken);
-        // Every class order is referenced by a registration, so any registration
-        // locks the historical fee, including records with an attached order.
+        // Keep the published fee stable once someone has registered.
         var hasRegistration = request.Fee != swimClass.Fee &&
             await registrations.AnyAsync(cancellationToken);
         SwimClassUpdatePolicy.EnsureCapacityAndFee(
