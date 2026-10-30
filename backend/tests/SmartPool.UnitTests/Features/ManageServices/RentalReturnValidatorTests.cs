@@ -1,3 +1,4 @@
+using FluentValidation.Results;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
 
@@ -13,8 +14,7 @@ public sealed class RentalReturnValidatorTests
             RentalId = Guid.NewGuid(), OperatorId = Guid.NewGuid(), RequestId = Guid.NewGuid(), Condition = "Normal"
         });
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalCommand.SettlementConfirmed));
+        AssertRejected(result, nameof(ReturnRentalCommand.SettlementConfirmed));
     }
 
     [Fact]
@@ -26,8 +26,7 @@ public sealed class RentalReturnValidatorTests
             SettlementConfirmed = true, Condition = "Partial"
         });
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalCommand.Condition));
+        AssertRejected(result, nameof(ReturnRentalCommand.Condition));
     }
 
     [Theory]
@@ -42,6 +41,10 @@ public sealed class RentalReturnValidatorTests
         });
 
         Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            AssertRejected(result, nameof(ReturnRentalCommand.Reason));
     }
 
     [Theory]
@@ -55,8 +58,7 @@ public sealed class RentalReturnValidatorTests
             SettlementConfirmed = true, Condition = condition
         });
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalCommand.Reason));
+        AssertRejected(result, nameof(ReturnRentalCommand.Reason));
     }
 
     [Fact]
@@ -68,8 +70,7 @@ public sealed class RentalReturnValidatorTests
 
         var result = new ReturnRentalQuantityValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
+        AssertRejected(result, nameof(ReturnRentalQuantityCommand.RentalIds));
     }
 
     [Fact]
@@ -80,8 +81,7 @@ public sealed class RentalReturnValidatorTests
 
         var result = new ReturnRentalQuantityValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.SettlementConfirmed));
+        AssertRejected(result, nameof(ReturnRentalQuantityCommand.SettlementConfirmed));
     }
 
     [Fact]
@@ -93,8 +93,7 @@ public sealed class RentalReturnValidatorTests
 
         var result = new ReturnRentalQuantityValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.Reason));
+        AssertRejected(result, nameof(ReturnRentalQuantityCommand.Reason));
     }
 
     [Fact]
@@ -106,8 +105,14 @@ public sealed class RentalReturnValidatorTests
 
         var result = new ReturnRentalQuantityValidator().Validate(command);
 
+        AssertRejected(result, nameof(ReturnRentalQuantityCommand.Reason));
+    }
+
+    private static void AssertRejected(ValidationResult result, string expectedProperty)
+    {
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.Reason));
+        Assert.Contains(result.Errors, error => error.PropertyName == expectedProperty);
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     private static ReturnRentalQuantityCommand ValidBatch(List<Guid> rentalIds) => new()
