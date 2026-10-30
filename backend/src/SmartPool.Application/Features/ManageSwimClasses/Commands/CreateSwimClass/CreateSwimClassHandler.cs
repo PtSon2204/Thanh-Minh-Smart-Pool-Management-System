@@ -15,12 +15,10 @@ public sealed class CreateSwimClassHandler(
         CreateSwimClassCommand request,
         CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is not { } adminId ||
-            !(currentUser.IsInRole("ADMIN") ||
-              string.Equals(currentUser.Role, "ADMIN", StringComparison.OrdinalIgnoreCase)))
-            throw new UnauthorizedAccessException("Chỉ Admin được tạo lớp dạy bơi.");
+        if (currentUser.UserId is not { } coachId || !currentUser.IsInRole("COACH"))
+            throw new UnauthorizedAccessException("Chỉ Coach được tạo lớp dạy bơi.");
 
         await validator.ValidateAndThrowAsync(request, cancellationToken);
-        return await operations.CreateAsync(request, adminId, cancellationToken);
+        return await operations.CreateAsync(request, coachId, cancellationToken);
     }
 }

@@ -18,7 +18,7 @@ public sealed class GetSwimClassesHandler(
     {
         if (currentUser.UserId is not { } userId ||
             string.IsNullOrWhiteSpace(currentUser.Role) ||
-            !new[] { "ADMIN", "CUSTOMER", "COACH" }.Contains(
+            !new[] { "CUSTOMER", "COACH" }.Contains(
                 currentUser.Role, StringComparer.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("Không có quyền xem danh sách lớp dạy bơi.");
 

@@ -15,12 +15,10 @@ public sealed class UpdateClassSessionHandler(
         UpdateClassSessionCommand request,
         CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is null ||
-            !(currentUser.IsInRole("ADMIN") ||
-              string.Equals(currentUser.Role, "ADMIN", StringComparison.OrdinalIgnoreCase)))
-            throw new UnauthorizedAccessException("Chỉ Admin được cập nhật buổi học.");
+        if (currentUser.UserId is not { } coachId || !currentUser.IsInRole("COACH"))
+            throw new UnauthorizedAccessException("Chỉ Coach được cập nhật buổi học.");
 
         await validator.ValidateAndThrowAsync(request, cancellationToken);
-        return await operations.UpdateSessionAsync(request, cancellationToken);
+        return await operations.UpdateSessionAsync(request, coachId, cancellationToken);
     }
 }

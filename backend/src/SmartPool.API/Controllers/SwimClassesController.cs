@@ -52,7 +52,7 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [Authorize(Roles = "COACH")]
     [RequirePermission("swim_classes", "create")]
     [ProducesResponseType(typeof(CreateSwimClassResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -113,7 +113,7 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{classId:guid}")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [Authorize(Roles = "COACH")]
     [RequirePermission("swim_classes", "update")]
     [ProducesResponseType(typeof(UpdateSwimClassResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -131,7 +131,7 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{classId:guid}/sessions")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [Authorize(Roles = "COACH")]
     [RequirePermission("class_sessions", "create")]
     [ProducesResponseType(typeof(CreateClassSessionsResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -151,7 +151,7 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     }
 
     [HttpPatch("{classId:guid}/sessions/{sessionId:guid}")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [Authorize(Roles = "COACH")]
     [RequirePermission("class_sessions", "update")]
     [ProducesResponseType(typeof(UpdateClassSessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -171,7 +171,7 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{classId:guid}/activate")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [Authorize(Roles = "COACH")]
     [RequirePermission("swim_classes", "update")]
     [ProducesResponseType(typeof(ActivateSwimClassResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

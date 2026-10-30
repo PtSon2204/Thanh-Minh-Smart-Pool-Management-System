@@ -24,13 +24,13 @@ public sealed partial class SwimClassOperations(
         CancellationToken cancellationToken)
     {
         var eligibleCoach = await EligibleCoaches()
-            .AnyAsync(employee => employee.UserId == request.CoachUserId, cancellationToken);
+            .AnyAsync(user => user.Id == createdByUserId, cancellationToken);
 
         if (!eligibleCoach)
             throw new ValidationException(new[]
             {
-                new ValidationFailure(nameof(request.CoachUserId),
-                    "Coach phải là nhân viên đang làm việc, có tài khoản hoạt động và vai trò COACH.")
+                new ValidationFailure("CoachUserId",
+                    "Coach phải có tài khoản hoạt động và quyền COACH.")
             });
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -41,7 +41,7 @@ public sealed partial class SwimClassOperations(
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
             Capacity = request.Capacity,
             Fee = request.Fee,
-            CoachUserId = request.CoachUserId,
+            CoachUserId = createdByUserId,
             RegistrationStartAt = request.RegistrationStartAt.UtcDateTime,
             RegistrationEndAt = request.RegistrationEndAt.UtcDateTime,
             Status = "Draft",
@@ -60,10 +60,16 @@ public sealed partial class SwimClassOperations(
             swimClass.CreatedAt, swimClass.UpdatedAt);
     }
 
-    private IQueryable<Employee> EligibleCoaches() => context.Employees.AsNoTracking().Where(employee =>
-        employee.Status != null && EF.Functions.ILike(employee.Status, "Working") &&
-        employee.User.IsDeleted != true &&
-        employee.User.Status != null && EF.Functions.ILike(employee.User.Status, "ACTIVE") &&
-        employee.User.Role != null && employee.User.Role.IsDeleted != true &&
-        EF.Functions.ILike(employee.User.Role.Name, RoleEnum.COACH.ToString()));
+    private IQueryable<User> EligibleCoaches() => context.Users.AsNoTracking().Where(user =>
+        user.IsDeleted != true &&
+        user.Status != null && EF.Functions.ILike(user.Status, "ACTIVE") &&
+        user.Role != null && user.Role.IsDeleted != true &&
+        ((user.IsCoach && EF.Functions.ILike(user.Role.Name, "CUSTOMER")) ||
+         EF.Functions.ILike(user.Role.Name, RoleEnum.COACH.ToString())));
+
+    private static void EnsureClassOwner(SwimClass swimClass, Guid coachUserId)
+    {
+        if (swimClass.CreatedByUserId != coachUserId)
+            throw new UnauthorizedAccessException("Chỉ Coach tạo lớp được quản lý lớp này.");
+    }
 }

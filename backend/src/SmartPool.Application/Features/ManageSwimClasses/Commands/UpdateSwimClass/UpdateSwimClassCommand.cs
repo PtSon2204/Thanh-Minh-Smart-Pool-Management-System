@@ -12,7 +12,6 @@ public sealed class UpdateSwimClassCommand : IRequest<UpdateSwimClassResponse>
     public string? Description { get; set; }
     public int Capacity { get; set; }
     public decimal Fee { get; set; }
-    public Guid CoachUserId { get; set; }
 
     [JsonConverter(typeof(OffsetRequiredDateTimeOffsetConverter))]
     public DateTimeOffset ExpectedUpdatedAt { get; set; }

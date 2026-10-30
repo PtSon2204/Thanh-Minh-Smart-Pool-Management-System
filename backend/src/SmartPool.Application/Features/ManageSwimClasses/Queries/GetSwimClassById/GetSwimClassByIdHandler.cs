@@ -15,12 +15,12 @@ public sealed class GetSwimClassByIdHandler(
     {
         if (currentUser.UserId is not { } userId ||
             string.IsNullOrWhiteSpace(currentUser.Role) ||
-            !new[] { "ADMIN", "CUSTOMER", "COACH" }.Contains(
+            !new[] { "CUSTOMER", "COACH" }.Contains(
                 currentUser.Role, StringComparer.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("Không có quyền xem lớp dạy bơi.");
 
         var role = request.Scope?.Trim().ToUpperInvariant() ?? currentUser.Role.ToUpperInvariant();
-        if (role is not ("COACH" or "CUSTOMER" or "ADMIN") ||
+        if (role is not ("COACH" or "CUSTOMER") ||
             (!string.IsNullOrWhiteSpace(request.Scope) && !currentUser.IsInRole(role)))
             throw new UnauthorizedAccessException("Không có quyền xem phạm vi lớp được yêu cầu.");
         return await operations.GetByIdAsync(

@@ -17,8 +17,6 @@ public sealed class UpdateClassSessionCommand : IRequest<UpdateClassSessionRespo
     [JsonConverter(typeof(OffsetRequiredDateTimeOffsetConverter))]
     public DateTimeOffset EndsAt { get; set; }
 
-    public Guid CoachUserId { get; set; }
-
     [JsonConverter(typeof(OffsetRequiredDateTimeOffsetConverter))]
     public DateTimeOffset ExpectedUpdatedAt { get; set; }
 }

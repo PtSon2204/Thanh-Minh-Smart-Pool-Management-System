@@ -17,7 +17,10 @@ public sealed class UpdateClassSessionValidator : AbstractValidator<UpdateClassS
         RuleFor(command => command.EndsAt)
             .NotEqual(default(DateTimeOffset)).WithMessage("Giờ kết thúc không hợp lệ.")
             .GreaterThan(command => command.StartsAt)
-            .WithMessage("Giờ kết thúc phải sau giờ bắt đầu.");
-        RuleFor(command => command.CoachUserId).NotEmpty().WithMessage("Coach phụ trách không được để trống.");
+            .WithMessage("Giờ kết thúc phải sau giờ bắt đầu.")
+            .Must((command, endsAt) =>
+                command.StartsAt.ToOffset(TimeSpan.FromHours(7)).Date ==
+                endsAt.ToOffset(TimeSpan.FromHours(7)).Date)
+            .WithMessage("Giờ kết thúc phải cùng ngày với giờ bắt đầu theo giờ Việt Nam.");
     }
 }
