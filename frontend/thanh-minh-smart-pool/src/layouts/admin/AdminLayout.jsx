@@ -30,7 +30,7 @@ import {
   LockOutlined,
   SecurityScanOutlined,
   AlertOutlined,
-  BookOutlined,
+  // BookOutlined,
   ExperimentOutlined,
   PlusCircleOutlined,
   UnorderedListOutlined,
