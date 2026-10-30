@@ -6,6 +6,9 @@ import {
   DashboardOutlined,
   UserOutlined,
   SafetyCertificateOutlined,
+  AuditOutlined,
+  PlusCircleOutlined,
+  UnorderedListOutlined,
   TeamOutlined,
   IdcardOutlined,
   TagOutlined,
@@ -18,12 +21,12 @@ import {
   LockOutlined,
   SecurityScanOutlined,
   AlertOutlined,
-  BookOutlined,
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
 import authService from '../../features/auth/services/authService';
+import { getSessionRoles } from '../../features/auth/utils/sessionRoles';
 import { useAlarmSound } from '../../features/safety/hooks/useAlarmSound';
 import { useSafetyAlertSignalR } from '../../features/safety/hooks/useSafetyAlertSignalR';
 import './AdminLayout.css';
@@ -52,8 +55,7 @@ export default function AdminLayout() {
   const { session } = useAuthStore();
   const navigate = useNavigate();
   const role = session?.role?.toUpperCase();
-  const roles = (session?.roles?.length ? session.roles : [session?.role])
-    .filter(Boolean).map((item) => item.toUpperCase());
+  const roles = getSessionRoles(session);
   const isCoach = roles.includes('COACH');
   const selectedMenuPath = location.pathname.startsWith('/admin/classes/') && location.pathname !== '/admin/classes/create'
     ? '/admin/classes'
@@ -144,7 +146,8 @@ export default function AdminLayout() {
     LIFEGUARD: 'Nhân viên cứu hộ',
     SALES: 'Nhân viên bán vé',
   };
-  const roleDisplay = roleLabelMap[role] || (isAdmin ? 'Quản trị viên' : 'Nhân viên');
+  const roleDisplay = isCoach && role === 'CUSTOMER'
+    ? 'Khách hàng · Coach' : roleLabelMap[role] || (isAdmin ? 'Quản trị viên' : 'Nhân viên');
 
   const menuItems = [
     isAdmin && {
@@ -163,13 +166,18 @@ export default function AdminLayout() {
       label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
     },
     isAdmin && {
+      key: '/admin/coach-applications',
+      icon: <AuditOutlined />,
+      label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
+    },
+    isAdmin && {
       key: '/admin/classes/create',
-      icon: <BookOutlined />,
+      icon: <PlusCircleOutlined />,
       label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
     },
     (isAdmin || isCoach) && {
       key: '/admin/classes',
-      icon: <BookOutlined />,
+      icon: <UnorderedListOutlined />,
       label: <Link to="/admin/classes">{isAdmin ? 'Danh sách lớp dạy bơi' : 'Lớp được phân công'}</Link>,
     },
     {

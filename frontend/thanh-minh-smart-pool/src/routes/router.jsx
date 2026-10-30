@@ -45,6 +45,9 @@ import SwimClassListPage from "../pages/admin/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
 import SwimClassDetailPage from "../pages/admin/classes/SwimClassDetailPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
+import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
+import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
+import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
 
 const router = createBrowserRouter([
   {
@@ -77,6 +80,8 @@ const router = createBrowserRouter([
         ),
         children: [
           { path: "/lop-hoc", element: <SwimClassCatalogPage /> },
+          { path: "/lop-hoc-cua-toi", element: <MySwimClassesPage /> },
+          { path: "/tro-thanh-coach", element: <CoachApplicationPage /> },
           {
             path: "/lop-hoc/:classId",
             element: <SwimClassCatalogDetailPage />,
@@ -174,6 +179,7 @@ const router = createBrowserRouter([
                 element: <StaffQrAttendancePage />,
               },
               { path: "users", element: <UserManagementPage /> },
+              { path: "coach-applications", element: <CoachApplicationsPage /> },
               { path: "roles/permissions", element: <RolePermissionsPage /> },
             ],
           },

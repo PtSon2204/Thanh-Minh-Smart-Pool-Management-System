@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Drawer, Dropdown, message } from 'antd'
-import { UserOutlined, LogoutOutlined, EditOutlined, ShoppingOutlined, LockOutlined, BookOutlined } from '@ant-design/icons'
+import { UserOutlined, LogoutOutlined, ShoppingOutlined, LockOutlined, CalendarOutlined, SafetyCertificateOutlined, TeamOutlined, DashboardOutlined, IdcardOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import './Navbar.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
@@ -10,6 +10,7 @@ import { useAuthStore } from '../../features/auth/store/authStore'
 import CartIcon from '../../features/cart/components/CartIcon'
 import profileService from '../../features/profiles/services/profileService'
 import authService from '../../features/auth/services/authService'
+import { getSessionRoles } from '../../features/auth/utils/sessionRoles'
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
@@ -27,8 +28,7 @@ export default function Navbar() {
 
   const { session } = useAuthStore()
   const role = session?.role?.toUpperCase()
-  const roles = (session?.roles?.length ? session.roles : [session?.role])
-    .filter(Boolean).map((item) => item.toUpperCase())
+  const roles = getSessionRoles(session)
   const isCustomer = roles.includes('CUSTOMER')
   const isCoach = roles.includes('COACH')
   const visibleNavItems = isCustomer
@@ -77,25 +77,31 @@ export default function Navbar() {
       },
       isCustomer && {
         key: 'my-classes',
-        icon: <BookOutlined />,
+        icon: <CalendarOutlined />,
         label: 'Lớp học của tôi',
         onClick: () => navigate('/lop-hoc-cua-toi')
       },
+      isCustomer && {
+        key: 'become-coach',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Yêu cầu Coach',
+        onClick: () => navigate('/tro-thanh-coach')
+      },
       isCoach && {
         key: 'classes',
-        icon: <EditOutlined />,
+        icon: <TeamOutlined />,
         label: 'Lớp được phân công',
         onClick: () => navigate('/admin/classes')
       },
       role === 'ADMIN' && {
         key: 'admin',
-        icon: <EditOutlined />,
+        icon: <DashboardOutlined />,
         label: 'Trang quản trị',
         onClick: () => navigate('/admin')
       },
       {
         key: '1',
-        icon: <EditOutlined />,
+        icon: <IdcardOutlined />,
         label: 'Hồ sơ cá nhân',
         onClick: () => navigate('/ho-so')
       },
