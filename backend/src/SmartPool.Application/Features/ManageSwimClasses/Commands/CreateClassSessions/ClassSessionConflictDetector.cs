@@ -28,11 +28,11 @@ public static class ClassSessionConflictDetector
 
             foreach (var existing in existingSessions)
             {
-                if (Overlaps(current.StartsAt, current.EndsAt, existing.StartsAt, existing.EndsAt))
+                if ((existing.ClassId == classId || existing.CoachUserId == current.CoachUserId) &&
+                    Overlaps(current.StartsAt, current.EndsAt, existing.StartsAt, existing.EndsAt))
                     conflicts.Add(new ClassSessionConflict(current.Index, current.CoachUserId,
                         current.StartsAt, current.EndsAt,
-                        existing.ClassId == classId ? "class_overlap" :
-                            existing.CoachUserId == current.CoachUserId ? "coach_overlap" : "pool_overlap",
+                        existing.ClassId == classId ? "class_overlap" : "coach_overlap",
                         ConflictingSessionId: existing.Id));
             }
         }

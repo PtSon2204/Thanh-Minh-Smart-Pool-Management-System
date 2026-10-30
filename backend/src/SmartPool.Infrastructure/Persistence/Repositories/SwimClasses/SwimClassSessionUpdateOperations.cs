@@ -16,7 +16,6 @@ public sealed partial class SwimClassOperations
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await LockClassAsync(request.ClassId, cancellationToken);
-        await LockPoolScheduleAsync(cancellationToken);
 
         var session = await context.ClassSessions
             .Include(item => item.Class)
@@ -52,6 +51,7 @@ public sealed partial class SwimClassOperations
 
         var existingSessions = await context.ClassSessions.AsNoTracking()
             .Where(item => item.Id != request.SessionId && item.Status != "Cancelled" &&
+                (item.ClassId == request.ClassId || item.CoachUserId == session.CoachUserId) &&
                 item.StartsAt < endsAt && item.EndsAt > startsAt)
             .Select(item => new ExistingClassSession(
                 item.Id, item.ClassId, item.CoachUserId, item.StartsAt, item.EndsAt))

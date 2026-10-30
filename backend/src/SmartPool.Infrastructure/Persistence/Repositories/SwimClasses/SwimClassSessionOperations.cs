@@ -17,7 +17,6 @@ public sealed partial class SwimClassOperations
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await LockClassAsync(request.ClassId, cancellationToken);
-        await LockPoolScheduleAsync(cancellationToken);
 
         var swimClass = await context.SwimClasses
             .FirstOrDefaultAsync(item => item.Id == request.ClassId, cancellationToken)
@@ -37,9 +36,17 @@ public sealed partial class SwimClassOperations
             .ToList();
         if (expiredStarts.Count != 0) throw new ValidationException(expiredStarts);
 
+        var assignedToOtherCoach = request.Sessions
+            .Select((item, index) => (item, index))
+            .Where(entry => entry.item.CoachUserId is { } id && id != coachUserId)
+            .Select(entry => new ValidationFailure($"Sessions[{entry.index}].CoachUserId",
+                "Buổi học phải do Coach tạo lớp phụ trách."))
+            .ToList();
+        if (assignedToOtherCoach.Count != 0) throw new ValidationException(assignedToOtherCoach);
+
         var proposed = request.Sessions.Select((item, index) => new ProposedClassSession(
             index,
-            item.CoachUserId ?? swimClass.CoachUserId,
+            coachUserId,
             item.StartsAt.UtcDateTime,
             item.EndsAt.UtcDateTime)).ToArray();
 
@@ -68,6 +75,7 @@ public sealed partial class SwimClassOperations
         var latestEnd = proposed.Max(item => item.EndsAt);
         var storedSessions = await context.ClassSessions.AsNoTracking()
             .Where(item => item.Status != "Cancelled" &&
+                (item.ClassId == request.ClassId || coachIds.Contains(item.CoachUserId)) &&
                 item.StartsAt < latestEnd && item.EndsAt > earliestStart)
             .Select(item => new ExistingClassSession(
                 item.Id, item.ClassId, item.CoachUserId, item.StartsAt, item.EndsAt))
@@ -160,13 +168,6 @@ public sealed partial class SwimClassOperations
     private async Task LockCoachAsync(Guid coachId, CancellationToken cancellationToken)
     {
         var key = $"swim-coach:{coachId:D}";
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
-    }
-
-    private async Task LockPoolScheduleAsync(CancellationToken cancellationToken)
-    {
-        const string key = "swim-class:pool-schedule";
         await context.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
     }
