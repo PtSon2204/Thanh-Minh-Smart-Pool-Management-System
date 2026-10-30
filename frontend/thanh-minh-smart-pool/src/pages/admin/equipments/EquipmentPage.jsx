@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Empty, Input, Pagination, Popconfirm, Select, Spin, Table, Tag } from 'antd'
-import { EditOutlined, EnvironmentOutlined, EyeOutlined, FilterOutlined, LockOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, ToolOutlined, UnlockOutlined, VideoCameraOutlined } from '@ant-design/icons'
+import { EditOutlined, EnvironmentOutlined, EyeOutlined, FilterOutlined, LockOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, ToolOutlined, UnlockOutlined } from '@ant-design/icons'
 import { useEquipmentFilters, useEquipments } from "../../../features/equipments/hooks/useEquipments"
 import { useSetEquipmentStatus } from "../../../features/equipments/hooks/useEquipmentMutations"
-import { equipmentStatuses, isCamera } from "../../../features/equipments/utils/equipmentDisplay"
+import { equipmentStatuses } from "../../../features/equipments/utils/equipmentDisplay"
 import EquipmentFormModal from "../../../features/equipments/components/EquipmentFormModal"
 import EquipmentUpdateModal from "../../../features/equipments/components/EquipmentUpdateModal"
 import EquipmentDetailsModal from "../../../features/equipments/components/EquipmentDetailsModal"
@@ -18,7 +18,6 @@ const equipmentTheme = {
 
 function EquipmentName({ equipment }) {
   return <div className="equipment-name">
-    <span className="equipment-name-icon" aria-hidden="true">{isCamera(equipment.category) ? <VideoCameraOutlined /> : <ToolOutlined />}</span>
     <strong>{equipment.name}</strong>
   </div>
 }

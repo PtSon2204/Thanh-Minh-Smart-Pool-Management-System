@@ -26,9 +26,6 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>Đăng nhập bằng username, email hoặc số điện thoại và nhận access token cùng refresh token.</summary>
-    /// <response code="200">Đăng nhập thành công; trả thông tin tài khoản, hai token và thời hạn của chúng.</response>
-    /// <response code="400">Thiếu hoặc sai định dạng dữ liệu đăng nhập.</response>
-    /// <response code="401">Thông tin đăng nhập không hợp lệ hoặc tài khoản không khả dụng.</response>
     [AllowAnonymous]
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]

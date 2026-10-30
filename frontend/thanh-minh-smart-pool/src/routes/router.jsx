@@ -19,12 +19,10 @@ import TicketTypePage from "../pages/admin/tickets/TicketTypePage";
 import ServicePage from "../pages/admin/services/ServicePage";
 import RentalPage from "../pages/admin/rentals/RentalPage";
 import VoucherPage from "../pages/admin/vouchers/VoucherPage";
-import NotificationPage from "../pages/admin/notifications/NotificationPage";
 import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatisticsPage";
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatisticsPage";
-import OperationCostsStatisticsPage from "../pages/admin/statistics/OperationCostsStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
 import StaffSchedulePage from "../pages/admin/staff/StaffSchedulePage";
@@ -35,8 +33,7 @@ import TicketScannerPage from "../pages/admin/tickets/TicketScannerPage";
 import UserManagementPage from "../pages/admin/users/UserManagementPage";
 import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage";
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
-import MaintenancePage from "../pages/admin/maintenance/MaintenancePage";
-import MaintenanceHistoryPage from "../pages/admin/maintenance/MaintenanceHistoryPage";
+import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
@@ -45,6 +42,7 @@ import SwimClassListPage from "../pages/admin/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
 import SwimClassDetailPage from "../pages/admin/classes/SwimClassDetailPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
+import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 
 const router = createBrowserRouter([
   {
@@ -132,11 +130,6 @@ const router = createBrowserRouter([
                 path: "equipments/list-equipments",
                 element: <EquipmentPage />,
               },
-              { path: "equipments/maintenance", element: <MaintenancePage /> },
-              {
-                path: "equipments/maintenance-history",
-                element: <MaintenanceHistoryPage />,
-              },
               {
                 path: "equipment",
                 element: (
@@ -144,7 +137,7 @@ const router = createBrowserRouter([
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              { path: "notifications", element: <NotificationPage /> },
+              { path: "notifications", element: <Navigate to="/admin" replace /> },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,
@@ -160,10 +153,6 @@ const router = createBrowserRouter([
               {
                 path: "statistics/incidents",
                 element: <IncidentStatisticsPage />,
-              },
-              {
-                path: "statistics/operations-costs",
-                element: <OperationCostsStatisticsPage />,
               },
               { path: "staff/profiles", element: <StaffProfilesPage /> },
               { path: "classes/create", element: <CreateSwimClassPage /> },
@@ -188,6 +177,11 @@ const router = createBrowserRouter([
               {
                 path: "safety/incident-history",
                 element: <IncidentHistoryPage />,
+              },
+              { path: "water-quality", element: <WaterQualityPage /> },
+              {
+                path: "equipments/daily-inspections",
+                element: <DailyInspectionPage />,
               },
             ],
           },

@@ -29,5 +29,23 @@ namespace SmartPool.API.Hubs
 
             await base.OnDisconnectedAsync(exception);
         }
+
+        /// <summary>
+        /// Cho phép gửi thông báo real-time trực tiếp qua Hub đến tất cả clients.
+        /// </summary>
+        public async Task SendNotification(string title, string content, string type)
+        {
+            var payload = new
+            {
+                id = Guid.NewGuid(),
+                title = string.IsNullOrWhiteSpace(title) ? "Thông báo hệ thống" : title,
+                content = string.IsNullOrWhiteSpace(content) ? "Nội dung thông báo mới" : content,
+                type = string.IsNullOrWhiteSpace(type) ? "SYSTEM" : type,
+                isRead = false,
+                createdAt = DateTime.UtcNow
+            };
+
+            await Clients.All.SendAsync("ReceiveNotification", payload);
+        }
     }
 }

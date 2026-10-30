@@ -14,6 +14,7 @@ import {
   ResponsiveContainer, Legend
 } from 'recharts';
 import { reportService } from '../../../features/reports/services/reportService';
+import { startSignalRConnection, onReceiveNotification } from '../../../services/signalrClient';
 
 const { Title, Text } = Typography;
 
@@ -50,24 +51,25 @@ const RevenueChartTooltip = ({ active, payload, label }) => {
 
 export default function TicketRevenueStatisticsPage() {
   const [period, setPeriod] = useState('7days');
+  const [ticketCategory, setTicketCategory] = useState('all');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await reportService.getTicketRevenueStatistics({ period });
+      const res = await reportService.getTicketRevenueStatistics({ period, ticketCategory });
       setData(res);
     } catch {
       antMessage.error('Không thể tải dữ liệu thống kê bán vé.');
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, ticketCategory]);
 
   useEffect(() => {
     let ignore = false;
-    reportService.getTicketRevenueStatistics({ period })
+    reportService.getTicketRevenueStatistics({ period, ticketCategory })
       .then((res) => {
         if (!ignore) setData(res);
       })
@@ -81,7 +83,18 @@ export default function TicketRevenueStatisticsPage() {
     return () => {
       ignore = true;
     };
-  }, [period]);
+  }, [period, ticketCategory]);
+
+  useEffect(() => {
+    startSignalRConnection();
+    const unsub = onReceiveNotification((notif) => {
+      const type = (notif?.type || '').toUpperCase();
+      if (type === 'TICKET' || type === 'ORDER' || type === 'SYSTEM' || type.includes('TICKET')) {
+        fetchData();
+      }
+    });
+    return () => unsub();
+  }, [fetchData]);
 
   // ============ COLUMNS cho bảng giao dịch ============
   const transactionColumns = [
@@ -186,14 +199,26 @@ export default function TicketRevenueStatisticsPage() {
       }}>
         <div>
           <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
-            🎫 Thống Kê Bán Vé & Doanh Thu
+            🎫 Thống Kê Bán Vé
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
-            Theo dõi số lượng vé bán ra, doanh thu theo loại vé và thời gian
+            Theo dõi số lượng vé bán ra và doanh thu (Vé lượt, Vé tháng) theo thời gian
           </Text>
         </div>
 
-        <Space wrap>
+        <Space wrap size="middle">
+          {/* Bộ lọc phân loại vé (Vé lượt / Vé tháng) */}
+          <Radio.Group
+            value={ticketCategory}
+            onChange={(e) => setTicketCategory(e.target.value)}
+            buttonStyle="solid"
+          >
+            <Radio.Button value="all">Tất cả vé</Radio.Button>
+            <Radio.Button value="VE_LUOT">Vé lượt</Radio.Button>
+            <Radio.Button value="VE_THANG">Vé tháng</Radio.Button>
+          </Radio.Group>
+
+          {/* Bộ lọc thời gian */}
           <Radio.Group
             value={period}
             onChange={(e) => setPeriod(e.target.value)}

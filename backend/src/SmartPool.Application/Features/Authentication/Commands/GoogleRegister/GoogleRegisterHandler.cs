@@ -19,13 +19,17 @@ public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterComman
     private readonly IRepository<User> _users;
     private readonly IRepository<UserProfile> _profiles;
     private readonly IRepository<Role> _roles;
+    private readonly IRepository<Notification> _notifications;
+    private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccessTokenService _accessTokens;
     private readonly IRefreshTokenService _refreshTokens;
     private readonly IValidator<GoogleRegisterCommand> _validator;
 
     public GoogleRegisterHandler(IGoogleIdTokenVerifier verifier, IRepository<User> users,
-        IRepository<UserProfile> profiles, IRepository<Role> roles, IUnitOfWork unitOfWork,
+        IRepository<UserProfile> profiles, IRepository<Role> roles,
+        IRepository<Notification> notifications, INotificationService notificationService,
+        IUnitOfWork unitOfWork,
         IAccessTokenService accessTokens, IRefreshTokenService refreshTokens,
         IValidator<GoogleRegisterCommand> validator)
     {
@@ -33,6 +37,8 @@ public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterComman
         _users = users;
         _profiles = profiles;
         _roles = roles;
+        _notifications = notifications;
+        _notificationService = notificationService;
         _unitOfWork = unitOfWork;
         _accessTokens = accessTokens;
         _refreshTokens = refreshTokens;
@@ -102,7 +108,40 @@ public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterComman
         {
             await _users.AddAsync(user, cancellationToken);
             await _profiles.AddAsync(profile, cancellationToken);
+
+            var adminUser = await _users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == "admin", cancellationToken);
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = adminUser?.Id ?? user.Id,
+                Title = "Khách hàng mới đăng ký (Google)",
+                Content = $"Khách hàng {profile.FullName} ({user.Username}) đã đăng ký tài khoản thành công qua Google.",
+                Type = "CUSTOMER",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notifications.AddAsync(notification, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            try
+            {
+                var payload = new
+                {
+                    id = notification.Id,
+                    userId = notification.UserId,
+                    title = notification.Title,
+                    content = notification.Content,
+                    type = notification.Type,
+                    isRead = false,
+                    createdAt = notification.CreatedAt
+                };
+                await _notificationService.SendToAllAsync("ReceiveNotification", payload, cancellationToken);
+            }
+            catch
+            {
+                // Transient broadcast error should not fail registration
+            }
         }
         catch (UniqueUserFieldException exception)
         {

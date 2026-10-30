@@ -124,8 +124,8 @@ public class CreateVoucherHandlerTests
         command.DiscountType = "FIXED_AMOUNT";
         command.DiscountValue = 5000;
         command.MinOrderValue = 0;
-        command.StartDate = new DateTime(2026, 10, 1);
-        command.EndDate = new DateTime(2026, 10, 2);
+        command.StartDate = DateTime.UtcNow.Date.AddDays(1);
+        command.EndDate = DateTime.UtcNow.Date.AddDays(2);
         command.IsActive = false;
         operations.Setup(x => x.CreateVoucherAsync(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CreateVoucherResponse { Id = Guid.NewGuid(), Code = command.Code, Message = "Tạo voucher thành công." });

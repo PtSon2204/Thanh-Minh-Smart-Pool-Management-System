@@ -21,6 +21,10 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
                 .WithMessage("Giá trị đơn hàng tối thiểu không được âm.");
 
             RuleFor(x => x.EndDate)
+                .Must(d => !d.HasValue || d.Value.AddHours(7).Date >= DateTime.UtcNow.AddHours(7).Date)
+                .WithMessage("Ngày kết thúc phải là ngày hiện tại hoặc tương lai.");
+
+            RuleFor(x => x.EndDate)
                 .GreaterThan(x => x.StartDate)
                 .When(x => x.StartDate.HasValue && x.EndDate.HasValue)
                 .WithMessage("Ngày kết thúc phải sau ngày bắt đầu.");

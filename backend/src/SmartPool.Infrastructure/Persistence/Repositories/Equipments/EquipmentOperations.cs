@@ -59,11 +59,7 @@ public sealed class EquipmentOperations(SmartPoolDbContext db) : IEquipmentOpera
             {
                 Id = x.Id, Name = x.Name, Category = x.Category, Location = x.Location,
                 Metadata = x.Metadata, Status = x.Status,
-                // Pending is the only upcoming schedule state defined by the current schema.
-                // A correlated aggregate is translated to SQL; no per-device database calls.
-                NextMaintenanceDate = x.MaintenanceSchedules
-                    .Where(s => s.Status == "Pending" && s.PlannedDate >= today && !s.MaintenanceLogs.Any())
-                    .Select(s => (DateOnly?)s.PlannedDate).Min()
+                NextMaintenanceDate = null
             }).ToListAsync(cancellationToken);
 
         return new PagedResponse<EquipmentListItem>
