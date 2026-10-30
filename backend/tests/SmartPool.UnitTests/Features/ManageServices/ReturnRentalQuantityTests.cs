@@ -1,5 +1,6 @@
 using FluentValidation;
 using Moq;
+using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
 using SmartPool.Application.Interfaces.Repositories;
 
@@ -32,9 +33,10 @@ public sealed class ReturnRentalQuantityTests
         var handler = new ReturnRentalQuantityHandler(operations.Object, new ReturnRentalQuantityValidator());
         var id = Guid.NewGuid();
 
-        await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(
             CreateCommand([id, id]), CancellationToken.None));
 
+        Assert.Contains(exception.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
         operations.Verify(repository => repository.ReturnRentalQuantityAsync(
             It.IsAny<ReturnRentalQuantityCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -55,7 +57,40 @@ public sealed class ReturnRentalQuantityTests
             CreateCommand(ids), CancellationToken.None));
 
         Assert.Equal(0, repositoryCalls);
-        Assert.IsType<ValidationException>(exception);
+        var validation = Assert.IsType<ValidationException>(exception);
+        Assert.Contains(validation.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
+    }
+
+    [Fact]
+    public async Task GivenValidRentalSelection_WhenHandling_ThenCommandAndTokenAreForwardedAndResponseIsPreserved()
+    {
+        var command = CreateCommand([Guid.NewGuid()]);
+        using var cancellation = new CancellationTokenSource();
+        var response = new ReturnRentalQuantityResponse();
+        var operations = new Mock<IServiceOperations>();
+        operations.Setup(operation => operation.ReturnRentalQuantityAsync(command, cancellation.Token)).ReturnsAsync(response);
+        var handler = new ReturnRentalQuantityHandler(operations.Object, new ReturnRentalQuantityValidator());
+
+        var result = await handler.Handle(command, cancellation.Token);
+
+        Assert.Same(response, result);
+        operations.Verify(operation => operation.ReturnRentalQuantityAsync(command, cancellation.Token), Times.Once);
+    }
+
+    [Fact]
+    public async Task GivenBatchReturnOperationConflict_WhenHandling_ThenTheSameExceptionIsPropagated()
+    {
+        var command = CreateCommand([Guid.NewGuid()]);
+        using var cancellation = new CancellationTokenSource();
+        var conflict = new ServiceConflictException("Batch return conflict.");
+        var operations = new Mock<IServiceOperations>();
+        operations.Setup(operation => operation.ReturnRentalQuantityAsync(command, cancellation.Token)).ThrowsAsync(conflict);
+        var handler = new ReturnRentalQuantityHandler(operations.Object, new ReturnRentalQuantityValidator());
+
+        var exception = await Assert.ThrowsAsync<ServiceConflictException>(() => handler.Handle(command, cancellation.Token));
+
+        Assert.Same(conflict, exception);
+        operations.Verify(operation => operation.ReturnRentalQuantityAsync(command, cancellation.Token), Times.Once);
     }
 
     [Fact]

@@ -45,7 +45,7 @@ internal sealed class CameraWorker : IAsyncDisposable
                 Task receiving = Task.CompletedTask;
                 Task decoding = Task.CompletedTask;
                 // Library logs can contain authorization headers; use only our safe reason codes.
-                using var client = new RTSPClient(NullLoggerFactory.Instance)
+                var client = new RTSPClient(NullLoggerFactory.Instance)
                 {
                     AcceptTrack = track => track.Kind == TrackKind.Video && track.AcceptedSoFar == 0
                         && track.Codec.ToUpperInvariant() is "H264" or "H265" or "JPEG"
@@ -82,7 +82,7 @@ internal sealed class CameraWorker : IAsyncDisposable
                     {
                         try { client.Connect(target.Uri, RTPTransport.TCP, new NetworkCredential(configuration.Username, configuration.Password)); }
                         catch (Exception) when (attempt.IsCancellationRequested) { }
-                        finally { if (attempt.IsCancellationRequested) client.Stop(); }
+                        finally { if (attempt.IsCancellationRequested) try { client.Stop(); } catch (Exception) { } }
                     });
                     receiving = connecting;
                     await connecting.WaitAsync(TimeSpan.FromSeconds(Math.Clamp(options.ConnectionTimeoutSeconds, 2, 60)), attempt.Token);
@@ -129,7 +129,7 @@ internal sealed class CameraWorker : IAsyncDisposable
                 finally
                 {
                     attempt.Cancel();
-                    client.Dispose();
+                    try { client.Dispose(); } catch (Exception) { }
                     currentClient = null;
                     frames.Writer.TryComplete();
                     try { await Task.WhenAll(receiving, decoding).WaitAsync(TimeSpan.FromSeconds(3)); } catch (Exception) { }
@@ -163,7 +163,7 @@ internal sealed class CameraWorker : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         stop.Cancel();
-        currentClient?.Dispose();
+        try { currentClient?.Dispose(); } catch (Exception) { }
         try { await work.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception) { }
         SetState("Disconnected");
     }

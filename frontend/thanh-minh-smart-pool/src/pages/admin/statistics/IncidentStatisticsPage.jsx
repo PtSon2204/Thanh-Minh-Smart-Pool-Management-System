@@ -14,6 +14,7 @@ import {
   ResponsiveContainer, AreaChart, Area
 } from 'recharts';
 import { reportService } from '../../../features/reports/services/reportService';
+import { startSignalRConnection, onReceiveNotification } from '../../../services/signalrClient';
 
 const { Title, Text } = Typography;
 
@@ -89,6 +90,17 @@ export default function IncidentStatisticsPage() {
       ignore = true;
     };
   }, [filter]);
+
+  useEffect(() => {
+    startSignalRConnection();
+    const unsub = onReceiveNotification((notif) => {
+      const type = (notif?.type || '').toUpperCase();
+      if (type === 'INCIDENT' || type === 'WARNING' || type === 'SYSTEM') {
+        handleReload();
+      }
+    });
+    return () => unsub();
+  }, [handleReload]);
 
   // Xuất file CSV báo cáo sự cố
   const handleExportCSV = () => {

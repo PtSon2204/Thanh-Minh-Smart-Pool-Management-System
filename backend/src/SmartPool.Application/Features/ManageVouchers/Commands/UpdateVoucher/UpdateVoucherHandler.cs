@@ -1,4 +1,5 @@
 using AutoMapper;
+using FluentValidation;
 using MediatR;
 using SmartPool.Application.Interfaces.Repositories;
 using VoucherEntity = SmartPool.Domain.Entities.Voucher;
@@ -10,16 +11,27 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
         private readonly IRepository<VoucherEntity> _repo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IValidator<UpdateVoucherCommand>? _validator;
 
-        public UpdateVoucherHandler(IRepository<VoucherEntity> repo, IUnitOfWork unitOfWork, IMapper mapper)
+        public UpdateVoucherHandler(
+            IRepository<VoucherEntity> repo, 
+            IUnitOfWork unitOfWork, 
+            IMapper mapper, 
+            IValidator<UpdateVoucherCommand>? validator = null)
         {
             _repo = repo;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _validator = validator;
         }
 
         public async Task<UpdateVoucherResponse> Handle(UpdateVoucherCommand request, CancellationToken cancellationToken)
         {
+            if (_validator != null)
+            {
+                await _validator.ValidateAndThrowAsync(request, cancellationToken);
+            }
+
             var entity = await _repo.FirstOrDefaultAsync(
                 v => v.Id == request.Id && v.IsDeleted != true,
                 cancellationToken)
@@ -36,8 +48,16 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
             entity.DiscountType = request.DiscountType;
             entity.DiscountValue = request.DiscountValue;
             entity.MinOrderValue = request.MinOrderValue;
-            entity.StartDate = request.StartDate;
-            entity.EndDate = request.EndDate;
+            entity.StartDate = request.StartDate.HasValue 
+                ? (request.StartDate.Value.Kind == DateTimeKind.Unspecified 
+                    ? DateTime.SpecifyKind(request.StartDate.Value, DateTimeKind.Utc) 
+                    : request.StartDate.Value.ToUniversalTime()) 
+                : null;
+            entity.EndDate = request.EndDate.HasValue 
+                ? (request.EndDate.Value.Kind == DateTimeKind.Unspecified 
+                    ? DateTime.SpecifyKind(request.EndDate.Value, DateTimeKind.Utc) 
+                    : request.EndDate.Value.ToUniversalTime()) 
+                : null;
             entity.IsActive = request.IsActive;
 
             _repo.Update(entity);

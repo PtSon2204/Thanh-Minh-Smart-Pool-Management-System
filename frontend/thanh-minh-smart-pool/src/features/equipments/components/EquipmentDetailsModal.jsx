@@ -1,6 +1,5 @@
 import { Button, Descriptions, Modal, Tag } from 'antd'
 import { EditOutlined, VideoCameraOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { cameraStates, equipmentStatuses, isCamera } from '../utils/equipmentDisplay'
 import EquipmentSpecificationsDetails from './EquipmentSpecificationsDetails'
 
@@ -20,7 +19,6 @@ export default function EquipmentDetailsModal({ equipment, onClose, onEdit, onVi
         { key: 'category', label: 'Nhóm thiết bị', children: equipment.category },
         { key: 'location', label: 'Khu vực', children: equipment.location || 'Chưa xác định' },
         { key: 'status', label: 'Trạng thái', children: <Tag color={status?.color || 'default'}>{status?.label || equipment.status || 'Chưa xác định'}</Tag> },
-        { key: 'maintenance', label: 'Bảo trì sắp tới', children: equipment.nextMaintenanceDate ? dayjs(equipment.nextMaintenanceDate).format('DD/MM/YYYY') : 'Chưa có lịch bảo trì' },
         ...(isCamera(equipment.category) ? [{ key: 'source', label: 'Nguồn camera', children: equipment.cameraSource === 'Browser' ? 'Webcam trên máy đang mở trang' : 'Camera IP — RTSP' }] : []),
         ...(equipment.cameraConnection ? [{ key: 'camera', label: 'Kết nối camera', children: <Tag color={connection?.color || 'default'}>{connection?.label || 'Chưa xác định'}</Tag> }] : []),
       ]} />

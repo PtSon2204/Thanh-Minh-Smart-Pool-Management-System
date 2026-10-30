@@ -1,7 +1,6 @@
 using SmartPool.Infrastructure.Persistence.Repositories.Users;
 using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
-using SmartPool.Infrastructure.Persistence.Repositories.Maintenance;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 using SmartPool.Infrastructure.Persistence.Repositories.CoachApplications;
@@ -182,8 +181,6 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IServiceOperations, ServiceOperations>();
             services.AddScoped<IEquipmentOperations, EquipmentOperations>();
-            services.AddScoped<IMaintenanceOperations, MaintenanceOperations>();
-            services.AddHostedService<MaintenanceReminderWorker>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<ISwimClassOperations, SwimClassOperations>();
             services.AddScoped<ICoachApplicationOperations, CoachApplicationOperations>();
@@ -192,6 +189,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();
             services.AddScoped<IPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.PaymentOperations>();
             services.AddScoped<IOrderPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.OrderPaymentOperations>();
+            services.AddScoped<SmartPool.Application.Interfaces.Repositories.IWaterQualityOperations, SmartPool.Infrastructure.Persistence.Repositories.WaterQuality.WaterQualityOperations>();
             services.AddHostedService<ExpiredOnlineOrderWorker>();
 
             return services;

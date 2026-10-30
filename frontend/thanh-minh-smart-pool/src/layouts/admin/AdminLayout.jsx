@@ -21,10 +21,16 @@ import {
   LockOutlined,
   SecurityScanOutlined,
   AlertOutlined,
+<<<<<<< HEAD
+=======
+  BookOutlined,
+  ExperimentOutlined,
+>>>>>>> 18b56b119e45b760ac457a32c222eba01d6d202c
 } from '@ant-design/icons';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import { notificationService } from '../../features/notifications/services/notificationService';
+import { onReceiveNotification, startSignalRConnection } from '../../services/signalrClient';
 import authService from '../../features/auth/services/authService';
 import { getSessionRoles } from '../../features/auth/utils/sessionRoles';
 import { useAlarmSound } from '../../features/safety/hooks/useAlarmSound';
@@ -136,8 +142,15 @@ export default function AdminLayout() {
       }
     };
     fetchUnread();
+    startSignalRConnection();
+    const unsub = onReceiveNotification(() => {
+      setUnreadCount((prev) => prev + 1);
+    });
     const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unsub();
+    };
   }, [location.pathname, isAdmin]);
 
   const roleLabelMap = {
@@ -251,24 +264,25 @@ export default function AdminLayout() {
         },
       ].filter(Boolean),
     },
-    isAdmin && {
+    (isAdmin || isLifeguard) && {
+      key: '/admin/water-quality',
+      icon: <ExperimentOutlined />,
+      label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
+    },
+    (isAdmin || isLifeguard) && {
       key: 'equipments',
       icon: <ToolOutlined />,
       label: 'Quản lý thiết bị',
       children: [
         {
+          key: '/admin/equipments/daily-inspections',
+          label: <Link to="/admin/equipments/daily-inspections">Kiểm tra đầu ca (Checklist)</Link>,
+        },
+        isAdmin && {
           key: '/admin/equipments/list-equipments',
           label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link>,
         },
-        {
-          key: '/admin/equipments/maintenance',
-          label: <Link to="/admin/equipments/maintenance">Cấu hình lịch bảo trì</Link>,
-        },
-        {
-          key: '/admin/equipments/maintenance-history',
-          label: <Link to="/admin/equipments/maintenance-history">Lịch sử bảo trì</Link>,
-        },
-      ],
+      ].filter(Boolean),
     },
     (isAdmin || role === 'SALES') && {
       key: 'services',
@@ -312,18 +326,7 @@ export default function AdminLayout() {
           key: '/admin/statistics/incidents',
           label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link>,
         },
-        {
-          key: '/admin/statistics/operations-costs',
-          label: (
-            <Link to="/admin/statistics/operations-costs">Thống kê chi phí vận hành, bảo trì</Link>
-          ),
-        },
       ],
-    },
-    isAdmin && {
-      key: '/admin/notifications',
-      icon: <BellOutlined />,
-      label: <Link to="/admin/notifications">Thông báo hệ thống</Link>,
     },
   ].filter(Boolean);
 
@@ -444,12 +447,12 @@ export default function AdminLayout() {
 
             <div className="admin-header-actions">
               {isAdmin && (
-                <Link to="/admin/notifications" style={{ display: 'inline-flex' }}>
+                <Link to="/admin" style={{ display: 'inline-flex' }} title="Thông báo hệ thống (tại Bảng điều khiển)">
                   <Badge count={unreadCount} size="small" overflowCount={99}>
                     <Button
                       type="text"
                       shape="circle"
-                      aria-label="Thông báo hệ thống"
+                      aria-label="Thông báo hệ thống tại Bảng điều khiển"
                       icon={<BellOutlined style={{ fontSize: 18 }} />}
                     />
                   </Badge>

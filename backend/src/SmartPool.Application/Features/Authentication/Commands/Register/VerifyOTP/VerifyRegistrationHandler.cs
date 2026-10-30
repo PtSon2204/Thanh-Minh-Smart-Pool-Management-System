@@ -19,6 +19,8 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
     private readonly IRepository<User> _users;
     private readonly IRepository<UserProfile> _profiles;
     private readonly IRepository<Role> _roles;
+    private readonly IRepository<Notification> _notifications;
+    private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRegistrationOtpStore _otpStore;
     private readonly RegistrationOtpCodeService _otpCodes;
@@ -30,6 +32,8 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
         IRepository<User> users,
         IRepository<UserProfile> profiles,
         IRepository<Role> roles,
+        IRepository<Notification> notifications,
+        INotificationService notificationService,
         IUnitOfWork unitOfWork,
         IRegistrationOtpStore otpStore,
         RegistrationOtpCodeService otpCodes,
@@ -40,6 +44,8 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
         _users = users;
         _profiles = profiles;
         _roles = roles;
+        _notifications = notifications;
+        _notificationService = notificationService;
         _unitOfWork = unitOfWork;
         _otpStore = otpStore;
         _otpCodes = otpCodes;
@@ -130,8 +136,41 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
 
             await _users.AddAsync(user, cancellationToken);
             await _profiles.AddAsync(profile, cancellationToken);
+
+            var adminUser = await _users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == "admin", cancellationToken);
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = adminUser?.Id ?? user.Id,
+                Title = "Khách hàng mới đăng ký",
+                Content = $"Khách hàng {registration.FullName} ({registration.Username}) đã đăng ký tài khoản thành công.",
+                Type = "CUSTOMER",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notifications.AddAsync(notification, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             saved = true;
+
+            try
+            {
+                var payload = new
+                {
+                    id = notification.Id,
+                    userId = notification.UserId,
+                    title = notification.Title,
+                    content = notification.Content,
+                    type = notification.Type,
+                    isRead = false,
+                    createdAt = notification.CreatedAt
+                };
+                await _notificationService.SendToAllAsync("ReceiveNotification", payload, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Không thể phát thông báo đăng ký qua SignalR: {ErrorType}.", ex.GetType().Name);
+            }
         }
         catch (UniqueUserFieldException exception)
         {

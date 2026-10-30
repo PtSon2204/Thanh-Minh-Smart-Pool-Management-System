@@ -13,7 +13,17 @@ public static class VoucherValidityPolicy
     // IsActive is the manual lock; validity is the UTC interval [StartDate, EndDate).
     public static string GetStatus(Voucher voucher, DateTime nowUtc)
     {
-        if (voucher.EndDate <= nowUtc) return Expired;
+        if (voucher.EndDate.HasValue)
+        {
+            var end = voucher.EndDate.Value;
+            // Nếu EndDate tròn ngày (00:00:00), coi hạn sử dụng kéo dài đến hết ngày đó
+            if (end.TimeOfDay == TimeSpan.Zero || end.AddHours(7).TimeOfDay == TimeSpan.Zero)
+            {
+                end = end.Date.AddDays(1).AddTicks(-1);
+            }
+            if (end <= nowUtc) return Expired;
+        }
+
         if (voucher.IsActive != true) return Locked;
         if (voucher.StartDate > nowUtc) return Scheduled;
         return Active;

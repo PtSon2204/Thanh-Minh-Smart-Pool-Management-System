@@ -19,6 +19,16 @@ public sealed class AssignShiftBatchValidatorTests
         var result = await new AssignShiftBatchValidator().ValidateAsync(command);
 
         Assert.False(result.IsValid);
+        if (empty)
+        {
+            Assert.Contains(result.Errors, error => error.PropertyName == nameof(AssignShiftBatchCommand.Assignments));
+        }
+        else
+        {
+            Assert.Contains(result.Errors, error => error.PropertyName == "Assignments[0].EmployeeId");
+            Assert.Contains(result.Errors, error => error.PropertyName == "Assignments[0].ShiftId");
+            Assert.Contains(result.Errors, error => error.PropertyName == "Assignments[0].WorkDate");
+        }
     }
 
     [Fact]
@@ -37,5 +47,24 @@ public sealed class AssignShiftBatchValidatorTests
         var result = await new AssignShiftBatchValidator().ValidateAsync(command);
 
         Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.PropertyName == nameof(AssignShiftBatchCommand.Assignments));
+    }
+
+    [Fact]
+    public async Task GivenBatchSpanningSevenInclusiveDates_WhenValidating_ThenRequestIsAccepted()
+    {
+        var command = new AssignShiftBatchCommand
+        {
+            Assignments =
+            [
+                new AssignShiftBatchItem { EmployeeId = Guid.NewGuid(), ShiftId = Guid.NewGuid(), WorkDate = new DateOnly(2026, 11, 1) },
+                new AssignShiftBatchItem { EmployeeId = Guid.NewGuid(), ShiftId = Guid.NewGuid(), WorkDate = new DateOnly(2026, 11, 7) }
+            ]
+        };
+
+        var result = await new AssignShiftBatchValidator().ValidateAsync(command);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 }
