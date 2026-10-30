@@ -50,8 +50,7 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
     {conflicts.length > 0 && <Alert className="swim-class-form-alert" type="warning" showIcon title="Lịch bị trùng"
       description={<ul className="swim-class-conflict-list">{conflicts.map((item, index) =>
         <li key={`${item.conflictingSessionId || index}-${item.reason}`}>
-          {item.reason === 'coach_overlap' ? 'Coach đã được phân công ở lớp khác'
-            : item.reason === 'pool_overlap' ? 'Bể đã có lớp khác trong khung giờ này' : 'Lớp đã có buổi học cùng giờ'}.
+          {item.reason === 'coach_overlap' ? 'Bạn đã có lớp khác trong khung giờ này' : 'Lớp đã có buổi học cùng giờ'}.
           {' '}Khung giờ yêu cầu: {formatVietnamTime(item.startsAt)}–{formatVietnamTime(item.endsAt)}
         </li>)}</ul>} />}
     <Form form={form} layout="vertical" onFinish={submit} disabled={update.isPending}

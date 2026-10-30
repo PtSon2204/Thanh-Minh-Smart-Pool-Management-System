@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { CalendarOutlined, CheckCircleOutlined, TeamOutlined } from '@ant-design/icons'
-import { ConfigProvider, Form, Steps, Tag, Typography } from 'antd'
+import { CalendarOutlined, CheckCircleOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons'
+import { Button, ConfigProvider, Form, Popconfirm, Steps, Tag, Typography } from 'antd'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useActivateSwimClass, useCreateClassSessions, useCreateSwimClass, useSwimClassCoaches } from '../hooks/useSwimClassManagement'
 import { applyClassServerErrors, classServerMessage } from '../utils/classDisplay'
@@ -122,7 +122,15 @@ export default function ClassCreationFlow() {
           <div><span className="swim-class-eyebrow">KHU VỰC COACH</span><Title level={2}>Tạo lớp và lịch học</Title>
             <Text type="secondary">Thiết lập lớp của bạn và sắp xếp các buổi học.</Text></div>
         </div>
-        <Tag color={stage === 2 ? 'success' : 'processing'}>{stage === 2 ? 'Đã kích hoạt' : draft ? 'Bản nháp đã lưu' : 'Lớp mới'}</Tag>
+        <div className="swim-class-page-header-actions">
+          {stage === 1 && <Popconfirm
+            title="Tạo lớp mới?"
+            description="Bản nháp hiện tại vẫn được lưu và có thể mở lại từ danh sách lớp."
+            okText="Tạo lớp mới" cancelText="Ở lại" onConfirm={startNewClass}>
+            <Button icon={<PlusOutlined />}>Tạo lớp khác</Button>
+          </Popconfirm>}
+          <Tag color={stage === 2 ? 'success' : 'processing'}>{stage === 2 ? 'Đã kích hoạt' : draft ? 'Bản nháp đã lưu' : 'Lớp mới'}</Tag>
+        </div>
       </header>
 
       <section className="swim-class-step-panel" aria-label="Tiến độ tạo lớp">
