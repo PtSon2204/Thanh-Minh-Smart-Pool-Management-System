@@ -53,20 +53,6 @@
 .swim-class-registration-panel > p { color: #425e70; margin: 0; }
 .swim-class-registration-loading { align-items: center; color: #61758a; display: flex; gap: 10px; }
 .swim-class-registration-error { margin-top: 4px; }
-.swim-class-payment-modal .ant-modal-body { display: grid; gap: 16px; }
-.swim-class-payment-title { color: #173c55; font-size: 18px; margin: 0; }
-.swim-class-payment-facts { background: #f5f9fc; border-radius: 9px; display: grid; gap: 10px; padding: 16px; }
-.swim-class-payment-facts > div { display: flex; justify-content: space-between; gap: 12px; }
-.swim-class-payment-facts span, .swim-class-payment-bank { color: #61758a; }
-.swim-class-payment-facts strong { color: #173c55; }
-.swim-class-payment-qr { align-items: center; display: flex; justify-content: center; min-height: 260px; }
-.swim-class-payment-qr img { max-width: 100%; object-fit: contain; }
-.swim-class-payment-reference, .swim-class-payment-bank { margin: 0; text-align: center; }
-.swim-class-payment-reference strong { color: #0b5c87; font-size: 16px; letter-spacing: .06em; }
-.swim-class-payment-waiting, .swim-class-payment-verifying, .swim-class-payment-countdown { align-items: center; display: flex; gap: 8px; justify-content: center; }
-.swim-class-payment-waiting { color: #61758a; }
-.swim-class-payment-countdown { color: #8f4810; font-weight: 600; }
-.swim-class-payment-countdown strong { font-size: 20px; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) {
   .swim-class-detail-page { gap: 12px; }
   .swim-class-detail-page--customer { margin-top: 18px; padding: 0 12px; }

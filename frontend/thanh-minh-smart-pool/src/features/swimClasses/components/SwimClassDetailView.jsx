@@ -63,8 +63,7 @@ export default function SwimClassDetailView() {
         </header>
         <SwimClassDetailSummary swimClass={swimClass} now={now} />
         {role === 'CUSTOMER' && <SwimClassRegistrationActions key={swimClass.id} swimClass={swimClass}
-          userId={session.id} now={now} onRefresh={() => detail.refetch()}
-          initialPaymentOpen={location.state?.openPayment === true} />}
+          userId={session.id} now={now} onRefresh={() => detail.refetch()} />}
         <SwimClassSessionSchedule sessions={swimClass.sessions || []} now={now}
           onEditSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined} />
         {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <SwimClassDraftActions swimClass={swimClass} now={now} />}
