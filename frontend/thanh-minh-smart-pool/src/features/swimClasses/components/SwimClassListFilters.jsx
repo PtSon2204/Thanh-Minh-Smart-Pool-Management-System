@@ -1,5 +1,5 @@
 import { Button, Input, Select } from 'antd'
-import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { ClearOutlined, SearchOutlined } from '@ant-design/icons'
 
 const statusOptions = [
   { value: 'Draft', label: 'Bản nháp' },
@@ -11,7 +11,7 @@ export default function SwimClassListFilters({ search, status, showStatus, onSea
   return <section className="swim-class-list-panel swim-class-list-filters" aria-label="Tìm kiếm và lọc lớp dạy bơi">
     <div className="swim-class-list-panel-heading">
       <h2>Tìm kiếm lớp học</h2>
-      <Button type="text" icon={<ReloadOutlined />} onClick={onReset} disabled={!search && !status}>Đặt lại</Button>
+      <Button type="text" icon={<ClearOutlined />} onClick={onReset} disabled={!search && !status}>Đặt lại</Button>
     </div>
     <div className="swim-class-list-filter-fields">
       <label>

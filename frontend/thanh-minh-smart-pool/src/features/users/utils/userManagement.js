@@ -5,7 +5,12 @@ export const USER_ROLES = [
   { value: 'SALES', label: 'Nhân viên bán vé' },
 ]
 
-export const USER_ROLE_COLORS = { ADMIN: 'purple', CUSTOMER: 'cyan', LIFEGUARD: 'blue', SALES: 'geekblue' }
+export const USER_ROLE_FILTERS = [
+  ...USER_ROLES,
+  { value: 'COACH', label: 'Coach (gồm Customer được cấp quyền)' },
+]
+
+export const USER_ROLE_COLORS = { ADMIN: 'purple', CUSTOMER: 'cyan', LIFEGUARD: 'blue', SALES: 'geekblue', COACH: 'gold' }
 
 export function getUserError(error) {
   const data = error?.response?.data

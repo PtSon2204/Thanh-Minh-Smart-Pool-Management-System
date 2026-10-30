@@ -75,6 +75,7 @@ export const loginResponseSchema = z.object({
   id: z.string().uuid(),
   username: z.string(),
   role: z.string().min(1),
+  roles: z.array(z.string().min(1)).min(1).optional(),
   accessToken: z.string().min(1),
   expiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Thời hạn phiên không hợp lệ.'),
   refreshToken: z.string().min(1),

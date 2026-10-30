@@ -11,6 +11,7 @@ import { loadGoogleIdentity } from "../services/googleIdentity";
 import GoogleProfileForm from "./GoogleProfileForm";
 import { savePendingRegistration } from "../state/registrationSession";
 import { beginOtpRequest } from "../state/otpRequest";
+import { getLandingPath } from "../utils/sessionRoles";
 import {
   getAuthError,
   loginFormSchema,
@@ -89,11 +90,7 @@ export default function AuthForm({ isRegister }) {
         loginForm.setValue("password", "");
         registerForm.setValue("password", "");
         registerForm.setValue("confirmPassword", "");
-        navigate(
-          ["ADMIN", "LIFEGUARD", "SALES"].includes(session.role.toUpperCase())
-            ? "/admin"
-            : session.role.toUpperCase() === "COACH" ? "/admin/classes" : "/",
-        );
+        navigate(getLandingPath(session));
       } catch (error) {
         if (error?.response?.status === 409 &&
             error.response.data?.code === 'GOOGLE_ACCOUNT_NOT_REGISTERED') {
@@ -161,18 +158,7 @@ export default function AuthForm({ isRegister }) {
     try {
       const session = await login.mutateAsync(values);
       clearPasswords();
-      const role = session.role?.toUpperCase();
-      const destination =
-        role === "ADMIN"
-          ? "/admin"
-          : role === "SALES"
-            ? "/admin/tickets/pos"
-            : role === "LIFEGUARD"
-              ? "/admin/staff/schedule"
-              : role === "COACH"
-                ? "/admin/classes"
-              : "/";
-      navigate(destination);
+      navigate(getLandingPath(session));
     } catch (error) {
       const authError = getAuthError(error);
       applyServerErrors(authError.fieldErrors);
@@ -251,7 +237,7 @@ export default function AuthForm({ isRegister }) {
       fullName: `${values.familyName} ${values.givenName}`.trim(),
     }} onSuccess={(session) => {
       clearPasswords();
-      navigate(['ADMIN', 'LIFEGUARD', 'SALES'].includes(session.role.toUpperCase()) ? '/admin' : session.role.toUpperCase() === 'COACH' ? '/admin/classes' : '/');
+      navigate(getLandingPath(session));
     }} onCancel={() => setGoogleCredential(null)} />;
   }
 

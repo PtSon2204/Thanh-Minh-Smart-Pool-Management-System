@@ -8,6 +8,8 @@ public sealed class LoginResponse
 
     public string Role { get; init; } = string.Empty;
 
+    public IReadOnlyList<string> Roles { get; init; } = [];
+
     public string AccessToken { get; init; } = string.Empty;
 
     public DateTime ExpiresAtUtc { get; init; }

@@ -10,6 +10,7 @@ public sealed class GetUsersResponse
     public string? AvatarUrl { get; init; }
     public Guid? RoleId { get; init; }
     public string? Role { get; init; }
+    public bool IsCoach { get; init; }
     public string? Status { get; init; }
     public DateTime? CreatedAt { get; init; }
 }

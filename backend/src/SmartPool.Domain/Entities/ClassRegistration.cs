@@ -8,10 +8,6 @@ public class ClassRegistration
 
     public Guid CustomerUserId { get; set; }
 
-    public Guid? OrderId { get; set; }
-
-    public decimal Amount { get; set; }
-
     public string Status { get; set; } = null!;
 
     public DateTime RegisteredAt { get; set; }
@@ -27,8 +23,6 @@ public class ClassRegistration
     public virtual SwimClass Class { get; set; } = null!;
 
     public virtual User CustomerUser { get; set; } = null!;
-
-    public virtual Order? Order { get; set; }
 
     public virtual ICollection<ClassAttendance> Attendances { get; set; } = new List<ClassAttendance>();
 }

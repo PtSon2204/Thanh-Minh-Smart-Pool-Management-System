@@ -12,6 +12,7 @@ public sealed class GetUserByIdResponse
     public DateOnly? DateOfBirth { get; init; }
     public Guid? RoleId { get; init; }
     public string? Role { get; init; }
+    public bool IsCoach { get; init; }
     public string? Status { get; init; }
     public DateTime? CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }

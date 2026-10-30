@@ -1,4 +1,4 @@
-using SmartPool.API.Hubs;
+using SmartPool.Infrastructure.Services;
 
 namespace SmartPool.API.Extensions
 {
@@ -11,7 +11,7 @@ namespace SmartPool.API.Extensions
     {
         public static WebApplication MapHubs(this WebApplication app)
         {
-            app.MapHub<NotificationHub>("/hubs/notifications");
+            app.MapHub<NotificationHubBase>("/hubs/notifications");
 
             // Thêm Hub mới tại đây:
             // app.MapHub<PoolStatusHub>("/hubs/pool-status");

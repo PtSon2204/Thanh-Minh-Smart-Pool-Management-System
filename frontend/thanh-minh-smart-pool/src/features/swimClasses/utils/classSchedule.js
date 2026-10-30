@@ -17,6 +17,11 @@ export function formatVietnamTime(value) {
   return dayjs(value).tz(VIETNAM_TIMEZONE).format('DD/MM/YYYY HH:mm')
 }
 
+// DatePicker reads local date fields; populate those fields from Vietnam wall time.
+export function utcTimeToVietnamPicker(value) {
+  return dayjs(dayjs(value).tz(VIETNAM_TIMEZONE).format('YYYY-MM-DDTHH:mm:ss'))
+}
+
 export function findRequestedOverlap(sessions) {
   const intervals = sessions.map((session) => ({
     startsAt: vietnamPickerTimeToUtc(session.startsAt),
