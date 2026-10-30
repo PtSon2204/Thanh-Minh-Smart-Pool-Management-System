@@ -69,9 +69,10 @@ public sealed partial class ServiceOperations
             throw new ServiceConflictException("Không có đủ thông tin cọc đã xác minh để quyết toán.");
         var refund = rentals.Where(item => normalIds.Contains(item.Id)).Sum(item => item.DepositAmount!.Value);
         var deposit = rentals.Sum(item => item.DepositAmount!.Value);
-        var now = DateTime.UtcNow;
+        var now = _clock.GetUtcNow().UtcDateTime;
         var settlement = new RentalTransaction { Id = command.RequestId, OrderId = order.Id, ProductId = product.Id, Kind = "Settlement", RequestHash = hash,
-            DepositAmount = deposit, RefundAmount = refund, RetainedAmount = deposit - refund, ConfirmedByUserId = command.OperatorId, ConfirmedAtUtc = now, Reason = command.Reason?.Trim() };
+            DepositAmount = deposit, RefundAmount = refund, RetainedAmount = deposit - refund, RefundMethod = refund > 0 ? "CASH" : null,
+            ConfirmedByUserId = command.OperatorId, ConfirmedAtUtc = now, Reason = command.Reason?.Trim() };
         _context.RentalTransactions.Add(settlement);
         await _context.SaveChangesAsync(cancellationToken);
         foreach (var rental in rentals)
