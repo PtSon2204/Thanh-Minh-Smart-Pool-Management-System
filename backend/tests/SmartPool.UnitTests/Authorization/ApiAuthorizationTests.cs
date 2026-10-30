@@ -156,9 +156,9 @@ public sealed class ApiAuthorizationTests
     }
 
     [Theory]
-    [InlineData("ADMIN", true, true)]
-    [InlineData("ADMIN", false, false)]
-    [InlineData("COACH", true, false)]
+    [InlineData("COACH", true, true)]
+    [InlineData("COACH", false, false)]
+    [InlineData("ADMIN", true, false)]
     public async Task CreateSwimClass_RequiresAdminAndCreatePermission(
         string role, bool hasPermission, bool expected)
     {
@@ -183,31 +183,50 @@ public sealed class ApiAuthorizationTests
     }
 
     [Theory]
-    [InlineData(nameof(SwimClassesController.CreateSessions), "class_sessions", "create")]
-    [InlineData(nameof(SwimClassesController.Activate), "swim_classes", "update")]
-    public async Task ClassSchedulingEndpoints_RequireAdminAndTheirPermission(
-        string action, string module, string permission)
-    {
-        var reader = new Mock<IRolePermissionReader>();
-        reader.Setup(item => item.ReadCurrentPermissionsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync($"{{\"{module}\":[\"{permission}\"]}}");
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(reader.Object);
-        services.AddApiAuthorization();
-        using var provider = services.BuildServiceProvider();
-        var metadata = typeof(SwimClassesController).GetMethod(action)!
-            .GetCustomAttributes<AuthorizeAttribute>();
-        var policy = await AuthorizationPolicy.CombineAsync(
-            provider.GetRequiredService<IAuthorizationPolicyProvider>(), metadata);
-        Assert.NotNull(policy);
-        var authorization = provider.GetRequiredService<IAuthorizationService>();
+[InlineData(nameof(SwimClassesController.CreateSessions), "class_sessions", "create")]
+[InlineData(nameof(SwimClassesController.Activate), "swim_classes", "update")]
+public async Task ClassSchedulingEndpoints_RequireCoachAndTheirPermission(
+    string action, string module, string permission)
+{
+    var reader = new Mock<IRolePermissionReader>();
 
-        Assert.True((await authorization.AuthorizeAsync(
-            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ADMIN"), null, policy)).Succeeded);
-        Assert.False((await authorization.AuthorizeAsync(
-            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "COACH"), null, policy)).Succeeded);
-    }
+    reader.Setup(item => item.ReadCurrentPermissionsAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()))
+        .ReturnsAsync($"{{\"{module}\":[\"{permission}\"]}}");
+
+    var services = new ServiceCollection();
+    services.AddLogging();
+    services.AddSingleton(reader.Object);
+    services.AddApiAuthorization();
+
+    using var provider = services.BuildServiceProvider();
+
+    var metadata = typeof(SwimClassesController)
+        .GetMethod(action)!
+        .GetCustomAttributes<AuthorizeAttribute>();
+
+    var policy = await AuthorizationPolicy.CombineAsync(
+        provider.GetRequiredService<IAuthorizationPolicyProvider>(),
+        metadata);
+
+    Assert.NotNull(policy);
+
+    var authorization = provider.GetRequiredService<IAuthorizationService>();
+
+    // COACH có permission tương ứng => được phép.
+    Assert.True((await authorization.AuthorizeAsync(
+        CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "COACH"),
+        null,
+        policy)).Succeeded);
+
+    // ADMIN không thuộc role được endpoint cho phép => bị từ chối.
+    Assert.False((await authorization.AuthorizeAsync(
+        CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ADMIN"),
+        null,
+        policy)).Succeeded);
+}
 
     private static ClaimsPrincipal CreatePrincipal(bool isAuthenticated, string userId, string role)
     {
