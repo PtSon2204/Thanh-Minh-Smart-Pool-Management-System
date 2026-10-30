@@ -119,6 +119,97 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("attendance_logs", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.BankTransferReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("account_number");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("BankReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("bank_reference");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("direction");
+
+                    b.Property<string>("Disposition")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("disposition");
+
+                    b.Property<string>("FinancialHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("financial_hash");
+
+                    b.Property<bool>("NeedsReconciliation")
+                        .HasColumnType("boolean")
+                        .HasColumnName("needs_reconciliation");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("provider");
+
+                    b.Property<long>("ProviderEventId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("provider_event_id");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at_utc");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("reference");
+
+                    b.HasKey("Id")
+                        .HasName("bank_transfer_receipts_pkey");
+
+                    b.HasIndex("FinancialHash")
+                        .HasDatabaseName("ix_bank_transfer_receipts_financial_hash");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("Reference")
+                        .HasDatabaseName("ix_bank_transfer_receipts_reference");
+
+                    b.HasIndex("Provider", "ProviderEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_bank_transfer_receipts_provider_event");
+
+                    b.ToTable("bank_transfer_receipts", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_bank_transfer_receipts_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_bank_transfer_receipts_direction", "direction = 'in'");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassAttendance", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1217,6 +1308,99 @@ namespace SmartPool.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.RentalPaymentIntent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<decimal>("DepositAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("deposit_amount");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<decimal>("FeeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("fee_amount");
+
+                    b.Property<Guid>("InitiatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("initiated_by_user_id");
+
+                    b.Property<DateTime?>("IssuedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issued_at_utc");
+
+                    b.Property<Guid?>("IssuedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("issued_by_user_id");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("lines_json");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime?>("PaidAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at_utc");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("reference");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("rental_payment_intents_pkey");
+
+                    b.HasIndex("InitiatedByUserId");
+
+                    b.HasIndex("IssuedByUserId");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rental_payment_intents_order");
+
+                    b.HasIndex("Reference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rental_payment_intents_reference");
+
+                    b.HasIndex("Status", "ExpiresAtUtc")
+                        .HasDatabaseName("ix_rental_payment_intents_status_expiry");
+
+                    b.ToTable("rental_payment_intents", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_rental_payment_intents_nonnegative", "fee_amount >= 0 AND deposit_amount >= 0");
+
+                            t.HasCheckConstraint("ck_rental_payment_intents_status", "status IN ('PENDING', 'PARTIAL', 'PAID', 'ISSUED', 'EXPIRED', 'CANCELLED')");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.RentalTransaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1269,6 +1453,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("refund_amount");
 
+                    b.Property<string>("RefundMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("refund_method");
+
                     b.Property<string>("RequestHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1309,6 +1498,8 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_rental_transactions_kind", "kind IN ('Collection', 'Settlement')");
 
                             t.HasCheckConstraint("ck_rental_transactions_nonnegative", "fee_amount >= 0 AND deposit_amount >= 0 AND refund_amount >= 0 AND retained_amount >= 0");
+
+                            t.HasCheckConstraint("ck_rental_transactions_refund_method", "refund_method IS NULL OR refund_method = 'CASH'");
                         });
                 });
 
@@ -2294,6 +2485,34 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.BankTransferReceipt", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.RentalPaymentIntent", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("InitiatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("IssuedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SmartPool.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.RentalTransaction", b =>
