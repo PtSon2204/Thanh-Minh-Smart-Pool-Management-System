@@ -352,6 +352,90 @@ namespace SmartPool.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.CoachApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CertificateFormat")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("certificate_format");
+
+                    b.Property<string>("CertificatePublicId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("certificate_public_id");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("RevokeReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("revoke_reason");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<Guid?>("RevokedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("revoked_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("coach_applications_pkey");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_coach_applications_user_pending")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("Status", "SubmittedAt")
+                        .HasDatabaseName("ix_coach_applications_status_submitted_at");
+
+                    b.ToTable("coach_applications", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_coach_applications_review_fields", "(status = 'Pending' AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL) OR (status <> 'Pending' AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_coach_applications_revoked_fields", "(status = 'Revoked' AND revoked_by_user_id IS NOT NULL AND revoked_at IS NOT NULL AND revoke_reason IS NOT NULL AND length(btrim(revoke_reason)) > 0) OR (status <> 'Revoked' AND revoked_by_user_id IS NULL AND revoked_at IS NULL AND revoke_reason IS NULL)");
+
+                            t.HasCheckConstraint("ck_coach_applications_status", "status IN ('Pending', 'Approved', 'Rejected', 'Revoked')");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2083,6 +2167,34 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("CoachUser");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.CoachApplication", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("coach_applications_reviewed_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "RevokedByUser")
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("coach_applications_revoked_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("coach_applications_user_id_fkey");
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("RevokedByUser");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
