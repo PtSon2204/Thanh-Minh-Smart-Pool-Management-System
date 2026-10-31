@@ -8,7 +8,6 @@ public sealed class CreateSwimClassCommand : IRequest<CreateSwimClassResponse>
     public string? Description { get; set; }
     public int Capacity { get; set; }
     public decimal Fee { get; set; }
-    public Guid CoachUserId { get; set; }
     public DateTimeOffset RegistrationStartAt { get; set; }
     public DateTimeOffset RegistrationEndAt { get; set; }
 }

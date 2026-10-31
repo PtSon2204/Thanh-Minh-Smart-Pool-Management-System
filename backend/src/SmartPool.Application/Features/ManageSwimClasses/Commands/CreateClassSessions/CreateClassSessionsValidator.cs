@@ -19,7 +19,11 @@ public sealed class CreateClassSessionsValidator : AbstractValidator<CreateClass
             session.RuleFor(item => item.EndsAt)
                 .NotEqual(default(DateTimeOffset)).WithMessage("Giờ kết thúc không hợp lệ.")
                 .GreaterThan(item => item.StartsAt)
-                .WithMessage("Giờ kết thúc phải sau giờ bắt đầu.");
+                .WithMessage("Giờ kết thúc phải sau giờ bắt đầu.")
+                .Must((item, endsAt) =>
+                    item.StartsAt.ToOffset(TimeSpan.FromHours(7)).Date ==
+                    endsAt.ToOffset(TimeSpan.FromHours(7)).Date)
+                .WithMessage("Giờ kết thúc phải cùng ngày với giờ bắt đầu theo giờ Việt Nam.");
             session.RuleFor(item => item.CoachUserId)
                 .Must(id => id is null || id != Guid.Empty)
                 .WithMessage("Mã Coach không hợp lệ.");

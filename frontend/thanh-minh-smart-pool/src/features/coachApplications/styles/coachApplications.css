@@ -1,0 +1,45 @@
+.coach-app-page { min-height: 75vh; background: #f4f8fd; padding: 48px 20px 80px; }
+.coach-app-shell { max-width: 1100px; margin: 0 auto; }
+.coach-app-hero, .coach-app-admin-hero { display: flex; align-items: center; justify-content: space-between; gap: 32px; margin-bottom: 24px; border-radius: 24px; background: linear-gradient(120deg, #073b80, #1167ad); color: #fff; padding: 36px 42px; overflow: hidden; }
+.coach-app-hero h1.ant-typography, .coach-app-admin-hero h2.ant-typography { color: #fff; margin: 10px 0; }
+.coach-app-hero h1.ant-typography { font-size: clamp(28px, 4vw, 42px); }
+.coach-app-hero p, .coach-app-admin-hero p { max-width: 650px; color: #e6f1ff; margin: 0; line-height: 1.6; }
+.coach-app-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+.coach-app-hero-icon { display: grid; place-items: center; flex: 0 0 150px; height: 150px; border: 1px solid #ffffff4d; border-radius: 32px; background: #ffffff1f; font-size: 76px; }
+.coach-app-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.coach-app-card.ant-card { border: 1px solid #e4ebf5; border-radius: 18px; box-shadow: 0 10px 25px #12365d0a; }
+.coach-app-card .ant-card-head { border-bottom-color: #edf1f7; font-weight: 700; }
+.coach-app-status.ant-tag { padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 20px; }
+.coach-app-facts { display: grid; grid-template-columns: minmax(110px, 1fr) 1.5fr; gap: 12px; margin: 10px 0 22px; }
+.coach-app-facts span { color: #64748b; }
+.coach-app-facts strong { overflow-wrap: anywhere; }
+.coach-app-approved { display: flex; align-items: flex-start; gap: 14px; color: #137447; background: #ecfdf3; padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+.coach-app-approved > span { font-size: 25px; }
+.coach-app-approved p { margin: 4px 0 0; color: #406452; }
+.coach-app-primary-link { display: inline-block; border-radius: 9px; background: #1267ad; color: #fff; padding: 10px 16px; font-weight: 700; }
+.coach-app-primary-link:hover { color: #fff; background: #09528e; }
+.coach-app-empty { display: grid; justify-items: center; text-align: center; color: #64748b; padding: 18px 0; }
+.coach-app-empty > span { font-size: 42px; color: #82a7ce; }
+.coach-app-empty h2 { color: #173451; margin: 12px 0 4px; }
+.coach-app-empty p { margin: 0; }
+.coach-app-muted { color: #64748b; }
+.coach-app-certificate, .coach-app-preview { display: block; max-width: 100%; max-height: 340px; object-fit: contain; border-radius: 12px; background: #f6f8fc; }
+.coach-app-submit p { color: #53667c; }
+.coach-app-upload { display: grid; justify-items: center; gap: 5px; padding: 30px; border: 2px dashed #9cbde0; border-radius: 14px; background: #f8fbff; color: #245b93; cursor: pointer; text-align: center; }
+.coach-app-upload:hover, .coach-app-upload:focus-within { background: #edf6ff; border-color: #327dc4; }
+.coach-app-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.coach-app-upload > span.anticon { font-size: 35px; margin-bottom: 8px; }
+.coach-app-upload > span:last-child { color: #64748b; font-size: 13px; }
+.coach-app-preview { margin: 16px 0; }
+.coach-app-submit-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; }
+.coach-app-loading { display: flex; justify-content: center; padding: 50px; }
+.coach-app-admin { padding: 24px; }
+.coach-app-admin-hero { margin-bottom: 20px; }
+.coach-app-admin-hero > span.anticon { font-size: 64px; opacity: .7; }
+.coach-app-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
+.coach-app-toolbar h2 { margin: 0 0 3px; font-size: 19px; }
+.coach-app-drawer h3 { margin: 24px 0 12px; }
+.coach-app-review-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #edf1f7; padding-top: 20px; margin-top: 26px; }
+.coach-app-history { margin-bottom: 20px; }
+.coach-app-steps { padding-left: 22px; color: #334e68; line-height: 1.9; }
+@media (max-width: 700px) { .coach-app-page { padding: 24px 12px 48px; } .coach-app-hero, .coach-app-admin-hero { padding: 26px; } .coach-app-hero-icon, .coach-app-admin-hero > span.anticon { display: none; } .coach-app-grid { grid-template-columns: 1fr; } .coach-app-admin { padding: 12px; } .coach-app-toolbar, .coach-app-submit-actions { align-items: stretch; flex-direction: column; } .coach-app-review-actions { flex-wrap: wrap; } }

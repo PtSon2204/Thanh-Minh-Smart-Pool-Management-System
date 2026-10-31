@@ -2,12 +2,74 @@ using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassRegistration;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMySwimClasses;
 using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
 public sealed partial class SwimClassOperations
 {
+    public async Task<PagedResponse<MySwimClassItem>> GetMyClassesAsync(
+        GetMySwimClassesQuery request,
+        Guid customerUserId,
+        CancellationToken cancellationToken)
+    {
+        var query = context.ClassRegistrations.AsNoTracking()
+            .Where(item => item.CustomerUserId == customerUserId);
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            var status = request.Status.Trim();
+            query = query.Where(item => EF.Functions.ILike(item.Status, status));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var items = await query
+            .OrderByDescending(item => item.RegisteredAt)
+            .ThenByDescending(item => item.Id)
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(item => new MySwimClassItem(
+                item.Id,
+                item.ClassId,
+                item.Class.Name,
+                item.Class.Status,
+                item.Class.CoachUser.UserProfile != null
+                    ? item.Class.CoachUser.UserProfile.FullName
+                    : item.Class.CoachUser.Username,
+                item.Class.Sessions.Count(),
+                item.Class.Sessions
+                    .Where(session => session.Status == "Scheduled" && session.StartsAt > now)
+                    .OrderBy(session => session.StartsAt)
+                    .Select(session => (DateTime?)session.StartsAt)
+                    .FirstOrDefault(),
+                item.Status,
+                item.RegisteredAt,
+                item.ConfirmedAt,
+                item.CancelledAt))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResponse<MySwimClassItem>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize
+        };
+    }
+
+    public Task<MyClassRegistrationSnapshot?> GetMyRegistrationAsync(
+        Guid classId,
+        Guid customerUserId,
+        CancellationToken cancellationToken) =>
+        context.ClassRegistrations.AsNoTracking()
+            .Where(item => item.ClassId == classId && item.CustomerUserId == customerUserId)
+            .Select(item => new MyClassRegistrationSnapshot(
+                item.Id, item.ClassId, item.CustomerUserId, item.Status,
+                item.RegisteredAt, item.ConfirmedAt, item.CancelledAt))
+            .SingleOrDefaultAsync(cancellationToken);
+
     public async Task<PagedResponse<SwimClassListItem>> GetListAsync(
         GetSwimClassesQuery request,
         Guid userId,
@@ -109,7 +171,8 @@ public sealed partial class SwimClassOperations
                 session.StartsAt,
                 session.EndsAt,
                 session.Status,
-                session.CancelReason))
+                session.CancelReason,
+                session.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         return new SwimClassDetailResponse(
@@ -135,10 +198,11 @@ public sealed partial class SwimClassOperations
         var query = context.SwimClasses.AsNoTracking();
         return role switch
         {
-            "ADMIN" => query,
             "CUSTOMER" => query.Where(swimClass => swimClass.Status == "Active"),
             "COACH" => query.Where(swimClass =>
-                swimClass.Sessions.Any(session => session.CoachUserId == userId)),
+                swimClass.CreatedByUserId == userId ||
+                (swimClass.Status == "Active" &&
+                 swimClass.Sessions.Any(session => session.CoachUserId == userId))),
             _ => throw new UnauthorizedAccessException("Không có quyền xem lớp dạy bơi.")
         };
     }

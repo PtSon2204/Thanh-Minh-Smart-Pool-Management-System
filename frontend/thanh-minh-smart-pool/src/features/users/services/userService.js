@@ -9,6 +9,7 @@ const userService = {
   update: (id, data) => apiClient.put(`${BASE}/${id}`, data).then((response) => response.data),
   changeRole: (id, role) => apiClient.patch(`${BASE}/${id}/role`, { role }).then((response) => response.data),
   changeStatus: (id, status) => apiClient.patch(`${BASE}/${id}/status`, { status }).then((response) => response.data),
+  revokeCoach: (id, reason) => apiClient.post(`${BASE}/${id}/coach-access/revoke`, { reason }).then((response) => response.data),
 }
 
 export default userService

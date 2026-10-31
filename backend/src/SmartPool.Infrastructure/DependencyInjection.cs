@@ -3,6 +3,7 @@ using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
+using SmartPool.Infrastructure.Persistence.Repositories.CoachApplications;
 using SmartPool.Infrastructure.Persistence.Repositories.Tickets;
 using SmartPool.Infrastructure.Persistence.Repositories.Vouchers;
 using CloudinaryDotNet;
@@ -106,10 +107,11 @@ namespace SmartPool.Infrastructure
                         OnTokenValidated = async context =>
                         {
                             var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-                            var tokenRole = context.Principal?.FindFirstValue(ClaimTypes.Role);
+                            var tokenRoles = context.Principal?.FindAll(ClaimTypes.Role)
+                                .Select(claim => claim.Value).ToArray() ?? [];
                             var passwordVersion = context.Principal?.FindFirstValue(AccessTokenService.PasswordVersionClaim);
                             if (!Guid.TryParse(userIdValue, out var userId) || userId == Guid.Empty ||
-                                string.IsNullOrWhiteSpace(tokenRole) || string.IsNullOrWhiteSpace(passwordVersion))
+                                tokenRoles.Length == 0 || string.IsNullOrWhiteSpace(passwordVersion))
                             {
                                 context.Fail("Token identity is invalid.");
                                 return;
@@ -117,7 +119,7 @@ namespace SmartPool.Infrastructure
 
                             var validator = context.HttpContext.RequestServices
                                 .GetRequiredService<IAccessTokenService>();
-                            if (!await validator.IsCurrentAsync(userId, tokenRole, passwordVersion,
+                            if (!await validator.IsCurrentRolesAsync(userId, tokenRoles, passwordVersion,
                                 context.HttpContext.RequestAborted))
                                 context.Fail("Account role, status or password changed.");
                         }
@@ -157,6 +159,7 @@ namespace SmartPool.Infrastructure
 
             // Access token generation for login
             services.AddScoped<IAccessTokenService, AccessTokenService>();
+            services.AddScoped<IUserRoleMembershipService, UserRoleMembershipService>();
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<IGoogleIdTokenVerifier, GoogleIdTokenVerifier>();
 
@@ -184,6 +187,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IEquipmentOperations, EquipmentOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<ISwimClassOperations, SwimClassOperations>();
+            services.AddScoped<ICoachApplicationOperations, CoachApplicationOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();

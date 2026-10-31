@@ -9,7 +9,7 @@ export function conflictDescription(conflict, coaches) {
   const reason = {
     request_overlap: `trùng với buổi ${Number(conflict.conflictingRequestIndex) + 1} trong danh sách đang nhập`,
     class_overlap: 'trùng với một buổi đã lưu của lớp này',
-    coach_overlap: 'Coach đã được phân công cho một lớp khác',
+    coach_overlap: 'Coach đã có lớp khác trong khung giờ này',
   }[conflict.reason] || 'bị trùng lịch'
   return `Buổi ${Number(conflict.sessionIndex) + 1} · ${formatVietnamTime(conflict.startsAt)}–${formatVietnamTime(conflict.endsAt).slice(-5)} · ${coachName(coaches, conflict.coachUserId)}: ${reason}.`
 }

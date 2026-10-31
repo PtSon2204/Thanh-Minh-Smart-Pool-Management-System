@@ -15,12 +15,10 @@ public sealed class CreateClassSessionsHandler(
         CreateClassSessionsCommand request,
         CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is null ||
-            !(currentUser.IsInRole("ADMIN") ||
-              string.Equals(currentUser.Role, "ADMIN", StringComparison.OrdinalIgnoreCase)))
-            throw new UnauthorizedAccessException("Chỉ Admin được tạo lịch lớp dạy bơi.");
+        if (currentUser.UserId is not { } coachId || !currentUser.IsInRole("COACH"))
+            throw new UnauthorizedAccessException("Chỉ Coach được tạo lịch lớp dạy bơi.");
 
         await validator.ValidateAndThrowAsync(request, cancellationToken);
-        return await operations.CreateSessionsAsync(request, cancellationToken);
+        return await operations.CreateSessionsAsync(request, coachId, cancellationToken);
     }
 }

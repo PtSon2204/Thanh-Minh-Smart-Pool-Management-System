@@ -15,15 +15,18 @@ public sealed class GoogleLoginHandler : IRequestHandler<GoogleLoginCommand, IAc
     private readonly IRepository<Role> _roles;
     private readonly IAccessTokenService _accessTokens;
     private readonly IRefreshTokenService _refreshTokens;
+    private readonly IUserRoleMembershipService? _membership;
 
     public GoogleLoginHandler(IGoogleIdTokenVerifier verifier, IRepository<User> users,
-        IRepository<Role> roles, IAccessTokenService accessTokens, IRefreshTokenService refreshTokens)
+        IRepository<Role> roles, IAccessTokenService accessTokens, IRefreshTokenService refreshTokens,
+        IUserRoleMembershipService? membership = null)
     {
         _verifier = verifier;
         _users = users;
         _roles = roles;
         _accessTokens = accessTokens;
         _refreshTokens = refreshTokens;
+        _membership = membership;
     }
 
     public async Task<IActionResult> Handle(GoogleLoginCommand request, CancellationToken cancellationToken)
@@ -77,13 +80,18 @@ public sealed class GoogleLoginHandler : IRequestHandler<GoogleLoginCommand, IAc
         if (refresh is null)
             return Problem(StatusCodes.Status401Unauthorized, "ACCOUNT_UNAVAILABLE",
                 "Tài khoản không khả dụng.");
-        var access = _accessTokens.CreateToken(user, role.Name);
+        IReadOnlyList<string> roles = _membership is null ? [role.Name] :
+            await _membership.GetActiveRolesAsync(user.Id, role.Name, cancellationToken);
+        var access = _membership is null
+            ? _accessTokens.CreateToken(user, role.Name)
+            : _accessTokens.CreateToken(user, role.Name, roles);
 
         return new OkObjectResult(new LoginResponse
         {
             Id = user.Id,
             Username = user.Username ?? string.Empty,
             Role = role.Name,
+            Roles = roles,
             AccessToken = access.Token,
             ExpiresAtUtc = access.ExpiresAtUtc,
             RefreshToken = refresh.Token,

@@ -15,7 +15,6 @@ public sealed class CreateSwimClassValidator : AbstractValidator<CreateSwimClass
         RuleFor(x => x.Fee)
             .GreaterThanOrEqualTo(0).WithMessage("Học phí không được âm.")
             .PrecisionScale(18, 2, true).WithMessage("Học phí tối đa 18 chữ số, gồm 2 chữ số thập phân.");
-        RuleFor(x => x.CoachUserId).NotEmpty().WithMessage("Coach phụ trách không được để trống.");
         RuleFor(x => x.RegistrationStartAt)
             .NotEqual(default(DateTimeOffset)).WithMessage("Thời gian bắt đầu đăng ký không hợp lệ.");
         RuleFor(x => x.RegistrationEndAt)

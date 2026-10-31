@@ -6,6 +6,12 @@
   min-width: 0;
   padding-bottom: 28px;
 }
+.swim-class-create-page--coach { max-width: 1100px; margin: 30px auto 60px; padding: 0 20px 28px; }
+.swim-class-create-page--coach > .swim-class-page-header { background: linear-gradient(120deg, #073b80, #1167ad); border-color: transparent; border-radius: 24px; }
+.swim-class-create-page--coach > .swim-class-page-header .swim-class-page-icon { background: #ffffff1f; border-color: #ffffff4d; color: #fff; }
+.swim-class-create-page--coach > .swim-class-page-header .swim-class-eyebrow,
+.swim-class-create-page--coach > .swim-class-page-header h2.ant-typography { color: #fff; }
+.swim-class-create-page--coach > .swim-class-page-header .ant-typography-secondary { color: #e6f1ff; }
 
 .swim-class-page-header,
 .swim-class-step-panel,
@@ -25,6 +31,8 @@
 }
 
 .swim-class-page-title { align-items: center; display: flex; gap: 18px; min-width: 0; }
+.swim-class-page-header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.swim-class-page-header-actions .ant-tag { margin: 0; }
 .swim-class-page-icon {
   align-items: center;
   background: #e6f5fb;
@@ -102,6 +110,7 @@
 }
 
 @media (max-width: 640px) {
+  .swim-class-create-page--coach { margin-top: 18px; padding: 0 12px 28px; }
   .swim-class-create-page { gap: 12px; }
   .swim-class-page-header { flex-direction: column; padding: 19px; }
   .swim-class-page-title { align-items: flex-start; gap: 12px; }

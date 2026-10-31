@@ -24,4 +24,5 @@ public sealed record SwimClassSessionDetail(
     DateTime StartsAt,
     DateTime EndsAt,
     string Status,
-    string? CancelReason);
+    string? CancelReason,
+    DateTime UpdatedAt);
