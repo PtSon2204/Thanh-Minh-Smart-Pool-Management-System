@@ -14,11 +14,13 @@ using Microsoft.IdentityModel.Tokens;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Infrastructure.AttendanceQr;
+using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Infrastructure.Caching;
 using SmartPool.Infrastructure.Persistence;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
+using SmartPool.Infrastructure.Persistence.Repositories.Payments;
 using SmartPool.Infrastructure.Persistence.Repositories.Roles;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
@@ -176,7 +178,9 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IUserOperations, UserOperations>();
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<IServiceOperations, ServiceOperations>();
+            services.AddScoped<ServiceOperations>();
+            services.AddScoped<IServiceOperations>(provider => provider.GetRequiredService<ServiceOperations>());
+            services.Configure<SePayOptions>(configuration.GetSection(SePayOptions.SectionName));
             services.AddScoped<IEquipmentOperations, EquipmentOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<ISwimClassOperations, SwimClassOperations>();
@@ -187,6 +191,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IOrderPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.OrderPaymentOperations>();
             services.AddScoped<SmartPool.Application.Interfaces.Repositories.IWaterQualityOperations, SmartPool.Infrastructure.Persistence.Repositories.WaterQuality.WaterQualityOperations>();
             services.AddHostedService<ExpiredOnlineOrderWorker>();
+            services.AddHostedService<ExpiredRentalPaymentWorker>();
 
             return services;
         }

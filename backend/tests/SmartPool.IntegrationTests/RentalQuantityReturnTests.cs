@@ -1,11 +1,13 @@
 using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
+using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentalDetails;
@@ -597,7 +599,8 @@ internal sealed class RentalReturnFixture : IAsyncDisposable
     }
 
     public SmartPoolDbContext CreateContext() => new(_options);
-    public ServiceOperations CreateOperations(SmartPoolDbContext? context = null) => new(context ?? _context, _mapper);
+    public ServiceOperations CreateOperations(SmartPoolDbContext? context = null) =>
+        new(context ?? _context, _mapper, TimeProvider.System, Options.Create(new SePayOptions()));
     public ReturnRentalQuantityCommand QuantityCommand(List<Guid> ids) => new()
     {
         RequestId = Guid.NewGuid(),

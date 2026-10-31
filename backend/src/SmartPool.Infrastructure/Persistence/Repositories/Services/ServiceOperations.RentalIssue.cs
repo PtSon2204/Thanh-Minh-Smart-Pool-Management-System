@@ -33,11 +33,12 @@ public sealed partial class ServiceOperations
     public async Task<CheckoutRentalResponse> CheckoutRentalAsync(CheckoutRentalCommand command, CancellationToken cancellationToken)
     {
         await new CheckoutRentalValidator().ValidateAndThrowAsync(command, cancellationToken);
-        var hash = RentalRequestHash(new { Operation = "Collection", command.OperatorId, CustomerName = command.CustomerName!.Trim(), CustomerPhone = command.CustomerPhone!.Trim(), command.CollectionConfirmed,
+        var legacyHash = RentalRequestHash(new { Operation = "Collection", command.OperatorId, CustomerName = command.CustomerName!.Trim(), CustomerPhone = command.CustomerPhone!.Trim(), command.CollectionConfirmed,
             Items = command.Items.OrderBy(item => item.ProductId).Select(item => new { item.ProductId, item.Quantity, item.ExpectedUnitPrice }).ToArray() });
+        var hash = RentalRequestHash(new { Method = "CASH", PayloadHash = legacyHash });
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         await LockRentalRequestAsync(command.RequestId, cancellationToken);
-        var replay = await RentalReplayAsync<CheckoutRentalResponse>(command.RequestId, hash, command.OperatorId, cancellationToken);
+        var replay = await RentalReplayAsync<CheckoutRentalResponse>(command.RequestId, hash, command.OperatorId, cancellationToken, legacyHash);
         if (replay is not null) { await transaction.CommitAsync(cancellationToken); return replay; }
 
         var products = new Dictionary<Guid, Product>();
@@ -50,12 +51,12 @@ public sealed partial class ServiceOperations
             products.Add(product.Id, product);
         }
 
-        var now = DateTime.UtcNow;
+        var now = _clock.GetUtcNow().UtcDateTime;
         var fees = command.Items.Sum(item => products[item.ProductId].Price * item.Quantity);
         var deposits = command.Items.Sum(item => item.Quantity) * RentalDepositPerUnit;
         var employeeExists = await _context.Employees.AnyAsync(employee => employee.UserId == command.OperatorId, cancellationToken);
         var order = new Order { Id = Guid.NewGuid(), UserId = null, EmployeeId = employeeExists ? command.OperatorId : null, CustomerName = command.CustomerName!.Trim(), CustomerPhone = command.CustomerPhone!.Trim(), TotalAmount = fees, FinalAmount = fees, DiscountAmount = 0, Status = "Renting", IsDeleted = false, CreatedAt = now, UpdatedAt = now };
-        var payment = new Payment { Id = Guid.NewGuid(), OrderId = order.Id, Amount = fees, PaymentMethod = "MANUAL", Status = "COMPLETED", CashierId = employeeExists ? command.OperatorId : null, TransactionRef = $"RENTAL-{command.RequestId:N}", PaymentTime = now, CreatedAt = now };
+        var payment = new Payment { Id = Guid.NewGuid(), OrderId = order.Id, Amount = fees, PaymentMethod = "CASH", Status = "COMPLETED", CashierId = employeeExists ? command.OperatorId : null, TransactionRef = $"RENTAL-{command.RequestId:N}", PaymentTime = now, CreatedAt = now };
         _context.Orders.Add(order);
         _context.Payments.Add(payment);
         var rentals = new List<Rental>();

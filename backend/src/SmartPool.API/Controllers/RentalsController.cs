@@ -1,6 +1,5 @@
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
 using SmartPool.API.Extensions;
@@ -10,6 +9,7 @@ using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
+using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentalDetails;
 
@@ -118,16 +118,110 @@ namespace SmartPool.API.Controllers
             return await SendAsync(command, cancellationToken);
         }
 
+        /// <summary>Tạo mã QR chuyển khoản và giữ tồn kho trong thời hạn thanh toán.</summary>
+        [HttpPost("payments/qr")]
+        [RequirePermission("rentals", "create")]
+        [ProducesResponseType(typeof(RentalPaymentStatusResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> CreatePaymentQr([FromBody] CreateRentalQrCommand command, CancellationToken cancellationToken)
+        {
+            if (!TryGetOperatorId(out var operatorId))
+            {
+                return Forbid();
+            }
+
+            command.OperatorId = operatorId;
+            return await SendCreatedAsync(
+                result => $"/api/rentals/payments/{result.Id}",
+                command,
+                cancellationToken);
+        }
+
+        /// <summary>Lấy danh sách phiếu thanh toán thuê đang chờ hoặc cần đối soát.</summary>
+        [HttpGet("payments")]
+        [RequirePermission("rentals", "read")]
+        [ProducesResponseType(typeof(PagedResponse<RentalPaymentStatusResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPayments([FromQuery] ListRentalPaymentsQuery query, CancellationToken cancellationToken)
+        {
+            return await SendAsync(query, cancellationToken);
+        }
+
+        /// <summary>Lấy trạng thái mới nhất của một phiếu thanh toán thuê.</summary>
+        [HttpGet("payments/{id:guid}")]
+        [RequirePermission("rentals", "read")]
+        [ProducesResponseType(typeof(RentalPaymentStatusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetPayment(Guid id, CancellationToken cancellationToken)
+        {
+            return await SendAsync(new GetRentalPaymentQuery { Id = id }, cancellationToken);
+        }
+
+        /// <summary>Xác nhận phiếu đã thanh toán đủ và tạo lượt thuê.</summary>
+        [HttpPost("payments/{id:guid}/issue")]
+        [RequirePermission("rentals", "create")]
+        [ProducesResponseType(typeof(CheckoutRentalResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> IssuePayment(Guid id, CancellationToken cancellationToken)
+        {
+            if (!TryGetOperatorId(out var operatorId))
+            {
+                return Forbid();
+            }
+
+            return await SendAsync(
+                new IssueRentalPaymentCommand { Id = id, OperatorId = operatorId },
+                cancellationToken);
+        }
+
+        /// <summary>Hủy phiếu thanh toán chưa hoàn tất và trả lại tồn kho đã giữ.</summary>
+        [HttpPost("payments/{id:guid}/cancel")]
+        [RequirePermission("rentals", "create")]
+        [ProducesResponseType(typeof(RentalPaymentStatusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> CancelPayment(Guid id, CancellationToken cancellationToken)
+        {
+            if (!TryGetOperatorId(out var operatorId))
+            {
+                return Forbid();
+            }
+
+            return await SendAsync(
+                new CancelRentalPaymentCommand { Id = id, OperatorId = operatorId },
+                cancellationToken);
+        }
+
         private bool TryGetOperatorId(out Guid operatorId)
         {
             return User.TryGetUserId(out operatorId);
         }
 
-        private async Task<IActionResult> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)
+        private Task<IActionResult> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)
+        {
+            return SendAsync(request, result => Ok(result), cancellationToken);
+        }
+
+        private Task<IActionResult> SendCreatedAsync<TResponse>(
+            Func<TResponse, string> location,
+            IRequest<TResponse> request,
+            CancellationToken cancellationToken)
+        {
+            return SendAsync(request, result => Created(location(result), result), cancellationToken);
+        }
+
+        private async Task<IActionResult> SendAsync<TResponse>(
+            IRequest<TResponse> request,
+            Func<TResponse, IActionResult> onSuccess,
+            CancellationToken cancellationToken)
         {
             try
             {
-                return Ok(await _sender.Send(request, cancellationToken));
+                return onSuccess(await _sender.Send(request, cancellationToken));
             }
             catch (ValidationException exception)
             {

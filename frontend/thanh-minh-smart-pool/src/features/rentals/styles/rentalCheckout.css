@@ -109,6 +109,40 @@
   justify-content: space-between;
 }
 
+.rental-payment-stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rental-payment-status {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rental-payment-status span {
+  color: var(--list-muted);
+  font-size: 12px;
+}
+
+.rental-payment-heading {
+  margin: 0;
+}
+
+.rental-payment-item {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.rental-payment-item span {
+  color: var(--list-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
 @media (max-width: 520px) {
   .rental-checkout-drawer .ant-drawer-content-wrapper {
     width: 100vw !important;

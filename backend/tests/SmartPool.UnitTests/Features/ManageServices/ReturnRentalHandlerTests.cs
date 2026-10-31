@@ -19,6 +19,7 @@ public sealed class ReturnRentalHandlerTests
         var exception = await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(command, CancellationToken.None));
 
         Assert.Contains(exception.Errors, error => error.PropertyName == nameof(ReturnRentalCommand.SettlementConfirmed));
+        Assert.All(exception.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
         operations.Verify(operation => operation.ReturnRentalAsync(
             It.IsAny<ReturnRentalCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }

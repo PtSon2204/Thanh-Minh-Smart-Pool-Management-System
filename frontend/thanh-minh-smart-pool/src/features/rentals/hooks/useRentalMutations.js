@@ -10,6 +10,16 @@ export function getRentalErrorMessage(error, fallback) {
   return validationError || data?.title || data?.message || fallback
 }
 
+export function applyRentalFieldErrors(form, error) {
+  const errors = error?.response?.data?.errors
+  if (!errors) return false
+  form.setFields(Object.entries(errors).map(([name, messages]) => ({
+    name: name.replace(/\[(\d+)\]/g, '.$1').replace(/^\./, '').split('.').map((part) => /^\d+$/.test(part) ? Number(part) : part.charAt(0).toLowerCase() + part.slice(1)),
+    errors: [Array.isArray(messages) ? messages[0] : messages],
+  })))
+  return true
+}
+
 export function useCheckoutRental() {
   const queryClient = useQueryClient()
 
