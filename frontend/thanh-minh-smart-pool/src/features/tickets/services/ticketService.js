@@ -18,6 +18,12 @@ const ticketService = {
 
   /** Cập nhật mã ngắn 6 chữ số của vé */
   updateCode: (ticketId, code) => apiClient.put(`${BASE}/${ticketId}/code`, { code }).then((res) => res.data),
+
+  /** Lấy danh sách vé của tôi */
+  getMyTickets: () => apiClient.get(`${BASE}/me`).then((res) => res.data),
+
+  /** Lấy lịch sử quét vào bể của tôi */
+  getMyEntryHistory: () => apiClient.get(`${BASE}/me/entries`).then((res) => res.data),
 }
 
 export default ticketService

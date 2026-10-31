@@ -31,6 +31,7 @@ public sealed class DailyInspectionTests
         var eqId = Guid.NewGuid();
 
         var inspectionRepo = new Mock<IRepository<DailyInspection>>();
+        var eqRepo = new Mock<IRepository<Equipment>>();
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
@@ -43,6 +44,7 @@ public sealed class DailyInspectionTests
 
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
+            eqRepo.Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,
@@ -83,6 +85,7 @@ public sealed class DailyInspectionTests
         var eqId = Guid.NewGuid();
 
         var inspectionRepo = new Mock<IRepository<DailyInspection>>();
+        var eqRepo = new Mock<IRepository<Equipment>>();
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
@@ -97,6 +100,7 @@ public sealed class DailyInspectionTests
 
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
+            eqRepo.Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,
@@ -133,12 +137,14 @@ public sealed class DailyInspectionTests
     public async Task SubmitInspection_TooEarly_ThrowsValidationException()
     {
         var inspectionRepo = new Mock<IRepository<DailyInspection>>();
+        var eqRepo = new Mock<IRepository<Equipment>>();
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
+            eqRepo.Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,
@@ -173,6 +179,7 @@ public sealed class DailyInspectionTests
         var shiftId = FixedShifts.Morning.Id;
 
         var inspectionRepo = new Mock<IRepository<DailyInspection>>();
+        var eqRepo = new Mock<IRepository<Equipment>>();
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
@@ -196,6 +203,7 @@ public sealed class DailyInspectionTests
 
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
+            eqRepo.Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,

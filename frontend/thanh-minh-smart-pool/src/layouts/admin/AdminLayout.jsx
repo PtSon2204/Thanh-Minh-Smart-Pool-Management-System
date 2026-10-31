@@ -326,6 +326,10 @@ export default function AdminLayout() {
             </Link>
           ),
         },
+        isAdmin && {
+          key: '/admin/equipments/inspection-history',
+          label: <Link to="/admin/equipments/inspection-history">Lịch sử kiểm tra</Link>,
+        },
       ].filter(Boolean),
     },
     (isAdmin || role === "SALES") && {

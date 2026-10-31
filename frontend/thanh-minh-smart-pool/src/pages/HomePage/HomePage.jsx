@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import './HomePage.css'
+import { useQuery } from '@tanstack/react-query'
+import poolAccessService from '../../features/tickets/services/poolAccessService'
 
 // Import service images
 import imgLocker from '../../assets/tu-do-mien-phi.png'
@@ -80,6 +82,15 @@ const services = [
 
 export default function HomePage() {
   const [showScrollTop, setShowScrollTop] = useState(false)
+
+  const { data: occupancyData, isLoading: loadingOccupancy } = useQuery({
+    queryKey: ['poolOccupancy'],
+    queryFn: poolAccessService.getOccupancy,
+    refetchInterval: 15000,
+    staleTime: 5000,
+  })
+
+  const currentSwimmers = occupancyData?.acceptedEntries ?? 0
 
   useEffect(() => {
     // Scroll to top button logic
@@ -178,7 +189,7 @@ export default function HomePage() {
 
                 <div className="hero-pool-stats">
                   <div className="hero-pool-stat">
-                    <div className="hero-pool-stat-val">142</div>
+                    <div className="hero-pool-stat-val">{loadingOccupancy ? '...' : currentSwimmers}</div>
                     <div className="hero-pool-stat-label">Khách hiện tại</div>
                   </div>
                 </div>

@@ -27,3 +27,16 @@ export function useInspections(params) {
     queryFn: ({ signal }) => inspectionService.getInspections(params, signal),
   })
 }
+
+export function useResolveInspectionItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ inspectionId, equipmentId, action, note }) =>
+      inspectionService.resolveItem(inspectionId, equipmentId, { action, note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['equipment-inspections'] })
+      queryClient.invalidateQueries({ queryKey: ['equipments'] })
+      queryClient.invalidateQueries({ queryKey: ['equipment-inspection-form'] })
+    },
+  })
+}

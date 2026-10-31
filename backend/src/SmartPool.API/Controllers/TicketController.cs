@@ -129,6 +129,24 @@ namespace SmartPool.API.Controllers
             }
         }
 
+        /// <summary>Lấy lịch sử các lượt vào bể của tôi.</summary>
+        [HttpGet("me/entries")]
+        [RequirePermission("customer_tickets", "read")]
+        public async Task<IActionResult> GetMyEntryHistory(CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+            var query = new SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyEntryHistory.GetMyEntryHistoryQuery { UserId = userId };
+            try
+            {
+                var result = await _sender.Send(query, cancellationToken);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         /// <summary>Cập nhật mã ngắn (6 chữ số) của vé — chỉ chủ vé được phép.</summary>
         [HttpPut("{ticketId}/code")]
         [RequirePermission("customer_tickets", "update")]
