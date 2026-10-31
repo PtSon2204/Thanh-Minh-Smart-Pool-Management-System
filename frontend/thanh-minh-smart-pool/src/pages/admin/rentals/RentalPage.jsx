@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { EyeOutlined, PlusOutlined, ReloadOutlined, RollbackOutlined } from '@ant-design/icons'
-import { Button, DatePicker, Empty, Pagination, Select, Spin, Table, Tag, Tooltip } from 'antd'
+import { EyeOutlined, PlusOutlined, QrcodeOutlined, ReloadOutlined, RollbackOutlined } from '@ant-design/icons'
+import { Button, DatePicker, Empty, Pagination, Select, Space, Spin, Table, Tag, Tooltip } from 'antd'
 import dayjs from 'dayjs'
 import { ServiceListHeader } from "../../../features/services/components/ServiceListChrome"
 import RentalCheckoutDrawer from "../../../features/rentals/components/RentalCheckoutDrawer"
 import RentalDetailsDrawer from "../../../features/rentals/components/RentalDetailsDrawer"
+import RentalPaymentQueueDrawer from "../../../features/rentals/components/RentalPaymentQueueDrawer"
+import RentalQrPaymentDrawer from "../../../features/rentals/components/RentalQrPaymentDrawer"
 import RentalReturnDrawer from "../../../features/rentals/components/RentalReturnDrawer"
 import { useCheckoutRental } from "../../../features/rentals/hooks/useRentalMutations"
+import { useRentalPayment } from "../../../features/rentals/hooks/useRentalPayments"
 import { useRentalDetails, useRentals } from "../../../features/rentals/hooks/useRentals"
 import "../../../features/services/styles/serviceManagement.css"
 import "../../../features/rentals/styles/rentalManagement.css"
@@ -59,16 +62,18 @@ export default function RentalPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [detailsRental, setDetailsRental] = useState(null)
   const [returnRequested, setReturnRequested] = useState(false)
+  const [paymentQueueOpen, setPaymentQueueOpen] = useState(false)
   const rentalsQuery = useRentals({ status, date, pageIndex, pageSize, groupByOrder: true })
   const detailsQuery = useRentalDetails(detailsRental?.orderId, detailsRental?.productId, Boolean(detailsRental))
   const checkoutMutation = useCheckoutRental()
+  const paymentState = useRentalPayment()
 
   const resetPage = (setter) => (value) => {
     setter(value)
     setPageIndex(1)
   }
 
-  const isPending = checkoutMutation.isPending
+  const isPending = checkoutMutation.isPending || paymentState.creating || paymentState.issuing
 
   const columns = [
     {
@@ -86,7 +91,7 @@ export default function RentalPage() {
 
   return (
     <div className="service-list-page rental-list-page">
-      <ServiceListHeader title="Giao dịch cho thuê" action={<Button type="primary" icon={<PlusOutlined />} onClick={() => { checkoutMutation.reset(); setCheckoutOpen(true) }}>Tạo đơn thuê</Button>} />
+      <ServiceListHeader title="Giao dịch cho thuê" action={<Space wrap><Button icon={<QrcodeOutlined />} onClick={() => setPaymentQueueOpen(true)}>Yêu cầu QR</Button><Button type="primary" icon={<PlusOutlined />} disabled={paymentState.hasUncertainOutcome} onClick={() => { checkoutMutation.reset(); setCheckoutOpen(true) }}>Tạo đơn thuê</Button></Space>} />
       <section className="service-list-toolbar" aria-label="Bộ lọc giao dịch cho thuê">
         <div className="service-list-filters">
         <label className="service-filter-control"><span>Trạng thái</span><Select allowClear aria-label="Lọc theo trạng thái thuê" placeholder="Tất cả trạng thái" disabled={isPending} value={status} onChange={resetPage(setStatus)} options={[{ label: 'Đang thuê', value: 'Renting' }, { label: 'Trả bình thường', value: 'Returned' }, { label: 'Đã xử lý', value: 'Resolved' }, { label: 'Đơn hoàn tất', value: 'Completed' }]} /></label>
@@ -99,9 +104,11 @@ export default function RentalPage() {
         {!rentalsQuery.isLoading && !rentalsQuery.isError && <><Table className="rental-table" rowKey={(rental) => `${rental.orderId}-${rental.productId}`} columns={columns} dataSource={rentalsQuery.data?.items || []} pagination={false} tableLayout="fixed" locale={{ emptyText: 'Chưa có giao dịch cho thuê phù hợp.' }} /><RentalMobileCards rentals={rentalsQuery.data?.items || []} disabled={isPending} onDetails={setDetailsRental} onReturn={(rental) => { setDetailsRental(rental); setReturnRequested(true) }} /></>}
         {!rentalsQuery.isLoading && !rentalsQuery.isError && (rentalsQuery.data?.totalCount || 0) > 0 && <div className="admin-management-pagination"><Pagination current={pageIndex} pageSize={pageSize} total={rentalsQuery.data.totalCount} disabled={isPending} showSizeChanger pageSizeOptions={['10', '20', '50', '100']} onChange={(page, size) => { setPageIndex(page); setPageSize(size) }} showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`} /></div>}
       </section>
-      <RentalCheckoutDrawer key={checkoutOpen ? 'checkout-open' : 'checkout-closed'} open={checkoutOpen} mutation={checkoutMutation} onClose={() => setCheckoutOpen(false)} onSuccess={() => setCheckoutOpen(false)} />
+      <RentalCheckoutDrawer key={checkoutOpen ? 'checkout-open' : 'checkout-closed'} open={checkoutOpen} mutation={checkoutMutation} paymentState={paymentState} onClose={() => setCheckoutOpen(false)} onSuccess={() => setCheckoutOpen(false)} />
       <RentalDetailsDrawer open={Boolean(detailsRental) && !returnRequested} query={detailsQuery} onClose={() => setDetailsRental(null)} onReturn={() => setReturnRequested(true)} />
       <RentalReturnDrawer key={returnRequested && detailsRental ? `${detailsRental.orderId}-${detailsRental.productId}` : 'return-closed'} open={returnRequested} details={detailsQuery.data} detailsError={detailsQuery.error} detailsLoading={detailsQuery.isLoading} onClose={() => setReturnRequested(false)} onConflict={() => detailsQuery.refetch()} onRetryDetails={detailsQuery.refetch} />
+      <RentalPaymentQueueDrawer open={paymentQueueOpen} onClose={() => setPaymentQueueOpen(false)} onOpenPayment={(paymentId) => { paymentState.openPayment(paymentId); setPaymentQueueOpen(false) }} />
+      <RentalQrPaymentDrawer paymentState={paymentState} />
     </div>
   )
 }

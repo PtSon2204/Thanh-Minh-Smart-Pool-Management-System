@@ -3,6 +3,8 @@ using AutoMapper;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.CreateService;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
@@ -34,7 +36,7 @@ public sealed class RentalServiceCatalogueTests
                 Name = $" {name} ", Price = 20000m, StockQuantity = 5
             }, default);
             var operatorId = await context.Users.Select(user => user.Id).FirstAsync();
-            var operations = new ServiceOperations(context, mapper);
+            var operations = new ServiceOperations(context, mapper, TimeProvider.System, Options.Create(new SePayOptions()));
             var listed = await new GetServicesHandler(new Repository<Product>(context), mapper, new GetServicesValidator())
                 .Handle(new GetServicesQuery { SearchTerm = name, IsActive = true }, default);
 

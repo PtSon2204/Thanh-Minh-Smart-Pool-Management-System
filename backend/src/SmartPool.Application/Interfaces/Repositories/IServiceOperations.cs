@@ -9,6 +9,7 @@ using SmartPool.Application.Features.ManageServices.Commands.UpdateService;
 using SmartPool.Application.Features.ManageServices.Queries.GetInventoryHistory;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentalDetails;
+using SmartPool.Application.Features.ManageServices.Payments;
 
 namespace SmartPool.Application.Interfaces.Repositories
 {
@@ -25,5 +26,12 @@ public interface IServiceOperations
     Task<QuoteRentalResponse> QuoteRentalAsync(QuoteRentalCommand command, CancellationToken cancellationToken);
     Task<ReturnRentalResponse> ReturnRentalAsync(ReturnRentalCommand command, CancellationToken cancellationToken);
     Task<ReturnRentalQuantityResponse> ReturnRentalQuantityAsync(ReturnRentalQuantityCommand command, CancellationToken cancellationToken);
+    Task<RentalPaymentStatusResponse> CreateQrAsync(CreateRentalQrCommand command, CancellationToken cancellationToken);
+    Task<RentalPaymentStatusResponse> GetPaymentAsync(Guid id, CancellationToken cancellationToken);
+    Task<PagedResponse<RentalPaymentStatusResponse>> ListPaymentsAsync(int pageIndex, int pageSize, CancellationToken cancellationToken);
+    Task<CheckoutRentalResponse> IssuePaymentAsync(Guid id, Guid operatorId, CancellationToken cancellationToken);
+    Task<RentalPaymentStatusResponse> CancelPaymentAsync(Guid id, Guid operatorId, CancellationToken cancellationToken);
+    Task ExpirePaymentsAsync(CancellationToken cancellationToken);
+    Task<BankTransferResult> ApplyTransferAsync(BankTransferEvent transfer, CancellationToken cancellationToken);
 }
 }

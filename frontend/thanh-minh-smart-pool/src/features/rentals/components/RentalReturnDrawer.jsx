@@ -125,8 +125,11 @@ export default function RentalReturnDrawer({ open, details, detailsError, detail
         <span><strong>{currencyFormatter.format(refundAmount)}</strong> hoàn cọc dự kiến</span>
         <span><strong>{currencyFormatter.format(retainedAmount)}</strong> giữ cọc dự kiến</span>
       </div>
+      {refundAmount > 0 ? <Form.Item name="cashRefundConfirmed" valuePropName="checked" rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('Xác nhận đã hoàn cọc bằng tiền mặt tại quầy.')) }]}>
+        <Checkbox>Xác nhận đã hoàn {currencyFormatter.format(refundAmount)} bằng tiền mặt tại quầy.</Checkbox>
+      </Form.Item> : <Alert type="info" showIcon message="Không có khoản hoàn cọc bằng tiền mặt" description="Khoản cọc của các đơn vị hư hỏng hoặc thất lạc được giữ lại theo quyết toán." />}
       <Form.Item name="settlementConfirmed" valuePropName="checked" rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('Xác nhận hoàn hoặc giữ cọc trước khi xử lý.')) }]}>
-        <Checkbox>Xác nhận đã hoàn cọc hoặc giữ cọc đúng theo xem trước.</Checkbox>
+        <Checkbox>Xác nhận đã quyết toán cọc đúng theo xem trước.</Checkbox>
       </Form.Item>
       <Button type="primary" loading={mutation.isPending} disabled={!canConfirm || mutation.isPending} onClick={handleSubmit}>{isLocked ? 'Thử lại yêu cầu đã giữ' : 'Xác nhận trả hàng và quyết toán'}</Button>
     </Form>}

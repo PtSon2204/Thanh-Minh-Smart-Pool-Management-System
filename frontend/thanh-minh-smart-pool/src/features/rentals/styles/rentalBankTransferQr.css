@@ -1,0 +1,4 @@
+.bank-transfer-details { display: grid; gap: 8px; margin: 16px 0 0; width: min(100%, 340px); }
+.bank-transfer-details div { display: grid; gap: 4px; }
+.bank-transfer-details dt { color: #737373; font-size: 12px; }
+.bank-transfer-details dd { color: #404040; font-size: 13px; margin: 0; overflow-wrap: anywhere; }

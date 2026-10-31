@@ -34,7 +34,19 @@ function rentalStatus(record) {
   return states[record.status] || ['default', record.status || '-']
 }
 
-function TransactionHistory({ transactions }) {
+function formatCollectionMethod(method) {
+  if (method === 'CASH') return 'Tiền mặt tại quầy'
+  if (method === 'TRANSFER') return 'Chuyển khoản'
+  if (method === 'MANUAL') return 'Thủ công/lịch sử, không xác minh tiền mặt'
+  return 'Chưa có dữ liệu'
+}
+
+function formatRefundMethod(method) {
+  if (method === 'CASH') return 'Tiền mặt tại quầy'
+  return 'Chưa có dữ liệu'
+}
+
+function TransactionHistory({ transactions, collectionMethod }) {
   return <>
     <Typography.Title level={5}>Lịch sử thu và quyết toán</Typography.Title>
     {!transactions?.length && <Empty description="Chưa có lịch sử thu hoặc quyết toán." />}
@@ -50,6 +62,8 @@ function TransactionHistory({ transactions }) {
             <div><dt>Cọc</dt><dd>{formatAmount(transaction.depositAmount)}</dd></div>
             <div><dt>Đã hoàn</dt><dd>{formatAmount(transaction.refundAmount)}</dd></div>
             <div><dt>Đã giữ</dt><dd>{formatAmount(transaction.retainedAmount)}</dd></div>
+            <div><dt>Phương thức thu</dt><dd>{formatCollectionMethod(transaction.collectionMethod ?? collectionMethod)}</dd></div>
+            {transaction.refundAmount > 0 && <div><dt>Phương thức hoàn</dt><dd>{formatRefundMethod(transaction.refundMethod)}</dd></div>}
             <div><dt>Xác nhận lúc</dt><dd>{formatDate(transaction.confirmedAtUtc)}</dd></div>
             <div><dt>Nhân viên xác nhận</dt><dd><span className="rental-reference-value">{transaction.confirmedByUserId || '-'}</span></dd></div>
             {transaction.reason && <div><dt>Lý do</dt><dd>{transaction.reason}</dd></div>}
@@ -80,6 +94,7 @@ export default function RentalDetailsDrawer({ open, query, onClose, onReturn }) 
         <Descriptions.Item label="Trả hoặc xử lý gần nhất">{formatDate(details.returnTime)}</Descriptions.Item>
         <Descriptions.Item label="Phí thuê nhóm sản phẩm">{formatAmount(details.rentalFeeTotal)}</Descriptions.Item>
         <Descriptions.Item label="Đã thu toàn đơn">{formatAmount(details.orderCollectedAmount)}</Descriptions.Item>
+        {details.collectionMethod && <Descriptions.Item label="Phương thức thu">{formatCollectionMethod(details.collectionMethod)}</Descriptions.Item>}
         <Descriptions.Item label="Cọc đã hoàn của nhóm">{formatAmount(details.refundedDepositAmount)}</Descriptions.Item>
         <Descriptions.Item label="Cọc đã giữ của nhóm">{formatAmount(details.retainedDepositAmount)}</Descriptions.Item>
         <Descriptions.Item label="Cọc còn chờ quyết toán của nhóm">{formatAmount(details.outstandingDepositAmount)}</Descriptions.Item>
@@ -93,7 +108,7 @@ export default function RentalDetailsDrawer({ open, query, onClose, onReturn }) 
         <span><strong>{details.resolvedQuantity || 0}</strong> đã xử lý</span>
       </div>
       {details.outstandingQuantity > 0 && !isLegacy && <Button type="primary" onClick={() => onReturn(details)}>Nhận lại và quyết toán</Button>}
-      <TransactionHistory transactions={details.transactions} />
+      <TransactionHistory transactions={details.transactions} collectionMethod={details.collectionMethod} />
       <Typography.Title level={5}>Lịch sử đơn vị thuê</Typography.Title>
       {(details.rentals || []).length === 0 && <Empty description="Chưa có lịch sử thuê." />}
       <div className="rental-history-list">

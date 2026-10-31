@@ -30,6 +30,8 @@ public sealed class GetRentalDetailsResponse
 
 public sealed class RentalTransactionDetails
 {
+    public string? CollectionMethod { get; set; }
+    public string? RefundMethod { get; set; }
     public Guid Id { get; set; }
     public string Kind { get; set; } = string.Empty;
     public Guid? ProductId { get; set; }

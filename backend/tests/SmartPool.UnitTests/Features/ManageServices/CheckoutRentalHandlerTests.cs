@@ -19,6 +19,7 @@ public sealed class CheckoutRentalHandlerTests
         var exception = await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(command, CancellationToken.None));
 
         Assert.Contains(exception.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CollectionConfirmed));
+        Assert.All(exception.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
         operations.Verify(operation => operation.CheckoutRentalAsync(
             It.IsAny<CheckoutRentalCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }

@@ -46,7 +46,7 @@ export default function StaffEmploymentFormDrawer({ open, onClose, staff }) {
   return <Drawer rootClassName="staff-employment-drawer" title={isEditing ? 'Cập nhật việc làm' : 'Thêm nhân viên'} open={open} onClose={close} size="default" forceRender closable={!isPending} mask={{ closable: !isPending }} extra={<Button type="primary" onClick={() => form.submit()} loading={isPending}>Lưu</Button>}>
     {optionsQuery.isLoading && !isEditing && <div className="admin-management-state"><Spin size="large" /></div>}
     {optionsQuery.isError && !isEditing && <Empty description="Không thể tải tài khoản đủ điều kiện."><Button onClick={optionsQuery.refetch}>Thử lại</Button></Empty>}
-    {(isEditing || (!optionsQuery.isLoading && !optionsQuery.isError)) && <Form form={form} layout="vertical" onFinish={handleFinish} preserve={false}>
+    {(isEditing || (!optionsQuery.isLoading && !optionsQuery.isError)) && <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={isEditing ? { status: staff.status } : { joinDate: dayjs(), status: 'Working' }} preserve={false}>
       {mutation.error && <Alert type="error" showIcon title="Không thể lưu hồ sơ nhân viên" description={getStaffErrorMessage(mutation.error, 'Máy chủ không thể lưu hồ sơ nhân viên.')} action={<Button size="small" onClick={() => form.submit()} disabled={isPending}>Thử lại</Button>} />}
       {!isEditing && <>
         <Form.Item label="Tài khoản" name="userId" rules={[{ required: true, message: 'Chọn tài khoản.' }]}>

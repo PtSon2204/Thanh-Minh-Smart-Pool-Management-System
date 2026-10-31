@@ -73,7 +73,7 @@ export default function InventoryControls({ children }) {
 
   const historyColumns = [
     { title: 'Thời gian (UTC)', dataIndex: 'createdAt', key: 'createdAt', render: formatUtcDate },
-    { title: 'Thay đổi', dataIndex: 'changeType', key: 'changeType', render: (value) => <Tag color="blue">{{ RentalCheckout: 'Cho thuê', RentalReturn: 'Nhận trả', Adjustment: 'Điều chỉnh' }[value] || value}</Tag> },
+    { title: 'Thay đổi', dataIndex: 'changeType', key: 'changeType', render: (value) => <Tag color="blue">{{ RentalCheckout: 'Cho thuê', RentalReturn: 'Nhận trả', RentalReservation: 'Giữ hàng chờ chuyển khoản', RentalReservationRelease: 'Hủy giữ hàng', Adjustment: 'Điều chỉnh' }[value] || value}</Tag> },
     { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', align: 'right', render: (value) => <strong className={value > 0 ? 'inventory-positive' : 'inventory-negative'}>{value > 0 ? `+${value}` : value}</strong> },
     { title: 'Ghi chú', dataIndex: 'note', key: 'note', render: (value) => value || '-' },
     { title: 'Người thực hiện', dataIndex: 'createdBy', key: 'createdBy', render: (value) => value || '-' },

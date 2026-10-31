@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FluentValidation.Results;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
 
@@ -20,6 +21,12 @@ public sealed class RentalIssueValidatorTests
         var result = new CheckoutRentalValidator().Validate(command);
 
         Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else if (quantity == 101)
+            AssertRejected(result, "Items", "Items[0].Quantity");
+        else
+            AssertRejected(result, "Items[0].Quantity");
     }
 
     [Fact]
@@ -30,8 +37,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.Items));
+        AssertRejected(result, nameof(CheckoutRentalCommand.Items));
     }
 
     [Theory]
@@ -47,6 +53,10 @@ public sealed class RentalIssueValidatorTests
         var result = new CheckoutRentalValidator().Validate(command);
 
         Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            AssertRejected(result, nameof(CheckoutRentalCommand.Items));
     }
 
     [Theory]
@@ -62,6 +72,10 @@ public sealed class RentalIssueValidatorTests
         var result = new CheckoutRentalValidator().Validate(command);
 
         Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            AssertRejected(result, nameof(CheckoutRentalCommand.Items));
     }
 
     [Theory]
@@ -75,6 +89,10 @@ public sealed class RentalIssueValidatorTests
         var result = new CheckoutRentalValidator().Validate(command);
 
         Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            AssertRejected(result, "Items[0].ExpectedUnitPrice");
     }
 
     [Fact]
@@ -85,8 +103,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CustomerName));
+        AssertRejected(result, nameof(CheckoutRentalCommand.CustomerName));
     }
 
     [Fact]
@@ -97,8 +114,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CustomerPhone));
+        AssertRejected(result, nameof(CheckoutRentalCommand.CustomerPhone));
     }
 
     [Fact]
@@ -109,8 +125,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CollectionConfirmed));
+        AssertRejected(result, nameof(CheckoutRentalCommand.CollectionConfirmed));
     }
 
     [Fact]
@@ -121,8 +136,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == "Items[0].ProductId");
+        AssertRejected(result, "Items[0].ProductId");
     }
 
     [Fact]
@@ -134,9 +148,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.RequestId));
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.OperatorId));
+        AssertRejected(result, nameof(CheckoutRentalCommand.RequestId), nameof(CheckoutRentalCommand.OperatorId));
     }
 
     [Theory]
@@ -149,6 +161,10 @@ public sealed class RentalIssueValidatorTests
         var result = new QuoteRentalValidator().Validate(command);
 
         Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            AssertRejected(result, "Items", "Items[0].Quantity");
     }
 
     [Fact]
@@ -162,8 +178,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new QuoteRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(QuoteRentalCommand.Items));
+        AssertRejected(result, nameof(QuoteRentalCommand.Items));
     }
 
     [Fact]
@@ -176,8 +191,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new QuoteRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(QuoteRentalCommand.Items));
+        AssertRejected(result, nameof(QuoteRentalCommand.Items));
     }
 
     [Fact]
@@ -188,8 +202,7 @@ public sealed class RentalIssueValidatorTests
             Items = [new() { ProductId = Guid.Empty, Quantity = 1 }]
         });
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == "Items[0].ProductId");
+        AssertRejected(result, "Items[0].ProductId");
     }
 
     [Theory]
@@ -203,8 +216,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CustomerName));
+        AssertRejected(result, nameof(CheckoutRentalCommand.CustomerName));
     }
 
     [Theory]
@@ -218,8 +230,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CheckoutRentalCommand.CustomerPhone));
+        AssertRejected(result, nameof(CheckoutRentalCommand.CustomerPhone));
     }
 
     [Fact]
@@ -262,8 +273,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        AssertRejected(result, nameof(CheckoutRentalCommand.Items));
         Assert.All(result.Errors, error => Assert.Equal(nameof(CheckoutRentalCommand.Items), error.PropertyName));
     }
 
@@ -278,8 +288,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new QuoteRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        AssertRejected(result, nameof(QuoteRentalCommand.Items));
         Assert.All(result.Errors, error => Assert.Equal(nameof(QuoteRentalCommand.Items), error.PropertyName));
     }
 
@@ -290,8 +299,7 @@ public sealed class RentalIssueValidatorTests
 
         var result = new QuoteRentalValidator().Validate(command);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == "Items[0].Quantity");
+        AssertRejected(result, "Items[0].Quantity");
     }
 
     [Theory]
@@ -312,7 +320,7 @@ public sealed class RentalIssueValidatorTests
         if (expectedValid)
             Assert.Empty(result.Errors);
         else
-            Assert.Contains(result.Errors, error => error.PropertyName == nameof(QuoteRentalCommand.Items));
+            AssertRejected(result, nameof(QuoteRentalCommand.Items));
     }
 
     [Fact]
@@ -327,6 +335,15 @@ public sealed class RentalIssueValidatorTests
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Errors);
+    }
+
+    private static void AssertRejected(ValidationResult result, params string[] expectedProperties)
+    {
+        Assert.False(result.IsValid);
+        Assert.NotEmpty(result.Errors);
+        foreach (var property in expectedProperties)
+            Assert.Contains(result.Errors, error => error.PropertyName == property);
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     private static CheckoutRentalCommand ValidCheckout() => new()

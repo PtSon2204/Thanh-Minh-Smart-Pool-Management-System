@@ -12,6 +12,7 @@ public sealed class RentalTransaction
     public decimal DepositAmount { get; set; }
     public decimal RefundAmount { get; set; }
     public decimal RetainedAmount { get; set; }
+    public string? RefundMethod { get; set; }
     public Guid ConfirmedByUserId { get; set; }
     public DateTime ConfirmedAtUtc { get; set; }
     public string? Reason { get; set; }
