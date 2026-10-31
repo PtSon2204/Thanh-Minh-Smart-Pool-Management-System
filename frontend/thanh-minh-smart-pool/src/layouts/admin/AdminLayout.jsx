@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Badge, Drawer, Grid, message, notification } from 'antd';
 import {
   MenuFoldOutlined,
@@ -266,6 +266,10 @@ export default function AdminLayout() {
         isAdmin && {
           key: '/admin/equipments/list-equipments',
           label: <Link to="/admin/equipments/list-equipments">Danh sách thiết bị</Link>,
+        },
+        isAdmin && {
+          key: '/admin/equipments/inspection-history',
+          label: <Link to="/admin/equipments/inspection-history">Lịch sử kiểm tra</Link>,
         },
       ].filter(Boolean),
     },

@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageEquipments.Inspections.Commands.ResolveInspectionItem;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspectionForm;
@@ -94,6 +95,58 @@ public sealed class EquipmentInspectionsController : ControllerBase
         {
             _logger.LogError(ex, "Lỗi lấy lịch sử kiểm tra thiết bị.");
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Không thể lấy lịch sử kiểm tra thiết bị. Vui lòng thử lại." });
+        }
+    }
+
+    public sealed record ResolveItemRequest(string Action, string? Note);
+
+    /// <summary>
+    /// Quản trị viên (Admin) xác nhận đã sửa chữa hoặc thay thế thiết bị gặp sự cố trong biên bản kiểm tra.
+    /// Thiết bị sẽ tự động được đưa về trạng thái Hoạt động (Active).
+    /// </summary>
+    [HttpPatch("{inspectionId:guid}/items/{equipmentId:guid}/resolve")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(DailyInspectionDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResolveInspectionItem(
+        Guid inspectionId,
+        Guid equipmentId,
+        [FromBody] ResolveItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var adminId))
+            return Unauthorized(new { message = "Không xác định được danh tính quản trị viên." });
+
+        var command = new ResolveInspectionItemCommand
+        {
+            InspectionId = inspectionId,
+            EquipmentId = equipmentId,
+            AdminId = adminId,
+            Action = request.Action,
+            Note = request.Note
+        };
+
+        try
+        {
+            var result = await _sender.Send(command, cancellationToken);
+            return Ok(result);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Errors.FirstOrDefault()?.ErrorMessage ?? ex.Message,
+                errors = ex.Errors.GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Lỗi xác nhận xử lý thiết bị sự cố.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Không thể cập nhật trạng thái xử lý thiết bị. Vui lòng thử lại." });
         }
     }
 }

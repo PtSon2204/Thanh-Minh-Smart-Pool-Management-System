@@ -23,6 +23,7 @@ import {
   ToolOutlined,
   InfoCircleOutlined,
   ClockCircleOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useInspectionForm, useSubmitInspection } from '../hooks/useInspections'
@@ -67,6 +68,8 @@ export default function DailyInspectionForm({ onSuccess }) {
   const [selectedShiftId, setSelectedShiftId] = useState(null)
   const [generalNotes, setGeneralNotes] = useState('')
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
+  const [formSearch, setFormSearch] = useState('')
+  const [filterOnlyIssues, setFilterOnlyIssues] = useState(false)
 
   // Xác định ca trực được chọn (mặc định ưu tiên ca đang mở từ backend hoặc ca đầu tiên)
   const effectiveShiftId =
@@ -123,6 +126,23 @@ export default function DailyInspectionForm({ onSuccess }) {
 
   const issuesCount = checklist.filter((item) => !item.isPassed).length
   const passedCount = checklist.length - issuesCount
+
+  const displayedChecklist = useMemo(() => {
+    let list = checklist
+    if (filterOnlyIssues) {
+      list = list.filter((item) => !item.isPassed)
+    }
+    if (formSearch.trim()) {
+      const q = formSearch.trim().toLowerCase()
+      list = list.filter(
+        (item) =>
+          (item.equipmentName && item.equipmentName.toLowerCase().includes(q)) ||
+          (item.category && item.category.toLowerCase().includes(q)) ||
+          (item.location && item.location.toLowerCase().includes(q))
+      )
+    }
+    return list
+  }, [checklist, filterOnlyIssues, formSearch])
 
   const handleSubmit = async () => {
     if (!effectiveShiftId) {
@@ -341,26 +361,57 @@ export default function DailyInspectionForm({ onSuccess }) {
             )}
           </Space>
 
-          <Button
-            type="dashed"
-            icon={<CheckSquareOutlined />}
-            onClick={handleMarkAllPassed}
-            style={{ borderColor: '#16a34a', color: '#16a34a' }}
-          >
-            Đánh dấu tất cả đạt yêu cầu
-          </Button>
+          <Space size="small" wrap>
+            <Input
+              placeholder="Tìm thiết bị..."
+              prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
+              allowClear
+              style={{ width: 180 }}
+              value={formSearch}
+              onChange={(e) => setFormSearch(e.target.value)}
+            />
+            {issuesCount > 0 && (
+              <Button
+                type={filterOnlyIssues ? 'primary' : 'default'}
+                danger={filterOnlyIssues}
+                onClick={() => setFilterOnlyIssues((prev) => !prev)}
+              >
+                {filterOnlyIssues ? 'Xem tất cả' : `Chỉ xem thiết bị có vấn đề (${issuesCount})`}
+              </Button>
+            )}
+            <Button
+              type="dashed"
+              icon={<CheckSquareOutlined />}
+              onClick={handleMarkAllPassed}
+              style={{ borderColor: '#16a34a', color: '#16a34a' }}
+            >
+              Đánh dấu tất cả đạt yêu cầu
+            </Button>
+          </Space>
         </div>
       </Card>
 
       {/* Bảng checklist thiết bị */}
       <Card style={{ borderRadius: 10, marginBottom: 16 }}>
         <Table
-          dataSource={checklist}
+          dataSource={displayedChecklist}
           columns={columns}
           rowKey="equipmentId"
-          pagination={false}
+          pagination={displayedChecklist.length > 10 ? { pageSize: 10, showSizeChanger: true } : false}
           size="middle"
           rowClassName={(record) => (!record.isPassed ? 'table-row-error' : '')}
+          locale={{
+            emptyText: (
+              <Empty
+                description={
+                  filterOnlyIssues
+                    ? 'Không có thiết bị nào có vấn đề'
+                    : 'Không tìm thấy thiết bị phù hợp'
+                }
+                style={{ padding: '24px 0' }}
+              />
+            ),
+          }}
         />
       </Card>
 

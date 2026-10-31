@@ -1,0 +1,59 @@
+.peh-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 160px);
+}
+
+.peh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.peh-title-area {
+  display: flex;
+  align-items: center;
+}
+
+.peh-filter-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.peh-main-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.peh-main-card .ant-tabs-nav {
+  margin-bottom: 20px;
+}
+
+.peh-main-card .ant-tabs-tab {
+  padding: 12px 16px;
+  font-weight: 500;
+}
+
+.peh-main-card .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #237804 !important;
+  font-weight: 600;
+}
+
+.peh-main-card .ant-tabs-ink-bar {
+  background-color: #237804 !important;
+}
+
+@media (max-width: 768px) {
+  .peh-page {
+    padding: 16px;
+  }
+  
+  .peh-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

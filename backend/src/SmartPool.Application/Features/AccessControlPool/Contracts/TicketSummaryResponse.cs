@@ -10,5 +10,6 @@ namespace SmartPool.Application.Features.AccessControlPool.Contracts
         public DateTime? ExpiryDate { get; set; }
         public string? Status { get; set; }
         public int? RemainingEntries { get; set; }
+        public DateTime? UsedAt { get; set; }
     }
 }

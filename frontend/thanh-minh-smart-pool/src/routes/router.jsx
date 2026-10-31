@@ -10,6 +10,7 @@ import ChangePasswordPage from "../pages/ChangePasswordPage/ChangePasswordPage";
 import ProfilePage from "../pages/ProfilePage/ProfilePage";
 import MyCardPage from "../pages/MyCardPage/MyCardPage";
 import PaymentHistoryPage from "../pages/PaymentHistoryPage/PaymentHistoryPage";
+import PoolEntryHistoryPage from "../pages/PoolEntryHistoryPage/PoolEntryHistoryPage";
 import Error401Page from "../pages/Error401Page/Error401Page";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminLayout from "../layouts/admin/AdminLayout";
@@ -34,6 +35,7 @@ import UserManagementPage from "../pages/admin/users/UserManagementPage";
 import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage";
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
+import DailyInspectionHistoryPage from "../pages/admin/equipments/DailyInspectionHistoryPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
@@ -63,10 +65,7 @@ const router = createBrowserRouter([
           { path: "/ho-so", element: <ProfilePage /> },
           { path: "/doi-mat-khau", element: <ChangePasswordPage /> },
           { path: "/the-cua-toi", element: <MyCardPage /> },
-          {
-            path: "/lich-su-thanh-toan",
-            element: <PaymentHistoryPage isCustomerView />,
-          },
+          { path: "/lich-su-vao-be", element: <PoolEntryHistoryPage /> },
         ],
       },
       {
@@ -129,6 +128,10 @@ const router = createBrowserRouter([
               {
                 path: "equipments/list-equipments",
                 element: <EquipmentPage />,
+              },
+              {
+                path: "equipments/inspection-history",
+                element: <DailyInspectionHistoryPage />,
               },
               {
                 path: "equipment",
@@ -216,3 +219,4 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
+

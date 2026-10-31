@@ -12,6 +12,11 @@ public sealed class GetDailyInspectionsHandler(
     IRepository<User> userRepository)
     : IRequestHandler<GetDailyInspectionsQuery, PagedResponse<DailyInspectionDto>>
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public async Task<PagedResponse<DailyInspectionDto>> Handle(
         GetDailyInspectionsQuery request,
         CancellationToken cancellationToken)
@@ -79,7 +84,12 @@ public sealed class GetDailyInspectionsHandler(
         if (string.IsNullOrWhiteSpace(itemsJson)) return [];
         try
         {
-            return JsonSerializer.Deserialize<List<DailyInspectionItemDto>>(itemsJson) ?? [];
+            var list = JsonSerializer.Deserialize<List<DailyInspectionItemDto>>(itemsJson, JsonOptions) ?? [];
+            return list
+                .OrderBy(x => x.IsPassed) // Thiết bị gặp sự cố (false) ưu tiên lên đầu
+                .ThenBy(x => x.ResolutionStatus == "Repaired" || x.ResolutionStatus == "Replaced") // Chưa xử lý lên trước đã xử lý
+                .ThenBy(x => x.EquipmentName)
+                .ToList();
         }
         catch
         {

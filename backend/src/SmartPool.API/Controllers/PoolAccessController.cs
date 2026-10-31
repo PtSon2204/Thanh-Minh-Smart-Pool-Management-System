@@ -74,6 +74,18 @@ namespace SmartPool.API.Controllers
             return ToActionResult(result);
         }
 
+        /// <summary>Lấy số lượng khách hiện tại (số lượt quét vào bể thành công hôm nay).</summary>
+        [AllowAnonymous]
+        [HttpGet("occupancy")]
+        [ProducesResponseType(typeof(GetDailyEntrySummaryResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetOccupancy([FromServices] TimeProvider timeProvider, CancellationToken cancellationToken)
+        {
+            var today = SmartPool.Application.Common.Time.VietnamTimeBoundary.GetDate(timeProvider);
+            var query = new GetDailyEntrySummaryQuery { Date = today };
+            var result = await _sender.Send(query, cancellationToken);
+            return ToActionResult(result);
+        }
+
         private Guid? GetOperatorId()
         {
             return User.TryGetUserId(out var operatorId)

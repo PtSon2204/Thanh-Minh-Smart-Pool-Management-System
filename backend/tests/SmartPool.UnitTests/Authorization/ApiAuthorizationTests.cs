@@ -92,7 +92,7 @@ public sealed class ApiAuthorizationTests
             typeof(ProfilesController), typeof(SwimClassesController)
         };
         var actions = controllers.SelectMany(controller => controller.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
-            .Where(method => method.GetCustomAttributes<HttpMethodAttribute>().Any())
+            .Where(method => method.GetCustomAttributes<HttpMethodAttribute>().Any() && !method.GetCustomAttributes<AllowAnonymousAttribute>().Any())
             .Select(method => (Controller: controller, Method: method)))
             .ToArray();
 

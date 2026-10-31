@@ -9,11 +9,13 @@ using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 
 public sealed class SubmitDailyInspectionHandler(
     IRepository<DailyInspection> inspectionRepository,
+    IRepository<Equipment> equipmentRepository,
     IRepository<Notification> notificationRepository,
     IRepository<User> userRepository,
     IUnitOfWork unitOfWork,
@@ -71,6 +73,12 @@ public sealed class SubmitDailyInspectionHandler(
         var hasIssues = failedItems.Count > 0;
         var overallStatus = hasIssues ? "HasIssues" : "Passed";
 
+        // Thiết lập trạng thái ban đầu cho các thiết bị gặp sự cố
+        foreach (var item in failedItems)
+        {
+            item.ResolutionStatus = "Pending";
+        }
+
         // Fetch inspector info
         var inspector = await userRepository.GetByIdAsync(command.InspectorId, cancellationToken);
         var inspectorName = inspector?.UserProfile?.FullName
@@ -94,9 +102,20 @@ public sealed class SubmitDailyInspectionHandler(
 
         await inspectionRepository.AddAsync(inspection, cancellationToken);
 
-        // 2. Notify Admins if there are failed items
+        // 2. Tự động chuyển các thiết bị gặp sự cố sang trạng thái Bảo trì (Maintenance)
         if (hasIssues)
         {
+            foreach (var failedItem in failedItems)
+            {
+                var equipment = await equipmentRepository.GetByIdAsync(failedItem.EquipmentId, cancellationToken);
+                if (equipment != null)
+                {
+                    equipment.Status = EquipmentStatuses.Maintenance;
+                    equipment.UpdatedAt = nowUtc;
+                }
+            }
+
+            // 3. Notify Admins if there are failed items
             var admins = await userRepository.FindAsync(
                 u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() == "ADMIN",
                 cancellationToken);

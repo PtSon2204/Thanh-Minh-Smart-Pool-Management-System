@@ -1,37 +1,19 @@
-import { useState } from 'react'
-import { ConfigProvider, Tabs } from 'antd'
-import {
-  CheckSquareOutlined,
-  HistoryOutlined,
-  SafetyCertificateOutlined,
-} from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
+import { SafetyCertificateOutlined } from '@ant-design/icons'
 import DailyInspectionForm from '../../../features/equipments/components/DailyInspectionForm'
-import DailyInspectionHistory from '../../../features/equipments/components/DailyInspectionHistory'
+import { useAuthStore } from '../../../features/auth/store/authStore'
 import '../../../features/equipments/styles/equipmentManagement.css'
 
 export default function DailyInspectionPage() {
-  const [activeTab, setActiveTab] = useState('form')
+  const navigate = useNavigate()
+  const isAdmin = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN')
 
-  const tabItems = [
-    {
-      key: 'form',
-      label: (
-        <span>
-          <CheckSquareOutlined /> Phiếu kiểm tra đầu ca
-        </span>
-      ),
-      children: <DailyInspectionForm onSuccess={() => setActiveTab('history')} />,
-    },
-    {
-      key: 'history',
-      label: (
-        <span>
-          <HistoryOutlined /> Lịch sử kiểm tra
-        </span>
-      ),
-      children: <DailyInspectionHistory />,
-    },
-  ]
+  const handleSuccess = () => {
+    if (isAdmin) {
+      navigate('/admin/equipments/inspection-history')
+    }
+  }
 
   return (
     <ConfigProvider
@@ -51,7 +33,7 @@ export default function DailyInspectionPage() {
             </span>
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: '#111827' }}>
-                Kiểm tra thiết bị đầu ca (Daily Safety Checklist)
+                Kiểm tra thiết bị đầu ca 
               </h1>
               <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: 14 }}>
                 Quy trình kiểm tra vận hành & an toàn trước ca làm việc. Thiết bị phát hiện sự cố sẽ được ghi nhận để thông báo xử lý.
@@ -60,13 +42,7 @@ export default function DailyInspectionPage() {
           </div>
         </header>
 
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          type="card"
-          size="large"
-        />
+        <DailyInspectionForm onSuccess={handleSuccess} />
       </div>
     </ConfigProvider>
   )
