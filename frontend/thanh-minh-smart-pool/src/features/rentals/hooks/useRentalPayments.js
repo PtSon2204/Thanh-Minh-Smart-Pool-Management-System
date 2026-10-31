@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../auth/store/authStore'
 import { INVENTORY_HISTORY_QUERY_KEY, SERVICES_QUERY_KEY } from '../../services/hooks/useServices'
@@ -20,6 +20,18 @@ function freezeQrRequest(payload) {
   return Object.freeze({ ...payload, items: Object.freeze(payload.items.map((item) => Object.freeze({ ...item }))) })
 }
 
+function restorePaymentState(staffId) {
+  const restored = readRentalPaymentIntent(staffId)
+  const requestPayload = restored?.requestPayload ? freezeQrRequest(restored.requestPayload) : null
+  const unresolvedRequestId = !restored?.paymentId && restored?.requestId ? restored.requestId : null
+  return {
+    staffId,
+    activePaymentId: restored?.paymentId || unresolvedRequestId || null,
+    requestPayload,
+    createUncertain: Boolean(unresolvedRequestId && requestPayload),
+  }
+}
+
 export function useRentalPaymentQueue(params, enabled = true) {
   return useQuery({
     queryKey: [...RENTAL_PAYMENTS_QUERY_KEY, params],
@@ -31,35 +43,38 @@ export function useRentalPaymentQueue(params, enabled = true) {
 export function useRentalPayment() {
   const staffId = useAuthStore((state) => state.session?.id)
   const queryClient = useQueryClient()
-  const [activePaymentId, setActivePaymentId] = useState(null)
-  const [open, setOpen] = useState(false)
+  const [restoredState, setRestoredState] = useState(() => restorePaymentState(staffId))
+  const [activePaymentId, setActivePaymentId] = useState(restoredState.activePaymentId)
+  const [open, setOpen] = useState(Boolean(restoredState.activePaymentId))
   const [now, setNow] = useState(Date.now)
-  const [restoredCreateUncertain, setRestoredCreateUncertain] = useState(false)
-  const clock = useRef(null)
-  const frozenCreate = useRef(null)
+  const [restoredCreateUncertain, setRestoredCreateUncertain] = useState(restoredState.createUncertain)
+  const [clock, setClock] = useState(null)
+  const frozenCreate = useRef(restoredState.requestPayload)
   const frozenIssue = useRef(null)
   const frozenCancel = useRef(null)
   const createVersion = useRef(0)
 
+  if (restoredState.staffId !== staffId) {
+    const next = restorePaymentState(staffId)
+    setRestoredState(next)
+    setActivePaymentId(next.activePaymentId)
+    setOpen(Boolean(next.activePaymentId))
+    setRestoredCreateUncertain(next.createUncertain)
+    setClock(null)
+  }
+
   useEffect(() => {
-    const restored = readRentalPaymentIntent(staffId)
-    const requestPayload = restored?.requestPayload ? freezeQrRequest(restored.requestPayload) : null
-    const unresolvedRequestId = !restored?.paymentId && restored?.requestId ? restored.requestId : null
-    setActivePaymentId(restored?.paymentId || unresolvedRequestId || null)
-    setOpen(Boolean(restored?.paymentId || unresolvedRequestId))
-    setRestoredCreateUncertain(Boolean(unresolvedRequestId && requestPayload))
-    frozenCreate.current = requestPayload
+    frozenCreate.current = restoredState.requestPayload
     frozenIssue.current = null
     frozenCancel.current = null
-    clock.current = null
-  }, [staffId])
+  }, [restoredState])
 
   const paymentQuery = useQuery({
     queryKey: [...RENTAL_PAYMENT_QUERY_KEY, staffId, activePaymentId],
     queryFn: async ({ signal }) => {
       const data = await rentalService.getQrPayment(activePaymentId, signal)
       if (useAuthStore.getState().session?.id === staffId && !signal.aborted) {
-        clock.current = createRentalPaymentClock(data)
+        setClock(createRentalPaymentClock(data))
       }
       return data
     },
@@ -69,13 +84,16 @@ export function useRentalPayment() {
     retry: (attempt, error) => error.response?.status !== 404 && error.response?.status !== 403 && attempt < 2,
   })
 
+  if (restoredCreateUncertain && paymentQuery.data?.id === activePaymentId) {
+    setRestoredCreateUncertain(false)
+  }
+
   useEffect(() => {
     const restored = readRentalPaymentIntent(staffId)
     if (!paymentQuery.data || paymentQuery.data.id !== activePaymentId || restored?.paymentId) return
     if (restored?.requestId !== activePaymentId) return
     saveRentalPaymentIntent(staffId, { requestId: activePaymentId, paymentId: paymentQuery.data.id, requestPayload: null })
     frozenCreate.current = null
-    setRestoredCreateUncertain(false)
   }, [activePaymentId, paymentQuery.data, staffId])
 
   useEffect(() => {
@@ -112,7 +130,7 @@ export function useRentalPayment() {
       if (version !== createVersion.current || useAuthStore.getState().session?.id !== staffId) return data
       saveRentalPaymentIntent(staffId, { requestId: frozen.requestId, paymentId: data.id, requestPayload: null })
       queryClient.setQueryData([...RENTAL_PAYMENT_QUERY_KEY, staffId, data.id], data)
-      clock.current = createRentalPaymentClock(data)
+      setClock(createRentalPaymentClock(data))
       setActivePaymentId(data.id)
       setOpen(true)
       frozenCreate.current = null
@@ -180,7 +198,9 @@ export function useRentalPayment() {
   }, [activePaymentId, cancelMutation, issueMutation, paymentQuery])
 
   const payment = paymentQuery.data
-  const secondsLeft = useMemo(() => getRentalPaymentSecondsLeft(clock.current, now), [now, payment?.expiresAtUtc, payment?.serverTimeUtc])
+  const secondsLeft = clock?.paymentId === activePaymentId
+    ? getRentalPaymentSecondsLeft(clock, now)
+    : 0
   const createOutcomeUncertain = Boolean(createMutation.error && isRentalRequestOutcomeUncertain(createMutation.error))
   const issueOutcomeUncertain = Boolean(issueMutation.error && isRentalRequestOutcomeUncertain(issueMutation.error))
   const cancelOutcomeUncertain = Boolean(cancelMutation.error && isRentalRequestOutcomeUncertain(cancelMutation.error))
@@ -212,7 +232,7 @@ export function useRentalPayment() {
       saveRentalPaymentIntent(staffId, null)
       setActivePaymentId(null)
       setOpen(false)
-      clock.current = null
+      setClock(null)
     },
   }
 }

@@ -53,5 +53,7 @@ export function saveRentalPaymentIntent(staffId, intent, storage = sessionStorag
       storage.setItem(key, JSON.stringify({ requestId: intent.requestId || null, paymentId: intent.paymentId || null, requestPayload }))
     }
     else storage.removeItem(key)
-  } catch {}
+  } catch {
+    // Keep the current payment flow usable when session storage is unavailable.
+  }
 }

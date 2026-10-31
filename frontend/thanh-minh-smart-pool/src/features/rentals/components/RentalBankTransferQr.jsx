@@ -4,7 +4,7 @@ import { DownloadOutlined } from '@ant-design/icons'
 import '../../payments/components/OnlineTicketPaymentModal.css'
 import '../styles/rentalBankTransferQr.css'
 
-export function getBankTransferQrUrl({ bankId, accountNumber, accountName, amount, transactionRef }) {
+function getBankTransferQrUrl({ bankId, accountNumber, accountName, amount, transactionRef }) {
   if (!bankId || !accountNumber || !transactionRef || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return ''
   const parameters = new URLSearchParams({ amount: String(amount), addInfo: transactionRef })
   if (accountName) parameters.set('accountName', accountName)
