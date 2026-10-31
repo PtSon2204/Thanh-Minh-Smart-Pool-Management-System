@@ -16,6 +16,7 @@ public sealed class ReturnRentalQuantityTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     [Theory]
@@ -24,6 +25,8 @@ public sealed class ReturnRentalQuantityTests
     {
         var result = new ReturnRentalQuantityValidator().Validate(CreateCommand(ids));
         Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     [Fact]
@@ -37,6 +40,7 @@ public sealed class ReturnRentalQuantityTests
             CreateCommand([id, id]), CancellationToken.None));
 
         Assert.Contains(exception.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
+        Assert.All(exception.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
         operations.Verify(repository => repository.ReturnRentalQuantityAsync(
             It.IsAny<ReturnRentalQuantityCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -59,6 +63,7 @@ public sealed class ReturnRentalQuantityTests
         Assert.Equal(0, repositoryCalls);
         var validation = Assert.IsType<ValidationException>(exception);
         Assert.Contains(validation.Errors, error => error.PropertyName == nameof(ReturnRentalQuantityCommand.RentalIds));
+        Assert.All(validation.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     [Fact]
@@ -101,6 +106,7 @@ public sealed class ReturnRentalQuantityTests
         var result = new ReturnRentalQuantityValidator().Validate(CreateCommand(ids));
 
         Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     public static TheoryData<List<Guid>?> InvalidRentalSelections => new()

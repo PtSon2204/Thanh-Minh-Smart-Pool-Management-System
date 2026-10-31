@@ -45,6 +45,7 @@ public sealed class RefreshHandler : IRequestHandler<RefreshCommand, IActionResu
             Id = result.Id,
             Username = result.Username,
             Role = result.Role,
+            Roles = result.Roles,
             AccessToken = result.AccessToken,
             ExpiresAtUtc = result.AccessTokenExpiresAtUtc,
             RefreshToken = result.RefreshToken,

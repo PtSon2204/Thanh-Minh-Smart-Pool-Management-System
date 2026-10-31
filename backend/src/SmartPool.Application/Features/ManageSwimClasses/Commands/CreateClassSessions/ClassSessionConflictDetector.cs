@@ -28,8 +28,8 @@ public static class ClassSessionConflictDetector
 
             foreach (var existing in existingSessions)
             {
-                if (Overlaps(current.StartsAt, current.EndsAt, existing.StartsAt, existing.EndsAt) &&
-                    (existing.ClassId == classId || existing.CoachUserId == current.CoachUserId))
+                if ((existing.ClassId == classId || existing.CoachUserId == current.CoachUserId) &&
+                    Overlaps(current.StartsAt, current.EndsAt, existing.StartsAt, existing.EndsAt))
                     conflicts.Add(new ClassSessionConflict(current.Index, current.CoachUserId,
                         current.StartsAt, current.EndsAt,
                         existing.ClassId == classId ? "class_overlap" : "coach_overlap",

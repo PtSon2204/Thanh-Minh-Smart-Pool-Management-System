@@ -119,6 +119,97 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("attendance_logs", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.BankTransferReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("account_number");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("BankReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("bank_reference");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("direction");
+
+                    b.Property<string>("Disposition")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("disposition");
+
+                    b.Property<string>("FinancialHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("financial_hash");
+
+                    b.Property<bool>("NeedsReconciliation")
+                        .HasColumnType("boolean")
+                        .HasColumnName("needs_reconciliation");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("provider");
+
+                    b.Property<long>("ProviderEventId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("provider_event_id");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at_utc");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("reference");
+
+                    b.HasKey("Id")
+                        .HasName("bank_transfer_receipts_pkey");
+
+                    b.HasIndex("FinancialHash")
+                        .HasDatabaseName("ix_bank_transfer_receipts_financial_hash");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("Reference")
+                        .HasDatabaseName("ix_bank_transfer_receipts_reference");
+
+                    b.HasIndex("Provider", "ProviderEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_bank_transfer_receipts_provider_event");
+
+                    b.ToTable("bank_transfer_receipts", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_bank_transfer_receipts_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_bank_transfer_receipts_direction", "direction = 'in'");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassAttendance", b =>
                 {
                     b.Property<Guid>("Id")
@@ -215,11 +306,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("amount");
-
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cancelled_at");
@@ -242,10 +328,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_user_id");
 
-                    b.Property<Guid?>("OrderId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("order_id");
-
                     b.Property<DateTime>("RegisteredAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -267,9 +349,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("class_registrations_pkey");
 
-                    b.HasIndex("OrderId")
-                        .HasDatabaseName("ix_class_registrations_order_id");
-
                     b.HasIndex("ClassId", "CustomerUserId")
                         .IsUnique()
                         .HasDatabaseName("ux_class_registrations_class_customer");
@@ -282,11 +361,11 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.ToTable("class_registrations", "smart_pool", t =>
                         {
-                            t.HasCheckConstraint("ck_class_registrations_amount_nonnegative", "amount >= 0");
-
                             t.HasCheckConstraint("ck_class_registrations_cancelled_after_registered", "cancelled_at IS NULL OR cancelled_at >= registered_at");
 
                             t.HasCheckConstraint("ck_class_registrations_confirmed_after_registered", "confirmed_at IS NULL OR confirmed_at >= registered_at");
+
+                            t.HasCheckConstraint("ck_class_registrations_status", "status IN ('Confirmed', 'Cancelled')");
                         });
                 });
 
@@ -351,7 +430,6 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_class_sessions_time_order", "starts_at < ends_at");
                         });
                 });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.DailyInspection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -420,6 +498,89 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("daily_inspections", "smart_pool");
                 });
 
+                modelBuilder.Entity("SmartPool.Domain.Entities.CoachApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CertificateFormat")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("certificate_format");
+
+                    b.Property<string>("CertificatePublicId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("certificate_public_id");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("RevokeReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("revoke_reason");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<Guid?>("RevokedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("revoked_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("coach_applications_pkey");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_coach_applications_user_pending")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("Status", "SubmittedAt")
+                        .HasDatabaseName("ix_coach_applications_status_submitted_at");
+
+                    b.ToTable("coach_applications", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_coach_applications_review_fields", "(status = 'Pending' AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL) OR (status <> 'Pending' AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_coach_applications_revoked_fields", "(status = 'Revoked' AND revoked_by_user_id IS NOT NULL AND revoked_at IS NOT NULL AND revoke_reason IS NOT NULL AND length(btrim(revoke_reason)) > 0) OR (status <> 'Revoked' AND revoked_by_user_id IS NULL AND revoked_at IS NULL AND revoke_reason IS NULL)");
+
+                            t.HasCheckConstraint("ck_coach_applications_status", "status IN ('Pending', 'Approved', 'Rejected', 'Revoked')");
+                        });
+                });
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1174,6 +1335,99 @@ namespace SmartPool.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.RentalPaymentIntent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<decimal>("DepositAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("deposit_amount");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<decimal>("FeeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("fee_amount");
+
+                    b.Property<Guid>("InitiatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("initiated_by_user_id");
+
+                    b.Property<DateTime?>("IssuedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issued_at_utc");
+
+                    b.Property<Guid?>("IssuedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("issued_by_user_id");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("lines_json");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime?>("PaidAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at_utc");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("reference");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("rental_payment_intents_pkey");
+
+                    b.HasIndex("InitiatedByUserId");
+
+                    b.HasIndex("IssuedByUserId");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rental_payment_intents_order");
+
+                    b.HasIndex("Reference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rental_payment_intents_reference");
+
+                    b.HasIndex("Status", "ExpiresAtUtc")
+                        .HasDatabaseName("ix_rental_payment_intents_status_expiry");
+
+                    b.ToTable("rental_payment_intents", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_rental_payment_intents_nonnegative", "fee_amount >= 0 AND deposit_amount >= 0");
+
+                            t.HasCheckConstraint("ck_rental_payment_intents_status", "status IN ('PENDING', 'PARTIAL', 'PAID', 'ISSUED', 'EXPIRED', 'CANCELLED')");
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.RentalTransaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1226,6 +1480,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("refund_amount");
 
+                    b.Property<string>("RefundMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("refund_method");
+
                     b.Property<string>("RequestHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1266,6 +1525,8 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_rental_transactions_kind", "kind IN ('Collection', 'Settlement')");
 
                             t.HasCheckConstraint("ck_rental_transactions_nonnegative", "fee_amount >= 0 AND deposit_amount >= 0 AND refund_amount >= 0 AND retained_amount >= 0");
+
+                            t.HasCheckConstraint("ck_rental_transactions_refund_method", "refund_method IS NULL OR refund_method = 'CASH'");
                         });
                 });
 
@@ -1580,6 +1841,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
                         .HasColumnName("email");
+
+                    b.Property<bool>("IsCoach")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_coach");
 
                     b.Property<bool?>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -2002,17 +2269,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("class_registrations_customer_user_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.Order", "Order")
-                        .WithMany("ClassRegistrations")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("class_registrations_order_id_fkey");
-
                     b.Navigation("Class");
 
                     b.Navigation("CustomerUser");
 
-                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>
@@ -2229,6 +2489,34 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.BankTransferReceipt", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.RentalPaymentIntent", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("InitiatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("IssuedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SmartPool.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.RentalTransaction", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", null)
@@ -2384,8 +2672,6 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Order", b =>
                 {
-                    b.Navigation("ClassRegistrations");
-
                     b.Navigation("OrderDetails");
 
                     b.Navigation("Payments");

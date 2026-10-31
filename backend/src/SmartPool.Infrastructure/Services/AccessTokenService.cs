@@ -49,7 +49,9 @@ public sealed class AccessTokenService : IAccessTokenService
             SecurityAlgorithms.HmacSha256);
     }
 
-    public AccessTokenResult CreateToken(User user, string role)
+    public AccessTokenResult CreateToken(User user, string role) => CreateToken(user, role, [role]);
+
+    public AccessTokenResult CreateToken(User user, string role, IReadOnlyCollection<string> roles)
     {
         ArgumentNullException.ThrowIfNull(user);
         if (user.Id == Guid.Empty || string.IsNullOrWhiteSpace(role))
@@ -57,17 +59,24 @@ public sealed class AccessTokenService : IAccessTokenService
 
         var issuedAtUtc = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()).UtcDateTime;
         var expiresAtUtc = issuedAtUtc.AddMinutes(_expirationMinutes);
+        var activeRoles = roles.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (activeRoles.Length == 0 || !activeRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException("The primary role must be included in token roles.");
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(PasswordVersionClaim, Convert.ToHexString(
+                ComputePasswordVersion(user.Id, user.PasswordHash))),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+        };
+        claims.AddRange(new[] { role }.Concat(activeRoles.Where(item =>
+            !string.Equals(item, role, StringComparison.OrdinalIgnoreCase)))
+            .Select(item => new Claim(ClaimTypes.Role, item)));
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = _issuer,
             Audience = _audience,
-            Subject = new ClaimsIdentity([
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Role, role),
-                new Claim(PasswordVersionClaim, Convert.ToHexString(
-                    ComputePasswordVersion(user.Id, user.PasswordHash))),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
-            ]),
+            Subject = new ClaimsIdentity(claims),
             IssuedAt = issuedAtUtc,
             NotBefore = issuedAtUtc,
             Expires = expiresAtUtc,
@@ -78,8 +87,13 @@ public sealed class AccessTokenService : IAccessTokenService
 
     public async Task<bool> IsCurrentAsync(Guid userId, string tokenRole,
         string tokenPasswordVersion, CancellationToken cancellationToken)
+        => await IsCurrentRolesAsync(userId, [tokenRole], tokenPasswordVersion, cancellationToken);
+
+    public async Task<bool> IsCurrentRolesAsync(Guid userId, IReadOnlyCollection<string> tokenRoles,
+        string tokenPasswordVersion, CancellationToken cancellationToken)
     {
-        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(tokenRole) ||
+        if (userId == Guid.Empty || tokenRoles.Count == 0 ||
+            tokenRoles.Any(string.IsNullOrWhiteSpace) ||
             string.IsNullOrWhiteSpace(tokenPasswordVersion) || tokenPasswordVersion.Length != 64)
             return false;
         byte[] provided;
@@ -89,11 +103,20 @@ public sealed class AccessTokenService : IAccessTokenService
         var account = await _context.Users.AsNoTracking().Where(user =>
             user.Id == userId && user.IsDeleted != true &&
             user.Status != null && EF.Functions.ILike(user.Status, "ACTIVE") &&
-            user.Role != null && user.Role.IsDeleted != true &&
-            EF.Functions.ILike(user.Role.Name, tokenRole))
-            .Select(user => new { user.Id, user.PasswordHash })
+            user.Role != null && user.Role.IsDeleted != true)
+            .Select(user => new { user.Id, user.PasswordHash, user.IsCoach,
+                PrimaryRole = user.Role!.Name })
             .FirstOrDefaultAsync(cancellationToken);
-        return account is not null &&
+        if (account is null) return false;
+        var effectiveRoles = new List<string> { account.PrimaryRole };
+        if (account.IsCoach && string.Equals(account.PrimaryRole, "CUSTOMER",
+                StringComparison.OrdinalIgnoreCase) &&
+            await _context.Roles.AsNoTracking().AnyAsync(item =>
+                item.Name == "COACH" && item.IsDeleted != true, cancellationToken))
+            effectiveRoles.Add("COACH");
+        return effectiveRoles.Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase)
+                .SetEquals(tokenRoles) &&
             CryptographicOperations.FixedTimeEquals(provided,
                 ComputePasswordVersion(userId, account.PasswordHash));
     }

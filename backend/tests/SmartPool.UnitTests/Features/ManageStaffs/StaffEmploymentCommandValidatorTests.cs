@@ -17,6 +17,7 @@ public sealed class StaffEmploymentCommandValidatorTests
         });
 
         Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     [Fact]
@@ -30,6 +31,7 @@ public sealed class StaffEmploymentCommandValidatorTests
         });
 
         Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     [Fact]
@@ -68,5 +70,6 @@ public sealed class StaffEmploymentCommandValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(CreateStaffCommand.JoinDate));
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 }

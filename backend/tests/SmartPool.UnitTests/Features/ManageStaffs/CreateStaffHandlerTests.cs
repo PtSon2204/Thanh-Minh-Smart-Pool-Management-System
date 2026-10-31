@@ -19,6 +19,7 @@ public sealed class CreateStaffHandlerTests
         var exception = await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(command, CancellationToken.None));
 
         Assert.Contains(exception.Errors, error => error.PropertyName == nameof(CreateStaffCommand.UserId));
+        Assert.All(exception.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
         operations.Verify(operation => operation.CreateStaffAsync(
             It.IsAny<CreateStaffCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarOutlined, LeftOutlined, RightOutlined, UserOutlined } from '@ant-design/icons'
+import { CalendarOutlined, EditOutlined, LeftOutlined, RightOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Empty, Tag } from 'antd'
 import { recommendedWeekStart, sessionTimeRange, shiftWeek, weekDays, weekRangeLabel, weekStartFor } from '../utils/classTimetable'
 
@@ -9,7 +9,7 @@ const sessionStatus = {
   Completed: { label: 'Đã hoàn tất', color: 'success' },
 }
 
-export default function SwimClassSessionSchedule({ sessions, now }) {
+export default function SwimClassSessionSchedule({ sessions, now, onEditSession }) {
   const [visibleWeek, setVisibleWeek] = useState(() => recommendedWeekStart(sessions, now))
   const nearestWeek = recommendedWeekStart(sessions, now)
   const currentWeek = weekStartFor(now)
@@ -42,6 +42,9 @@ export default function SwimClassSessionSchedule({ sessions, now }) {
                     <strong className="swim-class-timetable-time">{sessionTimeRange(session)}</strong>
                     <span className="swim-class-timetable-coach"><UserOutlined aria-hidden="true" /> {session.coachName || session.coachUserId}</span>
                     <Tag color={state.color}>{state.label}</Tag>
+                    {onEditSession && session.status === 'Scheduled' && Date.parse(session.startsAt) > now &&
+                      <Button className="swim-class-timetable-edit" size="small" icon={<EditOutlined />}
+                        onClick={() => onEditSession(session)} aria-label={`Sửa buổi ${sessionTimeRange(session)} ngày ${day.dateLabel}`}>Sửa buổi</Button>}
                     {session.status === 'Cancelled' && session.cancelReason && <p className="swim-class-timetable-cancel-reason">Lý do hủy: {session.cancelReason}</p>}
                   </article>
                 })}

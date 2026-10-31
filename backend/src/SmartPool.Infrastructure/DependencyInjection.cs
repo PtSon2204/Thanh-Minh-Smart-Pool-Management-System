@@ -3,6 +3,7 @@ using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
+using SmartPool.Infrastructure.Persistence.Repositories.CoachApplications;
 using SmartPool.Infrastructure.Persistence.Repositories.Tickets;
 using SmartPool.Infrastructure.Persistence.Repositories.Vouchers;
 using CloudinaryDotNet;
@@ -14,11 +15,13 @@ using Microsoft.IdentityModel.Tokens;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Infrastructure.AttendanceQr;
+using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Infrastructure.Caching;
 using SmartPool.Infrastructure.Persistence;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
+using SmartPool.Infrastructure.Persistence.Repositories.Payments;
 using SmartPool.Infrastructure.Persistence.Repositories.Roles;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.Storages;
@@ -104,10 +107,11 @@ namespace SmartPool.Infrastructure
                         OnTokenValidated = async context =>
                         {
                             var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-                            var tokenRole = context.Principal?.FindFirstValue(ClaimTypes.Role);
+                            var tokenRoles = context.Principal?.FindAll(ClaimTypes.Role)
+                                .Select(claim => claim.Value).ToArray() ?? [];
                             var passwordVersion = context.Principal?.FindFirstValue(AccessTokenService.PasswordVersionClaim);
                             if (!Guid.TryParse(userIdValue, out var userId) || userId == Guid.Empty ||
-                                string.IsNullOrWhiteSpace(tokenRole) || string.IsNullOrWhiteSpace(passwordVersion))
+                                tokenRoles.Length == 0 || string.IsNullOrWhiteSpace(passwordVersion))
                             {
                                 context.Fail("Token identity is invalid.");
                                 return;
@@ -115,7 +119,7 @@ namespace SmartPool.Infrastructure
 
                             var validator = context.HttpContext.RequestServices
                                 .GetRequiredService<IAccessTokenService>();
-                            if (!await validator.IsCurrentAsync(userId, tokenRole, passwordVersion,
+                            if (!await validator.IsCurrentRolesAsync(userId, tokenRoles, passwordVersion,
                                 context.HttpContext.RequestAborted))
                                 context.Fail("Account role, status or password changed.");
                         }
@@ -155,6 +159,7 @@ namespace SmartPool.Infrastructure
 
             // Access token generation for login
             services.AddScoped<IAccessTokenService, AccessTokenService>();
+            services.AddScoped<IUserRoleMembershipService, UserRoleMembershipService>();
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<IGoogleIdTokenVerifier, GoogleIdTokenVerifier>();
 
@@ -176,10 +181,13 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IUserOperations, UserOperations>();
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<IServiceOperations, ServiceOperations>();
+            services.AddScoped<ServiceOperations>();
+            services.AddScoped<IServiceOperations>(provider => provider.GetRequiredService<ServiceOperations>());
+            services.Configure<SePayOptions>(configuration.GetSection(SePayOptions.SectionName));
             services.AddScoped<IEquipmentOperations, EquipmentOperations>();
             services.AddScoped<IStaffOperations, StaffOperations>();
             services.AddScoped<ISwimClassOperations, SwimClassOperations>();
+            services.AddScoped<ICoachApplicationOperations, CoachApplicationOperations>();
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();
@@ -187,6 +195,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IOrderPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.OrderPaymentOperations>();
             services.AddScoped<SmartPool.Application.Interfaces.Repositories.IWaterQualityOperations, SmartPool.Infrastructure.Persistence.Repositories.WaterQuality.WaterQualityOperations>();
             services.AddHostedService<ExpiredOnlineOrderWorker>();
+            services.AddHostedService<ExpiredRentalPaymentWorker>();
 
             return services;
         }

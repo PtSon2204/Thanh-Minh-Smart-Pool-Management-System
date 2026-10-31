@@ -119,7 +119,9 @@ public sealed partial class ServiceOperations
         var transactions = await _context.RentalTransactions.AsNoTracking()
             .Where(item => item.OrderId == query.OrderId && (item.Kind == "Collection" || item.ProductId == query.ProductId))
             .OrderBy(item => item.ConfirmedAtUtc).ThenBy(item => item.Id)
-            .Select(item => new RentalTransactionDetails { Id = item.Id, Kind = item.Kind, ProductId = item.ProductId, FeeAmount = item.FeeAmount, DepositAmount = item.DepositAmount, RefundAmount = item.RefundAmount, RetainedAmount = item.RetainedAmount, ConfirmedByUserId = item.ConfirmedByUserId, ConfirmedAtUtc = item.ConfirmedAtUtc, Reason = item.Reason })
+            .Select(item => new RentalTransactionDetails { Id = item.Id, Kind = item.Kind, ProductId = item.ProductId, FeeAmount = item.FeeAmount, DepositAmount = item.DepositAmount, RefundAmount = item.RefundAmount, RetainedAmount = item.RetainedAmount, RefundMethod = item.RefundMethod,
+                CollectionMethod = item.Kind == "Collection" ? _context.Payments.Where(payment => payment.Id == item.PaymentId).Select(payment => payment.PaymentMethod).FirstOrDefault() : null,
+                ConfirmedByUserId = item.ConfirmedByUserId, ConfirmedAtUtc = item.ConfirmedAtUtc, Reason = item.Reason })
             .ToListAsync(cancellationToken);
         var collection = transactions.SingleOrDefault(item => item.Kind == "Collection");
         return new GetRentalDetailsResponse

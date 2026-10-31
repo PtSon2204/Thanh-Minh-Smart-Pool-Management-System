@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Drawer, Dropdown, message } from 'antd'
-import { UserOutlined, LogoutOutlined, EditOutlined, LockOutlined, HistoryOutlined } from '@ant-design/icons'
+import { UserOutlined, LogoutOutlined, LockOutlined, CalendarOutlined, SafetyCertificateOutlined, TeamOutlined, DashboardOutlined, IdcardOutlined, HistoryOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import './Navbar.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
@@ -10,6 +10,7 @@ import { useAuthStore } from '../../features/auth/store/authStore'
 import CartIcon from '../../features/cart/components/CartIcon'
 import profileService from '../../features/profiles/services/profileService'
 import authService from '../../features/auth/services/authService'
+import { getSessionRoles } from '../../features/auth/utils/sessionRoles'
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
@@ -27,7 +28,10 @@ export default function Navbar() {
 
   const { session } = useAuthStore()
   const role = session?.role?.toUpperCase()
-  const visibleNavItems = role === 'CUSTOMER'
+  const roles = getSessionRoles(session)
+  const isCustomer = roles.includes('CUSTOMER')
+  const isCoach = roles.includes('COACH')
+  const visibleNavItems = isCustomer
     ? [...navItems, { label: 'Lớp học bơi', to: '/lop-hoc' }]
     : navItems
 
@@ -65,27 +69,39 @@ export default function Navbar() {
 
   const userMenu = {
     items: [
-      role === 'CUSTOMER' && {
+      isCustomer && {
         key: '0',
         icon: <UserOutlined />,
         label: 'Thẻ của tôi',
         onClick: () => navigate('/the-cua-toi')
       },
-      role === 'COACH' && {
+      isCustomer && {
+        key: 'my-classes',
+        icon: <CalendarOutlined />,
+        label: 'Lớp học của tôi',
+        onClick: () => navigate('/lop-hoc-cua-toi')
+      },
+      isCustomer && {
+        key: 'become-coach',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Yêu cầu Coach',
+        onClick: () => navigate('/tro-thanh-coach')
+      },
+      isCoach && {
         key: 'classes',
-        icon: <EditOutlined />,
-        label: 'Lớp được phân công',
-        onClick: () => navigate('/admin/classes')
+        icon: <TeamOutlined />,
+        label: 'Quản lý lớp dạy',
+        onClick: () => navigate('/coach/classes')
       },
       role === 'ADMIN' && {
         key: 'admin',
-        icon: <EditOutlined />,
+        icon: <DashboardOutlined />,
         label: 'Trang quản trị',
         onClick: () => navigate('/admin')
       },
       {
         key: '1',
-        icon: <EditOutlined />,
+        icon: <IdcardOutlined />,
         label: 'Hồ sơ cá nhân',
         onClick: () => navigate('/ho-so')
       },
@@ -95,7 +111,7 @@ export default function Navbar() {
         label: 'Đổi mật khẩu',
         onClick: () => navigate('/doi-mat-khau')
       },
-      role === 'CUSTOMER' && { key: '3', icon: <HistoryOutlined />, label: 'Lịch sử vào bể', onClick: () => navigate('/lich-su-vao-be') },
+      isCustomer && { key: '3', icon: <HistoryOutlined />, label: 'Lịch sử vào bể', onClick: () => navigate('/lich-su-vao-be') },
       {
         key: '4',
         icon: <LogoutOutlined />,
@@ -145,7 +161,7 @@ export default function Navbar() {
           <div className="navbar-cta">
             {session ? (
               <>
-                {session.role === 'CUSTOMER' && <CartIcon />}
+                {isCustomer && <CartIcon />}
                 <div style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '4px 8px', borderRadius: '24px', background: 'transparent', transition: 'background 0.2s' }} className="user-dropdown-trigger">
@@ -168,7 +184,7 @@ export default function Navbar() {
           </div>
 
           <div className="navbar-mobile-actions">
-            {session?.role?.toUpperCase() === 'CUSTOMER' && <CartIcon />}
+            {isCustomer && <CartIcon />}
             <button
               className="hamburger"
               onClick={() => setMenuOpen(!menuOpen)}
@@ -196,7 +212,7 @@ export default function Navbar() {
           <div className="mobile-navigation-account">
             {session ? <>
               <strong>{profileData?.fullName || session.username}</strong>
-              {role !== 'CUSTOMER' && <Link to={role === 'COACH' ? '/admin/classes' : '/admin'} onClick={() => setMenuOpen(false)}>{role === 'COACH' ? 'Lớp được phân công' : 'Trang quản trị'}</Link>}
+              {(isCoach || (role && !isCustomer)) && <Link to={isCoach ? '/coach/classes' : '/admin'} onClick={() => setMenuOpen(false)}>{isCoach ? 'Quản lý lớp dạy' : 'Trang quản trị'}</Link>}
               {userMenu.items.map(item => <button key={item.key} type="button" onClick={() => { setMenuOpen(false); item.onClick() }}>{item.icon}{item.label}</button>)}
             </> : <>
               <Link to="/dang-ky" onClick={() => setMenuOpen(false)}>Đăng ký</Link>

@@ -9,10 +9,10 @@ export function useSwimClasses(params, userId) {
   })
 }
 
-export function useSwimClassDetail(classId, userId) {
+export function useSwimClassDetail(classId, userId, scope) {
   return useQuery({
-    queryKey: ['swim-class-detail', userId, classId],
-    queryFn: ({ signal }) => swimClassService.getClassById(classId, signal),
+    queryKey: ['swim-class-detail', userId, classId, scope],
+    queryFn: ({ signal }) => swimClassService.getClassById(classId, scope, signal),
     enabled: Boolean(classId && userId),
     retry: (failureCount, error) => ![401, 403, 404].includes(error?.response?.status) && failureCount < 2,
   })

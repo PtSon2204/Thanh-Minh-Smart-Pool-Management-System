@@ -2,6 +2,8 @@ using AutoMapper;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
@@ -87,7 +89,9 @@ public sealed class RentalWorkflowIntegrationTests
             Assert.Equal((20000m, 40000m, 60000m), (first.RentalFeeTotal, first.DepositTotal, first.TotalCollected));
             Assert.All(first.Rentals, rental => Assert.Equal(20000m, rental.DepositAmount));
             Assert.Single(await db.RentalTransactions.Where(item => item.OrderId == first.OrderId).ToListAsync());
-            Assert.Equal(20000m, await db.Payments.Where(payment => payment.OrderId == first.OrderId).Select(payment => payment.Amount).SingleAsync());
+            var payment = await db.Payments.SingleAsync(item => item.OrderId == first.OrderId);
+            Assert.Equal(20000m, payment.Amount);
+            Assert.Equal("CASH", payment.PaymentMethod);
             Assert.Null((await db.Orders.AsNoTracking().SingleAsync(order => order.Id == first.OrderId)).UserId);
             request.CustomerName = "Different customer";
             await Assert.ThrowsAsync<ServiceConflictException>(() => fixture.Operations(db).CheckoutRentalAsync(request, default));
@@ -246,7 +250,8 @@ public sealed class RentalWorkflowIntegrationTests
         public Guid FirstId { get; } = Guid.NewGuid();
         public Guid SecondId { get; } = Guid.NewGuid();
         public SmartPoolDbContext Context() => new(options);
-        public ServiceOperations Operations(SmartPoolDbContext db) => new(db, new MapperConfiguration(_ => { }, NullLoggerFactory.Instance).CreateMapper());
+        public ServiceOperations Operations(SmartPoolDbContext db) => new(db,
+            new MapperConfiguration(_ => { }, NullLoggerFactory.Instance).CreateMapper(), TimeProvider.System, Options.Create(new SePayOptions()));
         public CheckoutRentalCommand Request(int quantity = 2) => new()
         {
             RequestId = Guid.NewGuid(), CustomerName = "QA customer", CustomerPhone = "0901234567", OperatorId = ActorId,

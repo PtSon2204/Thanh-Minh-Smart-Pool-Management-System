@@ -1,15 +1,19 @@
 .swim-class-list-page { display: grid; gap: 20px; min-width: 0; padding-bottom: 28px; }
-.swim-class-list-page--customer { max-width: 1280px; margin: 30px auto 60px; padding: 0 20px; }
-.swim-class-list-header, .swim-class-list-panel { background: #fff; border: 1px solid #dce8ef; border-radius: 12px; box-shadow: 0 2px 8px rgba(16, 49, 74, .045); }
-.swim-class-list-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 30px; }
+.swim-class-list-page--customer, .swim-class-list-page--coach { max-width: 1280px; margin: 30px auto 60px; padding: 0 20px; }
+.swim-class-list-header, .swim-class-list-panel { border: 1px solid #e4ebf5; border-radius: 18px; box-shadow: 0 10px 25px #12365d0a; }
+.swim-class-list-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; overflow: hidden; padding: 32px 38px; background: linear-gradient(120deg, #073b80, #1167ad); border-color: transparent; border-radius: 24px; }
 .swim-class-list-heading { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.swim-class-list-icon { align-items: center; background: #e6f5fb; border: 1px solid #c4e7f4; border-radius: 13px; color: #0077b6; display: inline-flex; flex: 0 0 50px; font-size: 23px; height: 50px; justify-content: center; }
-.swim-class-list-heading h1 { color: #12344b; font-size: 25px; line-height: 1.25; margin: 0 0 5px; }
-.swim-class-list-heading p { color: #61758a; margin: 0; }
-.swim-class-list-panel { min-width: 0; padding: 22px 26px; }
+.swim-class-list-icon { align-items: center; background: #ffffff1f; border: 1px solid #ffffff4d; border-radius: 18px; color: #fff; display: inline-flex; flex: 0 0 70px; font-size: 34px; height: 70px; justify-content: center; }
+.swim-class-list-heading small { color: #c7e9ff; display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; margin-bottom: 5px; }
+.swim-class-list-heading h1 { color: #fff; font-size: clamp(25px, 3vw, 34px); line-height: 1.25; margin: 0 0 7px; }
+.swim-class-list-heading p { color: #e6f1ff; line-height: 1.6; margin: 0; }
+.swim-class-list-header .ant-btn { border-color: #fff; color: #0b638b; flex: 0 0 auto; font-weight: 650; }
+.swim-class-list-header .ant-btn-primary { background: #fff; }
+.swim-class-list-panel { background: #fff; min-width: 0; padding: 24px 28px; }
 .swim-class-list-panel-heading { align-items: center; display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.swim-class-list-panel-heading h2 { color: #173c55; font-size: 17px; margin: 0; }
+.swim-class-list-panel-heading h2 { color: #173c55; font-size: 19px; margin: 0; }
 .swim-class-list-count { background: #e6f5fb; border-radius: 16px; color: #006da4; font-size: 13px; margin-left: 10px; padding: 3px 9px; }
+.swim-class-list-filters { padding-bottom: 26px; }
 .swim-class-list-filter-fields { display: flex; flex-wrap: wrap; gap: 14px; }
 .swim-class-list-filter-fields label { display: grid; flex: 1 1 220px; gap: 7px; max-width: 380px; }
 .swim-class-list-filter-fields label span { color: #294a5e; font-size: 13px; font-weight: 650; }
@@ -20,11 +24,14 @@
 .swim-class-list-dates { color: #294a5e; display: grid; font-size: 12px; gap: 2px; }
 .swim-class-list-pagination { display: flex; justify-content: flex-end; padding-top: 18px; }
 .swim-class-list-page .ant-table-wrapper { min-width: 0; }
+.swim-class-list-page .ant-table-thead > tr > th { background: #f3f8fc; color: #365b72; font-weight: 700; }
+.swim-class-list-page .ant-table-tbody > tr:hover > td { background: #f5fbff; }
 @media (max-width: 640px) {
   .swim-class-list-page { gap: 12px; }
-  .swim-class-list-header { align-items: flex-start; flex-direction: column; padding: 19px; }
-  .swim-class-list-heading h1 { font-size: 20px; }
+  .swim-class-list-header { align-items: flex-start; flex-direction: column; padding: 24px 20px; }
+  .swim-class-list-icon { border-radius: 12px; flex-basis: 48px; font-size: 23px; height: 48px; }
+  .swim-class-list-heading h1 { font-size: 23px; }
   .swim-class-list-panel { padding: 17px 14px; }
-  .swim-class-list-page--customer { margin-top: 18px; padding: 0 12px; }
+  .swim-class-list-page--customer, .swim-class-list-page--coach { margin-top: 18px; padding: 0 12px; }
   .swim-class-list-pagination { justify-content: center; }
 }

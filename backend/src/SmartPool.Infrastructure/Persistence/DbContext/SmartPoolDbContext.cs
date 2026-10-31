@@ -30,6 +30,8 @@ public class SmartPoolDbContext : EfDbContext
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<Rental> Rentals { get; set; }
     public virtual DbSet<RentalTransaction> RentalTransactions { get; set; }
+    public virtual DbSet<RentalPaymentIntent> RentalPaymentIntents { get; set; }
+    public virtual DbSet<BankTransferReceipt> BankTransferReceipts { get; set; }
     public virtual DbSet<Role> Roles { get; set; }
     public virtual DbSet<Shift> Shifts { get; set; }
     public virtual DbSet<Ticket> Tickets { get; set; }
@@ -44,6 +46,7 @@ public class SmartPoolDbContext : EfDbContext
     public DbSet<ClassSession> ClassSessions { get; set; }
     public DbSet<ClassRegistration> ClassRegistrations { get; set; }
     public DbSet<ClassAttendance> ClassAttendances { get; set; }
+    public DbSet<CoachApplication> CoachApplications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +66,8 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new RentalConfiguration());
         modelBuilder.ApplyConfiguration(new RentalTransactionConfiguration());
+        modelBuilder.ApplyConfiguration(new RentalPaymentIntentConfiguration());
+        modelBuilder.ApplyConfiguration(new BankTransferReceiptConfiguration());
         modelBuilder.ApplyConfiguration(new RoleConfiguration());
         modelBuilder.ApplyConfiguration(new ShiftConfiguration());
         modelBuilder.ApplyConfiguration(new TicketConfiguration());
@@ -79,5 +84,6 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new ClassSessionConfiguration());
         modelBuilder.ApplyConfiguration(new ClassRegistrationConfiguration());
         modelBuilder.ApplyConfiguration(new ClassAttendanceConfiguration());
+        modelBuilder.ApplyConfiguration(new CoachApplicationConfiguration());
     }
 }

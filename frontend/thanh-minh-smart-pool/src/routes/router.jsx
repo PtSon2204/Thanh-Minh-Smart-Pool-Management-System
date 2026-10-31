@@ -39,11 +39,14 @@ import DailyInspectionHistoryPage from "../pages/admin/equipments/DailyInspectio
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
-import CreateSwimClassPage from "../pages/admin/classes/CreateSwimClassPage";
-import SwimClassListPage from "../pages/admin/classes/SwimClassListPage";
+import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
+import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
-import SwimClassDetailPage from "../pages/admin/classes/SwimClassDetailPage";
+import SwimClassDetailPage from "../pages/coach/classes/SwimClassDetailPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
+import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
+import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
+import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 
 const router = createBrowserRouter([
@@ -74,10 +77,20 @@ const router = createBrowserRouter([
         ),
         children: [
           { path: "/lop-hoc", element: <SwimClassCatalogPage /> },
+          { path: "/lop-hoc-cua-toi", element: <MySwimClassesPage /> },
+          { path: "/tro-thanh-coach", element: <CoachApplicationPage /> },
           {
             path: "/lop-hoc/:classId",
             element: <SwimClassCatalogDetailPage />,
           },
+        ],
+      },
+      {
+        element: <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["COACH"]} />,
+        children: [
+          { path: "/coach/classes", element: <SwimClassListPage /> },
+          { path: "/coach/classes/create", element: <CreateSwimClassPage /> },
+          { path: "/coach/classes/:classId", element: <SwimClassDetailPage /> },
         ],
       },
       { path: "*", element: <NotFoundPage /> },
@@ -105,7 +118,7 @@ const router = createBrowserRouter([
 
   {
     element: (
-      <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES", "COACH"]} />
+      <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />
     ),
     children: [
       {
@@ -114,13 +127,6 @@ const router = createBrowserRouter([
         children: [
           { path: "doi-mat-khau", element: <ChangePasswordPage /> },
           { path: "staff/schedule", element: <StaffSchedulePage /> },
-          {
-            element: <ProtectedRoute allowedRoles={["ADMIN", "COACH"]} />,
-            children: [
-              { path: "classes", element: <SwimClassListPage /> },
-              { path: "classes/:classId", element: <SwimClassDetailPage /> },
-            ],
-          },
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
@@ -140,7 +146,10 @@ const router = createBrowserRouter([
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              { path: "notifications", element: <Navigate to="/admin" replace /> },
+              {
+                path: "notifications",
+                element: <Navigate to="/admin" replace />,
+              },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,
@@ -158,7 +167,6 @@ const router = createBrowserRouter([
                 element: <IncidentStatisticsPage />,
               },
               { path: "staff/profiles", element: <StaffProfilesPage /> },
-              { path: "classes/create", element: <CreateSwimClassPage /> },
               { path: "payments/invoices", element: <PaymentHistoryPage /> },
               { path: "staff/attendance", element: <StaffAttendancePage /> },
               {
@@ -166,6 +174,10 @@ const router = createBrowserRouter([
                 element: <StaffQrAttendancePage />,
               },
               { path: "users", element: <UserManagementPage /> },
+              {
+                path: "coach-applications",
+                element: <CoachApplicationsPage />,
+              },
               { path: "roles/permissions", element: <RolePermissionsPage /> },
             ],
           },

@@ -15,6 +15,7 @@ public sealed class StaffEmploymentValidatorBoundaryTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(CreateStaffCommand.Status));
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     [Fact]
@@ -27,6 +28,7 @@ public sealed class StaffEmploymentValidatorBoundaryTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(UpdateStaffCommand.Status));
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     [Fact]
@@ -39,6 +41,7 @@ public sealed class StaffEmploymentValidatorBoundaryTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(CreateStaffCommand.UserId));
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 
     [Fact]
@@ -51,5 +54,6 @@ public sealed class StaffEmploymentValidatorBoundaryTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(UpdateStaffCommand.UserId));
+        Assert.All(result.Errors, error => Assert.False(string.IsNullOrWhiteSpace(error.ErrorMessage)));
     }
 }

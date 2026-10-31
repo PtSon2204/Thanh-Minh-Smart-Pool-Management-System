@@ -62,9 +62,11 @@ export default function SwimClassDraftActions({ swimClass, now }) {
     }
   }
 
-  return <section className="swim-class-detail-panel swim-class-detail-actions" aria-label="Thao tác với lớp bản nháp">
-    <div className="swim-class-detail-section-title"><CalendarOutlined /><h2>Hoàn thiện lớp</h2></div>
-    <p>Thêm buổi học trước khi kích hoạt lớp để Customer có thể xem và đăng ký sau này.</p>
+  return <section className="swim-class-detail-panel swim-class-detail-actions" aria-label="Quản lý lịch lớp">
+    <div className="swim-class-detail-section-title"><CalendarOutlined /><h2>{swimClass.status === 'Draft' ? 'Hoàn thiện lớp' : 'Quản lý lịch học'}</h2></div>
+    <p>{swimClass.status === 'Draft'
+      ? 'Thêm buổi tương lai và đảm bảo hạn đăng ký kết thúc trước buổi đầu tiên để kích hoạt lớp.'
+      : 'Thêm buổi học mới cho lớp. Học viên đã đăng ký sẽ được thông báo sau khi lưu.'}</p>
     {activationError && <Alert type="error" showIcon title={activationError} />}
     {coachesQuery.isError && editorOpen && <Alert type="warning" showIcon title="Không tải được danh sách Coach" action={<Button onClick={() => coachesQuery.refetch()}>Thử lại</Button>} />}
     <div className="swim-class-detail-action-buttons">
