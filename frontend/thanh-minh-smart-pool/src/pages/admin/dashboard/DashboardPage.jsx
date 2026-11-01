@@ -164,7 +164,7 @@ export default function DashboardPage() {
         duration: 6,
         style: {
           borderRadius: 8,
-          borderLeft: '4px solid #005f8e',
+          borderLeft: '4px solid #0068ff',
         },
       });
 
@@ -287,7 +287,7 @@ export default function DashboardPage() {
           <Space orientation="vertical" size={2}>
             <span style={{ fontSize: 13, color: '#334155' }}>{formatted}</span>
             {record.isNew && (
-              <Badge count="MỚI" style={{ backgroundColor: '#10b981', fontSize: 10, padding: '0 4px', height: 16, lineHeight: '16px' }} />
+              <Badge count="MỚI" style={{ backgroundColor: '#03ca77', fontSize: 10, padding: '0 4px', height: 16, lineHeight: '16px' }} />
             )}
           </Space>
         );
@@ -355,7 +355,7 @@ export default function DashboardPage() {
       {/* Welcome Banner */}
       <div
         style={{
-          background: 'linear-gradient(90deg, #005f8e 0%, #00b4d8 100%)',
+          background: 'linear-gradient(135deg, #001f3e 0%, #002d59 60%, #0068ff 100%)',
           padding: '20px 24px',
           borderRadius: '12px',
           color: '#fff',
@@ -377,7 +377,7 @@ export default function DashboardPage() {
               title="Tổng Khách Hàng"
               value={stats.totalCustomers}
               precision={0}
-              valueStyle={{ color: '#3f8600', fontWeight: 600 }}
+              valueStyle={{ color: '#03ca77', fontWeight: 600 }}
               prefix={<UserOutlined style={{ marginRight: 8 }} />}
               suffix={
                 stats.customerGrowthRate !== 0 ? (
@@ -395,7 +395,7 @@ export default function DashboardPage() {
               title="Tổng Vé Đã Bán (Tháng Này)"
               value={stats.totalTicketsSold}
               precision={0}
-              valueStyle={{ color: '#1677ff', fontWeight: 600 }}
+              valueStyle={{ color: '#0068ff', fontWeight: 600 }}
               prefix={<ShoppingCartOutlined style={{ marginRight: 8 }} />}
               suffix={<span style={{ fontSize: 14, color: '#64748b', marginLeft: 6 }}>vé</span>}
             />
@@ -407,7 +407,7 @@ export default function DashboardPage() {
               title="Doanh Thu Bán Vé (Tháng Này)"
               value={stats.totalRevenue}
               precision={0}
-              valueStyle={{ color: '#faad14', fontWeight: 600 }}
+              valueStyle={{ color: '#faa828', fontWeight: 600 }}
               prefix={<DollarOutlined style={{ marginRight: 8 }} />}
               suffix={
                 <Space size={6} style={{ marginLeft: 6 }}>
@@ -429,8 +429,8 @@ export default function DashboardPage() {
         id="notifications"
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <BellOutlined style={{ fontSize: 20, color: '#005f8e' }} />
-            <span style={{ fontSize: '18px', fontWeight: 600, color: '#0f172a' }}>
+            <BellOutlined style={{ fontSize: 20, color: '#0068ff' }} />
+            <span style={{ fontSize: '18px', fontWeight: 600, color: '#001f3e' }}>
               Bảng Thông Báo Hệ Thống & Hoạt Động
             </span>
           </div>
@@ -441,7 +441,7 @@ export default function DashboardPage() {
               type="primary"
               icon={<SendOutlined />}
               onClick={() => setIsTestModalOpen(true)}
-              style={{ backgroundColor: '#005f8e' }}
+              style={{ backgroundcolor: '#0068ff' }}
             >
               Gửi thử thông báo
             </Button>
@@ -473,7 +473,7 @@ export default function DashboardPage() {
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <SendOutlined style={{ color: '#005f8e' }} />
+            <SendOutlined style={{ color: '#0068ff' }} />
             <span>Gửi thông báo thử nghiệm</span>
           </div>
         }
@@ -532,7 +532,7 @@ export default function DashboardPage() {
               htmlType="submit"
               icon={<SendOutlined />}
               loading={sendingTest}
-              style={{ backgroundColor: '#005f8e' }}
+              style={{ backgroundcolor: '#0068ff' }}
             >
               Gửi ngay
             </Button>
@@ -542,3 +542,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

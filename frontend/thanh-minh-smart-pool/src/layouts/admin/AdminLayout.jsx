@@ -114,8 +114,8 @@ export default function AdminLayout() {
         ),
         duration: 30,
         placement: "topRight",
-        icon: <AlertOutlined style={{ color: "#dc2626" }} />,
-        style: { borderLeft: "4px solid #dc2626" },
+        icon: <AlertOutlined style={{ color: "#e31748" }} />,
+        style: { borderLeft: "4px solid #e31748" },
       });
       if (stopAlarmTimerRef.current) clearTimeout(stopAlarmTimerRef.current);
       stopAlarmTimerRef.current = setTimeout(() => stopAlarm(), 30000);
@@ -505,7 +505,7 @@ export default function AdminLayout() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              borderBottom: "1px solid #cbd5e1",
+              borderBottom: "1px solid #e6e9ec",
               boxShadow: "0 1px 4px rgba(0, 21, 41, 0.04)",
               zIndex: 1,
             }}
@@ -568,7 +568,7 @@ export default function AdminLayout() {
                   aria-label="Menu tài khoản"
                 >
                   <Avatar
-                    style={{ backgroundColor: "#005f8e" }}
+                    style={{ backgroundColor: "#0068ff" }}
                     icon={<UserOutlined />}
                   />
                   <span className="admin-account-name">

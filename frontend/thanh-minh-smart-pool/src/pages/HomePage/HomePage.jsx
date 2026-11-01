@@ -255,7 +255,7 @@ export default function HomePage() {
       <section className="section-cta">
         <div className="container">
           <div className="cta-content reveal">
-            <h2 className="cta-title">🌊 Sẵn sàng cho một ngày vui trọn vẹn?</h2>
+            <h2 className="cta-title">Sẵn sàng cho một ngày vui trọn vẹn?</h2>
             <p className="cta-desc">
               Tham khảo bảng giá để lựa chọn loại vé phù hợp với nhu cầu của bạn.
             </p>

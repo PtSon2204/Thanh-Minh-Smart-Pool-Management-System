@@ -13,7 +13,7 @@ import "../../../components/shared/styles/adminActions.css"
 import "../../../features/equipments/styles/equipmentManagement.css"
 
 const equipmentTheme = {
-  token: { colorPrimary: '#0077b6', colorInfo: '#0077b6', borderRadius: 8 },
+  token: { colorPrimary: '#0068ff', colorInfo: '#0068ff', borderRadius: 8 },
 }
 
 function EquipmentName({ equipment }) {
@@ -151,3 +151,4 @@ export default function EquipmentPage() {
     </div>
   </ConfigProvider>
 }
+

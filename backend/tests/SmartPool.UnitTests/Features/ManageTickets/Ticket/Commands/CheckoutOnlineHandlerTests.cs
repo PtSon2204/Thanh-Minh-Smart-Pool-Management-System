@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using MediatR;
 using Moq;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutOnline;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPendingOrder;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
@@ -363,7 +364,8 @@ public class CheckoutOnlineHandlerTests
         public Guid? VoucherId { get; }
 
         public Harness(TicketTypeEntity? firstTicketType = null, TicketTypeEntity? secondTicketType = null,
-            Voucher? voucher = null, ConfirmPendingOrderResponse? confirmation = null, bool ticketTypeMissing = false)
+            Voucher? voucher = null, ConfirmPendingOrderResponse? confirmation = null, bool ticketTypeMissing = false,
+            UserProfile? userProfile = null, bool userProfileMissing = false)
         {
             var first = ticketTypeMissing ? null : firstTicketType ?? CreateTicketType("Vé tháng online", 500_000m);
             FirstTicketTypeId = first?.Id ?? Guid.NewGuid();
@@ -377,6 +379,8 @@ public class CheckoutOnlineHandlerTests
             vouchers.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()))
                 .Returns((Expression<Func<Voucher, bool>> predicate, CancellationToken _) =>
                     Task.FromResult(voucher != null && predicate.Compile()(voucher) ? voucher : null));
+            userProfiles.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(userProfileMissing ? null : userProfile ?? new UserProfile { FullName = "Nguyễn Văn Test" });
             Orders.Setup(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
                 .Callback((Order order, CancellationToken _) => CreatedOrders.Add(order)).Returns(Task.CompletedTask);
             orderDetails.Setup(r => r.AddAsync(It.IsAny<OrderDetail>(), It.IsAny<CancellationToken>()))
@@ -397,7 +401,7 @@ public class CheckoutOnlineHandlerTests
 
         public Task<CheckoutOnlineResponse> Checkout(CheckoutOnlineCommand command) =>
             new CheckoutOnlineHandler(ticketTypes.Object, Orders.Object, orderDetails.Object, payments.Object,
-                vouchers.Object, UnitOfWork.Object, new FixedTimeProvider(Now), sender.Object)
+                vouchers.Object, userProfiles.Object, UnitOfWork.Object, new FixedTimeProvider(Now), sender.Object)
                 .Handle(command, CancellationToken.None);
     }
 

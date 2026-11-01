@@ -518,7 +518,6 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-
       <div id="card-in">
         <!-- Login mode title -->
         <h1 class="card-title" id="card-title">Chào mừng trở lại!</h1>
-        <p class="card-sub" id="card-sub"><b>Đăng nhập</b> để tiếp tục trải nghiệm bể bơi Thành Minh.</p>
 
         <!-- Name row (register only) -->
         <div class="name-row" id="name-row">
@@ -609,10 +608,6 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-
           <a href="#" id="footer-link" onclick="switchTab('register');return false">Đăng ký miễn phí</a>
         </p>
 
-        <!-- Terms (register) -->
-        <p class="terms-text" id="terms-txt">
-          Bằng cách đăng ký, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a> và <a href="#">Chính sách bảo mật</a> của chúng tôi.
-        </p>
       </div>
     </div>
   </section>
@@ -702,8 +697,6 @@ function switchTab(mode) {
     tabReg.setAttribute('aria-selected','true');
     tabLogin.classList.remove('active');
     tabLogin.setAttribute('aria-selected','false');
-    title.textContent = 'Tạo tài khoản';
-    sub.innerHTML = '<b>Đăng ký</b> để đặt vé và trải nghiệm đặc quyền thành viên.';
     btnLabel.textContent = 'Đăng ký';
     nameRow.style.display = 'flex';
     forgotRow.style.display = 'none';
