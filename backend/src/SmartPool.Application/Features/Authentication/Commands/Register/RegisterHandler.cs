@@ -94,16 +94,11 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
     private async Task<IActionResult> StartRegistrationAsync(RegisterCommand request, CancellationToken cancellationToken)
     {
         await _validator.ValidateAndThrowAsync(request, cancellationToken);
-        var username = request.Username.Trim().ToLowerInvariant();
         var email = request.Email.Trim().ToLowerInvariant();
         var inputPhone = request.Phone.Trim();
         var phone = inputPhone.StartsWith("+84", StringComparison.Ordinal)
             ? "0" + inputPhone[3..]
             : inputPhone;
-        var fullName = request.FullName.Trim();
-        var address = request.Address?.Trim();
-        if (address == string.Empty)
-            address = null;
 
         var remoteIp = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
         if (remoteIp is null)
@@ -139,7 +134,7 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
                 "Không thể khởi tạo đăng ký.", "Bộ lưu trữ mã xác minh chưa sẵn sàng.",
                 "OTP_STORE_UNAVAILABLE");
 
-        var conflict = await FindConflictAsync(_users, username, email, phone, cancellationToken);
+        var conflict = await FindConflictAsync(_users, null, email, phone, cancellationToken);
         if (conflict is not null) throw new UniqueFieldConflictException(conflict);
 
         var customerRole = await _roles.FirstOrDefaultAsync(
@@ -153,8 +148,8 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
         var otpDigest = _otpCodes.ComputeDigest(registrationId, otp);
         // The BCrypt hasher accepts a User argument; this transient object is never persisted.
         var passwordHash = _passwordHasher.HashPassword(new User { Id = registrationId }, request.Password);
-        var pending = new PendingRegistration(registrationId, username, email, phone, passwordHash,
-            fullName, request.DateOfBirth, address, otpDigest);
+        var pending = new PendingRegistration(registrationId, string.Empty, email, phone, passwordHash,
+            email, null, null, otpDigest);
 
         RegistrationOtpStoreResult stored;
         try
@@ -246,10 +241,10 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
     }
 
     // SQL unique indexes also cover soft-deleted users. Reused before OTP issue and DB creation.
-    internal static async Task<string?> FindConflictAsync(IRepository<User> users, string username,
+    internal static async Task<string?> FindConflictAsync(IRepository<User> users, string? username,
         string email, string phone, CancellationToken cancellationToken)
     {
-        if (await users.ExistsAsync(
+        if (!string.IsNullOrEmpty(username) && await users.ExistsAsync(
                 user => user.Username != null && user.Username.ToLower() == username, cancellationToken))
             return "username";
         if (await users.ExistsAsync(

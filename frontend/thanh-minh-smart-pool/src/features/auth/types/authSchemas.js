@@ -12,29 +12,11 @@ export const loginFormSchema = z.object({
   password: z.string().min(1, 'Nhập mật khẩu.'),
 })
 
-export const registerFormSchema = z
-  .object({
-    username: z
-      .string()
-      .trim()
-      .min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự.')
-      .max(100, 'Tên đăng nhập không được vượt quá 100 ký tự.')
-      .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._]*[A-Za-z0-9])?$/, 'Tên đăng nhập chỉ dùng chữ cái, số, dấu chấm và gạch dưới.'),
-    phone: z.string().trim().regex(/^(?:0|\+84)[35789]\d{8}$/, 'Số điện thoại Việt Nam không hợp lệ.'),
-    familyName: z.string().trim().min(1, 'Nhập họ.'),
-    givenName: z.string().trim().min(1, 'Nhập tên.'),
-    email: z.string().trim().max(150, 'Email không được vượt quá 150 ký tự.').email('Email không hợp lệ.').refine((value) => !value.includes('..'), 'Email không được có hai dấu chấm liền nhau.'),
-    password: passwordSchema,
-    confirmPassword: z.string().min(1, 'Xác nhận mật khẩu.'),
-  })
-  .refine((values) => values.password === values.confirmPassword, {
-    message: 'Mật khẩu xác nhận không khớp.',
-    path: ['confirmPassword'],
-  })
-  .refine((values) => `${values.familyName} ${values.givenName}`.trim().length <= 255, {
-    message: 'Họ và tên không được vượt quá 255 ký tự.',
-    path: ['givenName'],
-  })
+export const registerFormSchema = z.object({
+  phone: z.string().trim().regex(/^(?:0|\+84)[35789]\d{8}$/, 'Số điện thoại Việt Nam không hợp lệ.'),
+  email: z.string().trim().max(150, 'Email không được vượt quá 150 ký tự.').email('Email không hợp lệ.').refine((value) => !value.includes('..'), 'Email không được có hai dấu chấm liền nhau.'),
+  password: passwordSchema,
+})
 
 export const googleRegisterFormSchema = z.object({
   username: z.string().trim().min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự.')
@@ -98,7 +80,7 @@ export const resendRegistrationResponseSchema = registrationDeadlinesSchema
 
 export const verifiedRegistrationResponseSchema = z.object({
   id: z.string().uuid(),
-  username: z.string().min(1),
+  email: z.string().email(),
 })
 
 const recoveryDeadlinesSchema = z.object({
