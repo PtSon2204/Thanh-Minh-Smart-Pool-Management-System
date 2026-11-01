@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
-import { Alert, Button, Checkbox, Drawer, Form, Input, InputNumber, Pagination, Radio, Select, Typography } from 'antd'
+import { Alert, Button, Checkbox, Drawer, Form, Input, InputNumber, Pagination, Radio, Select } from 'antd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { applyRentalFieldErrors, getRentalErrorMessage, useRentalQuote } from '../hooks/useRentalMutations'
 import { createRentalRequestId, isRentalRequestOutcomeUncertain } from '../utils/rentalRequests'
@@ -147,7 +147,6 @@ export default function RentalCheckoutDrawer({ open, mutation, paymentState, onC
   const optionRender = (option) => <div className="rental-product-option"><span title={option.label}>{option.label}</span><small>{option.data.stockLabel}</small></div>
 
   return <Drawer rootClassName="rental-checkout-drawer" title="Tạo đơn thuê" open={open} onClose={close} closable={!mutation.isPending && !isLocked && !paymentState.creating && !paymentState.hasUncertainOutcome} mask={{ closable: !mutation.isPending && !isLocked && !paymentState.creating && !paymentState.hasUncertainOutcome }} size="large">
-    <Typography.Paragraph>Nhập các nhóm sản phẩm, nhận báo giá từ máy chủ, rồi chọn thu tiền mặt hoặc tạo yêu cầu QR.</Typography.Paragraph>
     <Form form={form} layout="vertical" preserve={false} initialValues={{ items: [{ quantity: 1 }], collectionConfirmed: false, paymentMethod: 'CASH' }} onFinish={submitCheckout} disabled={isLocked || paymentState.hasUncertainOutcome} onValuesChange={(changed) => { if (Object.keys(changed).some((key) => key !== 'collectionConfirmed')) clearQuote() }}>
       {mutation.error && <Alert className="service-inline-error" type="error" showIcon message="Không thể xác nhận xuất đồ" description={isLocked ? 'Kết quả thu tiền chưa xác định. Hãy thử lại đúng yêu cầu đã được giữ nguyên.' : getRentalErrorMessage(mutation.error, 'Máy chủ không thể xác nhận đơn thuê.')} />}
       {paymentState.creationError && <Alert className="service-inline-error" type="error" showIcon message="Không thể tạo yêu cầu QR" description={paymentState.hasUncertainOutcome ? 'Kết quả tạo QR chưa xác định. Không tạo yêu cầu mới trước khi thử lại cùng yêu cầu.' : getRentalErrorMessage(paymentState.creationError, 'Máy chủ không thể tạo yêu cầu QR.')} action={paymentState.hasUncertainOutcome ? <Button size="small" onClick={() => { void paymentState.retryCreate().catch(() => {}) }}>Thử lại cùng yêu cầu</Button> : null} />}
@@ -181,13 +180,12 @@ export default function RentalCheckoutDrawer({ open, mutation, paymentState, onC
        <Form.Item label="Phương thức thu tiền" name="paymentMethod" rules={[{ required: true, message: 'Chọn phương thức thu tiền.' }]}><Radio.Group disabled={isPending || isLocked || paymentState.hasUncertainOutcome}><Radio value="CASH">Tiền mặt tại quầy</Radio><Radio value="QR">Chuyển khoản QR</Radio></Radio.Group></Form.Item>
        <Button className="admin-action-submit" onClick={requestQuote} loading={quoteMutation.isPending} disabled={isPending || isLocked || productsQuery.isLoading}>Nhận báo giá</Button>
       {quoteIsCurrent && <section className="rental-quote-preview" aria-label="Báo giá thuê">
-        <Typography.Title level={5}>Báo giá từ máy chủ</Typography.Title>
         <div className="rental-quote-lines">{quote.items.map((item) => <div key={item.productId}><strong>{item.productName}</strong><span>{item.quantity} x {currencyFormatter.format(item.unitPrice)}</span><span>Phí thuê: {currencyFormatter.format(item.rentalFee)}</span><span>Cọc: {currencyFormatter.format(item.depositAmount)}</span></div>)}</div>
         <div className="rental-quote-totals"><span>Phí thuê <strong>{currencyFormatter.format(quote.rentalFeeTotal)}</strong></span><span>Cọc hoàn lại ({currencyFormatter.format(quote.depositPerUnit || DEPOSIT_PER_UNIT)}/đơn vị) <strong>{currencyFormatter.format(quote.depositTotal)}</strong></span><span>Tổng cần thu <strong>{currencyFormatter.format(quote.totalToCollect)}</strong></span></div>
       </section>}
       {paymentMethod === 'CASH' ? <Form.Item name="collectionConfirmed" valuePropName="checked" rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('Xác nhận đã thu đủ tiền mặt trước khi xuất đồ.')) }]}>
         <Checkbox disabled={isPending || isLocked}>Tôi xác nhận đã thu đủ tiền mặt theo báo giá và được phép xuất đồ.</Checkbox>
-      </Form.Item> : <Alert type="info" showIcon message="Yêu cầu QR chưa xuất đồ" description="Máy chủ sẽ xác nhận tiền chuyển khoản. Bạn chỉ xuất đồ sau khi trạng thái chuyển sang đã nhận đủ tiền." />}
+      </Form.Item> : null}
       <Button className="admin-action-submit" type="primary" htmlType="submit" loading={mutation.isPending || paymentState.creating} disabled={isPending || paymentState.hasUncertainOutcome || (!quoteIsCurrent && !isLocked)}>{isLocked ? 'Thử lại yêu cầu tiền mặt đã giữ' : paymentMethod === 'QR' ? 'Tạo yêu cầu QR' : 'Xác nhận thu tiền mặt và xuất đồ'}</Button>
     </Form>
   </Drawer>

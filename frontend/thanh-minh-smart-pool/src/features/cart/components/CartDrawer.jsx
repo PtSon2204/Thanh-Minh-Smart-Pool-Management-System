@@ -9,6 +9,7 @@ import { useVoucherClock } from '../../vouchers/hooks/useVoucherClock'
 import { getVoucherDiscount, getVoucherError, VoucherStatus } from '../../vouchers/utils/voucherValidity'
 import useOnlineTicketPayment from '../../payments/hooks/useOnlineTicketPayment'
 import OnlineTicketPaymentModal from '../../payments/components/OnlineTicketPaymentModal'
+import profileService from '../../profiles/services/profileService'
 import './CartDrawer.css'
 
 const { Text, Title } = Typography
@@ -36,7 +37,7 @@ export default function CartDrawer() {
 
   const handleCheckout = async () => {
     if (payment.checkingOut) return
-    if (!payment.hasOrder && selectedVoucherCode) {
+    if (selectedVoucherCode) {
       const error = getVoucherError(selectedVoucher, totalPrice)
       if (error) {
         message.error(error)
@@ -45,23 +46,50 @@ export default function CartDrawer() {
         return
       }
     }
+
+    // Kiểm tra họ tên nếu giỏ có ít nhất một vé tháng
+    const hasMonthlyTicket = items.some(item => item.ticketCategory === 'VE_THANG')
+    if (hasMonthlyTicket) {
+      try {
+        const cachedProfile = queryClient.getQueryData(['myProfile'])
+        const profile = cachedProfile || await profileService.getMyProfile()
+        if (!profile?.fullName?.trim()) {
+          message.warning('Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.')
+          closeCart()
+          navigate('/ho-so')
+          return
+        }
+      } catch {
+        message.warning('Không thể kiểm tra thông tin hồ sơ. Vui lòng cập nhật họ và tên trước khi mua vé tháng.')
+        closeCart()
+        navigate('/ho-so')
+        return
+      }
+    }
+
     try {
       const payload = {
         items: items.map(i => ({ ticketTypeId: i.id, quantity: i.quantity })),
         voucherCode: selectedVoucherCode || null
       }
-      await payment.start(payload)
+      const order = await payment.start(payload)
+      if (!order) return
+      removePurchasedItems(order.items || [])
+      setSelectedVoucherCode(null)
+      queryClient.invalidateQueries({ queryKey: ['myOrders'] })
+      queryClient.invalidateQueries({ queryKey: ['myOrderSummary'] })
       closeCart()
+      navigate('/don-hang')
     } catch (error) {
       message.error(error.response?.data?.message || error.message || 'Lỗi khi thanh toán')
     }
   }
 
   const completePayment = () => {
-    removePurchasedItems(payment.order?.items || [])
-    setSelectedVoucherCode(null)
     payment.finish()
     queryClient.invalidateQueries({ queryKey: ['myTickets'] })
+    queryClient.invalidateQueries({ queryKey: ['myOrders'] })
+    queryClient.invalidateQueries({ queryKey: ['myOrderSummary'] })
   }
 
   const handleFinishPayment = () => {
@@ -130,7 +158,7 @@ export default function CartDrawer() {
           )}
         </div>
 
-        {(items.length > 0 || payment.hasOrder) && (
+        {items.length > 0 && (
           <div className="cart-summary">
             <Divider style={{ margin: '16px 0' }} />
             
@@ -178,7 +206,7 @@ export default function CartDrawer() {
               onClick={handleCheckout} loading={payment.checkingOut}
               className="checkout-btn"
             >
-              {payment.hasOrder ? 'Tiếp tục thanh toán' : 'Thanh Toán Ngay'}
+              Thanh toán ngay
             </Button>
             <div style={{ textAlign: 'center', marginTop: '12px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>

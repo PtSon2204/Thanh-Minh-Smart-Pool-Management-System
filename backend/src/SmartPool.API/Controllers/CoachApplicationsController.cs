@@ -21,7 +21,7 @@ public sealed class CoachApplicationsController(ICoachApplicationOperations appl
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]
     [ProducesResponseType(typeof(CoachApplicationItem), StatusCodes.Status201Created)]
-    public async Task<IActionResult> Submit([FromForm] IFormFile? certificate,
+    public async Task<IActionResult> Submit(IFormFile? certificate,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var userId)) return Forbid();

@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { message } from 'antd'
 import { useAuthStore } from '../../features/auth/store/authStore'
 import { useCartStore } from '../../features/cart/store/cartStore'
-import profileService from '../../features/profiles/services/profileService'
 
 
 const categoryMeta = {
@@ -42,36 +41,18 @@ export default function PricingPage() {
     retry: 1,
   })
 
-  const checkProfileAndExecute = async (action) => {
+  const handleAddToCart = (ticket) => {
     if (!session) {
       navigate('/dang-nhap?redirect=' + encodeURIComponent(location.pathname))
       return
     }
-
-    try {
-      const profile = await profileService.getMyProfile()
-      if (!profile.address || !profile.dateOfBirth) {
-        message.warning('Vui lòng cập nhật đầy đủ thông tin cá nhân trước khi mua vé.')
-        navigate('/ho-so')
-      } else {
-        action()
-      }
-    } catch (error) {
-      console.error(error)
-      message.error('Lỗi kiểm tra thông tin, vui lòng cập nhật hồ sơ.')
-      navigate('/ho-so')
-    }
-  }
-
-  const handleAddToCart = (ticket) => {
-    checkProfileAndExecute(() => {
-      addToCart({
-        id: ticket.id,
-        name: ticket.name,
-        price: ticket.price,
-        
-      })
+    addToCart({
+      id: ticket.id,
+      name: ticket.name,
+      price: ticket.price,
+      ticketCategory: ticket.ticketCategory,
     })
+    message.success(`Đã thêm "${ticket.name}" vào giỏ hàng`)
   }
 
   const tickets = apiData && apiData.length > 0 ? apiData : []

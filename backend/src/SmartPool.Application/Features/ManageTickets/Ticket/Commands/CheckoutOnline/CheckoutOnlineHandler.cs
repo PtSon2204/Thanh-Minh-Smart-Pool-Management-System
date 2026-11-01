@@ -20,6 +20,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
         private readonly IRepository<Domain.Entities.OrderDetail> _orderDetailRepo;
         private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
         private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
+        private readonly IRepository<Domain.Entities.UserProfile> _userProfileRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly TimeProvider _timeProvider;
         private readonly ISender _sender;
@@ -30,6 +31,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             IRepository<Domain.Entities.OrderDetail> orderDetailRepo,
             IRepository<Domain.Entities.Payment> paymentRepo,
             IRepository<Domain.Entities.Voucher> voucherRepo,
+            IRepository<Domain.Entities.UserProfile> userProfileRepo,
             IUnitOfWork unitOfWork,
             TimeProvider timeProvider,
             ISender sender)
@@ -39,6 +41,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             _orderDetailRepo = orderDetailRepo;
             _paymentRepo = paymentRepo;
             _voucherRepo = voucherRepo;
+            _userProfileRepo = userProfileRepo;
             _unitOfWork = unitOfWork;
             _timeProvider = timeProvider;
             _sender = sender;
@@ -62,6 +65,18 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
 
                 totalAmount += ticketType.Price * item.Quantity;
                 validatedItems.Add((ticketType, item.Quantity));
+            }
+
+            var hasMonthlyTicket = validatedItems.Any(item =>
+                string.Equals(item.Type.TicketCategory, TicketCategoryEnum.VE_THANG.ToString(), StringComparison.OrdinalIgnoreCase));
+
+            if (hasMonthlyTicket)
+            {
+                var profile = await _userProfileRepo.FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
+                if (profile == null || string.IsNullOrWhiteSpace(profile.FullName?.Trim()))
+                {
+                    throw new InvalidOperationException("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.");
+                }
             }
 
             decimal discountAmount = 0;

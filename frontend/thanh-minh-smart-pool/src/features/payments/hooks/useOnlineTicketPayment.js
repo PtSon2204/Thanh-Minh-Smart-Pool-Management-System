@@ -29,19 +29,19 @@ export default function useOnlineTicketPayment() {
   const clock = useRef(null)
   const submitting = useRef(false)
   const orderId = session && session.userId === userId ? session.orderId : restoredId
-  const open = Boolean(userId && orderId && (modal && modal.userId === userId ? modal.open : restoredId))
+  const open = Boolean(userId && orderId && modal?.userId === userId && modal.open)
 
-  const synchronizeClock = (data) => {
+  const synchronizeClock = (data, currentOrderId = data.orderId) => {
     const serverTime = Date.parse(data.serverTimeUtc)
     if (Number.isFinite(serverTime)) {
-      clock.current = { userId, orderId: data.orderId, serverTime, receivedAt: performance.now() }
+      clock.current = { userId, orderId: currentOrderId, serverTime, receivedAt: performance.now() }
       setNow(serverTime)
     }
   }
 
   const statusQuery = useQuery({
     queryKey: queryKey(userId, orderId),
-    enabled: Boolean(userId && orderId),
+    enabled: Boolean(open),
     queryFn: async ({ signal }) => {
       const data = await ticketService.checkMyOrderStatus(orderId, signal)
       if (useAuthStore.getState().session?.id === userId && !signal.aborted) synchronizeClock(data)
@@ -71,11 +71,6 @@ export default function useOnlineTicketPayment() {
   const start = async (payload) => {
     if (!userId) throw new Error('Vui lòng đăng nhập để thanh toán.')
     if (submitting.current) return
-    if (orderId) {
-      setModal({ userId, open: true })
-      await statusQuery.refetch()
-      return
-    }
     submitting.current = true
     try {
       const data = await checkout.mutateAsync(payload)
@@ -88,6 +83,27 @@ export default function useOnlineTicketPayment() {
       return data
     } finally {
       submitting.current = false
+    }
+  }
+
+  const resume = async (targetOrderId) => {
+    if (!userId) throw new Error('Vui lòng đăng nhập để xem đơn hàng.')
+    saveOrderId(userId, targetOrderId)
+    setSession({ userId, orderId: targetOrderId })
+    setModal({ userId, open: true })
+    try {
+      const data = await queryClient.fetchQuery({
+        queryKey: queryKey(userId, targetOrderId),
+        queryFn: () => ticketService.checkMyOrderStatus(targetOrderId),
+        staleTime: 0,
+      })
+      if (useAuthStore.getState().session?.id === userId) {
+        synchronizeClock(data, targetOrderId)
+      }
+      return data
+    } catch (error) {
+      setModal({ userId, open: false })
+      throw error
     }
   }
 
@@ -108,6 +124,7 @@ export default function useOnlineTicketPayment() {
     order,
     open,
     start,
+    resume,
     close,
     finish,
     secondsLeft,
