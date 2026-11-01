@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using MediatR;
 using Moq;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutOnline;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPendingOrder;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
@@ -49,7 +50,7 @@ public class CheckoutOnlineHandlerTests
         Assert.Equal(500_000m, response.TotalAmount);
         Assert.Empty(response.Tickets);
         Assert.Matches("^SP[0-9A-F]{6}$", response.TransactionRef);
-        Assert.Equal(Now.AddMinutes(5), response.ExpiresAtUtc);
+        Assert.Equal(Now.Add(OnlineOrderPaymentPolicy.Lifetime), response.ExpiresAtUtc);
         Assert.Equal(Now, response.ServerTimeUtc);
         Assert.Equal(userId, Assert.Single(harness.CreatedOrders).UserId);
         Assert.Equal("PENDING", harness.CreatedOrders[0].Status);
@@ -201,6 +202,131 @@ public class CheckoutOnlineHandlerTests
         harness.Sender.Verify(s => s.Send(It.IsAny<ConfirmPendingOrderCommand>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact(DisplayName = "UTCID09 (N) - Vé lượt không yêu cầu họ tên trong hồ sơ -> Cho phép thanh toán thành công")]
+    public async Task SingleTicket_WithoutProfile_Succeeds()
+    {
+        var singleTicketType = new TicketTypeEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "Vé lượt người lớn",
+            TicketCategory = TicketCategoryEnum.VE_LUOT.ToString(),
+            Price = 50_000m,
+            IsActive = true
+        };
+        var harness = new Harness(firstTicketType: singleTicketType, userProfileMissing: true);
+
+        var response = await harness.Checkout(harness.Command());
+
+        Assert.True(response.Success);
+        Assert.Equal("PENDING", response.Status);
+        Assert.Equal(50_000m, response.FinalAmount);
+        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "UTCID10 (B) - Vé tháng nhưng hồ sơ không tồn tại -> Chặn tạo đơn")]
+    public async Task MonthlyTicket_WithoutProfile_ThrowsInvalidOperationException()
+    {
+        var harness = new Harness(userProfileMissing: true);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Checkout(harness.Command()));
+
+        Assert.Equal("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.", error.Message);
+        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.Payments.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UTCID11 (B) - Vé tháng với họ tên chỉ có khoảng trắng -> Chặn tạo đơn")]
+    public async Task MonthlyTicket_WithWhitespaceFullName_ThrowsInvalidOperationException()
+    {
+        var profile = new UserProfile { UserId = Guid.NewGuid(), FullName = "   " };
+        var harness = new Harness(userProfile: profile);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Checkout(harness.Command()));
+
+        Assert.Equal("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.", error.Message);
+        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.Payments.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UTCID12 (N) - Vé tháng với họ tên hợp lệ -> Cho phép tạo đơn")]
+    public async Task MonthlyTicket_WithValidFullName_Succeeds()
+    {
+        var profile = new UserProfile { UserId = Guid.NewGuid(), FullName = "Trần Thị B" };
+        var harness = new Harness(userProfile: profile);
+
+        var response = await harness.Checkout(harness.Command());
+
+        Assert.True(response.Success);
+        Assert.Equal("PENDING", response.Status);
+        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "UTCID13 (B) - Giỏ hỗn hợp vé lượt + vé tháng khi thiếu họ tên -> Chặn tạo đơn, không ghi database")]
+    public async Task MixedTickets_WithoutFullName_ThrowsBeforeCreatingOrder()
+    {
+        var monthlyType = CreateTicketType("Vé tháng", 300_000m);
+        var singleType = new TicketTypeEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "Vé lượt",
+            TicketCategory = TicketCategoryEnum.VE_LUOT.ToString(),
+            Price = 50_000m,
+            IsActive = true
+        };
+        var harness = new Harness(firstTicketType: monthlyType, secondTicketType: singleType, userProfileMissing: true);
+        var command = new CheckoutOnlineCommand
+        {
+            UserId = Guid.NewGuid(),
+            Items =
+            [
+                new CheckoutItemDto { TicketTypeId = monthlyType.Id, Quantity = 1 },
+                new CheckoutItemDto { TicketTypeId = singleType.Id, Quantity = 2 }
+            ]
+        };
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Checkout(command));
+
+        Assert.Equal("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.", error.Message);
+        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.OrderDetails.Verify(r => r.AddAsync(It.IsAny<OrderDetail>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.Payments.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UTCID14 (N) - Giỏ hỗn hợp vé lượt + vé tháng có họ tên hợp lệ -> Tạo đúng 1 đơn chung")]
+    public async Task MixedTickets_WithValidFullName_CreatesSingleOrder()
+    {
+        var monthlyType = CreateTicketType("Vé tháng", 300_000m);
+        var singleType = new TicketTypeEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "Vé lượt",
+            TicketCategory = TicketCategoryEnum.VE_LUOT.ToString(),
+            Price = 50_000m,
+            IsActive = true
+        };
+        var profile = new UserProfile { UserId = Guid.NewGuid(), FullName = "Lê Văn C" };
+        var harness = new Harness(firstTicketType: monthlyType, secondTicketType: singleType, userProfile: profile);
+        var command = new CheckoutOnlineCommand
+        {
+            UserId = Guid.NewGuid(),
+            Items =
+            [
+                new CheckoutItemDto { TicketTypeId = monthlyType.Id, Quantity = 1 },
+                new CheckoutItemDto { TicketTypeId = singleType.Id, Quantity = 2 }
+            ]
+        };
+
+        var response = await harness.Checkout(command);
+
+        Assert.True(response.Success);
+        Assert.Equal(400_000m, response.FinalAmount);
+        Assert.Single(harness.CreatedOrders);
+        Assert.Equal(2, harness.CreatedDetails.Count);
+        Assert.Single(harness.CreatedPayments);
+    }
+
     private static TicketTypeEntity CreateTicketType(string name, decimal price, bool active = true) => new()
     {
         Id = Guid.NewGuid(), Name = name, TicketCategory = TicketCategoryEnum.VE_THANG.ToString(),
@@ -221,8 +347,12 @@ public class CheckoutOnlineHandlerTests
         private readonly Mock<IRepository<OrderDetail>> orderDetails = new();
         private readonly Mock<IRepository<Payment>> payments = new();
         private readonly Mock<ISender> sender = new();
+        private readonly Mock<IRepository<UserProfile>> userProfiles = new();
 
         public Mock<IRepository<Order>> Orders { get; } = new();
+        public Mock<IRepository<OrderDetail>> OrderDetails => orderDetails;
+        public Mock<IRepository<Payment>> Payments => payments;
+        public Mock<IRepository<UserProfile>> UserProfiles => userProfiles;
         public Mock<IRepository<TicketTypeEntity>> TicketTypes => ticketTypes;
         public Mock<ISender> Sender => sender;
         public Mock<IUnitOfWork> UnitOfWork { get; } = new();
@@ -234,7 +364,8 @@ public class CheckoutOnlineHandlerTests
         public Guid? VoucherId { get; }
 
         public Harness(TicketTypeEntity? firstTicketType = null, TicketTypeEntity? secondTicketType = null,
-            Voucher? voucher = null, ConfirmPendingOrderResponse? confirmation = null, bool ticketTypeMissing = false)
+            Voucher? voucher = null, ConfirmPendingOrderResponse? confirmation = null, bool ticketTypeMissing = false,
+            UserProfile? userProfile = null, bool userProfileMissing = false)
         {
             var first = ticketTypeMissing ? null : firstTicketType ?? CreateTicketType("Vé tháng online", 500_000m);
             FirstTicketTypeId = first?.Id ?? Guid.NewGuid();
@@ -248,6 +379,8 @@ public class CheckoutOnlineHandlerTests
             vouchers.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()))
                 .Returns((Expression<Func<Voucher, bool>> predicate, CancellationToken _) =>
                     Task.FromResult(voucher != null && predicate.Compile()(voucher) ? voucher : null));
+            userProfiles.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(userProfileMissing ? null : userProfile ?? new UserProfile { FullName = "Nguyễn Văn Test" });
             Orders.Setup(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
                 .Callback((Order order, CancellationToken _) => CreatedOrders.Add(order)).Returns(Task.CompletedTask);
             orderDetails.Setup(r => r.AddAsync(It.IsAny<OrderDetail>(), It.IsAny<CancellationToken>()))
@@ -268,7 +401,7 @@ public class CheckoutOnlineHandlerTests
 
         public Task<CheckoutOnlineResponse> Checkout(CheckoutOnlineCommand command) =>
             new CheckoutOnlineHandler(ticketTypes.Object, Orders.Object, orderDetails.Object, payments.Object,
-                vouchers.Object, UnitOfWork.Object, new FixedTimeProvider(Now), sender.Object)
+                vouchers.Object, userProfiles.Object, UnitOfWork.Object, new FixedTimeProvider(Now), sender.Object)
                 .Handle(command, CancellationToken.None);
     }
 

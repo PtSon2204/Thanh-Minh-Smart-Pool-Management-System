@@ -124,7 +124,6 @@ export default function StaffQrAttendancePage() {
       </div>
     </section>
     <section className="service-list-table staff-schedule-table" aria-label="Phiên chấm công QR">
-      <Alert type="info" showIcon title="Một mã QR dùng chung cho ca" description="Mỗi nhân viên đủ điều kiện có thể quét cùng mã một lần. Máy chủ kiểm tra riêng phân công, thời gian và trạng thái của từng người." />
       {attendance.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
       {attendance.isError && <Empty description="Không thể tải phân công đã lưu trong ngày này."><Button onClick={() => attendance.refetch()}>Thử lại</Button></Empty>}
       {!attendance.isLoading && !attendance.isError && assignments.length === 0 && <Empty description="Chưa có phân công đã lưu cho ngày này." />}

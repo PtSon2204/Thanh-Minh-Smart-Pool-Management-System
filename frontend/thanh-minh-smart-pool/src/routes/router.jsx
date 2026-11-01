@@ -9,6 +9,7 @@ import AuthPage from "../pages/AuthPage/AuthPage";
 import ChangePasswordPage from "../pages/ChangePasswordPage/ChangePasswordPage";
 import ProfilePage from "../pages/ProfilePage/ProfilePage";
 import MyCardPage from "../pages/MyCardPage/MyCardPage";
+import MyOrdersPage from "../pages/MyOrdersPage/MyOrdersPage";
 import PaymentHistoryPage from "../pages/PaymentHistoryPage/PaymentHistoryPage";
 import PoolEntryHistoryPage from "../pages/PoolEntryHistoryPage/PoolEntryHistoryPage";
 import Error401Page from "../pages/Error401Page/Error401Page";
@@ -76,6 +77,7 @@ const router = createBrowserRouter([
           <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["CUSTOMER"]} />
         ),
         children: [
+          { path: "/don-hang", element: <MyOrdersPage /> },
           { path: "/lop-hoc", element: <SwimClassCatalogPage /> },
           { path: "/lop-hoc-cua-toi", element: <MySwimClassesPage /> },
           { path: "/tro-thanh-coach", element: <CoachApplicationPage /> },

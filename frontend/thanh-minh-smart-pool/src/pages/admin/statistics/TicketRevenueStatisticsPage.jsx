@@ -36,7 +36,7 @@ const RevenueChartTooltip = ({ active, payload, label }) => {
       borderRadius: 8, padding: '10px 14px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
     }}>
-      <Text strong style={{ color: '#0f172a' }}>{label}</Text>
+      <Text strong style={{ color: '#001f3e' }}>{label}</Text>
       {payload.map((p, i) => (
         <div key={i} style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
@@ -112,7 +112,7 @@ export default function TicketRevenueStatisticsPage() {
       dataIndex: 'customerName',
       render: (name, record) => (
         <div>
-          <Text strong style={{ color: '#0f172a' }}>{name}</Text>
+          <Text strong style={{ color: '#001f3e' }}>{name}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>{record.phone || '—'}</Text>
         </div>
@@ -137,7 +137,7 @@ export default function TicketRevenueStatisticsPage() {
       align: 'center',
       width: 60,
       render: (qty) => (
-        <span style={{ fontWeight: 700, color: '#0284c7' }}>{qty}</span>
+        <span style={{ fontWeight: 700, color: '#0068ff' }}>{qty}</span>
       ),
     },
     {
@@ -145,7 +145,7 @@ export default function TicketRevenueStatisticsPage() {
       dataIndex: 'totalAmount',
       align: 'right',
       render: (amount) => (
-        <span style={{ fontWeight: 600, color: '#16a34a' }}>
+        <span style={{ fontWeight: 600, color: '#03ca77' }}>
           {formatVND(amount)}
         </span>
       ),
@@ -198,7 +198,7 @@ export default function TicketRevenueStatisticsPage() {
         marginBottom: 24
       }}>
         <div>
-          <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
+          <Title level={3} style={{ margin: 0, color: '#001f3e' }}>
             🎫 Thống Kê Bán Vé
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
@@ -250,13 +250,13 @@ export default function TicketRevenueStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
-                borderLeft: '4px solid #0284c7'
+                borderLeft: '4px solid #0068ff'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>TỔNG VÉ BÁN RA</span>}
                 value={data?.totalTicketsSold || 0}
-                prefix={<ShoppingCartOutlined style={{ color: '#0284c7', marginRight: 8 }} />}
+                prefix={<ShoppingCartOutlined style={{ color: '#0068ff', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>vé</span>}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
@@ -272,18 +272,18 @@ export default function TicketRevenueStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
-                borderLeft: '4px solid #16a34a'
+                borderLeft: '4px solid #03ca77'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>TỔNG DOANH THU</span>}
                 value={data?.totalRevenue || 0}
-                prefix={<DollarOutlined style={{ color: '#16a34a', marginRight: 8 }} />}
+                prefix={<DollarOutlined style={{ color: '#03ca77', marginRight: 8 }} />}
                 formatter={(val) => formatVND(val)}
               />
               <div style={{
                 marginTop: 8, fontSize: 12,
-                color: (data?.revenueGrowthRate || 0) >= 0 ? '#16a34a' : '#ef4444',
+                color: (data?.revenueGrowthRate || 0) >= 0 ? '#03ca77' : '#e31748',
                 display: 'flex', alignItems: 'center', gap: 4
               }}>
                 {(data?.revenueGrowthRate || 0) >= 0
@@ -301,13 +301,13 @@ export default function TicketRevenueStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
-                borderLeft: '4px solid #8b5cf6'
+                borderLeft: '4px solid #6356e4'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>GIÁ TRỊ TRUNG BÌNH</span>}
                 value={data?.averageOrderValue || 0}
-                prefix={<TagOutlined style={{ color: '#8b5cf6', marginRight: 8 }} />}
+                prefix={<TagOutlined style={{ color: '#6356e4', marginRight: 8 }} />}
                 formatter={(val) => formatVND(val)}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
@@ -323,13 +323,13 @@ export default function TicketRevenueStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)',
-                borderLeft: '4px solid #f59e0b'
+                borderLeft: '4px solid #faa828'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>LOẠI VÉ BÁN CHẠY</span>}
                 value={(data?.ticketTypeSales || [])[0]?.name || '—'}
-                prefix={<BarChartOutlined style={{ color: '#f59e0b', marginRight: 8 }} />}
+                prefix={<BarChartOutlined style={{ color: '#faa828', marginRight: 8 }} />}
                 valueStyle={{ fontSize: 18 }}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
@@ -348,7 +348,7 @@ export default function TicketRevenueStatisticsPage() {
             <Card
               title={
                 <Space>
-                  <LineChartOutlined style={{ color: '#0284c7' }} />
+                  <LineChartOutlined style={{ color: '#0068ff' }} />
                   <span>Doanh thu & Số vé bán theo ngày</span>
                 </Space>
               }
@@ -363,25 +363,25 @@ export default function TicketRevenueStatisticsPage() {
                   >
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0.05} />
+                        <stop offset="5%" stopColor="#03ca77" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#03ca77" stopOpacity={0.05} />
                       </linearGradient>
                       <linearGradient id="colorTicketCount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0284c7" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#0284c7" stopOpacity={0.05} />
+                        <stop offset="5%" stopColor="#0068ff" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#0068ff" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="date" stroke="#64748b" />
                     <YAxis
                       yAxisId="left"
-                      stroke="#16a34a"
+                      stroke="#03ca77"
                       tickFormatter={formatCompactVND}
                     />
                     <YAxis
                       yAxisId="right"
                       orientation="right"
-                      stroke="#0284c7"
+                      stroke="#0068ff"
                     />
                     <RechartsTooltip content={<RevenueChartTooltip />} />
                     <Legend />
@@ -390,7 +390,7 @@ export default function TicketRevenueStatisticsPage() {
                       type="monotone"
                       dataKey="revenue"
                       name="Doanh thu"
-                      stroke="#16a34a"
+                      stroke="#03ca77"
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#colorRevenue)"
@@ -400,7 +400,7 @@ export default function TicketRevenueStatisticsPage() {
                       type="monotone"
                       dataKey="ticketCount"
                       name="Số vé bán"
-                      stroke="#0284c7"
+                      stroke="#0068ff"
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#colorTicketCount)"
@@ -416,7 +416,7 @@ export default function TicketRevenueStatisticsPage() {
             <Card
               title={
                 <Space>
-                  <PieChartOutlined style={{ color: '#8b5cf6' }} />
+                  <PieChartOutlined style={{ color: '#6356e4' }} />
                   <span>Tỷ lệ bán theo loại vé</span>
                 </Space>
               }
@@ -456,7 +456,7 @@ export default function TicketRevenueStatisticsPage() {
         <Card
           title={
             <Space>
-              <BarChartOutlined style={{ color: '#005f8e' }} />
+              <BarChartOutlined style={{ color: '#0068ff' }} />
               <span>Doanh thu theo loại vé</span>
             </Space>
           }
@@ -501,12 +501,12 @@ export default function TicketRevenueStatisticsPage() {
                 >
                   {(data?.ticketTypeRevenues || []).map((entry, index) => {
                     const colorMap = {
-                      'Vé lượt người lớn': '#0284c7',
-                      'Vé lượt trẻ em': '#06b6d4',
-                      'Vé tháng người lớn': '#8b5cf6',
+                      'Vé lượt người lớn': '#0068ff',
+                      'Vé lượt trẻ em': '#0cb8b6',
+                      'Vé tháng người lớn': '#6356e4',
                       'Vé tháng trẻ em': '#ec4899',
                     };
-                    return <Cell key={`bar-${index}`} fill={colorMap[entry.name] || '#005f8e'} />;
+                    return <Cell key={`bar-${index}`} fill={colorMap[entry.name] || '#0068ff'} />;
                   })}
                 </Bar>
               </BarChart>
@@ -518,7 +518,7 @@ export default function TicketRevenueStatisticsPage() {
         <Card
           title={
             <Space>
-              <UnorderedListOutlined style={{ color: '#0284c7' }} />
+              <UnorderedListOutlined style={{ color: '#0068ff' }} />
               <span>Giao dịch bán vé gần nhất</span>
             </Space>
           }
@@ -538,3 +538,4 @@ export default function TicketRevenueStatisticsPage() {
     </div>
   );
 }
+

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Helpers;
+using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
+using SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyOrders;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
@@ -14,6 +16,99 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
         var tracked = context.Payments.Local.FirstOrDefault(entity => entity.Id == payment.Id);
         if (tracked == null) context.Payments.Update(payment);
         else context.Entry(tracked).CurrentValues.SetValues(payment);
+    }
+
+    public async Task<MyOrdersResponse> GetCustomerOrdersAsync(Guid userId, string? status, int pageIndex,
+        int pageSize, CancellationToken cancellationToken = default)
+    {
+        var normalizedStatus = status?.Trim().ToUpperInvariant();
+        var query = context.Orders.AsNoTracking()
+            .Where(order => order.UserId == userId && order.IsDeleted != true
+                && order.Payments.Any(payment => payment.PaymentMethod == "TRANSFER"
+                    && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
+                    && payment.TransactionRef.Length == 8));
+
+        if (normalizedStatus == "WAITING")
+            query = query.Where(order => order.Status == "PENDING" || order.Status == "PARTIAL");
+        else if (!string.IsNullOrEmpty(normalizedStatus) && normalizedStatus != "ALL")
+            query = query.Where(order => order.Status == normalizedStatus);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var unpaidCount = await GetCustomerUnpaidOrderCountAsync(userId, cancellationToken);
+        var orders = await query.OrderByDescending(order => order.CreatedAt).ThenByDescending(order => order.Id)
+            .Skip((pageIndex - 1) * pageSize).Take(pageSize)
+            .Select(order => new MyOrderSummaryDto
+            {
+                OrderId = order.Id,
+                Status = order.Status ?? "PENDING",
+                CreatedAt = order.CreatedAt,
+                Subtotal = order.TotalAmount,
+                DiscountAmount = order.DiscountAmount ?? 0,
+                FinalAmount = order.FinalAmount,
+            })
+            .ToListAsync(cancellationToken);
+
+        var orderIds = orders.Select(order => order.OrderId).ToArray();
+        if (orderIds.Length > 0)
+        {
+            var paidAmounts = await context.Payments.AsNoTracking()
+                .Where(payment => orderIds.Contains(payment.OrderId) && payment.Status == "COMPLETED"
+                    && !(payment.PaymentMethod == "TRANSFER" && payment.TransactionRef != null
+                        && payment.TransactionRef.StartsWith("SP") && payment.TransactionRef.Length == 8))
+                .GroupBy(payment => payment.OrderId)
+                .Select(group => new { OrderId = group.Key, Amount = group.Sum(payment => payment.Amount) })
+                .ToDictionaryAsync(item => item.OrderId, item => item.Amount, cancellationToken);
+
+            var itemsByOrder = await (from detail in context.OrderDetails.AsNoTracking()
+                                      join ticketType in context.TicketTypes.AsNoTracking()
+                                          on detail.ItemId equals ticketType.Id
+                                      where orderIds.Contains(detail.OrderId) && detail.ItemType == "TICKET"
+                                      select new
+                                      {
+                                          detail.OrderId,
+                                          Item = new OnlineOrderItemDto
+                                          {
+                                              TicketTypeId = detail.ItemId,
+                                              Name = ticketType.Name,
+                                              Quantity = detail.Quantity,
+                                              UnitPrice = detail.UnitPrice
+                                          }
+                                      }).ToListAsync(cancellationToken);
+
+            foreach (var order in orders)
+            {
+                order.ExpiresAtUtc = order.CreatedAt.HasValue
+                    ? DateTime.SpecifyKind(order.CreatedAt.Value, DateTimeKind.Utc).Add(OnlineOrderPaymentPolicy.Lifetime)
+                    : null;
+                order.PaidAmount = paidAmounts.GetValueOrDefault(order.OrderId);
+                order.RemainingAmount = Math.Max(0, order.FinalAmount - order.PaidAmount);
+                order.Items = itemsByOrder.Where(item => item.OrderId == order.OrderId)
+                    .Select(item => item.Item).ToList();
+            }
+        }
+
+        return new MyOrdersResponse
+        {
+            Items = orders,
+            TotalCount = totalCount,
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            UnpaidCount = unpaidCount
+        };
+    }
+
+    public Task<int> GetCustomerUnpaidOrderCountAsync(Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var cutoff = timeProvider.GetUtcNow().UtcDateTime.Subtract(OnlineOrderPaymentPolicy.Lifetime);
+        return context.Orders.AsNoTracking()
+            .Where(order => order.UserId == userId && order.IsDeleted != true
+                && (order.Status == "PENDING" || order.Status == "PARTIAL")
+                && order.CreatedAt > cutoff
+                && order.Payments.Any(payment => payment.PaymentMethod == "TRANSFER"
+                    && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
+                    && payment.TransactionRef.Length == 8))
+            .CountAsync(cancellationToken);
     }
 
     public async Task<T> ExecuteLockedAsync<T>(Guid orderId,

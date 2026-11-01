@@ -27,9 +27,9 @@ const IncidentTrendTooltip = ({ active, payload, label }) => {
       borderRadius: 8, padding: '10px 14px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
     }}>
-      <Text strong style={{ color: '#0f172a' }}>{label}</Text>
+      <Text strong style={{ color: '#001f3e' }}>{label}</Text>
       <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#e31748', display: 'inline-block' }} />
         <Text style={{ fontSize: 13 }}>
           Số sự cố: <strong>{payload[0].value}</strong> vụ việc
         </Text>
@@ -48,7 +48,7 @@ const IncidentCategoryTooltip = ({ active, payload }) => {
       borderRadius: 8, padding: '10px 14px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
     }}>
-      <Text strong style={{ color: item.payload?.color || '#0f172a' }}>{item.name}</Text>
+      <Text strong style={{ color: item.payload?.color || '#001f3e' }}>{item.name}</Text>
       <div style={{ marginTop: 4 }}>
         <Text style={{ fontSize: 13 }}>
           Số lượng: <strong>{item.value}</strong> vụ việc ({item.payload?.percentage}%)
@@ -148,7 +148,7 @@ export default function IncidentStatisticsPage() {
       render: (code, record) => (
         <Button
           type="link"
-          style={{ padding: 0, fontWeight: 600, color: '#0284c7' }}
+          style={{ padding: 0, fontWeight: 600, color: '#0068ff' }}
           onClick={() => handleOpenDetail(record)}
         >
           <Tag color="cyan" style={{ cursor: 'pointer', fontWeight: 600 }}>
@@ -162,7 +162,7 @@ export default function IncidentStatisticsPage() {
       key: 'title',
       render: (_, r) => (
         <div>
-          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: 14 }}>
+          <div style={{ fontWeight: 600, color: '#001f3e', fontSize: 14 }}>
             {r.title}
           </div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
@@ -178,11 +178,11 @@ export default function IncidentStatisticsPage() {
       width: 140,
       align: 'center',
       render: (sev) => {
-        let color = '#faad14';
+        let color = '#faa828';
         let bg = '#fffbe6';
         let border = '#ffe58f';
         if (sev === 'Khẩn cấp') {
-          color = '#ff4d4f';
+          color = '#e31748';
           bg = '#fff1f0';
           border = '#ffa39e';
         } else if (sev === 'Nghiêm trọng') {
@@ -190,7 +190,7 @@ export default function IncidentStatisticsPage() {
           bg = '#fff7e6';
           border = '#ffd591';
         } else if (sev === 'Nhẹ') {
-          color = '#52c41a';
+          color = '#03ca77';
           bg = '#f6ffed';
           border = '#b7eb8f';
         }
@@ -249,7 +249,7 @@ export default function IncidentStatisticsPage() {
       render: (time, r) => (
         <span style={{
           fontWeight: 600,
-          color: r.status === 'Đã giải quyết' ? '#0284c7' : '#94a3b8'
+          color: r.status === 'Đã giải quyết' ? '#0068ff' : '#94a3b8'
         }}>
           {time}
         </span>
@@ -265,8 +265,8 @@ export default function IncidentStatisticsPage() {
         alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 24
       }}>
         <div>
-          <Title level={3} style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AlertOutlined style={{ color: '#f59e0b', fontSize: 26 }} />
+          <Title level={3} style={{ margin: 0, color: '#001f3e', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertOutlined style={{ color: '#faa828', fontSize: 26 }} />
             Thống Kê Sự Cố Vận Hành & An Toàn Bể Bơi
           </Title>
           <Text type="secondary" style={{ fontSize: 14, marginTop: 4, display: 'block' }}>
@@ -298,7 +298,7 @@ export default function IncidentStatisticsPage() {
             type="primary"
             icon={<DownloadOutlined />}
             onClick={handleExportCSV}
-            style={{ background: '#0284c7', borderColor: '#0284c7' }}
+            style={{ background: '#0068ff', borderColor: '#0068ff' }}
           >
             Xuất báo cáo sự cố
           </Button>
@@ -314,7 +314,7 @@ export default function IncidentStatisticsPage() {
               bordered={false}
               style={{
                 borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                borderLeft: '5px solid #0284c7'
+                borderLeft: '5px solid #0068ff'
               }}
               bodyStyle={{ padding: '20px 24px' }}
             >
@@ -325,13 +325,13 @@ export default function IncidentStatisticsPage() {
                 <Statistic
                   value={data?.totalIncidents ?? 24}
                   suffix={<span style={{ fontSize: 15, fontWeight: 'normal', color: '#64748b' }}>vụ việc</span>}
-                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#0f172a' }}
+                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#001f3e' }}
                 />
                 <div style={{
                   width: 48, height: 48, borderRadius: 12,
                   background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <AlertOutlined style={{ fontSize: 24, color: '#0284c7' }} />
+                  <AlertOutlined style={{ fontSize: 24, color: '#0068ff' }} />
                 </div>
               </div>
               <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -361,7 +361,7 @@ export default function IncidentStatisticsPage() {
                       vụ việc ({data?.resolvedPercentage ?? 87.5}%)
                     </span>
                   }
-                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#0f172a' }}
+                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#001f3e' }}
                 />
                 <div style={{
                   width: 48, height: 48, borderRadius: 12,
@@ -382,7 +382,7 @@ export default function IncidentStatisticsPage() {
               bordered={false}
               style={{
                 borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                borderLeft: '5px solid #f59e0b'
+                borderLeft: '5px solid #faa828'
               }}
               bodyStyle={{ padding: '20px 24px' }}
             >
@@ -393,13 +393,13 @@ export default function IncidentStatisticsPage() {
                 <Statistic
                   value={data?.inProgressIncidents ?? 3}
                   suffix={<span style={{ fontSize: 15, fontWeight: 'normal', color: '#64748b' }}>vụ việc</span>}
-                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#f59e0b' }}
+                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#faa828' }}
                 />
                 <div style={{
                   width: 48, height: 48, borderRadius: 12,
                   background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <ClockCircleOutlined style={{ fontSize: 24, color: '#f59e0b' }} />
+                  <ClockCircleOutlined style={{ fontSize: 24, color: '#faa828' }} />
                 </div>
               </div>
               <div style={{ marginTop: 8, fontSize: 13, color: '#b45309' }}>
@@ -414,7 +414,7 @@ export default function IncidentStatisticsPage() {
               bordered={false}
               style={{
                 borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                borderLeft: '5px solid #8b5cf6'
+                borderLeft: '5px solid #6356e4'
               }}
               bodyStyle={{ padding: '20px 24px' }}
             >
@@ -426,13 +426,13 @@ export default function IncidentStatisticsPage() {
                   value={data?.averageResolutionTimeHours ?? 2.4}
                   precision={1}
                   suffix={<span style={{ fontSize: 15, fontWeight: 'normal', color: '#64748b' }}>giờ / vụ</span>}
-                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#0f172a' }}
+                  valueStyle={{ fontSize: 30, fontWeight: 700, color: '#001f3e' }}
                 />
                 <div style={{
                   width: 48, height: 48, borderRadius: 12,
                   background: '#f3e8ff', display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <DashboardOutlined style={{ fontSize: 24, color: '#8b5cf6' }} />
+                  <DashboardOutlined style={{ fontSize: 24, color: '#6356e4' }} />
                 </div>
               </div>
               <div style={{ marginTop: 8, fontSize: 13, color: '#0f766e' }}>
@@ -448,8 +448,8 @@ export default function IncidentStatisticsPage() {
           <Col xs={24} lg={10}>
             <Card
               title={
-                <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <PieChartOutlined style={{ color: '#0284c7' }} />
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#001f3e', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <PieChartOutlined style={{ color: '#0068ff' }} />
                   Cơ cấu phân loại các nhóm sự cố
                 </span>
               }
@@ -499,8 +499,8 @@ export default function IncidentStatisticsPage() {
           <Col xs={24} lg={14}>
             <Card
               title={
-                <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <LineChartOutlined style={{ color: '#ef4444' }} />
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#001f3e', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <LineChartOutlined style={{ color: '#e31748' }} />
                   Xu hướng số lượng sự cố theo tháng (Giảm dần)
                 </span>
               }
@@ -515,8 +515,8 @@ export default function IncidentStatisticsPage() {
                   >
                     <defs>
                       <linearGradient id="incidentGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#e31748" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#e31748" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -537,12 +537,12 @@ export default function IncidentStatisticsPage() {
                       type="monotone"
                       dataKey="incidentCount"
                       name="Số sự cố"
-                      stroke="#ef4444"
+                      stroke="#e31748"
                       strokeWidth={2.5}
                       fillOpacity={1}
                       fill="url(#incidentGradient)"
-                      dot={{ r: 4, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
-                      activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+                      dot={{ r: 4, fill: '#e31748', stroke: '#fff', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#e31748', stroke: '#fff', strokeWidth: 2 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -551,8 +551,8 @@ export default function IncidentStatisticsPage() {
               {/* Chart Legend */}
               <div style={{ textAlign: 'center', marginTop: 10 }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b' }}>
-                  <span style={{ width: 14, height: 2.5, background: '#ef4444', display: 'inline-block' }} />
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block', marginLeft: -9 }} />
+                  <span style={{ width: 14, height: 2.5, background: '#e31748', display: 'inline-block' }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#e31748', display: 'inline-block', marginLeft: -9 }} />
                   Số sự cố
                 </span>
               </div>
@@ -563,8 +563,8 @@ export default function IncidentStatisticsPage() {
         {/* TABLE SECTION */}
         <Card
           title={
-            <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertOutlined style={{ color: '#0284c7' }} />
+            <span style={{ fontSize: 16, fontWeight: 600, color: '#001f3e', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertOutlined style={{ color: '#0068ff' }} />
               Nhật ký các sự cố ghi nhận gần nhất
             </span>
           }
@@ -589,8 +589,8 @@ export default function IncidentStatisticsPage() {
       {/* MODAL CHI TIẾT SỰ CỐ */}
       <Modal
         title={
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#0f172a' }}>
-            <InfoCircleOutlined style={{ color: '#0284c7' }} />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#001f3e' }}>
+            <InfoCircleOutlined style={{ color: '#0068ff' }} />
             Chi tiết biên bản sự cố: {selectedIncident?.incidentCode}
           </span>
         }
@@ -631,7 +631,7 @@ export default function IncidentStatisticsPage() {
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Thời gian khắc phục">
-              <strong style={{ color: '#0284c7' }}>{selectedIncident.resolutionTime}</strong>
+              <strong style={{ color: '#0068ff' }}>{selectedIncident.resolutionTime}</strong>
             </Descriptions.Item>
           </Descriptions>
         )}
@@ -639,3 +639,4 @@ export default function IncidentStatisticsPage() {
     </div>
   );
 }
+

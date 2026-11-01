@@ -22,7 +22,6 @@ export default function ShiftManagementPage() {
   return <div className="service-list-page staff-schedule-page">
     <ServiceListHeader title="Ca làm việc" action={<Button icon={<ReloadOutlined />} loading={query.isFetching} onClick={() => query.refetch()}>Làm mới</Button>} />
     <section className="service-list-table staff-schedule-table" aria-label="Danh sách ca làm việc cố định">
-      <Alert className="staff-schedule-alert" type="info" showIcon title="Hai ca làm việc cố định" description="Ca sáng: 06:00–11:30. Ca chiều: 13:30–19:30. Không tạo thêm hoặc thay đổi giờ ca. Ngày làm và nhân viên được chọn khi phân ca." />
       {query.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
       {query.isError && <Empty description="Không thể tải danh sách ca làm việc."><Button onClick={() => query.refetch()}>Thử lại</Button></Empty>}
       {!query.isLoading && !query.isError && !query.data?.items?.length && <Empty description="Chưa tải được hai ca cố định. Hãy khởi động lại máy chủ rồi làm mới." />}

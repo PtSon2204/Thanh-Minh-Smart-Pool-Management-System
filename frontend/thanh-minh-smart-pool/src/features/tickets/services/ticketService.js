@@ -7,6 +7,11 @@ const ticketService = {
 
   checkMyOrderStatus: (orderId, signal) => apiClient.get(`${BASE}/me/orders/${orderId}/status`, { signal }).then((res) => res.data),
 
+  getMyOrders: ({ pageIndex = 1, pageSize = 10, status = 'ALL', signal } = {}) =>
+    apiClient.get(`${BASE}/me/orders`, { params: { pageIndex, pageSize, status }, signal }).then((res) => res.data),
+
+  getMyOrdersSummary: (signal) => apiClient.get(`${BASE}/me/orders/summary`, { signal }).then((res) => res.data),
+
   /** Bán vé tại quầy (Tiền mặt) */
   sellOffline: (data) => apiClient.post(`${BASE}/sell-offline`, data).then((res) => res.data),
   

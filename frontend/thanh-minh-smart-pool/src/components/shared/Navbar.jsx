@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Drawer, Dropdown, message } from 'antd'
-import { UserOutlined, LogoutOutlined, LockOutlined, CalendarOutlined, SafetyCertificateOutlined, TeamOutlined, DashboardOutlined, IdcardOutlined, HistoryOutlined } from '@ant-design/icons'
+import { Avatar, Badge, Drawer, Dropdown, message } from 'antd'
+import { UserOutlined, LogoutOutlined, LockOutlined, CalendarOutlined, SafetyCertificateOutlined, TeamOutlined, DashboardOutlined, IdcardOutlined, HistoryOutlined, ShoppingOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import './Navbar.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
@@ -11,6 +11,7 @@ import CartIcon from '../../features/cart/components/CartIcon'
 import profileService from '../../features/profiles/services/profileService'
 import authService from '../../features/auth/services/authService'
 import { getSessionRoles } from '../../features/auth/utils/sessionRoles'
+import ticketService from '../../features/tickets/services/ticketService'
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
@@ -31,8 +32,15 @@ export default function Navbar() {
   const roles = getSessionRoles(session)
   const isCustomer = roles.includes('CUSTOMER')
   const isCoach = roles.includes('COACH')
+  const { data: orderSummary } = useQuery({
+    queryKey: ['myOrderSummary', session?.id],
+    queryFn: ({ signal }) => ticketService.getMyOrdersSummary(signal),
+    enabled: Boolean(session?.id && isCustomer),
+    refetchInterval: (query) => (query.state.data?.unpaidCount ?? 0) > 0 ? 15000 : false,
+    refetchOnWindowFocus: true,
+  })
   const visibleNavItems = isCustomer
-    ? [...navItems, { label: 'Lớp học bơi', to: '/lop-hoc' }]
+    ? [...navItems, { label: 'Đơn hàng', to: '/don-hang', badgeCount: orderSummary?.unpaidCount ?? 0 }, { label: 'Lớp học bơi', to: '/lop-hoc' }]
     : navItems
 
   async function handleLogout() {
@@ -69,6 +77,14 @@ export default function Navbar() {
 
   const userMenu = {
     items: [
+      isCustomer && {
+        key: 'orders',
+        icon: <ShoppingOutlined />,
+        label: orderSummary?.unpaidCount > 0
+          ? <Badge count={orderSummary.unpaidCount} overflowCount={99}>Đơn hàng</Badge>
+          : 'Đơn hàng',
+        onClick: () => navigate('/don-hang')
+      },
       isCustomer && {
         key: '0',
         icon: <UserOutlined />,
@@ -142,7 +158,9 @@ export default function Navbar() {
                   to={item.to}
                   className={`nav-link${location.pathname === item.to ? ' active' : ''}`}
                 >
-                  {item.label}
+                  {item.badgeCount > 0
+                    ? <Badge count={item.badgeCount} overflowCount={99} offset={[8, -2]}>{item.label}</Badge>
+                    : item.label}
                   {item.children && <span style={{ fontSize: '0.65rem' }}>▼</span>}
                 </Link>
                 {item.children && (
@@ -208,7 +226,7 @@ export default function Navbar() {
         rootClassName="mobile-navigation-drawer"
       >
         <div id="mobile-navigation" className="mobile-navigation">
-          {visibleNavItems.map(item => <Link key={item.to} to={item.to} aria-current={location.pathname === item.to ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
+          {visibleNavItems.map(item => <Link key={item.to} to={item.to} aria-current={location.pathname === item.to ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{item.badgeCount > 0 ? <Badge count={item.badgeCount} overflowCount={99}>{item.label}</Badge> : item.label}</Link>)}
           <div className="mobile-navigation-account">
             {session ? <>
               <strong>{profileData?.fullName || session.username}</strong>

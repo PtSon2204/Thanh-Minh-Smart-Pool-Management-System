@@ -8,8 +8,8 @@ export default function DailyInspectionHistoryPage() {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#0077b6',
-          colorInfo: '#0077b6',
+          colorPrimary: '#0068ff',
+          colorInfo: '#0068ff',
           borderRadius: 8,
         },
       }}
@@ -21,7 +21,7 @@ export default function DailyInspectionHistoryPage() {
               <HistoryOutlined />
             </span>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: '#111827' }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: '#001f3e' }}>
                 Lịch sử kiểm tra thiết bị
               </h1>
               <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: 14 }}>
@@ -36,3 +36,4 @@ export default function DailyInspectionHistoryPage() {
     </ConfigProvider>
   )
 }
+
