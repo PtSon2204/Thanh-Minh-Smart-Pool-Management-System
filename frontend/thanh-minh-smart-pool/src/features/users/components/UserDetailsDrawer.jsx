@@ -46,7 +46,7 @@ export default function UserDetailsDrawer({ userId, onClose, onRevokeCoach }) {
         <Descriptions.Item label="Ngày tạo">{formatDateTime(user.createdAt)}</Descriptions.Item>
         <Descriptions.Item label="Cập nhật lần cuối">{formatDateTime(user.updatedAt)}</Descriptions.Item>
       </Descriptions>
-      {user.isCoach && <Button danger style={{ marginTop: 20 }} onClick={() => onRevokeCoach(user)}>
+      {user.isCoach && onRevokeCoach && <Button danger style={{ marginTop: 20 }} onClick={() => onRevokeCoach(user)}>
         Thu hồi quyền Coach
       </Button>}
     </>}
