@@ -147,6 +147,11 @@ namespace SmartPool.Infrastructure
 
             services.AddSingleton(new Cloudinary(cloudinaryUrl) { Api = { Secure = true } });
             services.AddScoped<IStorageService, CloudinaryStorageService>();
+            services.Configure<StaffOnboarding.StaffOnboardingOptions>(configuration.GetSection("StaffOnboarding"));
+            services.AddHttpClient<StaffOnboarding.IStaffDocumentStorage, StaffOnboarding.CloudinaryStaffDocumentStorage>().RemoveAllLoggers();
+            services.AddScoped<StaffOnboarding.StaffDocumentCleanup>();
+            services.AddScoped<StaffOnboarding.StaffOnboardingServices>();
+            services.AddHostedService<StaffOnboarding.StaffDocumentCleanupWorker>();
 
             // Email — MailKit
             services.AddScoped<IEmailService, EmailService>();

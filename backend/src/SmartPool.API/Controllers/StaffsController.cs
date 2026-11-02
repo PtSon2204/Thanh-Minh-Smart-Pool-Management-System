@@ -24,7 +24,7 @@ namespace SmartPool.API.Controllers
 {
     [ApiController]
     [Route("api/staffs")]
-    public sealed class StaffsController : ControllerBase
+    public sealed partial class StaffsController : ControllerBase
     {
         private readonly ISender _sender;
 
@@ -226,6 +226,10 @@ namespace SmartPool.API.Controllers
             catch (ValidationException exception)
             {
                 return BadRequest(CreateValidationError(exception));
+            }
+            catch (SmartPool.Application.Features.ManageStaffs.Onboarding.StaffOnboardingException exception)
+            {
+                return StatusCode(exception.Status, new { code = exception.Code });
             }
             catch (KeyNotFoundException exception)
             {

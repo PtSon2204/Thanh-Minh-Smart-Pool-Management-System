@@ -1,4 +1,5 @@
 using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageStaffs.Onboarding;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
@@ -19,6 +20,9 @@ namespace SmartPool.Application.Interfaces.Repositories
 
 public interface IStaffOperations
 {
+    Task<OnboardingWorkspace> ExecuteOnboardingAsync(OnboardingCommand request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StaffInvitationListItem>> ListInvitationsAsync(ListStaffInvitationsQuery request, CancellationToken cancellationToken);
+    Task<StaffDocumentContent> ReadStaffDocumentAsync(ReadStaffDocumentQuery request, CancellationToken cancellationToken);
     Task<PagedResponse<GetStaffsResponse>> GetStaffsAsync(GetStaffsQuery request, CancellationToken cancellationToken);
     Task<GetStaffOptionsResponse> GetOptionsAsync(CancellationToken cancellationToken);
     Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken);
