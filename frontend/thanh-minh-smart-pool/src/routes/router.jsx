@@ -24,6 +24,7 @@ import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenue
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
+import StaffOnboardingPage from "../pages/staff/StaffOnboardingPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
 import StaffSchedulePage from "../pages/admin/staff/StaffSchedulePage";
 import StaffAttendancePage from "../pages/admin/staff/StaffAttendancePage";
@@ -45,6 +46,7 @@ import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailP
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 
 const router = createBrowserRouter([
+  { path: "/staff/onboarding", element: <StaffOnboardingPage /> },
   {
     element: <MainLayout />,
     children: [

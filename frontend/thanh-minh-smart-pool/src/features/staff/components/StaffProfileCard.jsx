@@ -23,7 +23,7 @@ function StaffRoleTag({ roleName }) {
   return <Tag color={USER_ROLE_COLORS[role]} className="staff-profile-role" style={{ color: 'var(--primary-dark)' }}>{label}</Tag>
 }
 
-export default function StaffProfileCard({ staff, onDetails, onEdit }) {
+export default function StaffProfileCard({ staff, onDetails, onEdit, onLegalDetails }) {
   const displayName = staff.fullName || staff.username || 'Nhân viên chưa có tên'
   const initials = displayName.trim().split(/\s+/u).slice(-2).map((part) => part[0]).join('').toLocaleUpperCase('vi-VN')
   const actions = [
@@ -60,7 +60,7 @@ export default function StaffProfileCard({ staff, onDetails, onEdit }) {
         <div className="staff-profile-card-name-block">
           <h2 className="staff-profile-card-name">{displayName}</h2>
           <StaffRoleTag roleName={staff.roleName} />
-          <span className="staff-profile-username">{staff.username ? `@${staff.username}` : 'Chưa có tên đăng nhập'}</span>
+          <span className="staff-profile-username" title={staff.username ? `@${staff.username}` : undefined}>{staff.username ? `@${staff.username}` : 'Chưa có tên đăng nhập'}</span>
           <StaffStatus status={staff.status} />
         </div>
       </div>
@@ -79,6 +79,7 @@ export default function StaffProfileCard({ staff, onDetails, onEdit }) {
           <dd>{staff.phone || '-'}</dd>
         </div>
       </dl>
+      {onLegalDetails && <footer className="staff-profile-card-actions"><Button icon={<EyeOutlined />} onClick={() => onLegalDetails(staff)}>Hồ sơ pháp lý</Button></footer>}
     </article>
   )
 }

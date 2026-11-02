@@ -1,0 +1,84 @@
+.staff-onboarding-background {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --onboarding-canvas: #f4f6f8;
+  --onboarding-surface: #ffffff;
+  --onboarding-divider: #e4e7ec;
+  --onboarding-soft: #eef7fc;
+  --onboarding-content-width: 1024px;
+  --onboarding-body-size: 14px;
+  --onboarding-caption-size: 12px;
+  --onboarding-hairline: 1px;
+  min-height: 100dvh;
+  background: var(--onboarding-canvas);
+  color: var(--text);
+  font-family: var(--sans);
+}
+.staff-onboarding-page { max-width: var(--onboarding-content-width); margin: auto; padding: var(--space-6, 24px); display: grid; gap: var(--space-6, 24px); }
+.staff-onboarding-page > header, .onboarding-panel-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 16px); flex-wrap: wrap; }
+.staff-onboarding-page > header .ant-typography { margin-block: 0 var(--space-2); }
+.staff-onboarding-page > header a { color: var(--primary-dark); }
+.staff-onboarding-page > header a:hover { text-decoration: underline; }
+.staff-onboarding-page > header a:focus-visible { outline: var(--space-1) solid var(--primary-light); outline-offset: var(--space-1); }
+.staff-onboarding-page > .ant-typography { margin: 0; }
+.staff-onboarding-page > .ant-btn { justify-self: start; }
+.onboarding-workspace { min-width: 0; overflow-wrap: anywhere; background: var(--onboarding-surface); border: var(--onboarding-hairline) solid var(--onboarding-divider); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.onboarding-workspace > .ant-alert { margin: var(--space-6); }
+.onboarding-invitation-meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
+.onboarding-stepper { padding: var(--space-6); background: var(--onboarding-soft); border-block: var(--onboarding-hairline) solid var(--onboarding-divider); }
+.onboarding-stepper .ant-steps-item { min-width: 0; }
+.onboarding-stepper .ant-steps-item-title { white-space: normal; overflow-wrap: anywhere; font-size: var(--onboarding-body-size); }
+.onboarding-step-content { display: grid; gap: var(--space-4); padding: var(--space-6); }
+.onboarding-step-content > [hidden] { display: none; }
+.onboarding-step-heading { display: grid; gap: var(--space-2); scroll-margin-block: var(--space-6); }
+.onboarding-step-heading:focus { outline: none; }
+.onboarding-step-heading > .ant-typography { margin: 0; }
+.onboarding-workspace .ant-picker { width: 100%; }
+.onboarding-field-note { margin-top: var(--space-4); }
+.onboarding-optional-documents, .onboarding-password-section { margin-top: var(--space-8); }
+.onboarding-review { display: grid; gap: var(--space-6); }
+.onboarding-review .ant-descriptions-item-content { overflow-wrap: anywhere; white-space: pre-wrap; }
+.staff-onboarding-page .onboarding-document { padding: var(--space-4); background: var(--onboarding-canvas); border-radius: var(--radius-sm); }
+.onboarding-step-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-6); border-top: var(--onboarding-hairline) solid var(--onboarding-divider); }
+.onboarding-save-state { display: grid; justify-items: start; gap: var(--space-2); }
+.onboarding-save-state > .ant-typography { font-size: var(--onboarding-caption-size); }
+.onboarding-form-grid, .onboarding-document-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4, 16px); }
+.onboarding-form-grid .ant-form-item { margin-bottom: 0; }
+.onboarding-address-field { display: grid; align-content: start; justify-items: start; gap: var(--space-2, 8px); }
+.onboarding-address-field > .ant-form-item { width: 100%; }
+.onboarding-document-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.onboarding-document { display: grid; gap: var(--space-2, 8px); align-content: start; min-width: 0; }
+.onboarding-document-preview { display: block; width: 100%; height: auto; max-height: 70dvh; object-fit: contain; }
+.onboarding-revision, .onboarding-documents, .staff-invitations-panel { min-width: 0; overflow-wrap: anywhere; }
+.staff-invitations-panel { margin-top: var(--space-6, 24px); padding: var(--space-6, 24px); background: var(--admin-surface, white); border-radius: var(--radius, 12px); }
+.onboarding-actions { margin-block: var(--space-4, 16px); }
+.onboarding-reason { width: 100%; }
+.staff-invitation-content { display: grid; gap: var(--space-6, 24px); }
+.staff-review-content { display: grid; gap: var(--space-6, 24px); }
+.onboarding-revision, .onboarding-documents { display: grid; gap: var(--space-4, 16px); }
+.onboarding-revision > .ant-typography, .onboarding-documents > .ant-typography,
+.staff-review-content > .ant-typography { margin: 0; }
+.staff-review-content > .onboarding-actions { margin-block: 0; }
+.staff-invitation-status { display: grid; justify-items: start; gap: var(--space-2, 8px); }
+.staff-invitation-status .ant-tag { margin: 0; }
+.staff-review-confirmation { display: grid; gap: var(--space-4, 16px); padding-block: var(--space-2, 8px); }
+.staff-review-confirmation > .ant-typography { margin: 0; }
+.staff-review-confirmation .ant-checkbox-wrapper { align-items: flex-start; line-height: 1.6; }
+.staff-review-confirmation .ant-checkbox { align-self: flex-start; margin-top: var(--space-1, 4px); }
+@media (max-width: 640px) {
+  .staff-onboarding-page { padding: var(--space-4, 16px); }
+  .onboarding-workspace > .ant-alert { margin: var(--space-4); }
+  .onboarding-stepper, .onboarding-step-content, .onboarding-step-actions { padding: var(--space-4); }
+  .onboarding-stepper .ant-steps { gap: var(--space-1); }
+  .onboarding-stepper .ant-steps-item-title { font-size: var(--onboarding-caption-size); }
+  .onboarding-step-actions { align-items: stretch; }
+  .onboarding-step-actions > .ant-space { justify-content: flex-end; width: 100%; }
+  .onboarding-form-grid, .onboarding-document-grid { grid-template-columns: minmax(0, 1fr); }
+  .staff-invitations-panel { padding: var(--space-4, 16px); }
+  .staff-onboarding-page .ant-divider-inner-text { white-space: normal; }
+}
