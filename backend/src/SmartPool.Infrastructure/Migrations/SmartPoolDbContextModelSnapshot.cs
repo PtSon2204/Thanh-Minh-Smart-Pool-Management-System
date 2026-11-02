@@ -2603,6 +2603,34 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("CoachUser");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.CoachApplication", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("coach_applications_reviewed_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "RevokedByUser")
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("coach_applications_revoked_by_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("coach_applications_user_id_fkey");
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("RevokedByUser");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.DailyInspection", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", "Inspector")

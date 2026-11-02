@@ -11,11 +11,21 @@ using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Authorization;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Enums;
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using SmartPool.Application.Features.ManageStaffs.Onboarding;
 
 namespace SmartPool.UnitTests.Authorization;
 
 public sealed class ApiAuthorizationTests
 {
+    private static readonly string[] OwnOnboardingActions =
+    [
+        nameof(StaffsController.MyOnboarding), nameof(StaffsController.SaveMyOnboarding),
+        nameof(StaffsController.SubmitMyOnboarding), nameof(StaffsController.RequestMyCorrection),
+        nameof(StaffsController.UploadMyOnboarding), nameof(StaffsController.ReadOwnDocument)
+    ];
+
     [Theory]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ADMIN", AuthorizationPolicies.AdminOnly, true)]
     [InlineData(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "admin", AuthorizationPolicies.AdminOnly, true)]
@@ -98,10 +108,76 @@ public sealed class ApiAuthorizationTests
 
         foreach (var action in actions)
         {
+            if (action.Controller == typeof(StaffsController) && OwnOnboardingActions.Contains(action.Method.Name))
+                continue;
             var policies = action.Method.GetCustomAttributes<AuthorizeAttribute>().Select(attribute => attribute.Policy);
-            Assert.Contains(policies, policy => policy?.StartsWith("permission:", StringComparison.Ordinal) == true ||
-                policy == AuthorizationPolicies.AdminOnly);
+            Assert.True(policies.Any(policy => policy?.StartsWith("permission:", StringComparison.Ordinal) == true ||
+                policy == AuthorizationPolicies.AdminOnly), $"{action.Controller.Name}.{action.Method.Name} must require an operational permission.");
         }
+    }
+
+    [Fact]
+    public async Task OwnOnboardingEndpointsRequireAuthentication()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(Mock.Of<IRolePermissionReader>());
+        services.AddApiAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var policies = provider.GetRequiredService<IAuthorizationPolicyProvider>();
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+        foreach (var name in OwnOnboardingActions)
+        {
+            var method = typeof(StaffsController).GetMethod(name)!;
+            var attributes = method.GetCustomAttributes<AuthorizeAttribute>().ToArray();
+            Assert.NotEmpty(attributes);
+            Assert.Empty(method.GetCustomAttributes<AllowAnonymousAttribute>());
+            var policy = await AuthorizationPolicy.CombineAsync(policies, attributes);
+            Assert.NotNull(policy);
+            Assert.False((await authorization.AuthorizeAsync(new ClaimsPrincipal(new ClaimsIdentity()), null, policy)).Succeeded);
+            Assert.True((await authorization.AuthorizeAsync(CreatePrincipal(true, Guid.NewGuid().ToString(), "SALES"), null, policy)).Succeeded);
+        }
+    }
+
+    [Fact]
+    public async Task OwnOnboardingActionsDeriveActorFromClaimsInsteadOfRequest()
+    {
+        var actor = Guid.NewGuid();
+        OnboardingCommand? sent = null;
+        var sender = new Mock<ISender>();
+        sender.Setup(item => item.Send(It.IsAny<OnboardingCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<OnboardingWorkspace>, CancellationToken>((command, _) => sent = (OnboardingCommand)command)
+            .ReturnsAsync(new OnboardingWorkspace("OK", null, null, null, null));
+        var controller = new StaffsController(sender.Object) { ControllerContext = new()
+        {
+            HttpContext = new DefaultHttpContext { User = CreatePrincipal(true, actor.ToString(), "SALES") }
+        } };
+        foreach (var action in new Func<OnboardingCommand, Task<IActionResult>>[]
+        {
+            command => controller.SaveMyOnboarding(command, default),
+            command => controller.SubmitMyOnboarding(command, default),
+            command => controller.RequestMyCorrection(command, default)
+        })
+        {
+            await action(new() { ActorId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), InvitationId = Guid.NewGuid(), Token = "foreign-invitation" });
+            Assert.NotNull(sent);
+            Assert.Equal(actor, sent.ActorId);
+            Assert.Null(sent.InvitationId);
+            Assert.Null(sent.Token);
+        }
+        await controller.MyOnboarding(default);
+        Assert.Equal(actor, sent!.ActorId);
+        using var stream = new MemoryStream([137, 80, 78, 71, 13, 10, 26, 10]);
+        await controller.UploadMyOnboarding(new() { InvitationId = Guid.NewGuid(), Token = "foreign-invitation", Purpose = "FRONT",
+            File = new FormFile(stream, 0, stream.Length, "file", "synthetic.png") { Headers = new HeaderDictionary(), ContentType = "image/png" } }, default);
+        Assert.Equal(actor, sent!.ActorId);
+        Assert.Null(sent.InvitationId);
+        Assert.Null(sent.Token);
+        sender.Setup(item => item.Send(It.IsAny<ReadStaffDocumentQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StaffDocumentContent([], "image/png"));
+        await controller.ReadOwnDocument(Guid.NewGuid(), default);
+        sender.Verify(item => item.Send(It.Is<ReadStaffDocumentQuery>(query => query.ActorId == actor && !query.IsAdmin && query.InvitationId == null),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

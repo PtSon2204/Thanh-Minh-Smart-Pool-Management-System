@@ -22,6 +22,33 @@ namespace SmartPool.IntegrationTests;
 public sealed class StaffOnboardingIntegrationTests
 {
     [Fact]
+    public async Task OwnWorkspaceAndDocumentsCannotSelectAnotherEmployeesRecords()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var workspace = await fixture.InviteAsync();
+        workspace = await fixture.Submit(workspace, fixture.Credentials(workspace));
+        workspace = await fixture.Approve(workspace);
+        var employeeId = workspace.Invitation!.CompletedUserId!.Value;
+        var foreign = await fixture.InviteAsync();
+        var foreignCredentials = fixture.Credentials(foreign);
+        foreign = await fixture.Run(new()
+        {
+            Action = OnboardingAction.Upload, InvitationId = foreignCredentials.Id, Token = foreignCredentials.Token,
+            ExpectedVersion = foreign.Revision!.Version, Upload = new("FRONT", "image/png", [137, 80, 78, 71, 13, 10, 26, 10])
+        });
+        var own = await fixture.Run(new()
+        {
+            Action = OnboardingAction.Own, ActorId = employeeId, EmployeeId = fixture.AdminId
+        });
+        Assert.Equal(workspace.Revision!.Id, own.ApprovedRevision!.Id);
+        var document = Assert.Single(foreign.Revision!.Documents);
+        var denied = await Assert.ThrowsAsync<StaffOnboardingException>(() => fixture.Operations.ReadStaffDocumentAsync(
+            new(document.Id, employeeId, false, null, null), default));
+        Assert.Equal("DOCUMENT_FORBIDDEN", denied.Code);
+        Assert.Equal(403, denied.Status);
+    }
+
+    [Fact]
     public async Task ResendIsBlockedDuringReviewAndAllowedAfterChangesRequested()
     {
         await using var fixture = await Fixture.CreateAsync();
