@@ -101,6 +101,21 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
 
     public SmartPoolDbContext CreateContext() => new(options);
 
+    public async Task SeedEligibleAdminEmploymentAsync()
+    {
+        await using var setupContext = CreateContext();
+        var now = DateTime.UtcNow;
+        setupContext.Employees.Add(new Employee
+        {
+            UserId = EligibleAdminUserId,
+            JoinDate = new DateOnly(2026, 10, 5),
+            Status = "Working",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await setupContext.SaveChangesAsync();
+    }
+
     public StaffOperations CreateOperations(SmartPoolDbContext? operationContext = null, TimeProvider? timeProvider = null) =>
         new(operationContext ?? context, mapper, timeProvider ?? TimeProvider.System, Options.Create(new StaffAttendanceQrSettings()));
 
