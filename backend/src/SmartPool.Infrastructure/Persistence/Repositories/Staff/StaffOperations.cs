@@ -24,13 +24,16 @@ public sealed partial class StaffOperations : IStaffOperations
     private readonly IMapper mapper;
     private readonly TimeProvider timeProvider;
     private readonly StaffAttendanceQrSettings attendanceQrSettings;
+    private readonly SmartPool.Infrastructure.StaffOnboarding.StaffOnboardingServices? onboardingServices;
 
-    public StaffOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider timeProvider, IOptions<StaffAttendanceQrSettings> attendanceQrSettings)
+    public StaffOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider timeProvider, IOptions<StaffAttendanceQrSettings> attendanceQrSettings,
+        SmartPool.Infrastructure.StaffOnboarding.StaffOnboardingServices? onboardingServices = null)
     {
         this.context = context;
         this.mapper = mapper;
         this.timeProvider = timeProvider;
         this.attendanceQrSettings = attendanceQrSettings.Value;
+        this.onboardingServices = onboardingServices;
     }
 
     public async Task<PagedResponse<GetStaffsResponse>> GetStaffsAsync(GetStaffsQuery request, CancellationToken cancellationToken)
@@ -59,20 +62,8 @@ public sealed partial class StaffOperations : IStaffOperations
         return new GetStaffOptionsResponse { Users = mapper.Map<List<EligibleUserResponse>>(users) };
     }
 
-    public async Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken)
-    {
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({request.UserId.ToString()}, 0))", cancellationToken);
-        var user = await context.Users.Include(item => item.Employee).Include(item => item.UserProfile).Include(item => item.Role).FirstOrDefaultAsync(item => item.Id == request.UserId && item.IsDeleted != true, cancellationToken);
-        if (user is null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
-        if (user.Employee is not null) throw new StaffConflictException("Tài khoản đã được gắn với nhân viên.");
-        if (user.Role?.IsDeleted == true || !IsEligibleEmploymentRole(user.Role?.Name)) throw new StaffConflictException("Tài khoản phải có vai trò nhân viên hoặc ADMIN.");
-        var employee = new Employee { UserId = user.Id, JoinDate = request.JoinDate, Status = request.Status, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, User = user };
-        context.Employees.Add(employee);
-        await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return mapper.Map<CreateStaffResponse>(employee);
-    }
+    public Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken) =>
+        Task.FromException<CreateStaffResponse>(new SmartPool.Application.Features.ManageStaffs.Onboarding.StaffOnboardingException("ONBOARDING_REQUIRED"));
 
     public async Task<UpdateStaffResponse> UpdateStaffAsync(UpdateStaffCommand request, CancellationToken cancellationToken)
     {

@@ -16,6 +16,11 @@ public class SmartPoolDbContext : EfDbContext
     }
 
     public virtual DbSet<Employee> Employees { get; set; }
+    public DbSet<StaffInvitation> StaffInvitations { get; set; }
+    public DbSet<StaffOnboardingRevision> StaffOnboardingRevisions { get; set; }
+    public DbSet<StaffOnboardingDocument> StaffOnboardingDocuments { get; set; }
+    public DbSet<StaffIdentityClaim> StaffIdentityClaims { get; set; }
+    public DbSet<StaffCorrectionRequest> StaffCorrectionRequests { get; set; }
     public virtual DbSet<EmployeeShift> EmployeeShifts { get; set; }
     public virtual DbSet<AttendanceLog> AttendanceLogs { get; set; }
     public virtual DbSet<EntryLog> EntryLogs { get; set; }
@@ -52,6 +57,12 @@ public class SmartPoolDbContext : EfDbContext
     {
         modelBuilder.HasPostgresExtension("pgcrypto").HasPostgresExtension("smart_pool", "uuid-ossp");
         modelBuilder.ApplyConfiguration(new EmployeeConfiguration());
+        var onboarding = new StaffOnboardingConfiguration();
+        modelBuilder.ApplyConfiguration<StaffInvitation>(onboarding);
+        modelBuilder.ApplyConfiguration<StaffOnboardingRevision>(onboarding);
+        modelBuilder.ApplyConfiguration<StaffOnboardingDocument>(onboarding);
+        modelBuilder.ApplyConfiguration<StaffIdentityClaim>(onboarding);
+        modelBuilder.ApplyConfiguration<StaffCorrectionRequest>(onboarding);
         modelBuilder.ApplyConfiguration(new EmployeeShiftConfiguration());
         modelBuilder.ApplyConfiguration(new AttendanceLogConfiguration());
         modelBuilder.ApplyConfiguration(new EntryLogConfiguration());

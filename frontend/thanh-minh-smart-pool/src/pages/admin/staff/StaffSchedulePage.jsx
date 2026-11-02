@@ -35,7 +35,7 @@ export default function StaffSchedulePage() {
   const navigate = useNavigate()
   const role = session?.role?.toUpperCase()
   const isAdmin = role === 'ADMIN'
-  const canRead = isAdmin || ['LIFEGUARD', 'SALES'].includes(role)
+   const canRead = isAdmin || ['LIFEGUARD', 'SALES', 'COACH'].includes(role)
   const [monday, setMonday] = useState(() => mondayFor(vietnamToday()))
   const [view, setView] = useState('Tuần')
   const [pageIndex, setPageIndex] = useState(1)
@@ -153,6 +153,7 @@ export default function StaffSchedulePage() {
   if (!canRead) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên và nhân viên mới có thể xem lịch làm việc." /></div>
 
   return <div className="service-list-page staff-schedule-page staff-schedule-page--wide">
+    <Button onClick={() => navigate('/staff/onboarding')}>Hồ sơ pháp lý của tôi</Button>
     <ServiceListHeader title={<>Lịch làm việc <span className="staff-schedule-count">{schedule.isLoading ? 'Đang tải…' : `${visibleItems.length} lịch trong tuần`}</span></>} action={isAdmin ? <Button type="primary" onClick={() => setModalContext({ workDate: monday })} disabled={isSaving}>Phân ca</Button> : null} />
     <section className="service-list-toolbar staff-schedule-toolbar" aria-label="Điều khiển lịch làm việc"><div className="service-list-filters staff-schedule-filters"><Button aria-label="Tuần trước" icon={<LeftOutlined />} onClick={() => requestChange(() => setMonday(dayjs(monday).subtract(7, 'day').format('YYYY-MM-DD')))} disabled={isSaving} /><label className="service-filter-control"><span>Tuần chứa ngày</span><DatePicker value={dayjs(monday)} format="DD/MM/YYYY" onChange={(value) => value && requestChange(() => setMonday(mondayFor(value.format('YYYY-MM-DD'))))} disabled={isSaving} /></label><Button aria-label="Tuần sau" icon={<RightOutlined />} onClick={() => requestChange(() => setMonday(dayjs(monday).add(7, 'day').format('YYYY-MM-DD')))} disabled={isSaving} /><Segmented value={view} options={['Tuần', 'Danh sách']} onChange={(value) => requestChange(() => setView(value))} disabled={isSaving} /><Button icon={<ReloadOutlined />} onClick={() => { schedule.refetch(); shifts.refetch() }} disabled={isSaving}>Làm mới</Button></div></section>
     {draftsDirty && isAdmin && <section className="staff-draft-controls"><span>{drafts.length} phân công chưa lưu{saveState === 'partial' ? ' · một phần đã tồn tại' : ''}</span><Button onClick={() => requestChange(() => setDrafts([]))} disabled={isSaving}>Hủy thay đổi</Button><Button type="primary" onClick={save} loading={isSaving} disabled={saveState === 'partial' || saveState === 'unavailable'}>Lưu phân ca</Button></section>}

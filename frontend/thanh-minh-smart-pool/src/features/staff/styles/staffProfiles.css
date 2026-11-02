@@ -52,13 +52,19 @@
   }
 }
 
+@container staff-profiles (min-width: 1200px) {
+  .staff-profiles-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .staff-profile-card {
   background: var(--admin-surface);
   border: 1px solid var(--list-divider);
   border-radius: var(--radius);
   box-shadow: var(--list-shadow);
   display: grid;
-  grid-template-rows: auto 1fr;
+   grid-template-rows: auto 1fr auto;
   min-width: 0;
   overflow: hidden;
 }
@@ -72,7 +78,7 @@
   align-items: flex-start;
   display: flex;
   justify-content: space-between;
-  min-height: 52px;
+  min-height: 36px;
 }
 
 .staff-profile-avatar.ant-avatar {
@@ -125,7 +131,9 @@
 .staff-profile-username {
   color: var(--list-muted);
   font-size: 14px;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .staff-profile-status {
@@ -198,6 +206,15 @@
 
 .staff-profile-detail-contact {
   grid-column: 1 / -1;
+}
+
+.staff-profile-card-actions {
+  border-top: 1px solid var(--list-divider);
+  padding: var(--space-3) var(--space-4);
+}
+
+.staff-profile-card-actions .ant-btn {
+  width: 100%;
 }
 
 .staff-profiles-page .admin-management-state {

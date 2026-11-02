@@ -63,7 +63,7 @@ public sealed partial class StaffScheduleBatchTests
         var workDate = new DateOnly(2026, 11, 5);
         try
         {
-            await fixture.CreateOperations().CreateStaffAsync(fixture.CreateCommand(fixture.EligibleAdminUserId), CancellationToken.None);
+            await fixture.SeedEligibleAdminEmploymentAsync();
             await AddShiftsAsync(fixture, shift);
             var command = Batch(
                 Item(fixture.AttachedStaffUserId, shift.Id, workDate),
@@ -152,7 +152,7 @@ public sealed partial class StaffScheduleBatchTests
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         try
         {
-            await fixture.CreateOperations().CreateStaffAsync(fixture.CreateCommand(fixture.EligibleAdminUserId), CancellationToken.None);
+            await fixture.SeedEligibleAdminEmploymentAsync();
             string fallbackName;
             await using (var setupContext = fixture.CreateContext())
             {

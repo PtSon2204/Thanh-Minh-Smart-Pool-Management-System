@@ -1,38 +1,36 @@
-using SmartPool.Application.Features.ManageStaffs;
-using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
+using SmartPool.Application.Features.ManageStaffs.Onboarding;
 
 namespace SmartPool.IntegrationTests;
 
 public sealed class StaffEmploymentIntegrationTests
 {
     [Fact]
-    public async Task GivenEligibleStaffUser_WhenCreatingAndUpdatingEmployment_ThenUserIdentityRoleAndProfileStayUnchanged()
+    public async Task GivenHistoricalEmployee_WhenUpdatingStatus_ThenUserIdentityRoleAndProfileStayUnchanged()
     {
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         try
         {
-            var before = await fixture.ReadUserSnapshotAsync(fixture.EligibleStaffUserId);
+            var before = await fixture.ReadUserSnapshotAsync(fixture.AttachedStaffUserId);
 
-            await fixture.CreateOperations().CreateStaffAsync(fixture.CreateCommand(fixture.EligibleStaffUserId), CancellationToken.None);
             await fixture.CreateOperations().UpdateStaffAsync(new UpdateStaffCommand
             {
-                UserId = fixture.EligibleStaffUserId,
+                UserId = fixture.AttachedStaffUserId,
 
                 Status = "Inactive"
             }, CancellationToken.None);
 
-            var after = await fixture.ReadUserSnapshotAsync(fixture.EligibleStaffUserId);
-            var employee = await fixture.ReadEmployeeAsync(fixture.EligibleStaffUserId);
+            var after = await fixture.ReadUserSnapshotAsync(fixture.AttachedStaffUserId);
+            var employee = await fixture.ReadEmployeeAsync(fixture.AttachedStaffUserId);
 
             Assert.Equal(before, after);
-            Assert.Equal((new DateOnly(2026, 10, 5), "Inactive"),
+            Assert.Equal((new DateOnly(2025, 1, 1), "Inactive"),
                 (employee.JoinDate, employee.Status));
         }
         finally
         {
             await fixture.CleanupAsync();
-            Assert.Equal((2, 7, 7), fixture.CleanupCounts);
+            Assert.Equal((1, 7, 7), fixture.CleanupCounts);
         }
     }
 
@@ -63,7 +61,7 @@ public sealed class StaffEmploymentIntegrationTests
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         try
         {
-            await Assert.ThrowsAsync<StaffConflictException>(() => fixture.CreateOperations()
+            await Assert.ThrowsAsync<StaffOnboardingException>(() => fixture.CreateOperations()
                 .CreateStaffAsync(fixture.CreateCommand(fixture.CustomerUserId), CancellationToken.None));
 
             Assert.False(await fixture.EmployeeExistsAsync(fixture.CustomerUserId));
@@ -84,7 +82,7 @@ public sealed class StaffEmploymentIntegrationTests
             var options = await fixture.CreateOperations().GetOptionsAsync(CancellationToken.None);
 
             Assert.DoesNotContain(options.Users, user => user.UserId == fixture.SoftDeletedRoleUserId);
-            await Assert.ThrowsAsync<StaffConflictException>(() => fixture.CreateOperations()
+            await Assert.ThrowsAsync<StaffOnboardingException>(() => fixture.CreateOperations()
                 .CreateStaffAsync(fixture.CreateCommand(fixture.SoftDeletedRoleUserId), CancellationToken.None));
             Assert.False(await fixture.EmployeeExistsAsync(fixture.SoftDeletedRoleUserId));
         }
@@ -97,7 +95,7 @@ public sealed class StaffEmploymentIntegrationTests
 
 
     [Fact]
-    public async Task GivenTwoConcurrentEmploymentCreates_WhenAttachingTheSameUser_ThenOneEmployeeAndOneControlledConflictResult()
+    public async Task GivenTwoConcurrentLegacyCreates_ThenBothRejectWithoutEmployeeAttachment()
     {
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         try
@@ -114,7 +112,7 @@ public sealed class StaffEmploymentIntegrationTests
                         .CreateStaffAsync(fixture.CreateCommand(fixture.ConcurrentStaffUserId), CancellationToken.None);
                     return true;
                 }
-                catch (StaffConflictException)
+                catch (StaffOnboardingException exception) when (exception.Code == "ONBOARDING_REQUIRED")
                 {
                     return false;
                 }
@@ -122,14 +120,13 @@ public sealed class StaffEmploymentIntegrationTests
 
             var results = await Task.WhenAll(SubmitAsync(), SubmitAsync());
 
-            Assert.Single(results, result => result);
-            Assert.Single(results, result => !result);
-            Assert.Equal(1, await fixture.EmployeeCountAsync(fixture.ConcurrentStaffUserId));
+            Assert.All(results, result => Assert.False(result));
+            Assert.Equal(0, await fixture.EmployeeCountAsync(fixture.ConcurrentStaffUserId));
         }
         finally
         {
             await fixture.CleanupAsync();
-            Assert.Equal((2, 7, 7), fixture.CleanupCounts);
+            Assert.Equal((1, 7, 7), fixture.CleanupCounts);
         }
     }
 }
