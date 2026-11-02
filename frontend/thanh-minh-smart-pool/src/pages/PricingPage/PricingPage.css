@@ -379,30 +379,12 @@
 .pl-category-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-size: 0.76rem;
   font-weight: 800;
   padding: 4px 12px;
   border-radius: 999px;
   border: 1px solid;
   letter-spacing: 0.04em;
-}
-
-.pl-popular-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: #b45309;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-
-.pl-popular-flame {
-  font-size: 0.85rem;
 }
 
 /* Ticket Name */
@@ -466,9 +448,17 @@
   font-size: 0.82rem;
   font-weight: 700;
   color: #1e293b;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.pl-meta-shifts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.35;
   white-space: nowrap;
 }
 

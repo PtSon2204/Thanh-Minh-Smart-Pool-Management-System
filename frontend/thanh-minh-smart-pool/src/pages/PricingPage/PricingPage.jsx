@@ -10,7 +10,6 @@ import { useCartStore } from '../../features/cart/store/cartStore'
 const categoryMeta = {
   VE_THANG: {
     label: 'VÉ THÁNG',
-    icon: '📅',
     color: '#0284c7',
     bg: '#e0f2fe',
     border: '#bae6fd',
@@ -18,7 +17,6 @@ const categoryMeta = {
   },
   VE_LUOT: {
     label: 'VÉ LƯỢT',
-    icon: '🎟️',
     color: '#0d9488',
     bg: '#ccfbf1',
     border: '#99f6e4',
@@ -74,7 +72,12 @@ const getInfoGrid = (ticket) => {
         </svg>
       ),
       label: 'Giờ mở cửa',
-      value: '5:30 - 21:00 hàng ngày',
+      value: (
+        <span className="pl-meta-shifts">
+          <span>Ca sáng: 06:00 – 11:30</span>
+          <span>Ca chiều: 13:30 – 19:30</span>
+        </span>
+      ),
     },
   ]
 }
@@ -284,7 +287,13 @@ export default function PricingPage() {
         {/* ── Error State ── */}
         {isError && !isLoading && (
           <div className="pl-error-box">
-            <div className="pl-error-icon">⚠️</div>
+            <div className="pl-error-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="36" height="36">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
             <h3>Không thể tải bảng giá vé</h3>
             <p>Hệ thống tạm thời gặp trục trặc khi kết nối với máy chủ. Vui lòng thử lại sau.</p>
             <button className="pl-retry-btn" onClick={() => refetch()}>
@@ -296,7 +305,12 @@ export default function PricingPage() {
         {/* ── Empty State ── */}
         {!isLoading && !isError && filtered.length === 0 && (
           <div className="pl-empty-box">
-            <div className="pl-empty-icon">🔍</div>
+            <div className="pl-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="36" height="36">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </div>
             <h3>Không tìm thấy loại vé phù hợp</h3>
             <p>
               Không có loại vé nào khớp với từ khóa <strong>"{search}"</strong>
@@ -311,10 +325,9 @@ export default function PricingPage() {
         {/* ── Ticket Grid ── */}
         {!isLoading && !isError && filtered.length > 0 && (
           <div className="pl-list">
-            {filtered.map((ticket, idx) => {
+            {filtered.map((ticket) => {
               const meta = categoryMeta[ticket.ticketCategory] ?? categoryMeta.VE_LUOT
               const info = getInfoGrid(ticket)
-              const isPopular = idx === 0
               const isThang = ticket.ticketCategory === 'VE_THANG'
 
               return (
@@ -336,16 +349,8 @@ export default function PricingPage() {
                           borderColor: meta.border,
                         }}
                       >
-                        <span className="pl-pill-icon">{meta.icon}</span>
                         {meta.label}
                       </span>
-
-                      {isPopular && (
-                        <span className="pl-popular-pill">
-                          <span className="pl-popular-flame">🔥</span>
-                          Phổ biến nhất
-                        </span>
-                      )}
                     </div>
 
                     {/* Ticket Name */}
@@ -354,8 +359,8 @@ export default function PricingPage() {
                     {/* Ticket Description */}
                     <p className="pl-ticket-desc">
                       {isThang
-                        ? `Vé tháng ${ticket.durationDays || 30} ngày - Không giới hạn buổi bơi hàng ngày, tích hợp mã QR định danh bảo mật.`
-                        : 'Vé bơi tiêu chuẩn lượt - Tự do bơi lội trong khung giờ mở cửa, sử dụng trọn vẹn tiện ích hồ bơi.'}
+                        ? `Vé tháng ${ticket.durationDays || 30} ngày - tích hợp mã QR định danh bảo mật.`
+                        : 'Vé bơi tiêu chuẩn lượt - Tự do bơi lội trong khung giờ mở cửa.'}
                     </p>
 
                     {/* Metadata Grid */}
@@ -422,7 +427,7 @@ export default function PricingPage() {
               </div>
               <div className="pl-perk-content">
                 <h4>Tủ gửi đồ cá nhân miễn phí</h4>
-                <p>Mỗi khách hàng được cấp tủ đồ cá nhân riêng có khóa an toàn trong suốt thời gian bơi lội.</p>
+                <p>Mỗi khách hàng được cấp tủ đồ cá nhân riêng trong suốt thời gian bơi lội.</p>
               </div>
             </div>
 
@@ -435,7 +440,7 @@ export default function PricingPage() {
               </div>
               <div className="pl-perk-content">
                 <h4>Bãi đỗ xe an ninh</h4>
-                <p>Bãi đỗ xe rộng rãi dành cho cả xe máy và ô tô, có bảo vệ giám sát và phát vé trông giữ miễn phí.</p>
+                <p>Bãi đỗ xe rộng rãi, có bảo vệ giám sát và phát vé trông giữ miễn phí.</p>
               </div>
             </div>
 
@@ -448,7 +453,7 @@ export default function PricingPage() {
               </div>
               <div className="pl-perk-content">
                 <h4>Cứu hộ chuyên trách &amp; AI</h4>
-                <p>Đội ngũ cứu hộ viên chứng chỉ quốc gia túc trực mép bể cùng hệ thống AI phát hiện nguy cơ tức thì.</p>
+                <p>Đội ngũ cứu hộ viên chứng chỉ quốc gia túc trực cùng hệ thống AI phát hiện nguy cơ tức thì.</p>
               </div>
             </div>
           </div>

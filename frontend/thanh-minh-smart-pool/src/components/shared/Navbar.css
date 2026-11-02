@@ -5,14 +5,15 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  transition: all 0.4s ease;
+  transition: all 0.3s ease;
 }
 
 .navbar-top {
-  background: var(--primary-dark);
+  background: #071d36;
   padding: 6px 0;
   font-size: 0.82rem;
-  color: rgba(255,255,255,0.85);
+  color: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .navbar-top .container {
@@ -28,11 +29,11 @@
 }
 
 .navbar-top-links a {
-  color: rgba(255,255,255,0.85);
+  color: rgba(255, 255, 255, 0.85);
   transition: color 0.2s;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .navbar-top-links a:hover {
@@ -41,16 +42,19 @@
 
 .navbar-hotline {
   font-weight: 700;
-  color: var(--accent) !important;
-  font-size: 0.9rem;
+  color: #38bdf8 !important;
+  font-size: 0.88rem;
+  letter-spacing: 0.5px;
 }
 
 .navbar-main {
-  background: rgba(254, 241, 230, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
   padding: 0;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  transition: all 0.3s ease;
 }
 
 .navbar-main .container {
@@ -63,15 +67,16 @@
 .navbar-logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   text-decoration: none;
 }
 
 .navbar-logo-img {
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 12px;
   object-fit: contain;
+  box-shadow: 0 2px 8px rgba(0, 119, 182, 0.15);
 }
 
 .navbar-logo-text {
@@ -80,23 +85,24 @@
 }
 
 .navbar-logo-name {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: var(--primary-dark);
-  line-height: 1.1;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .navbar-logo-sub {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.3px;
 }
 
 .navbar-nav {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .nav-item {
@@ -109,39 +115,39 @@
   justify-content: center;
   gap: 8px;
   padding: 8px 16px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text);
-  border-radius: 10px;
-  transition: all 0.2s ease-in-out;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
   white-space: nowrap;
   background: transparent;
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(2, 132, 199, 0.06);
   color: var(--primary);
 }
 
 .nav-link.active {
-  background: #ffffff;
+  background: rgba(2, 132, 199, 0.1);
   color: var(--primary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  font-weight: 700;
 }
 
 .nav-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   min-width: 200px;
-  background: #fff;
+  background: #ffffff;
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-8px);
-  transition: all 0.25s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 100;
   overflow: hidden;
 }
@@ -154,11 +160,11 @@
 
 .nav-dropdown a {
   display: block;
-  padding: 10px 16px;
-  font-size: 0.85rem;
+  padding: 12px 18px;
+  font-size: 0.88rem;
   color: var(--text);
-  transition: all 0.2s;
-  border-bottom: 1px solid var(--border);
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .nav-dropdown a:last-child {
@@ -174,7 +180,7 @@
 .navbar-cta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -210,59 +216,63 @@
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--primary-dark);
   font: inherit;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
+  transition: background 0.2s;
 }
 
 .mobile-navigation a:hover,
 .mobile-navigation button:hover,
 .mobile-navigation [aria-current="page"] {
   background: var(--bg-soft);
+  color: var(--primary);
 }
 
 .btn-ticket {
-  background: linear-gradient(135deg, var(--accent), #e85d04);
+  background: linear-gradient(135deg, #0284c7, #0369a1);
   color: #fff;
-  padding: 9px 20px;
-  border-radius: 50px;
-  font-size: 0.85rem;
+  padding: 10px 22px;
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
   font-weight: 700;
   border: none;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.25s ease;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 3px 12px rgba(247,127,0,0.3);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
 }
 
 .btn-ticket:hover {
   transform: translateY(-1px);
-  box-shadow: 0 5px 18px rgba(247,127,0,0.4);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
 }
 
-/* Auth buttons */
 .btn-auth {
   display: inline-flex;
   align-items: center;
   padding: 8px 18px;
-  border-radius: 50px;
-  font-size: 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
   font-weight: 600;
   transition: all 0.25s;
   white-space: nowrap;
 }
 
 nav .voltage-button.btn-register .v-btn {
-  border: 2px solid var(--primary);
+  border: 1.5px solid var(--primary);
   color: var(--primary);
   background: transparent;
+  font-weight: 600;
+  padding: 8px 18px;
 }
 
 nav .voltage-button.btn-register .v-btn:hover {
@@ -271,19 +281,21 @@ nav .voltage-button.btn-register .v-btn:hover {
 }
 
 nav .voltage-button.btn-login .v-btn {
-  background: var(--primary);
+  background: linear-gradient(135deg, #0284c7, #0369a1);
   color: #fff;
-  border: 2px solid var(--primary);
+  border: 1.5px solid transparent;
+  font-weight: 600;
+  padding: 8px 18px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
 }
 
 nav .voltage-button.btn-login .v-btn:hover {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
+  background: linear-gradient(135deg, #0369a1, #075985);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
 }
 
-
 .navbar-scrolled .navbar-main {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
 }
 
 /* ===== Hamburger (mobile) ===== */
@@ -294,7 +306,7 @@ nav .voltage-button.btn-login .v-btn:hover {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   min-width: 44px;
   min-height: 44px;
   align-items: center;
@@ -303,7 +315,7 @@ nav .voltage-button.btn-login .v-btn:hover {
 
 .hamburger span {
   display: block;
-  width: 24px;
+  width: 22px;
   height: 2px;
   background: var(--primary-dark);
   border-radius: 2px;
@@ -328,6 +340,5 @@ nav .voltage-button.btn-login .v-btn:hover {
   background: rgba(0, 0, 0, 0.05) !important;
 }
 .navbar-scrolled .user-dropdown-trigger:hover {
-  background: #e6e8eb !important;
+  background: #f1f5f9 !important;
 }
-

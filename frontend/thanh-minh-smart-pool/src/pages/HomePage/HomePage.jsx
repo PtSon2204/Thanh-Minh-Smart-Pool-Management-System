@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import './HomePage.css'
 import { useQuery } from '@tanstack/react-query'
 import poolAccessService from '../../features/tickets/services/poolAccessService'
+import AmbientHeroBg from '../../components/shared/AmbientHeroBg'
 
 // Import service images
 import imgLocker from '../../assets/tu-do-mien-phi.png'
@@ -13,71 +14,66 @@ import whyImg1 from '../../assets/tai-sao-anh-1-dochothue.png'
 import whyImg2 from '../../assets/tai-sao-anh-2-camera-giam-sat.png'
 import whyImg3 from '../../assets/tai-sao-anh-3-tudedofree.png'
 
-const promoItems = [
-  {
-    id: 1,
-    tag: 'Khuyến mãi',
-    emoji: '🎉',
-    title: 'KHAI TRƯƠNG MÙA HÈ 2026 – VÉ ĐỒNG GIÁ CHỈ 99K',
-    date: '01/06/2026',
-    href: '/tin-tuc/khai-truong-2026',
-  },
-  {
-    id: 2,
-    tag: 'Sự kiện',
-    emoji: '🌊',
-    title: 'LỄ HỘI NƯỚC 2026 – TRẢI NGHIỆM CẢM GIÁC MẠNH TẠI HỒ BƠI',
-    date: '15/06/2026',
-    href: '/tin-tuc/le-hoi-nuoc',
-  },
-  {
-    id: 3,
-    tag: 'Thông báo',
-    emoji: '📅',
-    title: 'LỊCH HOẠT ĐỘNG THÁNG 9/2026 – THỜI GIAN MỞ CỬA CẬP NHẬT',
-    date: '01/09/2026',
-    href: '/tin-tuc/lich-hoat-dong',
-  },
-]
 
 const whyUsItems = [
   {
     id: 1,
-    title: 'Giá cả minh bạch',
+    title: 'Giá cả minh bạch & Hợp lý',
     tag: '01 ✦ TỐI ƯU CHI PHÍ',
-    desc: 'Bảng giá được niêm yết rõ ràng, không có phụ phí ẩn. Bạn hoàn toàn yên tâm tận hưởng dịch vụ với mức chi phí hợp lý và xứng đáng nhất.',
-    features: ['Giá niêm yết công khai trên toàn hệ thống', 'Đa dạng gói vé theo nhu cầu (vé lẻ, vé tháng)'],
+    desc: 'Bảng giá được niêm yết công khai rõ ràng trên toàn hệ thống, tuyệt đối không có chi phí ẩn. Bạn hoàn toàn an tâm trải nghiệm dịch vụ với mức phí xứng đáng nhất.',
+    features: [
+      'Bảng giá niêm yết minh bạch, đa dạng gói vé',
+      'Linh hoạt lựa chọn vé lượt hoặc vé tháng tiết kiệm',
+      'Thanh toán online tiện lợi, nhận mã QR tức thì',
+    ],
+    highlightStats: [
+      { label: 'Không phụ phí ẩn', value: '100%' },
+      { label: 'Gói vé linh hoạt', value: 'Vé lượt / Tháng' },
+      { label: 'Vào cổng nhanh', value: 'Mã QR' },
+    ],
     img: null,
   },
   {
     id: 2,
-    title: 'Tủ đồ cá nhân miễn phí',
-    tag: '02 ✦ AN TOÀN & TIỆN LỢI',
-    desc: 'Hệ thống tủ đồ cá nhân hiện đại, không gian rộng rãi và hoàn toàn miễn phí, giúp bạn an tâm tuyệt đối khi bảo quản tư trang trong suốt quá trình vui chơi.',
-    features: ['Tủ khóa an toàn, riêng tư', 'Không phát sinh phụ phí bảo quản đồ'],
+    title: 'Tủ đồ cá nhân hoàn toàn miễn phí',
+    tag: '02 ✦ AN TOÀN & TIỆN NGHI',
+    desc: 'Hệ thống tủ khóa cá nhân hiện đại, phân khu thông minh, sạch sẽ và rộng rãi. Khách hàng được sử dụng miễn phí 100%, an tâm tuyệt đối về tư trang cá nhân.',
+    features: [
+      'Tủ đồ cá nhân riêng tư, bảo mật',
+      'Không tính thêm bất kỳ phụ phí bảo quản nào',
+      'Khu vực gửi đồ có nhân viên túc trực hỗ trợ',
+    ],
     img: whyImg3,
   },
   {
     id: 3,
-    title: 'Camera AI giám sát an toàn',
-    tag: '03 ✦ CÔNG NGHỆ TIÊN PHONG',
-    desc: 'Thành Minh tự hào ứng dụng công nghệ Trí tuệ nhân tạo (AI) vào hệ thống camera giám sát. Hệ thống liên tục quét và tự động phát hiện, cảnh báo ngay lập tức các nguy cơ mất an toàn.',
-    features: ['Hỗ trợ phát hiện nguy cơ đuối nước sớm', 'Giám sát 24/7 bao quát toàn bộ khu vực'],
+    title: 'Camera AI giám sát an toàn 24/7',
+    tag: '03 ✦ CÔNG NGHỆ ĐỘT PHÁ',
+    desc: 'Thành Minh tiên phong ứng dụng trí tuệ nhân tạo (AI) vào hệ thống camera an toàn. Thuật toán nhận diện tự động phát hiện sớm nguy cơ đuối nước hoặc sự cố bất thường để cứu hộ xử lý tức thì.',
+    features: [
+      'Cảnh báo sớm nguy cơ mất an toàn dưới nước',
+      'Giám sát bao quát toàn bộ diện tích mặt nước 24/7',
+      'Đội ngũ cứu hộ chuyên nghiệp phối hợp cùng AI',
+    ],
     img: whyImg2,
   },
   {
     id: 4,
-    title: 'Dịch vụ cho thuê phụ kiện',
+    title: 'Dịch vụ cho thuê phụ kiện tiện ích',
     tag: '04 ✦ TRANG BỊ ĐẦY ĐỦ',
-    desc: 'Quên mang theo phụ kiện bơi lội? Đừng lo! Chúng tôi cung cấp dịch vụ cho thuê phao bơi, kính bơi, khăn tắm sạch sẽ, chất lượng cao dành cho mọi lứa tuổi.',
-    features: ['Đa dạng mẫu mã và kích cỡ', 'Vệ sinh tiệt trùng cẩn thận sau mỗi lần thuê'],
+    desc: 'Bạn không cần lo lắng nếu quên mang theo phụ kiện bơi. Chúng tôi cung cấp dịch vụ cho thuê kính bơi, phao bơi, mũ bơi và khăn tắm sạch sẽ, được khử trùng sau mỗi lần sử dụng.',
+    features: [
+      'Trang bị chính hãng, đa dạng lứa tuổi và kích cỡ',
+      'Tiệt trùng vệ sinh nghiêm ngặt sau mỗi lượt sử dụng',
+      'Chi phí thuê hợp lý, phục vụ nhanh chóng tại chỗ',
+    ],
     img: whyImg1,
   },
 ]
 
 const services = [
-  { img: imgLocker, title: 'Tủ đồ miễn phí', desc: 'Tủ đồ cá nhân an toàn, miễn phí cho mọi khách hàng' },
-  { img: imgShop, title: 'Cho thuê phụ kiện', desc: 'Cung cấp đầy đủ phao, kính bơi, khăn tắm...' },
+  { img: imgLocker, title: 'Tủ đồ thông minh miễn phí', desc: 'Tủ khóa cá nhân an toàn, riêng tư và hoàn toàn miễn phí cho mọi khách hàng.' },
+  { img: imgShop, title: 'Cho thuê phụ kiện bơi lội', desc: 'Đầy đủ phao bơi, kính bơi, khăn tắm chất lượng cao đã tiệt trùng.' },
 ]
 
 export default function HomePage() {
@@ -93,17 +89,13 @@ export default function HomePage() {
   const currentSwimmers = occupancyData?.acceptedEntries ?? 0
 
   useEffect(() => {
-    // Scroll to top button logic
     const handleScroll = () => setShowScrollTop(window.scrollY > 400)
     window.addEventListener('scroll', handleScroll)
 
-    // Scroll animation logic (Intersection Observer)
     const observerCallback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           entry.target.classList.add('active')
-          // Optional: Keep it visible once scrolled past, or let it fade out when scrolling up
-          // observer.unobserve(entry.target) 
         }
       })
     }
@@ -111,7 +103,7 @@ export default function HomePage() {
     const observerOptions = {
       root: null,
       rootMargin: '0px',
-      threshold: 0.15, // Trigger when 15% of the element is visible
+      threshold: 0.12,
     }
 
     const observer = new IntersectionObserver(observerCallback, observerOptions)
@@ -127,34 +119,21 @@ export default function HomePage() {
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
   return (
-    <main>
+    <main className="home-page">
       {/* ===== HERO ===== */}
       <section className="hero">
-        <video 
-          className="hero-video-bg"
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          disableRemotePlayback
-          preload="auto"
-        >
-          <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260424_064411_9e9d7f84-9277-41f4-ab10-59172d89e6be.mp4" type="video/mp4" />
-        </video>
-        <div className="hero-video-overlay"></div>
+        <AmbientHeroBg />
 
-        <div className="hero-waves">
+        {/* Waves transitioning smoothly into --bg (#f8fafc) */}
+        <div className="hero-waves" aria-hidden="true">
           <svg className="wave wave1" viewBox="0 24 150 28" preserveAspectRatio="none">
             <defs>
               <path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
             </defs>
-            <use href="#gentle-wave" x="48" y="0" fill="rgba(254, 241, 230, 0.5)" />
-            <use href="#gentle-wave" x="48" y="3" fill="rgba(254, 241, 230, 0.7)" />
-            <use href="#gentle-wave" x="48" y="5" fill="#FEF1E6" />
+            <use href="#gentle-wave" x="48" y="0" fill="rgba(248, 250, 252, 0.4)" />
+            <use href="#gentle-wave" x="48" y="3" fill="rgba(248, 250, 252, 0.75)" />
+            <use href="#gentle-wave" x="48" y="5" fill="#f8fafc" />
           </svg>
-        </div>
-        <div className="hero-bubbles">
-          <span /><span /><span /><span /><span /><span />
         </div>
 
         <div className="hero-content">
@@ -162,41 +141,69 @@ export default function HomePage() {
             {/* Text side */}
             <div className="hero-text">
               <div className="hero-badge">
-                🏆 Mùa hè giải nhiệt
+                <span className="hero-badge-pulse" />
+                Bể bơi Thông minh
               </div>
               <h1 className="hero-title">
-                <div style={{ whiteSpace: 'nowrap' }}>Bể bơi <span>Thành Minh</span></div>
-                <div style={{ whiteSpace: 'nowrap' }}>Kính chào quý khách!</div>
+                <span className="hero-title-line">Bể bơi <span className="hero-title-brand">Thành Minh</span></span>
+                <span className="hero-title-line">kính chào quý khách!</span>
               </h1>
               <p className="hero-desc">
-                Trải nghiệm hồ bơi thông minh với hệ thống quản lý hiện đại —
-                đặt vé online 
-                và tận hưởng không gian vui chơi mát mẻ ngay giữa lòng thành phố.
+                Trải nghiệm hồ bơi chuẩn chất lượng với công nghệ camera AI cảnh báo sớm,
+                đặt vé trực tuyến tiện lợi và tận hưởng làn nước mát lành giữa lòng thành phố.
               </p>
               <div className="hero-actions">
-                <Link to="/bang-gia" className="btn-outline">
-                  📋 Xem bảng giá
+                <Link to="/bang-gia" className="btn-primary hero-btn-main">
+                  <span>Xem bảng giá vé</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </Link>
+                <Link to="/gioi-thieu" className="btn-outline">
+                  Tìm hiểu thêm
                 </Link>
               </div>
-              
             </div>
 
-            {/* Visual card */}
+            {/* Visual Glassmorphic Live Card */}
             <div className="hero-visual">
-              <div className="hero-card-main">
-                <div className="hero-card-title">HỆ THỐNG QUẢN LÝ</div>
-                <div className="hero-card-pool">Hồ bơi thông minh</div>
+              <div className="hero-live-card">
+                <div className="live-card-header">
+                  <div className="live-indicator">
+                    <span className="live-dot" />
+                    <span className="live-text">Đang hoạt động</span>
+                  </div>
+                  <span className="live-badge-smart">AI Smart Pool</span>
+                </div>
 
-                <div className="hero-pool-stats">
-                  <div className="hero-pool-stat">
-                    <div className="hero-pool-stat-val">{loadingOccupancy ? '...' : currentSwimmers}</div>
-                    <div className="hero-pool-stat-label">Khách hiện tại</div>
+                <div className="live-card-body">
+                  <div className="live-metric-title">Số khách đang bơi</div>
+                  <div className="live-metric-value">
+                    {loadingOccupancy ? (
+                      <span className="metric-loading">...</span>
+                    ) : (
+                      currentSwimmers
+                    )}
+                    <span className="live-metric-unit">người</span>
                   </div>
                 </div>
 
-                <div className="hero-card-status">
-                  <span className="status-dot" />
-                  Đang hoạt động bình thường
+                <div className="live-card-grid">
+                  <div className="live-grid-item">
+                    <span className="grid-item-label">Ca sáng</span>
+                    <span className="grid-item-val">06:00 – 11:30</span>
+                  </div>
+                  <div className="live-grid-item">
+                    <span className="grid-item-label">Ca chiều</span>
+                    <span className="grid-item-val">13:30 – 19:30</span>
+                  </div>
+                </div>
+
+                <div className="live-card-footer">
+                  <Link to="/bang-gia" className="live-footer-link">
+                    Đặt vé bơi trực tuyến ngay →
+                  </Link>
                 </div>
               </div>
             </div>
@@ -207,45 +214,68 @@ export default function HomePage() {
       {/* ===== TẠI SAO CHỌN THÀNH MINH ===== */}
       <section className="section-why-us">
         <div className="container">
-          <div className="section-header reveal" style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <div style={{ marginBottom: '24px' }}>
-              <div className="why-us-badge" style={{ marginBottom: 0 }}>✨ GIÁ TRỊ TỐT NHẤT DÀNH CHO BẠN</div>
-            </div>
-            <h2 className="section-title">Tại sao lại chọn <span style={{ color: 'var(--accent)', fontStyle: 'italic', fontFamily: 'serif' }}>Bể bơi Thành Minh</span>?</h2>
-            <p className="section-subtitle">{whyUsItems.length} tiêu chuẩn hàng đầu giúp chúng tôi mang đến trải nghiệm bơi lội tuyệt vời nhất</p>
+          <div className="section-header reveal" style={{ textAlign: 'center' }}>
+            <div className="why-us-badge">✨</div>
+            <h2 className="section-title">Tại sao nên chọn Bể bơi Thành Minh?</h2>
           </div>
 
           <div className="why-us-list">
             {whyUsItems.map((item, i) => {
-              // Item 2 (i=1): Image Left (row)
-              // Item 3 (i=2): Image Right (row-reverse)
-              const isReverse = i % 2 === 0 && i !== 0; 
-              const hasImage = !!item.img;
+              const isReverse = i % 2 !== 0
+              const hasImage = !!item.img
+
+              if (!hasImage) {
+                // Card 1: Giá cả minh bạch (Full width featured showcase)
+                return (
+                  <div key={item.id} className="why-us-card feature-banner reveal">
+                    <div className="feature-banner-content">
+                      <div className="why-us-tag">{item.tag}</div>
+                      <h3 className="why-us-title">{item.title}</h3>
+                      <p className="why-us-desc">{item.desc}</p>
+                      <ul className="why-us-features">
+                        {item.features.map((f, j) => (
+                          <li key={j}>
+                            <span className="check-icon">✓</span>
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {item.highlightStats && (
+                      <div className="feature-banner-stats">
+                        {item.highlightStats.map((st, k) => (
+                          <div key={k} className="banner-stat-box">
+                            <span className="stat-box-val">{st.value}</span>
+                            <span className="stat-box-lbl">{st.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
 
               return (
-                <div key={item.id} className={`why-us-card reveal ${isReverse ? 'row-reverse' : ''} ${!hasImage ? 'no-image' : ''}`}>
-                  {hasImage && (
-                    <div className="why-us-img-wrapper">
-                      <img src={item.img} alt={item.title} className="why-us-img" />
-                    </div>
-                  )}
+                <div key={item.id} className={`why-us-card reveal ${isReverse ? 'row-reverse' : ''}`}>
+                  <div className="why-us-img-wrapper">
+                    <img src={item.img} alt={item.title} className="why-us-img" loading="lazy" />
+                  </div>
                   
                   <div className="why-us-content">
-                    <div className="why-us-tag">
-                      {item.tag}
-                    </div>
+                    <div className="why-us-tag">{item.tag}</div>
                     <h3 className="why-us-title">{item.title}</h3>
                     <p className="why-us-desc">{item.desc}</p>
                     <ul className="why-us-features">
                       {item.features.map((f, j) => (
                         <li key={j}>
-                          <span className="check-icon">✓</span> {f}
+                          <span className="check-icon">✓</span>
+                          <span>{f}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         </div>
@@ -254,55 +284,40 @@ export default function HomePage() {
       {/* ===== CTA BANNER ===== */}
       <section className="section-cta">
         <div className="container">
-          <div className="cta-content reveal">
-            <h2 className="cta-title">Sẵn sàng cho một ngày vui trọn vẹn?</h2>
-            <p className="cta-desc">
-              Tham khảo bảng giá để lựa chọn loại vé phù hợp với nhu cầu của bạn.
-            </p>
-            <div className="cta-actions">
-              <Link to="/bang-gia" className="btn-outline">
-                📋 Xem bảng giá
-              </Link>
+          <div className="cta-card reveal">
+            <div className="cta-content">
+              <span className="cta-badge">🌟 Trải nghiệm bơi lội tuyệt vời</span>
+              <h2 className="cta-title">Sẵn sàng đắm mình trong làn nước mát?</h2>
+              <p className="cta-desc">
+                Đặt vé bơi online trong 30 giây. Nhận mã QR vào cổng trực tiếp nhanh chóng mà không cần xếp hàng chờ đợi.
+              </p>
+              <div className="cta-actions">
+                <Link to="/bang-gia" className="btn-primary cta-btn-white">
+                  <span>Khám phá bảng giá vé</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </Link>
+                <Link to="/lien-he" className="btn-outline">
+                  Tư vấn &amp; Hỗ trợ
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== KHUYẾN MÃI – SỰ KIỆN ===== */}
-      <section className="section-promo">
-        <div className="container">
-          <div className="section-header reveal" style={{ textAlign: 'center' }}>
-            <h2 className="section-title">Khuyến mãi – Sự kiện</h2>
-            <p className="section-subtitle">Cập nhật những ưu đãi và sự kiện hấp dẫn mới nhất</p>
-          </div>
-          <div className="promo-grid">
-            {promoItems.map((item, idx) => (
-              <div key={item.id} className="promo-card reveal" style={{ transitionDelay: `${idx * 150}ms` }}>
-                <div className="promo-card-img">{item.emoji}</div>
-                <div className="promo-card-body">
-                  <span className="promo-card-tag">{item.tag}</span>
-                  <h3 className="promo-card-title">{item.title}</h3>
-                  <p className="promo-card-date">📅 {item.date}</p>
-                  <Link to={item.href} className="promo-card-link">
-                    Xem thêm →
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== DỊCH VỤ ===== */}
+      {/* ===== DỊCH VỤ TIỆN ÍCH ===== */}
       <section className="section-services">
         <div className="container">
           <div className="section-header reveal" style={{ textAlign: 'center' }}>
-            <h2 className="section-title">Dịch vụ tại Thanh Minh</h2>
-            <p className="section-subtitle">Đa dạng dịch vụ tiện ích phục vụ trọn vẹn chuyến thăm của bạn</p>
+            <div className="why-us-badge">🎯</div>
+            <h2 className="section-title">Dịch vụ tại Thành Minh</h2>
           </div>
         </div>
         
-        {/* Infinite Marquee Slider */}
+        {/* Infinite Marquee Slider with clean fade masks */}
         <div className="services-marquee reveal">
           <div className="services-marquee-track">
             {/* Group 1 */}
@@ -310,27 +325,27 @@ export default function HomePage() {
               {[...services, ...services, ...services].map((item, i) => (
                 <div key={`s1-${i}`} className="service-card">
                   <div className="service-img-wrapper">
-                    <img src={item.img} alt={item.title} className="service-img" />
+                    <img src={item.img} alt={item.title} className="service-img" loading="lazy" />
                   </div>
                   <div className="service-content">
-                    <div className="service-title">{item.title}</div>
-                    <div className="service-desc">{item.desc}</div>
-                    <div className="service-tag">Dịch vụ tiện ích</div>
+                    <span className="service-tag">Dịch vụ tiện ích</span>
+                    <h3 className="service-title">{item.title}</h3>
+                    <p className="service-desc">{item.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
-            {/* Group 2 (Duplicate) */}
+            {/* Group 2 (Duplicate for continuous loop) */}
             <div className="marquee-group" aria-hidden="true">
               {[...services, ...services, ...services].map((item, i) => (
                 <div key={`s2-${i}`} className="service-card">
                   <div className="service-img-wrapper">
-                    <img src={item.img} alt={item.title} className="service-img" />
+                    <img src={item.img} alt={item.title} className="service-img" loading="lazy" />
                   </div>
                   <div className="service-content">
-                    <div className="service-title">{item.title}</div>
-                    <div className="service-desc">{item.desc}</div>
-                    <div className="service-tag">Dịch vụ tiện ích</div>
+                    <span className="service-tag">Dịch vụ tiện ích</span>
+                    <h3 className="service-title">{item.title}</h3>
+                    <p className="service-desc">{item.desc}</p>
                   </div>
                 </div>
               ))}
@@ -339,10 +354,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Scroll to top */}
+      {/* Floating Scroll to Top Button */}
       {showScrollTop && (
-        <button className="scroll-top-btn" onClick={scrollToTop} aria-label="Scroll to top">
-          ↑
+        <button className="scroll-top-btn" onClick={scrollToTop} aria-label="Lên đầu trang">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
         </button>
       )}
     </main>

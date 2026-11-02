@@ -31,14 +31,8 @@ export default function Footer() {
             <div className="footer-links">
               <Link to="/">→ Trang chủ</Link>
               <Link to="/gioi-thieu">→ Giới thiệu</Link>
-            </div>
-            <div className="footer-service-item">
-              <span className="footer-contact-icon"></span>
-              <span>Bảng giá vé</span>
-            </div>
-             <div className="footer-service-item">
-              <span className="footer-contact-icon"></span>
-              <span>Sơ đồ hồ bơi</span>
+              <Link to="/bang-gia">→ Bảng giá vé</Link>
+              <Link to="/lien-he">→ Liên hệ</Link>
             </div>
           </div>
 
@@ -72,13 +66,13 @@ export default function Footer() {
             </div>
             <div className="footer-contact-item">
               <span className="footer-contact-icon">📧</span>
-              <span>info@thanhminh-pool.vn</span>
+              <span>contact@thanhminh-pool.vn</span>
             </div>
             <div className="footer-contact-item">
               <span className="footer-contact-icon">🕐</span>
               <span>Mở cửa: <br />
-                Sáng: 6:00 - 10:00 <br />
-                Chiều: 15:00 - 20:00</span>
+                Ca sáng: 06:00 – 11:30 <br />
+                Ca chiều: 13:30 – 19:30</span>
             </div>
           </div>
         </div>
