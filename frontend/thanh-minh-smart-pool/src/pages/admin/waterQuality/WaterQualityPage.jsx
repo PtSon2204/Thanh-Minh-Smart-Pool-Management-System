@@ -126,7 +126,7 @@ export default function WaterQualityPage() {
         const isIdeal = num >= 7.2 && num <= 7.8;
         return (
           <Tooltip title={isIdeal ? 'Trong ngưỡng chuẩn (7.2 - 7.8)' : 'Lệch ngưỡng chuẩn'}>
-            <Text strong style={{ color: isIdeal ? '#389e0d' : '#cf1322' }}>
+            <Text strong style={{ color: isIdeal ? '#03ca77' : '#e31748' }}>
               {num.toFixed(2)}
             </Text>
           </Tooltip>
@@ -144,7 +144,7 @@ export default function WaterQualityPage() {
         const isIdeal = num >= 1.0 && num <= 3.0;
         return (
           <Tooltip title={isIdeal ? 'Trong ngưỡng chuẩn (1.0 - 3.0 mg/L)' : 'Lệch ngưỡng chuẩn'}>
-            <Text strong style={{ color: isIdeal ? '#389e0d' : '#cf1322' }}>
+            <Text strong style={{ color: isIdeal ? '#03ca77' : '#e31748' }}>
               {num.toFixed(2)} mg/L
             </Text>
           </Tooltip>
@@ -202,7 +202,7 @@ export default function WaterQualityPage() {
       render: (rec, record) => (
         <span
           style={{
-            color: record.status === 'Danger' ? '#cf1322' : '#262626',
+            color: record.status === 'Danger' ? '#e31748' : '#262626',
             fontWeight: record.status === 'Danger' ? 600 : 'normal',
           }}
         >
@@ -371,3 +371,4 @@ export default function WaterQualityPage() {
     </div>
   );
 }
+

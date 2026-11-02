@@ -20,7 +20,7 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  background: #0077b6;
+  background: var(--navy-900, #001f3e);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
@@ -63,7 +63,7 @@
 
 .invoice-btn-print {
   background: #fff;
-  color: #0077b6;
+  color: var(--primary, #0068ff);
 }
 
 .invoice-btn-close {
@@ -119,7 +119,7 @@
 .invoice-company-name {
   font-size: 22px;
   font-weight: 800;
-  color: #0077b6;
+  color: var(--primary, #0068ff);
   letter-spacing: 1.5px;
 }
 
@@ -146,7 +146,7 @@
 .invoice-title {
   font-size: 22px;
   font-weight: 800;
-  color: #0077b6;
+  color: var(--primary, #0068ff);
   letter-spacing: 2px;
 }
 
@@ -185,7 +185,7 @@
 .invoice-code {
   font-size: 14px;
   font-weight: 700;
-  color: #0077b6;
+  color: var(--primary, #0068ff);
   background: #e0f2fe;
   padding: 2px 8px;
   border-radius: 4px;
@@ -309,7 +309,7 @@
 }
 
 .invoice-items-table thead tr {
-  background: #0077b6;
+  background: var(--navy-900, #001f3e);
   color: #fff;
 }
 
@@ -356,7 +356,7 @@
 
 .col-total {
   font-weight: 600;
-  color: #0077b6;
+  color: var(--primary, #0068ff);
 }
 
 .no-items {
@@ -415,7 +415,7 @@
 .totals-final-value {
   font-size: 18px;
   font-weight: 800;
-  color: #0077b6;
+  color: var(--primary, #0068ff);
 }
 
 .totals-words {
@@ -572,3 +572,4 @@
     print-color-adjust: exact;
   }
 }
+

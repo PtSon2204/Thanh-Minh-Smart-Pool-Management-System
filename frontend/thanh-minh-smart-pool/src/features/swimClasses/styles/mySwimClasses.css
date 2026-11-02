@@ -1,0 +1,46 @@
+.my-swim-classes-page { display: grid; gap: 20px; max-width: 1280px; margin: 30px auto 60px; padding: 0 20px 28px; }
+.my-swim-classes-header, .my-swim-classes-panel { background: #fff; border: 1px solid #dce8ef; border-radius: 12px; box-shadow: 0 2px 8px rgba(16, 49, 74, .045); }
+.my-swim-classes-header { align-items: center; background: linear-gradient(115deg, #123c57, #087dad); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px; padding: 28px 30px; }
+.my-swim-classes-title { align-items: center; display: flex; gap: 16px; }
+.my-swim-classes-icon { align-items: center; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); border-radius: 13px; color: #fff; display: inline-flex; flex: 0 0 50px; font-size: 23px; height: 50px; justify-content: center; }
+.my-swim-classes-title small { color: #c7efff; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
+.my-swim-classes-title h1 { color: #fff; font-size: 25px; margin: 3px 0; }
+.my-swim-classes-title p { color: #e0f3fc; margin: 0; }
+.my-swim-classes-header .ant-btn { border-color: #fff; color: #0b638b; font-weight: 650; }
+.my-swim-classes-overview { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.my-swim-classes-next, .my-swim-classes-attention { border: 1px solid #cce6f1; border-radius: 12px; padding: 22px 24px; }
+.my-swim-classes-next { background: #eaf8fd; }
+.my-swim-classes-attention { background: #fff8e8; border-color: #f2dfae; }
+.my-swim-classes-overview-label { color: #0b688f; display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; margin-bottom: 8px; }
+.my-swim-classes-attention .my-swim-classes-overview-label { color: #946319; }
+.my-swim-classes-overview strong { color: #153a51; display: block; font-size: 22px; line-height: 1.3; }
+.my-swim-classes-overview p { color: #526d7c; margin: 8px 0 16px; }
+.my-swim-classes-panel { min-width: 0; padding: 22px 26px; }
+.my-swim-classes-toolbar { align-items: center; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.my-swim-classes-filter-scroll { max-width: 100%; overflow-x: auto; }
+.my-swim-classes-loading { align-items: center; color: #61758a; display: flex; gap: 12px; justify-content: center; min-height: 210px; }
+.my-swim-classes-grid { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.my-swim-class-card { border: 1px solid #dce8ef; border-radius: 11px; display: flex; flex-direction: column; min-width: 0; padding: 19px; }
+.my-swim-class-card-top { display: flex; flex-wrap: wrap; gap: 5px; min-height: 25px; }
+.my-swim-class-card-top .ant-tag { margin: 0; }
+.my-swim-class-card h2 { color: #173c55; font-size: 18px; line-height: 1.4; margin: 12px 0 16px; overflow-wrap: anywhere; }
+.my-swim-class-next-session { background: #f0f8fb; border-radius: 9px; display: grid; gap: 5px; margin-bottom: 17px; padding: 13px 14px; }
+.my-swim-class-next-session span { color: #39738d; font-size: 12px; }
+.my-swim-class-next-session strong { color: #124f71; font-size: 15px; }
+.my-swim-class-card dl { display: grid; gap: 11px; margin: 0; }
+.my-swim-class-card dl > div { display: flex; justify-content: space-between; gap: 10px; }
+.my-swim-class-card dt { color: #61758a; font-size: 12px; flex: 0 0 auto; }
+.my-swim-class-card dt .anticon { color: #0077b6; margin-right: 4px; }
+.my-swim-class-card dd { color: #294a5e; font-size: 12px; font-weight: 700; margin: 0; text-align: right; overflow-wrap: anywhere; }
+.my-swim-class-registered-at { color: #7a8b99; font-size: 12px; margin: 18px 0 0; }
+.my-swim-class-card-actions { border-top: 1px solid #edf2f5; margin-top: auto; padding-top: 15px; }
+.my-swim-class-card-actions span { color: #7a8b99; font-size: 12px; }
+.my-swim-classes-pagination { display: flex; justify-content: flex-end; margin-top: 22px; }
+@media (max-width: 1000px) { .my-swim-classes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 650px) {
+  .my-swim-classes-page { gap: 12px; margin-top: 18px; padding: 0 12px 28px; }
+  .my-swim-classes-header, .my-swim-classes-panel { padding: 18px 16px; }
+  .my-swim-classes-title h1 { font-size: 21px; }
+  .my-swim-classes-grid { grid-template-columns: 1fr; }
+  .my-swim-classes-pagination { justify-content: center; }
+}

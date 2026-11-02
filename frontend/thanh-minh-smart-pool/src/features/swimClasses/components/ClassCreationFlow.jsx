@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { CalendarOutlined, CheckCircleOutlined, TeamOutlined } from '@ant-design/icons'
-import { Alert, Button, ConfigProvider, Form, Steps, Tag, Typography } from 'antd'
+import { CalendarOutlined, CheckCircleOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons'
+import { Button, ConfigProvider, Form, Popconfirm, Steps, Tag, Typography } from 'antd'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useActivateSwimClass, useCreateClassSessions, useCreateSwimClass, useSwimClassCoaches } from '../hooks/useSwimClassManagement'
 import { applyClassServerErrors, classServerMessage } from '../utils/classDisplay'
@@ -16,7 +16,8 @@ import '../styles/swimClassManagement.css'
 const { Text, Title } = Typography
 
 export default function ClassCreationFlow() {
-  const userId = useAuthStore((state) => state.session?.id)
+  const session = useAuthStore((state) => state.session)
+  const userId = session?.id
   const [classForm] = Form.useForm()
   const [sessionsForm] = Form.useForm()
   const [draft, setDraft] = useState(() => readClassDraft(userId))
@@ -45,7 +46,6 @@ export default function ClassCreationFlow() {
         description: values.description?.trim() || null,
         capacity: values.capacity,
         fee: values.fee,
-        coachUserId: values.coachUserId,
         registrationStartAt: vietnamPickerTimeToUtc(values.registrationStartAt),
         registrationEndAt: vietnamPickerTimeToUtc(values.registrationEndAt),
       })
@@ -115,14 +115,22 @@ export default function ClassCreationFlow() {
   }
 
   return <ConfigProvider theme={{ token: { colorPrimary: '#0077b6', colorInfo: '#0077b6', borderRadius: 8 } }}>
-    <div className="swim-class-create-page">
+    <div className="swim-class-create-page swim-class-create-page--coach">
       <header className="swim-class-page-header">
         <div className="swim-class-page-title">
           <span className="swim-class-page-icon"><TeamOutlined /></span>
-          <div><span className="swim-class-eyebrow">QUẢN LÝ LỚP DẠY BƠI</span><Title level={2}>Tạo lớp và lịch học</Title>
-            <Text type="secondary">Thiết lập thông tin lớp, phân công Coach và sắp xếp các buổi học.</Text></div>
+          <div><span className="swim-class-eyebrow">KHU VỰC COACH</span><Title level={2}>Tạo lớp và lịch học</Title>
+            <Text type="secondary">Thiết lập lớp của bạn và sắp xếp các buổi học.</Text></div>
         </div>
-        <Tag color={stage === 2 ? 'success' : 'processing'}>{stage === 2 ? 'Đã kích hoạt' : draft ? 'Bản nháp đã lưu' : 'Lớp mới'}</Tag>
+        <div className="swim-class-page-header-actions">
+          {stage === 1 && <Popconfirm
+            title="Tạo lớp mới?"
+            description="Bản nháp hiện tại vẫn được lưu và có thể mở lại từ danh sách lớp."
+            okText="Tạo lớp mới" cancelText="Ở lại" onConfirm={startNewClass}>
+            <Button icon={<PlusOutlined />}>Tạo lớp khác</Button>
+          </Popconfirm>}
+          <Tag color={stage === 2 ? 'success' : 'processing'}>{stage === 2 ? 'Đã kích hoạt' : draft ? 'Bản nháp đã lưu' : 'Lớp mới'}</Tag>
+        </div>
       </header>
 
       <section className="swim-class-step-panel" aria-label="Tiến độ tạo lớp">
@@ -133,12 +141,8 @@ export default function ClassCreationFlow() {
         ]} />
       </section>
 
-      {coachesQuery.isError && stage !== 2 && <Alert className="swim-class-top-alert" type="warning" showIcon title="Không tải được danh sách Coach"
-        description="Kiểm tra kết nối và thử tải lại trước khi chọn Coach phụ trách."
-        action={<Button onClick={() => coachesQuery.refetch()}>Tải lại</Button>} />}
-
       {stage === 0 && <SwimClassInfoForm form={classForm} onFinish={submitClass} pending={createClass.isPending}
-        coachesQuery={coachesQuery} coachOptions={coachOptions} error={classError} />}
+        error={classError} />}
 
       {stage === 1 && <div className="swim-class-schedule-layout">
         <ClassDraftSummary draft={draft} coaches={coaches} />

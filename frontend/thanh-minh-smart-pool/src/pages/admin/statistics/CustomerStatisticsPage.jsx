@@ -71,7 +71,7 @@ export default function CustomerStatisticsPage() {
       width: 70,
       align: 'center',
       render: (_, __, index) => {
-        const colors = ['#f59e0b', '#94a3b8', '#b45309'];
+        const colors = ['#faa828', '#94a3b8', '#b45309'];
         return index < 3 ? (
           <span style={{
             display: 'inline-flex',
@@ -97,7 +97,7 @@ export default function CustomerStatisticsPage() {
       dataIndex: 'fullName',
       render: (name, record) => (
         <div>
-          <Text strong style={{ color: '#0f172a' }}>{name}</Text>
+          <Text strong style={{ color: '#001f3e' }}>{name}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>{record.email || '—'}</Text>
         </div>
@@ -121,7 +121,7 @@ export default function CustomerStatisticsPage() {
       dataIndex: 'totalEntries',
       align: 'center',
       render: (entries) => (
-        <span style={{ fontWeight: 700, color: '#0284c7' }}>
+        <span style={{ fontWeight: 700, color: '#0068ff' }}>
           {entries} lượt
         </span>
       ),
@@ -131,7 +131,7 @@ export default function CustomerStatisticsPage() {
       dataIndex: 'totalSpending',
       align: 'right',
       render: (spent) => (
-        <span style={{ fontWeight: 600, color: '#16a34a' }}>
+        <span style={{ fontWeight: 600, color: '#03ca77' }}>
           {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(spent || 0)}
         </span>
       ),
@@ -155,7 +155,7 @@ export default function CustomerStatisticsPage() {
         marginBottom: 24
       }}>
         <div>
-          <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
+          <Title level={3} style={{ margin: 0, color: '#001f3e' }}>
             📊 Thống Kê Khách Hàng & Hoạt Động Bể Bơi
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
@@ -195,16 +195,16 @@ export default function CustomerStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
-                borderLeft: '4px solid #0284c7'
+                borderLeft: '4px solid #0068ff'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>TỔNG KHÁCH HÀNG</span>}
                 value={data?.totalCustomers || 0}
-                prefix={<UserOutlined style={{ color: '#0284c7', marginRight: 8 }} />}
+                prefix={<UserOutlined style={{ color: '#0068ff', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>người</span>}
               />
-              <div style={{ marginTop: 8, fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#03ca77', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <RiseOutlined /> <span>Tăng trưởng +{data?.growthRate || 0}% so với kỳ trước</span>
               </div>
             </Card>
@@ -217,13 +217,13 @@ export default function CustomerStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
-                borderLeft: '4px solid #16a34a'
+                borderLeft: '4px solid #03ca77'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>KHÁCH MỚI TRONG KỲ</span>}
                 value={data?.newCustomersInPeriod || 0}
-                prefix={<UserAddOutlined style={{ color: '#16a34a', marginRight: 8 }} />}
+                prefix={<UserAddOutlined style={{ color: '#03ca77', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>người</span>}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
@@ -239,13 +239,13 @@ export default function CustomerStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
-                borderLeft: '4px solid #8b5cf6'
+                borderLeft: '4px solid #6356e4'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>HỘI VIÊN VÉ THÁNG</span>}
                 value={data?.activeMonthlySubscribers || 0}
-                prefix={<IdcardOutlined style={{ color: '#8b5cf6', marginRight: 8 }} />}
+                prefix={<IdcardOutlined style={{ color: '#6356e4', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>thẻ đang hoạt động</span>}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
@@ -261,13 +261,13 @@ export default function CustomerStatisticsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)',
-                borderLeft: '4px solid #005f8e'
+                borderLeft: '4px solid #0068ff'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>TỔNG LƯỢT BƠI (CHECK-IN)</span>}
                 value={data?.totalSwimEntries || 0}
-                prefix={<CheckCircleOutlined style={{ color: '#005f8e', marginRight: 8 }} />}
+                prefix={<CheckCircleOutlined style={{ color: '#0068ff', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>lượt vào bể</span>}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
@@ -284,7 +284,7 @@ export default function CustomerStatisticsPage() {
             <Card
               title={
                 <Space>
-                  <LineChartOutlined style={{ color: '#0284c7' }} />
+                  <LineChartOutlined style={{ color: '#0068ff' }} />
                   <span>Xu hướng lượt khách vào bơi theo thời gian</span>
                 </Space>
               }
@@ -299,12 +299,12 @@ export default function CustomerStatisticsPage() {
                   >
                     <defs>
                       <linearGradient id="colorSwim" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0284c7" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#0284c7" stopOpacity={0.05} />
+                        <stop offset="5%" stopColor="#0068ff" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#0068ff" stopOpacity={0.05} />
                       </linearGradient>
                       <linearGradient id="colorUser" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                        <stop offset="5%" stopColor="#03ca77" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#03ca77" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -323,7 +323,7 @@ export default function CustomerStatisticsPage() {
                       type="monotone"
                       dataKey="swimEntries"
                       name="Lượt khách bơi"
-                      stroke="#0284c7"
+                      stroke="#0068ff"
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#colorSwim)"
@@ -332,7 +332,7 @@ export default function CustomerStatisticsPage() {
                       type="monotone"
                       dataKey="newUsers"
                       name="Khách đăng ký mới"
-                      stroke="#10b981"
+                      stroke="#03ca77"
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#colorUser)"
@@ -348,7 +348,7 @@ export default function CustomerStatisticsPage() {
             <Card
               title={
                 <Space>
-                  <PieChartOutlined style={{ color: '#8b5cf6' }} />
+                  <PieChartOutlined style={{ color: '#6356e4' }} />
                   <span>Cơ cấu phân khúc khách hàng</span>
                 </Space>
               }
@@ -386,7 +386,7 @@ export default function CustomerStatisticsPage() {
         <Card
           title={
             <Space>
-              <ClockCircleOutlined style={{ color: '#005f8e' }} />
+              <ClockCircleOutlined style={{ color: '#0068ff' }} />
               <span>Mật độ khách bơi theo khung giờ trong ngày (Khung giờ cao điểm)</span>
             </Space>
           }
@@ -416,7 +416,7 @@ export default function CustomerStatisticsPage() {
                 <Bar
                   dataKey="count"
                   name="Số lượt khách vào bơi"
-                  fill="#005f8e"
+                  fill="#0068ff"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
@@ -428,7 +428,7 @@ export default function CustomerStatisticsPage() {
         <Card
           title={
             <Space>
-              <TrophyOutlined style={{ color: '#f59e0b' }} />
+              <TrophyOutlined style={{ color: '#faa828' }} />
               <span>Top khách hàng tích cực và thân thiết nhất</span>
             </Space>
           }
@@ -448,3 +448,4 @@ export default function CustomerStatisticsPage() {
     </div>
   );
 }
+

@@ -19,6 +19,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAccessTokenService _accessTokenService;
     private readonly IRefreshTokenService _refreshTokenService;
+    private readonly IUserRoleMembershipService? _membership;
     private readonly IValidator<LoginCommand> _validator;
 
     public LoginHandler(
@@ -27,7 +28,8 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         IPasswordHasher passwordHasher,
         IAccessTokenService accessTokenService,
         IRefreshTokenService refreshTokenService,
-        IValidator<LoginCommand> validator)
+        IValidator<LoginCommand> validator,
+        IUserRoleMembershipService? membership = null)
     {
         _users = users;
         _roles = roles;
@@ -35,6 +37,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         _accessTokenService = accessTokenService;
         _refreshTokenService = refreshTokenService;
         _validator = validator;
+        _membership = membership;
     }
 
     public async Task<IActionResult> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -90,16 +93,21 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         if (role is null || role.IsDeleted == true)
             return InvalidCredentials();
 
-        var token = _accessTokenService.CreateToken(authenticatedUser, role.Name);
         var refreshToken = await _refreshTokenService.CreateAsync(authenticatedUser.Id,
             authenticatedUser.PasswordHash!, cancellationToken);
         if (refreshToken is null)
             return InvalidCredentials();
+        IReadOnlyList<string> roles = _membership is null ? [role.Name] :
+            await _membership.GetActiveRolesAsync(authenticatedUser.Id, role.Name, cancellationToken);
+        var token = _membership is null
+            ? _accessTokenService.CreateToken(authenticatedUser, role.Name)
+            : _accessTokenService.CreateToken(authenticatedUser, role.Name, roles);
         return new OkObjectResult(new LoginResponse
         {
             Id = authenticatedUser.Id,
             Username = authenticatedUser.Username ?? string.Empty,
             Role = role.Name,
+            Roles = roles,
             AccessToken = token.Token,
             ExpiresAtUtc = token.ExpiresAtUtc,
             RefreshToken = refreshToken.Token,

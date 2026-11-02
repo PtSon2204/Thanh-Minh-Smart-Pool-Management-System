@@ -2,6 +2,7 @@ import { CheckCircleOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Empty, Tag } from 'antd'
 import { coachName } from '../utils/classDisplay'
 import { formatVietnamTime } from '../utils/classSchedule'
+import { canActivateClass } from '../utils/classAvailability'
 
 export default function ClassScheduleReview({ draft, coaches, activationError, activating, savingSessions, onActivate }) {
   return <>
@@ -15,9 +16,9 @@ export default function ClassScheduleReview({ draft, coaches, activationError, a
       </div>}
     </Card>
     <Card className="swim-class-activate-card">
-      <div><strong>Sẵn sàng mở đăng ký?</strong><p>Kích hoạt khi lớp đã có ít nhất một buổi sắp tới với Coach đang hoạt động.</p></div>
+      <div><strong>Sẵn sàng mở đăng ký?</strong><p>Cần ít nhất một buổi sắp tới và hạn đăng ký kết thúc không muộn hơn buổi đầu tiên.</p></div>
       {activationError && <Alert type="error" showIcon title={activationError} className="swim-class-form-alert" />}
-      <Button type="primary" icon={<CheckCircleOutlined />} size="large" disabled={!draft.sessions.length || savingSessions} loading={activating} onClick={onActivate}>Kích hoạt lớp</Button>
+      <Button type="primary" icon={<CheckCircleOutlined />} size="large" disabled={!canActivateClass(draft) || savingSessions} loading={activating} onClick={onActivate}>Kích hoạt lớp</Button>
     </Card>
   </>
 }

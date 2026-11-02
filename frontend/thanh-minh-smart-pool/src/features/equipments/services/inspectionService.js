@@ -15,6 +15,14 @@ export const inspectionService = {
     const { data } = await apiClient.get(base, { params, signal })
     return data
   },
+  async resolveItem(inspectionId, equipmentId, { action, note }, signal) {
+    const { data } = await apiClient.patch(
+      `${base}/${inspectionId}/items/${equipmentId}/resolve`,
+      { action, note },
+      { signal }
+    )
+    return data
+  },
 }
 
 export default inspectionService

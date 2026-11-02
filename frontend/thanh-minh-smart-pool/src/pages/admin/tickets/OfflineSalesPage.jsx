@@ -247,7 +247,7 @@ export default function OfflineSalesPage() {
   const renderTicketSection = (title, tickets) => (
     tickets.length > 0 && (
       <div style={{ marginBottom: 24 }}>
-        <Title level={5} style={{ color: '#005f8e', borderBottom: '2px solid #005f8e', paddingBottom: 8, display: 'inline-block' }}>
+        <Title level={5} style={{ color: '#0068ff', borderBottom: '2px solid #0068ff', paddingBottom: 8, display: 'inline-block' }}>
           {title}
         </Title>
         <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
@@ -267,7 +267,7 @@ export default function OfflineSalesPage() {
                 <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8, color: '#1a1a2e' }}>
                   {tt.name}
                 </div>
-                <div style={{ color: '#005f8e', fontWeight: 700, fontSize: 18 }}>
+                <div style={{ color: '#0068ff', fontWeight: 700, fontSize: 18 }}>
                   {new Intl.NumberFormat('vi-VN').format(tt.price)} đ
                 </div>
               </Card>
@@ -351,7 +351,7 @@ export default function OfflineSalesPage() {
                   >
                     <List.Item.Meta
                       title={<span style={{ fontWeight: 600 }}>{item.ticketType.name}</span>}
-                      description={<span style={{ color: '#005f8e', fontWeight: 600 }}>{new Intl.NumberFormat('vi-VN').format(item.ticketType.price)} đ</span>}
+                      description={<span style={{ color: '#0068ff', fontWeight: 600 }}>{new Intl.NumberFormat('vi-VN').format(item.ticketType.price)} đ</span>}
                     />
                     <InputNumber 
                       min={1} 
@@ -366,7 +366,7 @@ export default function OfflineSalesPage() {
 
             {requiresRegistration && (
               <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <div style={{ fontWeight: 600, color: '#ff4d4f', marginBottom: 12 }}>
+                <div style={{ fontWeight: 600, color: '#e31748', marginBottom: 12 }}>
                   * Bắt buộc nhập thông tin khách hàng (do có mua Vé Tháng)
                 </div>
                 <Form layout="vertical">
@@ -438,7 +438,7 @@ export default function OfflineSalesPage() {
                     </Button>
                   </div>
                   {(voucherError || appliedVoucherError) && (
-                    <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ marginTop: 6, color: '#e31748', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CloseCircleOutlined /> {voucherError || appliedVoucherError}
                     </div>
                   )}
@@ -446,25 +446,25 @@ export default function OfflineSalesPage() {
               ) : (
                 <div style={{
                   background: 'linear-gradient(135deg, #f6ffed 0%, #e6fffb 100%)',
-                  border: '1px dashed #52c41a',
+                  border: '1px dashed #03ca77',
                   borderRadius: 10, padding: '10px 14px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                      <CheckCircleOutlined style={{ color: '#03ca77' }} />
                       <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#135200', fontSize: 14 }}>
                         {appliedVoucher.code}
                       </span>
                       <Tag color="success" bordered={false} style={{ fontSize: 11 }}>ĐÃ ÁP</Tag>
                     </div>
-                    <div style={{ fontSize: 12, color: '#52c41a', fontWeight: 600 }}>
+                    <div style={{ fontSize: 12, color: '#03ca77', fontWeight: 600 }}>
                       Giảm {appliedVoucher.discountType === 'PERCENTAGE'
                         ? `${appliedVoucher.discountValue}%`
                         : `${new Intl.NumberFormat('vi-VN').format(appliedVoucher.discountValue)}đ`
                       }
                       {' · Tiết kiệm: '}
-                      <strong style={{ color: '#cf1322' }}>
+                      <strong style={{ color: '#e31748' }}>
                         -{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ
                       </strong>
                     </div>
@@ -490,14 +490,14 @@ export default function OfflineSalesPage() {
               </div>
             )}
             {appliedVoucher && discountAmount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: '#52c41a', fontSize: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: '#03ca77', fontSize: 14 }}>
                 <span>Giảm giá:</span>
                 <span>-{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ</span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <span style={{ fontSize: 16, fontWeight: 600 }}>TỔNG TIỀN:</span>
-              <span style={{ fontSize: 24, fontWeight: 800, color: '#ff4d4f' }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#e31748' }}>
                 {formattedTotal}
               </span>
             </div>
@@ -507,7 +507,7 @@ export default function OfflineSalesPage() {
               size="large"
               disabled={!canCheckout}
               onClick={handleOpenPaymentMethod}
-              style={{ width: '100%', height: 60, fontSize: 18, fontWeight: 700, borderRadius: 12, background: 'linear-gradient(90deg, #005f8e 0%, #00b4d8 100%)', border: 'none' }}
+              style={{ width: '100%', height: 60, fontSize: 18, fontWeight: 700, borderRadius: 12, background: 'linear-gradient(135deg, #001f3e 0%, #002d59 60%, #0068ff 100%)', border: 'none' }}
             >
               THANH TOÁN
             </Button>
@@ -531,15 +531,15 @@ export default function OfflineSalesPage() {
               <p style={{ fontSize: 15, color: '#8c8c8c', marginBottom: 4 }}>
                 Tạm tính: <span style={{ textDecoration: 'line-through' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)}</span>
               </p>
-              <p style={{ fontSize: 14, color: '#52c41a', marginBottom: 4 }}>
+              <p style={{ fontSize: 14, color: '#03ca77', marginBottom: 4 }}>
                 Mã <strong>{appliedVoucher.code}</strong>: -{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ
               </p>
               <p style={{ fontSize: 18, marginBottom: 0 }}>
-                Thanh toán: <strong style={{ color: '#ff4d4f', fontSize: 26 }}>{formattedTotal}</strong>
+                Thanh toán: <strong style={{ color: '#e31748', fontSize: 26 }}>{formattedTotal}</strong>
               </p>
             </div>
           ) : (
-            <p style={{ fontSize: 18, marginBottom: 24 }}>Tổng số tiền cần thanh toán: <strong style={{ color: '#ff4d4f', fontSize: 24 }}>{formattedTotal}</strong></p>
+            <p style={{ fontSize: 18, marginBottom: 24 }}>Tổng số tiền cần thanh toán: <strong style={{ color: '#e31748', fontSize: 24 }}>{formattedTotal}</strong></p>
           )}
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Button 
@@ -547,7 +547,7 @@ export default function OfflineSalesPage() {
               size="large" 
               block 
               icon={<DollarOutlined />} 
-              style={{ height: 60, fontSize: 18, background: '#52c41a', borderColor: '#52c41a' }}
+              style={{ height: 60, fontSize: 18, background: '#03ca77', borderColor: '#03ca77' }}
               onClick={handlePayCash}
               loading={isSellingCash}
             >
@@ -599,7 +599,7 @@ export default function OfflineSalesPage() {
                 Đã nhận: <strong>{new Intl.NumberFormat('vi-VN').format(orderStatusData.paidAmount)} đ</strong>
               </div>
               <div style={{ fontSize: 13, color: '#555' }}>
-                Còn thiếu: <strong style={{ color: '#f97316' }}>{new Intl.NumberFormat('vi-VN').format(orderStatusData.remainingAmount)} đ</strong>
+                Còn thiếu: <strong style={{ color: '#faa828' }}>{new Intl.NumberFormat('vi-VN').format(orderStatusData.remainingAmount)} đ</strong>
               </div>
               <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
                 Mã QR bên dưới đã tự cập nhật số tiền còn thiếu để khách quét nốt.
@@ -616,10 +616,10 @@ export default function OfflineSalesPage() {
           </div>
           <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 15, display: 'block' }}>
-              Số tiền: <strong style={{ color: '#f97316', fontSize: 16 }}>{new Intl.NumberFormat('vi-VN').format(currentQrAmount)} đ</strong>
+              Số tiền: <strong style={{ color: '#faa828', fontSize: 16 }}>{new Intl.NumberFormat('vi-VN').format(currentQrAmount)} đ</strong>
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1890ff', fontSize: 16, fontWeight: 'bold' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0068ff', fontSize: 16, fontWeight: 'bold' }}>
             <LoadingOutlined style={{ marginRight: 8 }} /> Đang chờ thanh toán...
           </div>
           <p style={{ color: '#8c8c8c', marginTop: 12, fontSize: 12 }}>
@@ -647,7 +647,7 @@ export default function OfflineSalesPage() {
               Tạm tính: {soldOrder ? new Intl.NumberFormat('vi-VN').format(soldOrder.totalAmount) : 0} đ
             </div>
             {soldOrder?.discountAmount > 0 && (
-              <div style={{ marginTop: 4, color: '#ff4d4f' }}>
+              <div style={{ marginTop: 4, color: '#e31748' }}>
                 Mã giảm giá ({soldOrder?.voucherCode}): -{new Intl.NumberFormat('vi-VN').format(soldOrder.discountAmount)} đ
               </div>
             )}
@@ -721,7 +721,7 @@ export default function OfflineSalesPage() {
         width={400}
       >
         <Result
-          icon={<CheckCircleFilled style={{ color: '#52c41a' }} />}
+          icon={<CheckCircleFilled style={{ color: '#03ca77' }} />}
           title="Bán vé thành công!"
           subTitle={`Tổng tiền: ${soldOrder ? new Intl.NumberFormat('vi-VN').format(soldOrder.totalAmount) : 0} đ`}
           extra={[
@@ -737,3 +737,4 @@ export default function OfflineSalesPage() {
     </>
   )
 }
+

@@ -10,7 +10,6 @@ export function savePendingRegistration(pending) {
       registrationExpiresAtUtc: pending.registrationExpiresAtUtc,
       resendAvailableAtUtc: pending.resendAvailableAtUtc,
       email: pending.email,
-      username: pending.username,
     }))
   } catch {
     // Navigation state still lets the user verify in the current tab.
@@ -21,12 +20,12 @@ export function readPendingRegistration() {
   try {
     const value = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null')
     const parsed = registerPendingResponseSchema.safeParse(value)
-    if (!parsed.success || typeof value.email !== 'string' || typeof value.username !== 'string' ||
+    if (!parsed.success || typeof value.email !== 'string' ||
       Date.parse(parsed.data.registrationExpiresAtUtc) <= Date.now()) {
       clearPendingRegistration()
       return null
     }
-    return { ...parsed.data, email: value.email, username: value.username }
+    return { ...parsed.data, email: value.email }
   } catch {
     clearPendingRegistration()
     return null

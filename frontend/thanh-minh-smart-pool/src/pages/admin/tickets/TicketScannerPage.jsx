@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CheckCircleOutlined, QrcodeOutlined, SearchOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Descriptions, Input, Segmented, Space, Spin, Tag } from 'antd'
+import { Alert, Button, Card, Descriptions, Input, Segmented, Space, Spin } from 'antd'
 import { QrScanner } from "../../../features/qr/components/QrScanner"
 import { QR_PURPOSE } from "../../../features/qr/utils/qrPurpose"
 import poolAccessService from "../../../features/tickets/services/poolAccessService"
@@ -30,10 +30,13 @@ function TicketPreview({ lookup }) {
   const ticket = ticketOf(lookup)
   if (!ticket) return null
 
+  const usedAt = valueOf(ticket, 'usedAt', 'UsedAt')
+
   return <Descriptions bordered column={1} size="small" title="Thông tin vé">
     <Descriptions.Item label="Loại vé">{valueOf(ticket, 'ticketTypeName', 'TicketTypeName') || 'Không xác định'}</Descriptions.Item>
     <Descriptions.Item label="Phân loại">{valueOf(ticket, 'category', 'Category') || 'Không xác định'}</Descriptions.Item>
     <Descriptions.Item label="Trạng thái">{valueOf(ticket, 'status', 'Status') || 'Không xác định'}</Descriptions.Item>
+    <Descriptions.Item label="Thời điểm sử dụng">{usedAt ? new Date(usedAt).toLocaleString('vi-VN') : 'Chưa sử dụng'}</Descriptions.Item>
     <Descriptions.Item label="Hết hạn">{valueOf(ticket, 'expiryDate', 'ExpiryDate') ? new Date(valueOf(ticket, 'expiryDate', 'ExpiryDate')).toLocaleString('vi-VN') : 'Không áp dụng'}</Descriptions.Item>
     <Descriptions.Item label="Lượt còn lại">{valueOf(ticket, 'remainingEntries', 'RemainingEntries') ?? 'Không áp dụng'}</Descriptions.Item>
   </Descriptions>
@@ -164,7 +167,6 @@ export default function TicketScannerPage() {
           <TicketPreview lookup={lookup} />
           {notice && <Alert showIcon type={notice.type} title={notice.message} />}
           {lookup && <Button type="primary" icon={<CheckCircleOutlined />} onClick={confirmEntry} loading={phase === 'confirming' || phase === 'reconciling'} disabled={!canConfirm}>Xác nhận vào bể</Button>}
-          {lookup && !isLookupValid(lookup) && <Tag color="error">Không thể xác nhận vé không hợp lệ hoặc không tìm thấy.</Tag>}
         </Space>
       </Card>
     </section>

@@ -72,7 +72,7 @@ export default function VoucherPage() {
       content: (
         <span>
           Bạn muốn <strong>{action}</strong> mã{' '}
-          <Text code style={{ color: '#1890ff' }}>{record.code}</Text>?
+          <Text code style={{ color: '#0068ff' }}>{record.code}</Text>?
         </span>
       ),
       okText: action.charAt(0).toUpperCase() + action.slice(1),
@@ -88,7 +88,7 @@ export default function VoucherPage() {
       content: (
         <span>
           Bạn chắc chắn muốn xóa mã{' '}
-          <Text code style={{ color: '#cf1322' }}>{record.code}</Text>?
+          <Text code style={{ color: '#e31748' }}>{record.code}</Text>?
           Thao tác này không thể hoàn tác.
         </span>
       ),
@@ -110,8 +110,8 @@ export default function VoucherPage() {
           copyable
           style={{
             fontFamily: 'monospace', fontWeight: 'bold', fontSize: '13px',
-            color: '#1890ff', backgroundColor: '#e6f7ff',
-            padding: '4px 10px', borderRadius: '6px', border: '1px dashed #91d5ff'
+            color: '#0068ff', backgroundColor: '#e6f0ff',
+            padding: '4px 10px', borderRadius: '6px', border: '1px dashed #b2d5ff'
           }}
         >
           {code}
@@ -141,7 +141,7 @@ export default function VoucherPage() {
       align: 'right',
       width: '13%',
       render: (value, record) => (
-        <Text strong style={{ fontSize: '14px', color: '#cf1322' }}>
+        <Text strong style={{ fontSize: '14px', color: '#e31748' }}>
           {record.discountType === DiscountType.PERCENTAGE ? `${value}%` : currencyFormatter.format(value)}
         </Text>
       )
@@ -198,7 +198,7 @@ export default function VoucherPage() {
               type="text"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-              style={{ color: '#1890ff' }}
+              style={{ color: '#0068ff' }}
             />
           </Tooltip>
           <Tooltip title={record.isActive ? 'Khóa voucher' : 'Mở khóa voucher'}>
@@ -207,7 +207,7 @@ export default function VoucherPage() {
               icon={record.isActive ? <LockOutlined /> : <UnlockOutlined />}
               onClick={() => handleToggleLock(record)}
               loading={isToggling}
-              style={{ color: record.isActive ? '#fa8c16' : '#52c41a' }}
+              style={{ color: record.isActive ? '#faa828' : '#03ca77' }}
             />
           </Tooltip>
           <Tooltip title="Xóa voucher">
@@ -237,7 +237,7 @@ export default function VoucherPage() {
             <Space align="center" size="middle">
               <div style={{
                 width: 48, height: 48, borderRadius: '12px',
-                background: 'linear-gradient(135deg, #36cfc9 0%, #096dd9 100%)',
+                background: 'linear-gradient(135deg, #001f3e 0%, #0068ff 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 4px 12px rgba(54, 207, 201, 0.35)'
               }}>
@@ -257,7 +257,7 @@ export default function VoucherPage() {
               onClick={() => { setEditingVoucher(null); setFormOpen(true) }}
               style={{
                 borderRadius: '8px', fontWeight: 600,
-                background: 'linear-gradient(90deg, #13c2c2 0%, #1890ff 100%)',
+                background: 'linear-gradient(90deg, #001f3e 0%, #0068ff 100%)',
                 border: 'none', boxShadow: '0 4px 10px rgba(19, 194, 194, 0.35)'
               }}
             >
@@ -366,3 +366,4 @@ export default function VoucherPage() {
     </div>
   )
 }
+

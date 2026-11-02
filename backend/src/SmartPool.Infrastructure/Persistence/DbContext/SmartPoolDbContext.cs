@@ -51,6 +51,7 @@ public class SmartPoolDbContext : EfDbContext
     public DbSet<ClassSession> ClassSessions { get; set; }
     public DbSet<ClassRegistration> ClassRegistrations { get; set; }
     public DbSet<ClassAttendance> ClassAttendances { get; set; }
+    public DbSet<CoachApplication> CoachApplications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -94,5 +95,6 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new ClassSessionConfiguration());
         modelBuilder.ApplyConfiguration(new ClassRegistrationConfiguration());
         modelBuilder.ApplyConfiguration(new ClassAttendanceConfiguration());
+        modelBuilder.ApplyConfiguration(new CoachApplicationConfiguration());
     }
 }

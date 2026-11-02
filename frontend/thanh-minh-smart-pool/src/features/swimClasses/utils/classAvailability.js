@@ -8,6 +8,9 @@ export function classAvailability(swimClass, now = Date.now()) {
 }
 
 export function canActivateClass(swimClass, now = Date.now()) {
-  return swimClass.status === 'Draft' && swimClass.sessions.some(session =>
-    session.status === 'Scheduled' && Date.parse(session.startsAt) > now)
+  if (swimClass.status !== 'Draft') return false
+  const starts = swimClass.sessions
+    .filter(session => session.status === 'Scheduled' && Date.parse(session.startsAt) > now)
+    .map(session => Date.parse(session.startsAt))
+  return starts.length > 0 && Date.parse(swimClass.registrationEndAt) <= Math.min(...starts)
 }

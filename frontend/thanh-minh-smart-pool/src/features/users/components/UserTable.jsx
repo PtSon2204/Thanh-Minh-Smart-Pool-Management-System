@@ -1,12 +1,12 @@
 import { Avatar, Button, Space, Table, Tag, Tooltip } from 'antd'
-import { EditOutlined, EyeOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
+import { EditOutlined, EyeOutlined, LockOutlined, StopOutlined, UnlockOutlined } from '@ant-design/icons'
 import { USER_ROLES, USER_ROLE_COLORS } from "../utils/userManagement"
 
 function userName(user) {
   return user.fullName || user.username
 }
 
-export default function UserTable({ users, loading, total, pageIndex, pageSize, editingId, changingStatusId, onView, onEdit, onToggleStatus, onPageChange }) {
+export default function UserTable({ users, loading, total, pageIndex, pageSize, editingId, changingStatusId, revokingCoachId, onView, onEdit, onToggleStatus, onRevokeCoach, onPageChange }) {
   const columns = [
     {
       title: 'Người dùng',
@@ -31,9 +31,12 @@ export default function UserTable({ users, loading, total, pageIndex, pageSize, 
       title: 'Vai trò',
       dataIndex: 'role',
       key: 'role',
-      render: (value) => <Tag color={USER_ROLE_COLORS[value]}>
-        {USER_ROLES.find((item) => item.value === value)?.label || value || 'Chưa phân vai trò'}
-      </Tag>,
+      render: (value, user) => <Space size={4} wrap>
+        <Tag color={USER_ROLE_COLORS[value]}>
+          {USER_ROLES.find((item) => item.value === value)?.label || value || 'Chưa phân vai trò'}
+        </Tag>
+        {user.isCoach && <Tag color="gold">Coach</Tag>}
+      </Space>,
     },
     {
       title: 'Trạng thái',
@@ -74,6 +77,11 @@ export default function UserTable({ users, loading, total, pageIndex, pageSize, 
             loading={changingStatusId === user.id}
             onClick={() => onToggleStatus(user)}
           />
+        </Tooltip>}
+        {user.isCoach && <Tooltip title="Thu hồi quyền Coach">
+          <Button type="text" danger aria-label={`Thu hồi quyền Coach của ${userName(user)}`}
+            icon={<StopOutlined />} loading={revokingCoachId === user.id}
+            onClick={() => onRevokeCoach(user)} />
         </Tooltip>}
       </Space>,
     },

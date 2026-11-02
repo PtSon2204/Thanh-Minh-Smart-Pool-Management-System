@@ -11,6 +11,7 @@ import { loadGoogleIdentity } from "../services/googleIdentity";
 import GoogleProfileForm from "./GoogleProfileForm";
 import { savePendingRegistration } from "../state/registrationSession";
 import { beginOtpRequest } from "../state/otpRequest";
+import { getLandingPath } from "../utils/sessionRoles";
 import {
   getAuthError,
   loginFormSchema,
@@ -61,13 +62,9 @@ export default function AuthForm({ isRegister }) {
   const registerForm = useForm({
     resolver: zodResolver(registerFormSchema),
     defaultValues: {
-      username: "",
       phone: "",
-      familyName: "",
-      givenName: "",
       email: "",
       password: "",
-      confirmPassword: "",
     },
   });
   const form = isRegister ? registerForm : loginForm;
@@ -88,12 +85,7 @@ export default function AuthForm({ isRegister }) {
         const session = await googleLogin.mutateAsync(credential);
         loginForm.setValue("password", "");
         registerForm.setValue("password", "");
-        registerForm.setValue("confirmPassword", "");
-        navigate(
-          ["ADMIN", "LIFEGUARD", "SALES"].includes(session.role.toUpperCase())
-            ? "/admin"
-            : session.role.toUpperCase() === "COACH" ? "/admin/classes" : "/",
-        );
+        navigate(getLandingPath(session));
       } catch (error) {
         if (error?.response?.status === 409 &&
             error.response.data?.code === 'GOOGLE_ACCOUNT_NOT_REGISTERED') {
@@ -137,7 +129,6 @@ export default function AuthForm({ isRegister }) {
   function clearPasswords() {
     loginForm.setValue("password", "");
     registerForm.setValue("password", "");
-    registerForm.setValue("confirmPassword", "");
   }
 
   function changeTab(nextPath) {
@@ -148,9 +139,8 @@ export default function AuthForm({ isRegister }) {
 
   function applyServerErrors(fieldErrors) {
     Object.entries(fieldErrors).forEach(([field, message]) => {
-      const mappedField = field === "fullName" ? "familyName" : field;
-      if (mappedField in form.getValues())
-        form.setError(mappedField, { type: "server", message });
+      if (field in form.getValues())
+        form.setError(field, { type: "server", message });
     });
   }
 
@@ -161,18 +151,7 @@ export default function AuthForm({ isRegister }) {
     try {
       const session = await login.mutateAsync(values);
       clearPasswords();
-      const role = session.role?.toUpperCase();
-      const destination =
-        role === "ADMIN"
-          ? "/admin"
-          : role === "SALES"
-            ? "/admin/tickets/pos"
-            : role === "LIFEGUARD"
-              ? "/admin/staff/schedule"
-              : role === "COACH"
-                ? "/admin/classes"
-              : "/";
-      navigate(destination);
+      navigate(getLandingPath(session));
     } catch (error) {
       const authError = getAuthError(error);
       applyServerErrors(authError.fieldErrors);
@@ -187,18 +166,14 @@ export default function AuthForm({ isRegister }) {
     submittingRef.current = true;
     setErrorMessage("");
     const email = values.email.trim();
-    const username = values.username.trim();
     const request = register
       .mutateAsync({
-        username: values.username,
         email: values.email,
         phone: values.phone,
         password: values.password,
-        confirmPassword: values.confirmPassword,
-        fullName: `${values.familyName} ${values.givenName}`.trim(),
       })
       .then((pendingRegistration) => {
-        const session = { ...pendingRegistration, email, username };
+        const session = { ...pendingRegistration, email };
         savePendingRegistration(session);
         return session;
       });
@@ -216,19 +191,6 @@ export default function AuthForm({ isRegister }) {
     void form.handleSubmit(isRegister ? submitRegister : submitLogin)(event);
   }
 
-  const nameIcon = (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      width="18"
-      height="18"
-    >
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c0-4 3.6-7 8-7" />
-    </svg>
-  );
   const mailIcon = (
     <svg
       viewBox="0 0 24 24"
@@ -246,12 +208,12 @@ export default function AuthForm({ isRegister }) {
   if (googleCredential) {
     const values = registerForm.getValues();
     return <GoogleProfileForm credential={googleCredential} initialValues={{
-      username: values.username,
+      username: "",
       phone: values.phone,
-      fullName: `${values.familyName} ${values.givenName}`.trim(),
+      fullName: "",
     }} onSuccess={(session) => {
       clearPasswords();
-      navigate(['ADMIN', 'LIFEGUARD', 'SALES'].includes(session.role.toUpperCase()) ? '/admin' : session.role.toUpperCase() === 'COACH' ? '/admin/classes' : '/');
+      navigate(getLandingPath(session));
     }} onCancel={() => setGoogleCredential(null)} />;
   }
 
@@ -276,102 +238,11 @@ export default function AuthForm({ isRegister }) {
         </button>
       </div>
       <h1 className="auth-card-title">
-        {isRegister ? "Tạo tài khoản" : "Chào mừng trở lại!"}
+        {isRegister ? "" : "Chào mừng trở lại!"}
       </h1>
-      <p className="auth-card-sub">
-        {isRegister ? (
-          <>
-            <b>Đăng ký</b> để đặt vé và trải nghiệm đặc quyền thành viên.
-          </>
-        ) : (
-          <>
-            <b>Đăng nhập</b> để tiếp tục trải nghiệm bể bơi Thành Minh.
-          </>
-        )}
-      </p>
       <form onSubmit={onSubmit} noValidate>
         {isRegister && (
           <>
-            <AuthField
-              id="inp-username"
-              label="Tên đăng nhập"
-              error={errorFor("username")}
-            >
-              {(errorId) => (
-                <>
-                  {nameIcon}
-                  <input
-                    id="inp-username"
-                    placeholder="nguyen.van.an"
-                    autoComplete="username"
-                    disabled={pending}
-                    aria-invalid={Boolean(errorFor("username"))}
-                    aria-describedby={
-                      errorFor("username") ? errorId : undefined
-                    }
-                    {...registerForm.register("username")}
-                  />
-                </>
-              )}
-            </AuthField>
-            <div className="auth-name-row">
-              <AuthField
-                id="inp-fname"
-                label="Họ"
-                error={errorFor("familyName")}
-              >
-                {(errorId) => (
-                  <>
-                    {nameIcon}
-                    <input
-                      type="text"
-                      id="inp-fname"
-                      placeholder="Nguyễn"
-                      autoComplete="family-name"
-                      disabled={pending}
-                      aria-invalid={Boolean(errorFor("familyName"))}
-                      aria-describedby={
-                        errorFor("familyName") ? errorId : undefined
-                      }
-                      {...registerForm.register("familyName")}
-                    />
-                  </>
-                )}
-              </AuthField>
-              <AuthField
-                id="inp-lname"
-                label="Tên"
-                error={errorFor("givenName")}
-              >
-                {(errorId) => (
-                  <>
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      width="18"
-                      height="18"
-                    >
-                      <circle cx="12" cy="8" r="4" />
-                      <path d="M12 15c4.4 0 8 3 8 7" />
-                    </svg>
-                    <input
-                      type="text"
-                      id="inp-lname"
-                      placeholder="Văn An"
-                      autoComplete="given-name"
-                      disabled={pending}
-                      aria-invalid={Boolean(errorFor("givenName"))}
-                      aria-describedby={
-                        errorFor("givenName") ? errorId : undefined
-                      }
-                      {...registerForm.register("givenName")}
-                    />
-                  </>
-                )}
-              </AuthField>
-            </div>
             <AuthField
               id="inp-phone"
               label="Số điện thoại"
@@ -511,42 +382,6 @@ export default function AuthForm({ isRegister }) {
             </>
           )}
         </AuthField>
-        {isRegister && (
-          <AuthField
-            id="inp-pw2"
-            label="Xác nhận mật khẩu"
-            error={errorFor("confirmPassword")}
-          >
-            {(errorId) => (
-              <>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="18"
-                  height="18"
-                >
-                  <path d="M9 12l2 2 4-4" />
-                  <rect x="3" y="11" width="18" height="11" rx="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <input
-                  type="password"
-                  id="inp-pw2"
-                  placeholder="Nhập lại mật khẩu"
-                  autoComplete="new-password"
-                  disabled={pending}
-                  aria-invalid={Boolean(errorFor("confirmPassword"))}
-                  aria-describedby={
-                    errorFor("confirmPassword") ? errorId : undefined
-                  }
-                  {...registerForm.register("confirmPassword")}
-                />
-              </>
-            )}
-          </AuthField>
-        )}
         {!isRegister && (
           <div className="auth-forgot-row">
             <Link to="/quen-mat-khau" className="auth-forgot-link">
@@ -599,9 +434,20 @@ export default function AuthForm({ isRegister }) {
           }}
         />
       ) : (
-        <p className="auth-feedback auth-feedback-error">
-          Đăng nhập Google chưa được cấu hình.
-        </p>
+        <button
+          type="button"
+          className="auth-btn-google-disabled"
+          disabled
+          title="Đăng nhập Google tạm thời chưa khả dụng"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.93 6.72-4.93z"/>
+          </svg>
+          <span>Đăng nhập với Google</span>
+        </button>
       )}
       <p className="auth-footer-text">
         {isRegister ? "Đã có tài khoản? " : "Chưa có tài khoản? "}
@@ -614,13 +460,6 @@ export default function AuthForm({ isRegister }) {
           {isRegister ? "Đăng nhập" : "Đăng ký miễn phí"}
         </button>
       </p>
-      {isRegister && (
-        <p className="auth-terms-text">
-          Bằng cách đăng ký, bạn đồng ý với{" "}
-          <Link to="#">Điều khoản dịch vụ</Link> và{" "}
-          <Link to="#">Chính sách bảo mật</Link>.
-        </p>
-      )}
     </div>
   );
 }

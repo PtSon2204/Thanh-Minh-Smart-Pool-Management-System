@@ -1,14 +1,14 @@
 import { CalendarOutlined, ClockCircleOutlined, DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, DatePicker, Form, Select } from 'antd'
-import { coachName, conflictDescription } from '../utils/classDisplay'
+import { Alert, Button, Card, DatePicker, Form } from 'antd'
+import { conflictDescription } from '../utils/classDisplay'
 import { vietnamPickerTimeToUtc } from '../utils/classSchedule'
 
 const DATE_FORMAT = 'DD/MM/YYYY HH:mm'
 const TIME_PICKER = { format: 'HH:mm', minuteStep: 15 }
 
-export default function ClassSessionsEditor({ form, onFinish, pending, coachesQuery, coachOptions, coaches, draft, error, conflicts, onValuesChange }) {
+export default function ClassSessionsEditor({ form, onFinish, pending, coaches, error, conflicts, onValuesChange }) {
   return <Card className="swim-class-form-card" title={<><CalendarOutlined /> Thêm buổi học</>}>
-    <p className="swim-class-card-intro">Có thể nhập nhiều buổi cùng lúc. Nếu không chọn Coach riêng, buổi học dùng Coach mặc định của lớp.</p>
+    <p className="swim-class-card-intro">Có thể nhập nhiều buổi cùng lúc. Bạn sẽ trực tiếp phụ trách các buổi học mới.</p>
     {error && <Alert className="swim-class-form-alert" type="error" showIcon title="Chưa lưu được lịch học" description={error} />}
     {conflicts.length > 0 && <Alert className="swim-class-form-alert" type="warning" showIcon title="Các buổi bị trùng lịch" description={<ul className="swim-class-conflict-list">{conflicts.map((conflict, index) => <li key={`${conflict.sessionIndex}-${index}`}>{conflictDescription(conflict, coaches)}</li>)}</ul>} />}
     <Form form={form} layout="vertical" initialValues={{ sessions: [{}] }} onFinish={onFinish} disabled={pending} onValuesChange={onValuesChange}>
@@ -25,13 +25,16 @@ export default function ClassSessionsEditor({ form, onFinish, pending, coachesQu
                 { required: true, message: 'Chọn giờ kết thúc.' },
                 { validator: (_, value) => {
                   const start = form.getFieldValue(['sessions', field.name, 'startsAt'])
-                  return !value || !start || vietnamPickerTimeToUtc(value) > vietnamPickerTimeToUtc(start)
+                  if (!value || !start) return Promise.resolve()
+                  if (!value.isSame(start, 'day')) return Promise.reject(new Error('Giờ kết thúc phải cùng ngày với giờ bắt đầu.'))
+                  return vietnamPickerTimeToUtc(value) > vietnamPickerTimeToUtc(start)
                     ? Promise.resolve() : Promise.reject(new Error('Giờ kết thúc phải sau giờ bắt đầu.'))
                 } },
-              ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format={DATE_FORMAT} placeholder="Ngày và giờ" /></Form.Item>
-              <Form.Item className="swim-class-span-full" label="Coach phụ trách" name={[field.name, 'coachUserId']} extra={`Để trống để dùng Coach mặc định: ${coachName(coaches, draft.coachUserId)}.`}>
-                <Select allowClear showSearch optionFilterProp="label" loading={coachesQuery.isLoading} placeholder="Dùng Coach mặc định" options={coachOptions} />
-              </Form.Item>
+              ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format={DATE_FORMAT} placeholder="Ngày và giờ"
+                disabledDate={date => {
+                  const start = form.getFieldValue(['sessions', field.name, 'startsAt'])
+                  return Boolean(start && !date.isSame(start, 'day'))
+                }} /></Form.Item>
             </div>
           </div>)}
           <Form.ErrorList errors={errors} />

@@ -156,7 +156,7 @@ public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterComman
 
         return new OkObjectResult(new LoginResponse
         {
-            Id = user.Id, Username = username, Role = role.Name,
+            Id = user.Id, Username = username, Role = role.Name, Roles = [role.Name],
             AccessToken = access.Token, ExpiresAtUtc = access.ExpiresAtUtc,
             RefreshToken = refresh.Token, RefreshTokenExpiresAtUtc = refresh.ExpiresAtUtc
         });

@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd'
 import { RouterProvider } from 'react-router-dom'
 import router from './routes/router'
+import CoachRoleSync from './features/auth/components/CoachRoleSync'
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         },
       }}
     >
+      <CoachRoleSync />
       <RouterProvider router={router} />
     </ConfigProvider>
   );

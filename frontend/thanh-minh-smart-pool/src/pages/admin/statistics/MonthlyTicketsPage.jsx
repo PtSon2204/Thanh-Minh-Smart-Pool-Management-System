@@ -26,7 +26,7 @@ const MonthlyTrendTooltip = ({ active, payload, label }) => {
       borderRadius: 8, padding: '10px 14px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
     }}>
-      <Text strong style={{ color: '#0f172a' }}>{label}</Text>
+      <Text strong style={{ color: '#001f3e' }}>{label}</Text>
       {payload.map((p, i) => (
         <div key={i} style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
@@ -78,12 +78,12 @@ export default function MonthlyTicketsPage() {
   const handleSendReminder = (record) => {
     Modal.confirm({
       title: 'Gửi email nhắc gia hạn?',
-      icon: <MailOutlined style={{ color: '#0284c7' }} />,
+      icon: <MailOutlined style={{ color: '#0068ff' }} />,
       content: (
         <div>
           <p>Bạn có chắc chắn muốn gửi email nhắc gia hạn thẻ tới hội viên:</p>
           <p><strong>{record.customerName}</strong> ({record.email})</p>
-          <p style={{ color: '#ef4444' }}>Thẻ sẽ hết hạn vào ngày <strong>{record.expiryDate}</strong> (còn {record.daysRemaining} ngày).</p>
+          <p style={{ color: '#e31748' }}>Thẻ sẽ hết hạn vào ngày <strong>{record.expiryDate}</strong> (còn {record.daysRemaining} ngày).</p>
         </div>
       ),
       okText: 'Gửi email',
@@ -136,7 +136,7 @@ export default function MonthlyTicketsPage() {
       key: 'customerName',
       render: (name, record) => (
         <div>
-          <Text strong style={{ color: '#0f172a' }}>{name}</Text>
+          <Text strong style={{ color: '#001f3e' }}>{name}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>{record.email || '—'}</Text>
         </div>
@@ -166,11 +166,11 @@ export default function MonthlyTicketsPage() {
         const isExpired = record.daysRemaining < 0;
         return (
           <div>
-            <Text strong style={{ color: isExpired ? '#94a3b8' : (isUrgent ? '#ef4444' : '#0f172a') }}>
+            <Text strong style={{ color: isExpired ? '#94a3b8' : (isUrgent ? '#e31748' : '#001f3e') }}>
               {date}
             </Text>
             <br />
-            <Text style={{ fontSize: 12, color: isExpired ? '#ef4444' : (isUrgent ? '#f59e0b' : '#64748b') }}>
+            <Text style={{ fontSize: 12, color: isExpired ? '#e31748' : (isUrgent ? '#faa828' : '#64748b') }}>
               {isExpired ? `Quá hạn ${Math.abs(record.daysRemaining)} ngày` : `Còn ${record.daysRemaining} ngày`}
             </Text>
           </div>
@@ -198,7 +198,7 @@ export default function MonthlyTicketsPage() {
       key: 'totalEntriesUsed',
       align: 'center',
       width: 100,
-      render: (val) => <span style={{ fontWeight: 600, color: '#0284c7' }}>{val} buổi</span>,
+      render: (val) => <span style={{ fontWeight: 600, color: '#0068ff' }}>{val} buổi</span>,
     },
     {
       title: 'Hành động',
@@ -213,7 +213,7 @@ export default function MonthlyTicketsPage() {
           icon={<MailOutlined />}
           loading={sendingEmailId === record.id}
           onClick={() => handleSendReminder(record)}
-          style={{ borderColor: '#0284c7', color: '#0284c7', borderRadius: 6 }}
+          style={{ borderColor: '#0068ff', color: '#0068ff', borderRadius: 6 }}
         >
           Nhắc gia hạn
         </Button>
@@ -233,7 +233,7 @@ export default function MonthlyTicketsPage() {
         marginBottom: 24
       }}>
         <div>
-          <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
+          <Title level={3} style={{ margin: 0, color: '#001f3e' }}>
             💳 Thống Kê Hội Viên Vé Tháng & Vé Định Kỳ
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
@@ -265,7 +265,7 @@ export default function MonthlyTicketsPage() {
             type="primary"
             icon={<DownloadOutlined />}
             onClick={handleExportCSV}
-            style={{ background: '#005f8e', borderColor: '#005f8e' }}
+            style={{ background: '#0068ff', borderColor: '#0068ff' }}
           >
             Xuất danh sách
           </Button>
@@ -283,16 +283,16 @@ export default function MonthlyTicketsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
-                borderLeft: '4px solid #0284c7'
+                borderLeft: '4px solid #0068ff'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>TỔNG HỘI VIÊN VÉ THÁNG</span>}
                 value={data?.totalMembers || 0}
-                prefix={<IdcardOutlined style={{ color: '#0284c7', marginRight: 8 }} />}
+                prefix={<IdcardOutlined style={{ color: '#0068ff', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>người</span>}
               />
-              <div style={{ marginTop: 8, fontSize: 12, color: '#0284c7' }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#0068ff' }}>
                 +{data?.newMembersThisMonth || 0} hội viên mới đăng ký trong tháng
               </div>
             </Card>
@@ -306,16 +306,16 @@ export default function MonthlyTicketsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
-                borderLeft: '4px solid #16a34a'
+                borderLeft: '4px solid #03ca77'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>THẺ ĐANG HOẠT ĐỘNG (ACTIVE)</span>}
                 value={data?.activeTickets || 0}
-                prefix={<CheckCircleOutlined style={{ color: '#16a34a', marginRight: 8 }} />}
+                prefix={<CheckCircleOutlined style={{ color: '#03ca77', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>thẻ còn hạn</span>}
               />
-              <div style={{ marginTop: 8, fontSize: 12, color: '#16a34a' }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#03ca77' }}>
                 {data?.activePercentage || 0}% tổng số hội viên đăng ký
               </div>
             </Card>
@@ -329,17 +329,17 @@ export default function MonthlyTicketsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #fffbeb 100%)',
-                borderLeft: '4px solid #f59e0b'
+                borderLeft: '4px solid #faa828'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>SẮP HẾT HẠN (TRONG 7 NGÀY)</span>}
                 value={data?.expiringSoonTickets || 0}
-                prefix={<AlertOutlined style={{ color: '#f59e0b', marginRight: 8 }} />}
+                prefix={<AlertOutlined style={{ color: '#faa828', marginRight: 8 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#64748b' }}>thẻ</span>}
-                valueStyle={{ color: '#d97706' }}
+                valueStyle={{ color: '#faa828' }}
               />
-              <div style={{ marginTop: 8, fontSize: 12, color: '#d97706', fontWeight: 500 }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#faa828', fontWeight: 500 }}>
                 Cần gửi email nhắc gia hạn
               </div>
             </Card>
@@ -353,17 +353,17 @@ export default function MonthlyTicketsPage() {
                 borderRadius: 12,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                 background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
-                borderLeft: '4px solid #8b5cf6'
+                borderLeft: '4px solid #6356e4'
               }}
             >
               <Statistic
                 title={<span style={{ color: '#475569', fontWeight: 600 }}>TỶ LỆ GIA HẠN THÀNH CÔNG</span>}
                 value={data?.renewalRate || 0}
-                prefix={<SyncOutlined style={{ color: '#8b5cf6', marginRight: 8 }} />}
+                prefix={<SyncOutlined style={{ color: '#6356e4', marginRight: 8 }} />}
                 suffix="%"
                 precision={1}
               />
-              <div style={{ marginTop: 8, fontSize: 12, color: '#8b5cf6' }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#6356e4' }}>
                 Mức độ hài lòng của hội viên cao
               </div>
             </Card>
@@ -377,7 +377,7 @@ export default function MonthlyTicketsPage() {
             <Card
               title={
                 <Space>
-                  <BarChartOutlined style={{ color: '#005f8e' }} />
+                  <BarChartOutlined style={{ color: '#0068ff' }} />
                   <span>Số lượng đăng ký mới và gia hạn vé tháng theo từng tháng</span>
                 </Space>
               }
@@ -398,13 +398,13 @@ export default function MonthlyTicketsPage() {
                     <Bar
                       dataKey="renewedMembers"
                       name="Hội viên gia hạn"
-                      fill="#005f8e"
+                      fill="#0068ff"
                       radius={[4, 4, 0, 0]}
                     />
                     <Bar
                       dataKey="newMembers"
                       name="Hội viên đăng ký mới"
-                      fill="#10b981"
+                      fill="#03ca77"
                       radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
@@ -418,7 +418,7 @@ export default function MonthlyTicketsPage() {
             <Card
               title={
                 <Space>
-                  <PieChartOutlined style={{ color: '#8b5cf6' }} />
+                  <PieChartOutlined style={{ color: '#6356e4' }} />
                   <span>Cơ cấu các gói vé định kỳ</span>
                 </Space>
               }
@@ -458,7 +458,7 @@ export default function MonthlyTicketsPage() {
         <Card
           title={
             <Space>
-              <AlertOutlined style={{ color: '#d97706' }} />
+              <AlertOutlined style={{ color: '#faa828' }} />
               <span>Danh sách cảnh báo hội viên sắp hết hạn thẻ trong vòng 7 ngày tới</span>
             </Space>
           }
@@ -478,3 +478,4 @@ export default function MonthlyTicketsPage() {
     </div>
   );
 }
+

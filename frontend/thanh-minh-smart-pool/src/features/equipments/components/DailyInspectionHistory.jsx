@@ -15,6 +15,7 @@ import {
   ReloadOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useInspections } from '../hooks/useInspections'
@@ -112,14 +113,30 @@ export default function DailyInspectionHistory() {
     {
       title: 'Kết quả',
       key: 'overallStatus',
-      width: 150,
+      width: 170,
       render: (_, record) => {
-        const isPassed = record.overallStatus === 'Passed'
-        return isPassed ? (
-          <Tag icon={<CheckCircleOutlined />} color="success">
-            Đạt chuẩn
-          </Tag>
-        ) : (
+        if (record.overallStatus === 'Passed') {
+          return (
+            <Tag icon={<CheckCircleOutlined />} color="success">
+              Đạt chuẩn
+            </Tag>
+          )
+        }
+        if (record.overallStatus === 'Resolved') {
+          return (
+            <Tag icon={<CheckCircleOutlined />} color="green">
+              Đã khắc phục xong
+            </Tag>
+          )
+        }
+        if (record.overallStatus === 'InResolution') {
+          return (
+            <Tag icon={<ClockCircleOutlined />} color="processing">
+              Đang khắc phục
+            </Tag>
+          )
+        }
+        return (
           <Tag icon={<ExclamationCircleOutlined />} color="error">
             Có sự cố ({record.issuesCount})
           </Tag>
@@ -188,14 +205,16 @@ export default function DailyInspectionHistory() {
               <span style={{ marginRight: 8, fontSize: 13, color: '#4b5563' }}>Trạng thái:</span>
               <Select
                 placeholder="Tất cả trạng thái"
-                style={{ width: 170 }}
+                style={{ width: 190 }}
                 allowClear
                 value={params.overallStatus}
                 onChange={handleStatusChange}
                 options={[
                   { label: 'Tất cả kết quả', value: '' },
                   { label: 'Đạt chuẩn (Passed)', value: 'Passed' },
-                  { label: 'Có sự cố (ActionRequired)', value: 'ActionRequired' },
+                  { label: 'Có sự cố (Chưa xử lý)', value: 'HasIssues' },
+                  { label: 'Đang khắc phục (InResolution)', value: 'InResolution' },
+                  { label: 'Đã khắc phục xong (Resolved)', value: 'Resolved' },
                 ]}
               />
             </div>
@@ -252,6 +271,10 @@ export default function DailyInspectionHistory() {
         onClose={() => {
           setDetailsModalOpen(false)
           setSelectedInspection(null)
+        }}
+        onInspectionUpdated={(updated) => {
+          setSelectedInspection(updated)
+          refetch()
         }}
       />
     </div>

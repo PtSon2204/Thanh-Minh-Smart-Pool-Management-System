@@ -6,9 +6,9 @@ import UserFormModal from "../../../features/users/components/UserFormModal"
 import UserDetailsDrawer from "../../../features/users/components/UserDetailsDrawer"
 import UserTable from "../../../features/users/components/UserTable"
 import { useUsers } from "../../../features/users/hooks/useUsers"
-import { useChangeUserStatus, useSaveUser } from "../../../features/users/hooks/useUserMutations"
+import { useChangeUserStatus, useRevokeCoach, useSaveUser } from "../../../features/users/hooks/useUserMutations"
 import userService from "../../../features/users/services/userService"
-import { getUserError, USER_ROLES } from "../../../features/users/utils/userManagement"
+import { getUserError, USER_ROLE_FILTERS } from "../../../features/users/utils/userManagement"
 import "../../../features/users/styles/userManagement.css"
 
 const { Title, Text } = Typography
@@ -23,10 +23,13 @@ export default function UserManagementPage() {
   const [editor, setEditor] = useState(null)
   const [detailUserId, setDetailUserId] = useState(null)
   const [editingId, setEditingId] = useState(null)
+  const [revokeTarget, setRevokeTarget] = useState(null)
+  const [revokeReason, setRevokeReason] = useState('')
 
   const usersQuery = useUsers({ pageIndex, pageSize, searchTerm: search.trim() || undefined, role, status })
   const saveUser = useSaveUser()
   const changeStatus = useChangeUserStatus()
+  const revokeCoach = useRevokeCoach()
   const users = usersQuery.data?.items || []
 
   const changeFilter = (setter) => (value) => {
@@ -78,6 +81,21 @@ export default function UserManagementPage() {
     })
   }
 
+  const submitRevoke = async () => {
+    if (!revokeTarget || !revokeReason.trim()) {
+      messageApi.error('Vui lòng nhập lý do thu hồi quyền Coach.')
+      return
+    }
+    try {
+      await revokeCoach.mutateAsync({ id: revokeTarget.id, reason: revokeReason.trim() })
+      messageApi.success('Đã thu hồi quyền Coach. Người dùng vẫn giữ quyền Customer.')
+      setRevokeTarget(null)
+      setRevokeReason('')
+    } catch (error) {
+      messageApi.error(getUserError(error))
+    }
+  }
+
   return <div className="um-page">
     {contextHolder}
     <header className="um-hero">
@@ -91,7 +109,7 @@ export default function UserManagementPage() {
     <Row gutter={[16, 16]} className="um-stats">
       <Col xs={12} md={8}><Card><Statistic title="Tài khoản phù hợp" value={usersQuery.data?.totalCount ?? 0} prefix={<TeamOutlined />} /></Card></Col>
       <Col xs={12} md={8}><Card><Statistic title="Hiển thị trên trang" value={users.length} prefix={<UserOutlined />} /></Card></Col>
-      <Col xs={12} md={8}><Card><Statistic title="Vai trò hệ thống" value={USER_ROLES.length} prefix={<TeamOutlined />} /></Card></Col>
+      <Col xs={12} md={8}><Card><Statistic title="Vai trò hệ thống" value={USER_ROLE_FILTERS.length} prefix={<TeamOutlined />} /></Card></Col>
     </Row>
     <Card className="um-main-card">
       <div className="um-toolbar">
@@ -115,7 +133,7 @@ export default function UserManagementPage() {
           value={search}
           onChange={(event) => changeFilter(setSearch)(event.target.value)}
         />
-        <Select allowClear placeholder="Tất cả vai trò" aria-label="Lọc theo vai trò" value={role} onChange={changeFilter(setRole)} options={USER_ROLES} />
+        <Select allowClear placeholder="Tất cả vai trò" aria-label="Lọc theo vai trò" value={role} onChange={changeFilter(setRole)} options={USER_ROLE_FILTERS} />
         <Select allowClear placeholder="Tất cả trạng thái" aria-label="Lọc theo trạng thái" value={status} onChange={changeFilter(setStatus)} options={[{ value: 'ACTIVE', label: 'Hoạt động' }, { value: 'LOCKED', label: 'Đã khóa' }]} />
       </div>
       {usersQuery.isError && <Alert
@@ -134,16 +152,28 @@ export default function UserManagementPage() {
         pageSize={pageSize}
         editingId={editingId}
         changingStatusId={changeStatus.isPending ? changeStatus.variables?.id : null}
+        revokingCoachId={revokeCoach.isPending ? revokeCoach.variables?.id : null}
         onView={(user) => setDetailUserId(user.id)}
         onEdit={openEdit}
         onToggleStatus={toggleStatus}
+        onRevokeCoach={(user) => { setRevokeTarget(user); setRevokeReason('') }}
         onPageChange={(page, size) => {
           setPageIndex(size === pageSize ? page : 1)
           setPageSize(size)
         }}
       />
     </Card>
-    <UserDetailsDrawer userId={detailUserId} onClose={() => setDetailUserId(null)} />
+    <UserDetailsDrawer userId={detailUserId} onClose={() => setDetailUserId(null)}
+      onRevokeCoach={(user) => { setRevokeTarget(user); setRevokeReason('') }} />
+    <Modal title={`Thu hồi quyền Coach của ${revokeTarget?.fullName || revokeTarget?.username || 'người dùng'}?`}
+      open={Boolean(revokeTarget)} okText="Thu hồi quyền" cancelText="Hủy"
+      okButtonProps={{ danger: true, loading: revokeCoach.isPending }}
+      onCancel={() => { if (!revokeCoach.isPending) setRevokeTarget(null) }} onOk={submitRevoke}>
+      <p>Người dùng vẫn giữ quyền Customer. Cần ngừng hoặc chuyển giao lớp và buổi học đang phụ trách trước khi thu hồi.</p>
+      <Input.TextArea aria-label="Lý do thu hồi quyền Coach" placeholder="Nhập lý do thu hồi (bắt buộc)"
+        value={revokeReason} onChange={(event) => setRevokeReason(event.target.value)}
+        maxLength={1000} showCount rows={4} />
+    </Modal>
     <UserFormModal
       open={Boolean(editor)}
       record={editor?.record}

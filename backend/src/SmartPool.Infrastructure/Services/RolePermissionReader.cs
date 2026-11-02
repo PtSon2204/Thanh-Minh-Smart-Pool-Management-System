@@ -13,12 +13,18 @@ public sealed class RolePermissionReader(SmartPoolDbContext database) : IRolePer
             .Where(user => user.Id == userId && user.IsDeleted != true &&
                 user.Status != null && EF.Functions.ILike(user.Status, "ACTIVE") &&
                 user.Role != null && user.Role.IsDeleted != true)
-            .Select(user => new { RoleName = user.Role!.Name, user.Role.Permissions })
+            .Select(user => new { RoleName = user.Role!.Name, user.Role.Permissions,
+                user.IsCoach })
             .SingleOrDefaultAsync(cancellationToken);
-
-        return account is not null &&
-            string.Equals(account.RoleName, tokenRole, StringComparison.OrdinalIgnoreCase)
-                ? account.Permissions
-                : null;
+        if (account is null) return null;
+        if (string.Equals(account.RoleName, tokenRole, StringComparison.OrdinalIgnoreCase))
+            return account.Permissions;
+        if (!account.IsCoach || !string.Equals(account.RoleName, "CUSTOMER",
+                StringComparison.OrdinalIgnoreCase) || !string.Equals(tokenRole, "COACH",
+                StringComparison.OrdinalIgnoreCase)) return null;
+        return await database.Roles.AsNoTracking()
+            .Where(item => item.Name == "COACH" && item.IsDeleted != true)
+            .Select(item => item.Permissions)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

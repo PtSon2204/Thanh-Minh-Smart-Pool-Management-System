@@ -71,6 +71,32 @@ namespace SmartPool.API.Controllers
             }
         }
 
+        /// <summary>Lấy các đơn vé online của khách hàng đang đăng nhập.</summary>
+        [HttpGet("me/orders")]
+        [RequirePermission("customer_tickets", "read")]
+        [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyOrders.MyOrdersResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetMyOrders([FromQuery] SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyOrders.GetMyOrdersQuery query, CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+            query.UserId = userId;
+            var result = await _sender.Send(query, cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>Lấy số đơn vé online đang chờ khách thanh toán.</summary>
+        [HttpGet("me/orders/summary")]
+        [RequirePermission("customer_tickets", "read")]
+        [ProducesResponseType(typeof(SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyOrders.MyOrderSummaryResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetMyOrdersSummary(CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+            var result = await _sender.Send(new SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyOrders.GetMyOrdersSummaryQuery
+            {
+                UserId = userId
+            }, cancellationToken);
+            return Ok(result);
+        }
+
         /// <summary>Khách hàng kiểm tra đơn thuộc tài khoản của mình.</summary>
         [HttpGet("me/orders/{orderId:guid}/status")]
         [RequirePermission("customer_tickets", "read")]
@@ -118,6 +144,24 @@ namespace SmartPool.API.Controllers
         {
             if (!User.TryGetUserId(out var userId)) return Forbid();
             var query = new SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyTickets.GetMyTicketsQuery { UserId = userId };
+            try
+            {
+                var result = await _sender.Send(query, cancellationToken);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Lấy lịch sử các lượt vào bể của tôi.</summary>
+        [HttpGet("me/entries")]
+        [RequirePermission("customer_tickets", "read")]
+        public async Task<IActionResult> GetMyEntryHistory(CancellationToken cancellationToken)
+        {
+            if (!User.TryGetUserId(out var userId)) return Forbid();
+            var query = new SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyEntryHistory.GetMyEntryHistoryQuery { UserId = userId };
             try
             {
                 var result = await _sender.Send(query, cancellationToken);

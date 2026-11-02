@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { hasValidAccessToken, hasValidRefreshToken, useAuthStore } from '../features/auth/store/authStore'
 import { refreshSession } from '../services/apiClient'
+import { getSessionRoles } from '../features/auth/utils/sessionRoles'
 
 export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
   const session = useAuthStore((state) => state.session)
@@ -55,10 +56,10 @@ export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
 
   // 2. Kiểm tra vai trò (Role-based access control)
   if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = session.role ? session.role.toUpperCase() : ''
+    const userRoles = getSessionRoles(session)
     const normalizedAllowedRoles = allowedRoles.map((r) => r.toUpperCase())
 
-    if (!normalizedAllowedRoles.includes(userRole)) {
+    if (!normalizedAllowedRoles.some((role) => userRoles.includes(role))) {
       return (
         <Navigate
           to={forbiddenRedirectTo}

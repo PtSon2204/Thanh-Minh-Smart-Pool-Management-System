@@ -48,7 +48,25 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 allowed = false;
             }
 
-            return CreateLookupResponse(true, allowed, reason, ticket);
+            DateTime? usedAt = null;
+            if (ticket.Status?.ToLower() == PoolAccessValues.Used.ToLower()
+                || category == TicketCategoryEnum.VE_THANG)
+            {
+                usedAt = await _context.EntryLogs.AsNoTracking()
+                    .Where(item => item.TicketId == ticket.Id
+                        && item.ScanTime != null
+                        && (item.Status == PoolAccessValues.Allowed || item.Status.ToLower() == PoolAccessValues.Allowed.ToLower()))
+                    .OrderByDescending(item => item.ScanTime)
+                    .Select(item => item.ScanTime)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (usedAt == null && ticket.Status?.ToLower() == PoolAccessValues.Used.ToLower())
+                {
+                    usedAt = ticket.UpdatedAt;
+                }
+            }
+
+            return CreateLookupResponse(true, allowed, reason, ticket, usedAt);
         }
 
         public async Task<ConfirmEntryResponse> ConfirmAsync(
@@ -84,6 +102,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             if (category == TicketCategoryEnum.VE_LUOT)
             {
                 ticket.Status = PoolAccessValues.Used;
+                ticket.UpdatedAt = utcNow;
             }
 
             return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, true, "Allowed", transaction, cancellationToken);
@@ -171,12 +190,14 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            var usedAt = allowed ? utcNow : (ticket?.Status?.ToLower() == PoolAccessValues.Used.ToLower() ? ticket.UpdatedAt : null);
+
             return new ConfirmEntryResponse
             {
                 Allowed = allowed,
                 Reason = reason,
                 Message = GetMessage(reason),
-                Ticket = ticket is null ? null : ToTicket(ticket),
+                Ticket = ticket is null ? null : ToTicket(ticket, usedAt),
                 ScanTime = utcNow,
                 InputMode = inputMode
             };
@@ -231,7 +252,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 && ticket.TicketType.TicketCategory == category.ToString();
         }
 
-        private static LookupTicketResponse CreateLookupResponse(bool found, bool isValid, string reason, Ticket? ticket)
+        private static LookupTicketResponse CreateLookupResponse(bool found, bool isValid, string reason, Ticket? ticket, DateTime? usedAt = null)
         {
             return new LookupTicketResponse
             {
@@ -239,11 +260,11 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 IsValid = isValid,
                 Reason = reason,
                 Message = GetLookupMessage(reason),
-                Ticket = ticket is null ? null : ToTicket(ticket)
+                Ticket = ticket is null ? null : ToTicket(ticket, usedAt)
             };
         }
 
-        private static TicketSummaryResponse ToTicket(Ticket ticket)
+        private static TicketSummaryResponse ToTicket(Ticket ticket, DateTime? usedAt = null)
         {
             var hasCategory = TryGetCategory(ticket, out var category);
             return new TicketSummaryResponse
@@ -253,7 +274,8 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 Category = hasCategory ? category : null,
                 ExpiryDate = ticket.ExpiryDate,
                 Status = ticket.Status,
-                RemainingEntries = ticket.RemainingEntries
+                RemainingEntries = ticket.RemainingEntries,
+                UsedAt = usedAt
             };
         }
 

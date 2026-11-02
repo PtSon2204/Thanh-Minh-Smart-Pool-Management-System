@@ -113,7 +113,13 @@ public sealed class RefreshTokenService : IRefreshTokenService
         if (role is null || role.IsDeleted == true || string.IsNullOrWhiteSpace(role.Name))
             return null;
 
-        var accessToken = _accessTokens.CreateToken(user, role.Name);
+        var coachAvailable = user.IsCoach && string.Equals(role.Name, "CUSTOMER",
+                StringComparison.OrdinalIgnoreCase) &&
+            await _context.Roles.AsNoTracking().AnyAsync(
+            item => item.Name == "COACH" && item.IsDeleted != true, cancellationToken);
+        var effectiveRoles = coachAvailable && !string.Equals(role.Name, "COACH",
+            StringComparison.OrdinalIgnoreCase) ? new[] { role.Name, "COACH" } : new[] { role.Name };
+        var accessToken = _accessTokens.CreateToken(user, role.Name, effectiveRoles);
         var family = TryGetFamily(token, out var existingFamily) ? existingFamily : Guid.NewGuid();
         var newToken = GenerateToken(family);
         var expiresAtUtc = now.AddDays(_expirationDays);
@@ -145,7 +151,7 @@ public sealed class RefreshTokenService : IRefreshTokenService
 
         return new RefreshRotationResult(user.Id, user.Username ?? string.Empty, role.Name,
             accessToken.Token, accessToken.ExpiresAtUtc,
-            newToken, expiresAtUtc);
+            newToken, expiresAtUtc) { Roles = effectiveRoles };
     }
 
     public async Task RevokeAsync(string token, CancellationToken cancellationToken = default)

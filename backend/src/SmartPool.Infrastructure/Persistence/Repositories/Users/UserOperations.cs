@@ -102,7 +102,11 @@ public sealed class UserOperations : IUserOperations
         if (!string.IsNullOrWhiteSpace(request.Role))
         {
             var role = request.Role.Trim();
-            users = users.Where(user => user.Role != null && EF.Functions.ILike(user.Role.Name, role));
+            users = string.Equals(role, "COACH", StringComparison.OrdinalIgnoreCase)
+                ? users.Where(user => user.Role != null &&
+                    (EF.Functions.ILike(user.Role.Name, role) || user.IsCoach &&
+                     EF.Functions.ILike(user.Role.Name, "CUSTOMER")))
+                : users.Where(user => user.Role != null && EF.Functions.ILike(user.Role.Name, role));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Status))
@@ -127,6 +131,8 @@ public sealed class UserOperations : IUserOperations
                     AvatarUrl = user.UserProfile != null ? user.UserProfile.AvatarUrl : null,
                     RoleId = user.RoleId,
                     Role = user.Role != null ? user.Role.Name : null,
+                    IsCoach = user.IsCoach && user.Role != null &&
+                        EF.Functions.ILike(user.Role.Name, "CUSTOMER"),
                     Status = user.Status,
                     CreatedAt = user.CreatedAt
                 }).ToListAsync(cancellationToken);
@@ -156,6 +162,8 @@ public sealed class UserOperations : IUserOperations
                 DateOfBirth = user.UserProfile != null ? user.UserProfile.DateOfBirth : null,
                 RoleId = user.RoleId,
                 Role = user.Role != null ? user.Role.Name : null,
+                IsCoach = user.IsCoach && user.Role != null &&
+                    EF.Functions.ILike(user.Role.Name, "CUSTOMER"),
                 Status = user.Status,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
@@ -254,6 +262,13 @@ public sealed class UserOperations : IUserOperations
             item.IsDeleted != true, cancellationToken);
         if (role is null)
             throw new RoleChangeConflictException("Vai trò chưa được cấu hình hoặc đã ngừng sử dụng.");
+
+        if (requestedRole == RoleEnum.COACH && user.RoleId != role.Id)
+            throw new RoleChangeConflictException(
+                "Quyền Coach bổ sung chỉ được cấp sau khi duyệt chứng chỉ.");
+        if (user.IsCoach && requestedRole != RoleEnum.CUSTOMER && user.RoleId != role.Id)
+            throw new RoleChangeConflictException(
+                "Cần thu hồi quyền Coach trước khi thay đổi vai trò Customer chính.");
 
         if (actorId == userId && requestedRole != RoleEnum.ADMIN)
             throw new RoleChangeForbiddenException();

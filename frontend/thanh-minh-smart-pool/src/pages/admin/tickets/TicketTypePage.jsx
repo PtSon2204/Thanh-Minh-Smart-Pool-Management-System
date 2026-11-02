@@ -70,7 +70,7 @@ export default function TicketTypePage() {
   const handleDelete = (ticket) => {
     confirm({
       title: 'Xóa loại vé?',
-      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      icon: <ExclamationCircleOutlined style={{ color: '#e31748' }} />,
       content: `Bạn có chắc muốn xóa loại vé "${ticket.name}"? Thao tác này không thể hoàn tác nhưng các vé đã bán ra sẽ không bị ảnh hưởng.`,
       okText: 'Xóa',
       okType: 'danger',
@@ -86,7 +86,7 @@ export default function TicketTypePage() {
       {/* Page Header */}
       <div
         style={{
-          background: 'linear-gradient(90deg, #005f8e 0%, #00b4d8 100%)',
+          background: 'linear-gradient(135deg, #001f3e 0%, #002d59 60%, #0068ff 100%)',
           padding: '20px 24px',
           borderRadius: 12,
           color: '#fff',
@@ -114,7 +114,7 @@ export default function TicketTypePage() {
           onClick={handleCreate}
           style={{
             background: '#fff',
-            color: '#005f8e',
+            color: '#0068ff',
             fontWeight: 600,
             border: 'none',
           }}
@@ -248,3 +248,4 @@ export default function TicketTypePage() {
     </div>
   )
 }
+

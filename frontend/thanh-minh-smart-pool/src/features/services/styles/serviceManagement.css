@@ -9,8 +9,8 @@
   --admin-canvas: #e2e8f0;
   --admin-surface: #ffffff;
   --admin-border: #cbd5e1;
-  --status-success: #52c41a;
-  --status-error: #ff4d4f;
+  --status-success: var(--success, #03ca77);
+  --status-error: var(--danger, #e31748);
   --list-canvas: #f4f6f8;
   --list-divider: #e4e7ec;
   --list-muted: #667085;
@@ -455,3 +455,4 @@
     margin-left: 0;
   }
 }
+

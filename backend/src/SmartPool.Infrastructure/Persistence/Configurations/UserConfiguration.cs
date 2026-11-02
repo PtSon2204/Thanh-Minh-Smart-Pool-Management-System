@@ -19,6 +19,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         entity.Property(e => e.PasswordHash).HasMaxLength(255).HasColumnName("password_hash");
         entity.Property(e => e.Phone).HasMaxLength(20).HasColumnName("phone");
         entity.Property(e => e.RoleId).HasColumnName("role_id");
+        entity.Property(e => e.IsCoach).HasColumnName("is_coach").HasDefaultValue(false);
         entity.Property(e => e.Status).HasMaxLength(50).HasDefaultValueSql("'Active'::character varying").HasColumnName("status");
         entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()").HasColumnName("updated_at");
         entity.Property(e => e.Username).HasMaxLength(100).HasColumnName("username");

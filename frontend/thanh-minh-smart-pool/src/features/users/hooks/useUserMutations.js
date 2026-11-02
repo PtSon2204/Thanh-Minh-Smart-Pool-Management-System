@@ -43,3 +43,11 @@ export function useChangeUserStatus() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   })
 }
+
+export function useRevokeCoach() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }) => userService.revokeCoach(id, reason),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+}

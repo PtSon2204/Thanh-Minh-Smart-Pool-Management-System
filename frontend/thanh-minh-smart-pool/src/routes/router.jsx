@@ -9,7 +9,9 @@ import AuthPage from "../pages/AuthPage/AuthPage";
 import ChangePasswordPage from "../pages/ChangePasswordPage/ChangePasswordPage";
 import ProfilePage from "../pages/ProfilePage/ProfilePage";
 import MyCardPage from "../pages/MyCardPage/MyCardPage";
+import MyOrdersPage from "../pages/MyOrdersPage/MyOrdersPage";
 import PaymentHistoryPage from "../pages/PaymentHistoryPage/PaymentHistoryPage";
+import PoolEntryHistoryPage from "../pages/PoolEntryHistoryPage/PoolEntryHistoryPage";
 import Error401Page from "../pages/Error401Page/Error401Page";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminLayout from "../layouts/admin/AdminLayout";
@@ -35,14 +37,18 @@ import UserManagementPage from "../pages/admin/users/UserManagementPage";
 import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage";
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
+import DailyInspectionHistoryPage from "../pages/admin/equipments/DailyInspectionHistoryPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
-import CreateSwimClassPage from "../pages/admin/classes/CreateSwimClassPage";
-import SwimClassListPage from "../pages/admin/classes/SwimClassListPage";
+import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
+import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
-import SwimClassDetailPage from "../pages/admin/classes/SwimClassDetailPage";
+import SwimClassDetailPage from "../pages/coach/classes/SwimClassDetailPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
+import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
+import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
+import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 
 const router = createBrowserRouter([
@@ -65,10 +71,7 @@ const router = createBrowserRouter([
           { path: "/ho-so", element: <ProfilePage /> },
           { path: "/doi-mat-khau", element: <ChangePasswordPage /> },
           { path: "/the-cua-toi", element: <MyCardPage /> },
-          {
-            path: "/lich-su-thanh-toan",
-            element: <PaymentHistoryPage isCustomerView />,
-          },
+          { path: "/lich-su-vao-be", element: <PoolEntryHistoryPage /> },
         ],
       },
       {
@@ -76,11 +79,22 @@ const router = createBrowserRouter([
           <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["CUSTOMER"]} />
         ),
         children: [
+          { path: "/don-hang", element: <MyOrdersPage /> },
           { path: "/lop-hoc", element: <SwimClassCatalogPage /> },
+          { path: "/lop-hoc-cua-toi", element: <MySwimClassesPage /> },
+          { path: "/tro-thanh-coach", element: <CoachApplicationPage /> },
           {
             path: "/lop-hoc/:classId",
             element: <SwimClassCatalogDetailPage />,
           },
+        ],
+      },
+      {
+        element: <ProtectedRoute redirectTo="/dang-nhap" allowedRoles={["COACH"]} />,
+        children: [
+          { path: "/coach/classes", element: <SwimClassListPage /> },
+          { path: "/coach/classes/create", element: <CreateSwimClassPage /> },
+          { path: "/coach/classes/:classId", element: <SwimClassDetailPage /> },
         ],
       },
       { path: "*", element: <NotFoundPage /> },
@@ -108,7 +122,7 @@ const router = createBrowserRouter([
 
   {
     element: (
-      <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES", "COACH"]} />
+      <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />
     ),
     children: [
       {
@@ -118,13 +132,6 @@ const router = createBrowserRouter([
           { path: "doi-mat-khau", element: <ChangePasswordPage /> },
           { path: "staff/schedule", element: <StaffSchedulePage /> },
           {
-            element: <ProtectedRoute allowedRoles={["ADMIN", "COACH"]} />,
-            children: [
-              { path: "classes", element: <SwimClassListPage /> },
-              { path: "classes/:classId", element: <SwimClassDetailPage /> },
-            ],
-          },
-          {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
               { index: true, element: <DashboardPage /> },
@@ -133,13 +140,20 @@ const router = createBrowserRouter([
                 element: <EquipmentPage />,
               },
               {
+                path: "equipments/inspection-history",
+                element: <DailyInspectionHistoryPage />,
+              },
+              {
                 path: "equipment",
                 element: (
                   <Navigate to="/admin/equipments/list-equipments" replace />
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              { path: "notifications", element: <Navigate to="/admin" replace /> },
+              {
+                path: "notifications",
+                element: <Navigate to="/admin" replace />,
+              },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,
@@ -157,7 +171,6 @@ const router = createBrowserRouter([
                 element: <IncidentStatisticsPage />,
               },
               { path: "staff/profiles", element: <StaffProfilesPage /> },
-              { path: "classes/create", element: <CreateSwimClassPage /> },
               { path: "payments/invoices", element: <PaymentHistoryPage /> },
               { path: "staff/attendance", element: <StaffAttendancePage /> },
               {
@@ -165,6 +178,10 @@ const router = createBrowserRouter([
                 element: <StaffQrAttendancePage />,
               },
               { path: "users", element: <UserManagementPage /> },
+              {
+                path: "coach-applications",
+                element: <CoachApplicationsPage />,
+              },
               { path: "roles/permissions", element: <RolePermissionsPage /> },
             ],
           },
@@ -218,3 +235,4 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
+

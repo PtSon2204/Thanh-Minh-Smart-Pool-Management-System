@@ -31,8 +31,7 @@ public static class RolePermissionSeeder
                 ["staff"]            = ["read", "create", "update"],
                 ["shifts"]           = ["read", "create", "update"],
                 ["staff_schedule"]   = ["read", "create", "delete"],
-                ["swim_classes"]     = ["read", "create", "update"],
-                ["class_sessions"]   = ["create"],
+                ["coach_applications"] = ["read", "review"],
                 ["attendance"]       = ["read", "update"],
                 ["ticket_lookup"]    = ["read"],
                 ["pool_entry"]       = ["read", "create"],
@@ -77,7 +76,8 @@ public static class RolePermissionSeeder
             {
                 ["profiles"]         = ["read", "update"],
                 ["staff_schedule"]   = ["read"],
-                ["swim_classes"]     = ["read"],
+                ["swim_classes"]     = ["read", "create", "update"],
+                ["class_sessions"]   = ["create", "update"],
                 ["attendance"]       = ["read", "update"],
             },
 
@@ -86,6 +86,8 @@ public static class RolePermissionSeeder
                 ["profiles"]         = ["read", "update"],
                 ["swim_classes"]     = ["read"],
                 ["customer_tickets"] = ["read", "create", "update"],
+                ["class_registrations"] = ["create", "read"],
+                ["coach_applications"] = ["create", "read"],
                 ["ticket_types"]     = ["read"],
                 ["vouchers"]         = ["read"],
             },
@@ -147,6 +149,11 @@ public static class RolePermissionSeeder
                 changed = true;
             }
             changed = current.Remove("salaries") || changed;
+            if (roleName == "ADMIN")
+            {
+                changed = current.Remove("swim_classes") || changed;
+                changed = current.Remove("class_sessions") || changed;
+            }
             if (roleName is "LIFEGUARD" or "SALES")
                 changed = current.Remove("shifts") || changed;
 

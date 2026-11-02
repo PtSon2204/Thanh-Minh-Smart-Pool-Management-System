@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import apiClient from '../../services/apiClient'
 import { Avatar, Skeleton, Modal, Input, message } from 'antd'
-import { QrcodeOutlined, UserOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { QrcodeOutlined, UserOutlined, EditOutlined, CheckOutlined, CloseOutlined, HistoryOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import dayjs from 'dayjs'
 import './MyCardPage.css'
@@ -12,6 +13,7 @@ import ticketService from '../../features/tickets/services/ticketService'
 
 export default function MyCardPage() {
   const { session } = useAuthStore()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [selectedTicket, setSelectedTicket] = useState(null)
   // State cho chỉnh sửa mã: ticketId đang được edit
@@ -31,6 +33,18 @@ export default function MyCardPage() {
       return res.data
     },
     enabled: !!session
+  })
+
+  // Lọc chỉ giữ lại vé còn hiệu lực (chưa dùng và chưa hết hạn)
+  const activeTickets = (tickets || []).filter(ticket => {
+    const status = ticket.status?.toUpperCase()
+    if (status === 'USED') return false
+    if (status === 'EXPIRED') return false
+    // Với vé lượt, nếu đã quá hạn sử dụng thì ẩn khỏi danh sách vé dùng được
+    if (ticket.ticketCategory === 'VE_LUOT' && ticket.expiryDate && dayjs(ticket.expiryDate).isBefore(dayjs())) {
+      return false
+    }
+    return true
   })
 
   // Mutation cập nhật mã vé
@@ -113,15 +127,36 @@ export default function MyCardPage() {
         <div className="mc-main-content">
         <div className="mc-ticket-section">
           <div className="mc-section-header">
-            <h3>DANH SÁCH VÉ</h3>
-            <button className="mc-buy-btn" onClick={() => window.location.href = '/bang-gia'}>+ Mua vé</button>
+            <h3>DANH SÁCH VÉ KHẢ DỤNG</h3>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className="mc-history-btn" 
+                onClick={() => navigate('/lich-su-vao-be')}
+                style={{
+                  backgroundColor: '#f6ffed',
+                  color: '#237804',
+                  border: '1px solid #b7eb8f',
+                  padding: '6px 14px',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <HistoryOutlined /> Lịch sử vào bể
+              </button>
+              <button className="mc-buy-btn" onClick={() => navigate('/bang-gia')}>+ Mua vé</button>
+            </div>
           </div>
 
           <div className="mc-ticket-list">
             {isLoading ? (
               <Skeleton active />
-            ) : tickets && tickets.length > 0 ? (
-              tickets.map(ticket => (
+            ) : activeTickets && activeTickets.length > 0 ? (
+              activeTickets.map(ticket => (
                 <div key={ticket.id} className="mc-ticket-item">
 
                   <div className="mc-ticket-details">
@@ -197,8 +232,23 @@ export default function MyCardPage() {
                 </div>
               ))
             ) : (
-              <div className="mc-empty-tickets">
-                Bạn chưa có vé nào. Hãy mua vé để sử dụng dịch vụ.
+              <div className="mc-empty-tickets" style={{ textAlign: 'center', padding: '30px 16px' }}>
+                <p style={{ margin: 0, fontWeight: 600, color: '#444' }}>Bạn không có vé nào đang khả dụng.</p>
+                {tickets && tickets.length > 0 ? (
+                  <p style={{ marginTop: '8px', fontSize: '13px', color: '#888' }}>
+                    Các vé đã sử dụng hoặc hết hạn đã được chuyển vào mục{' '}
+                    <span 
+                      onClick={() => navigate('/lich-su-vao-be')} 
+                      style={{ color: '#0b9e69', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Lịch sử vào bể
+                    </span>.
+                  </p>
+                ) : (
+                  <p style={{ marginTop: '8px', fontSize: '13px', color: '#888' }}>
+                    Hãy mua vé để sử dụng dịch vụ bơi lội.
+                  </p>
+                )}
               </div>
             )}
           </div>

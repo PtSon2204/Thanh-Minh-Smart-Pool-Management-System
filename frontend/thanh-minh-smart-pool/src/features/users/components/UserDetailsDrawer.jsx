@@ -10,7 +10,7 @@ function formatDateTime(value) {
   return value ? new Date(value).toLocaleString('vi-VN') : '—'
 }
 
-export default function UserDetailsDrawer({ userId, onClose }) {
+export default function UserDetailsDrawer({ userId, onClose, onRevokeCoach }) {
   const detail = useUserDetail(userId)
   const user = detail.data
   const role = USER_ROLES.find((item) => item.value === user?.role)?.label || user?.role || '—'
@@ -40,11 +40,15 @@ export default function UserDetailsDrawer({ userId, onClose }) {
         <Descriptions.Item label="Số điện thoại">{user.phone || '—'}</Descriptions.Item>
         <Descriptions.Item label="Ngày sinh">{formatDate(user.dateOfBirth)}</Descriptions.Item>
         <Descriptions.Item label="Địa chỉ">{user.address || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Vai trò"><Tag color={USER_ROLE_COLORS[user.role]}>{role}</Tag></Descriptions.Item>
+        <Descriptions.Item label="Vai trò"><Tag color={USER_ROLE_COLORS[user.role]}>{role}</Tag>
+          {user.isCoach && <Tag color="gold">Coach</Tag>}</Descriptions.Item>
         <Descriptions.Item label="Trạng thái"><Tag color={user.status === 'ACTIVE' ? 'success' : user.status === 'LOCKED' ? 'default' : 'warning'}>{status}</Tag></Descriptions.Item>
         <Descriptions.Item label="Ngày tạo">{formatDateTime(user.createdAt)}</Descriptions.Item>
         <Descriptions.Item label="Cập nhật lần cuối">{formatDateTime(user.updatedAt)}</Descriptions.Item>
       </Descriptions>
+      {user.isCoach && <Button danger style={{ marginTop: 20 }} onClick={() => onRevokeCoach(user)}>
+        Thu hồi quyền Coach
+      </Button>}
     </>}
   </Drawer>
 }
