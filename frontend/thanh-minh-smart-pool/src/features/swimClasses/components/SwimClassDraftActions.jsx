@@ -65,12 +65,12 @@ export default function SwimClassDraftActions({ swimClass, now }) {
   return <section className="swim-class-detail-panel swim-class-detail-actions" aria-label="Quản lý lịch lớp">
     <div className="swim-class-detail-section-title"><CalendarOutlined /><h2>{swimClass.status === 'Draft' ? 'Hoàn thiện lớp' : 'Quản lý lịch học'}</h2></div>
     <p>{swimClass.status === 'Draft'
-      ? 'Thêm buổi tương lai và đảm bảo hạn đăng ký kết thúc trước buổi đầu tiên để kích hoạt lớp.'
-      : 'Thêm buổi học mới cho lớp. Học viên đã đăng ký sẽ được thông báo sau khi lưu.'}</p>
+      ? 'Bước tiếp theo: thêm buổi học tương lai, lưu lịch, rồi kích hoạt lớp. Hạn đăng ký phải kết thúc trước buổi đầu tiên.'
+      : 'Thêm buổi học mới tại đây hoặc chọn Sửa buổi trong lịch học bên dưới. Học viên đã đăng ký sẽ được thông báo sau khi lưu.'}</p>
     {activationError && <Alert type="error" showIcon title={activationError} />}
     {coachesQuery.isError && editorOpen && <Alert type="warning" showIcon title="Không tải được danh sách Coach" action={<Button onClick={() => coachesQuery.refetch()}>Thử lại</Button>} />}
     <div className="swim-class-detail-action-buttons">
-      <Button icon={<CalendarOutlined />} onClick={() => setEditorOpen(previous => !previous)}>{editorOpen ? 'Đóng biểu mẫu' : 'Thêm buổi học'}</Button>
+      <Button type={!editorOpen && swimClass.status === 'Draft' ? 'primary' : 'default'} icon={<CalendarOutlined />} onClick={() => setEditorOpen(previous => !previous)}>{editorOpen ? 'Đóng biểu mẫu' : 'Thêm buổi học'}</Button>
       {canActivateClass(swimClass, now) && <Button type="primary" icon={<CheckCircleOutlined />} loading={activate.isPending} onClick={activateClass}>Kích hoạt lớp</Button>}
     </div>
     {editorOpen && <div className="swim-class-create-page swim-class-detail-session-editor">

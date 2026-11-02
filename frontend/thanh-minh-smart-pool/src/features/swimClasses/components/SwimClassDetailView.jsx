@@ -57,16 +57,16 @@ export default function SwimClassDetailView() {
         <header className="swim-class-detail-header">
           <div className="swim-class-detail-heading"><span className="swim-class-detail-icon"><BookOutlined /></span><div><small>CHI TIẾT LỚP DẠY BƠI</small><h1>{swimClass.name}</h1></div></div>
           <div className="swim-class-detail-header-actions">
-            {isOwner && <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Chỉnh sửa</Button>}
+            {isOwner && <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Sửa thông tin lớp</Button>}
             <SwimClassStatusTag status={swimClass.status} />
           </div>
         </header>
         <SwimClassDetailSummary swimClass={swimClass} now={now} />
         {role === 'CUSTOMER' && <SwimClassRegistrationActions key={swimClass.id} swimClass={swimClass}
           userId={session.id} now={now} onRefresh={() => detail.refetch()} />}
+        {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <SwimClassDraftActions swimClass={swimClass} now={now} />}
         <SwimClassSessionSchedule sessions={swimClass.sessions || []} now={now}
           onEditSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined} />
-        {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <SwimClassDraftActions swimClass={swimClass} now={now} />}
         {isOwner && editingClass && <SwimClassEditModal swimClass={swimClass} open
           onClose={() => setEditingClass(false)} onReload={() => detail.refetch()} />}
         {isOwner && editingSession && <SwimClassSessionEditModal classId={swimClass.id} session={editingSession}
