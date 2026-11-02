@@ -66,17 +66,24 @@ public sealed class RegisterHandlerRoleTests
             NullLogger<RegisterHandler>.Instance);
         var request = new RegisterCommand
         {
-            Username = "role.test",
             Email = "role.test@example.com",
             Phone = "0912345678",
-            Password = "Registration123",
-            ConfirmPassword = "Registration123",
-            FullName = "Role Test"
+            Password = "Registration123"
         };
 
         var result = Assert.IsType<ObjectResult>(await handler.Handle(request, CancellationToken.None));
 
         Assert.Equal(expectedStatus, result.StatusCode);
+        if (expectedStatus == 202)
+        {
+            otpStore.Verify(store => store.TryStartAsync(
+                It.Is<PendingRegistration>(pending => pending.Username == string.Empty &&
+                    pending.Email == request.Email && pending.FullName == request.Email),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once());
+            emailService.Verify(service => service.SendAsync(request.Email,
+                It.IsAny<string>(), It.Is<string>(body => body.Contains("Mã xác minh")),
+                It.IsAny<CancellationToken>()), Times.Once());
+        }
         users.Verify(repository => repository.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never());
         otpStore.Verify(store => store.TryStartAsync(It.IsAny<PendingRegistration>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), expectedStatus == 202 ? Times.Once() : Times.Never());

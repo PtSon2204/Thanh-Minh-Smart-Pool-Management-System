@@ -116,7 +116,7 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
             user = new User
             {
                 Id = Guid.NewGuid(),
-                Username = registration.Username,
+                Username = string.IsNullOrEmpty(registration.Username) ? null : registration.Username,
                 Email = registration.Email,
                 Phone = registration.Phone,
                 PasswordHash = registration.PasswordHash,
@@ -143,7 +143,7 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
                 Id = Guid.NewGuid(),
                 UserId = adminUser?.Id ?? user.Id,
                 Title = "Khách hàng mới đăng ký",
-                Content = $"Khách hàng {registration.FullName} ({registration.Username}) đã đăng ký tài khoản thành công.",
+                Content = $"Khách hàng {registration.Email} đã đăng ký tài khoản thành công.",
                 Type = "CUSTOMER",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow

@@ -13,7 +13,7 @@ function initialRegistration(state) {
   const stored = readPendingRegistration()
   const parsed = registerPendingResponseSchema.safeParse(state)
   const fromNavigation = parsed.success && Date.parse(parsed.data.registrationExpiresAtUtc) > Date.now()
-    ? { ...parsed.data, email: state.email, username: state.username }
+    ? { ...parsed.data, email: state.email }
     : null
   if (fromNavigation && stored?.registrationId !== fromNavigation.registrationId) return fromNavigation
   return stored || fromNavigation
@@ -164,7 +164,7 @@ export default function OtpForm({ flow }) {
         navigate('/dang-nhap', {
           replace: true,
           state: {
-            registeredUsername: verified.username,
+            registeredUsername: verified.email,
             registrationSuccess: 'Đăng ký thành công. Hãy đăng nhập để tiếp tục.',
           },
         })
