@@ -13,6 +13,8 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetAll
 
         public int? DurationDays { get; set; }
 
+        public int? TotalEntries { get; set; }
+
         public bool IsActive { get; set; }
         public DateTime? CreatedAt { get; set; }
     }

@@ -16,7 +16,7 @@ public sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         entity.Property(e => e.IsDeleted).HasDefaultValue(false).HasColumnName("is_deleted");
         entity.Property(e => e.IssueDate).HasDefaultValueSql("now()").HasColumnName("issue_date");
         entity.Property(e => e.QrCode).HasMaxLength(255).HasColumnName("qr_code");
-        entity.Ignore(e => e.RemainingEntries); // Cột này chưa tồn tại trong DB
+        entity.Property(e => e.RemainingEntries).HasDefaultValue(1).HasColumnName("remaining_entries");
         entity.Property(e => e.RowVersion).HasDefaultValueSql("uuid_generate_v4()").HasColumnName("row_version");
         entity.Property(e => e.Status).HasMaxLength(50).HasDefaultValueSql("'Active'::character varying").HasColumnName("status");
         entity.Property(e => e.TicketTypeId).HasColumnName("ticket_type_id");

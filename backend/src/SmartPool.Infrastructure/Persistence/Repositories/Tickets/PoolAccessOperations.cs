@@ -50,7 +50,8 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
 
             DateTime? usedAt = null;
             if (ticket.Status?.ToLower() == PoolAccessValues.Used.ToLower()
-                || category == TicketCategoryEnum.VE_THANG)
+                || category == TicketCategoryEnum.VE_THANG
+                || (category == TicketCategoryEnum.VE_LUOT && ticket.RemainingEntries.HasValue && ticket.RemainingEntries.Value < (ticket.TicketType.TotalEntries ?? 1)))
             {
                 usedAt = await _context.EntryLogs.AsNoTracking()
                     .Where(item => item.TicketId == ticket.Id
@@ -101,7 +102,13 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
 
             if (category == TicketCategoryEnum.VE_LUOT)
             {
-                ticket.Status = PoolAccessValues.Used;
+                int currentEntries = ticket.RemainingEntries ?? 1;
+                int remaining = currentEntries - 1;
+                ticket.RemainingEntries = remaining;
+                if (remaining <= 0)
+                {
+                    ticket.Status = PoolAccessValues.Used;
+                }
                 ticket.UpdatedAt = utcNow;
             }
 
@@ -238,6 +245,12 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             if (!VietnamTimeBoundary.HasNotExpired(ticket.ExpiryDate, utcNow))
             {
                 reason = "TicketExpired";
+                return false;
+            }
+
+            if (category == TicketCategoryEnum.VE_LUOT && ticket.RemainingEntries.HasValue && ticket.RemainingEntries.Value <= 0)
+            {
+                reason = "InsufficientEntries";
                 return false;
             }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, Tag, Select } from 'antd'
-import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import { useTicketTypes } from "../../../features/tickets/hooks/useTicketTypes"
 import { useSellOfflineTicket, useCreatePendingOrder, useOrderStatus } from "../../../features/tickets/hooks/useSellOfflineTicket"
@@ -15,7 +15,6 @@ const { Title } = Typography
 export default function OfflineSalesPage() {
   const [cart, setCart] = useState([])
   const [customerPhone, setCustomerPhone] = useState('')
-  const [customerName, setCustomerName] = useState('')
 
   // Voucher state
   const [voucherCode, setVoucherCode] = useState('')
@@ -78,7 +77,6 @@ export default function OfflineSalesPage() {
       setPendingOrderId(null);
       setReceiptVisible(true);
       setCart([]);
-      setCustomerName('');
       setCustomerPhone('');
     } else if (orderStatusData && (orderStatusData.status === 'CANCELLED' || orderStatusData.status === 'EXPIRED')) {
       message.error('Giao dịch đã hết hạn hoặc bị hủy.');
@@ -166,9 +164,11 @@ export default function OfflineSalesPage() {
   }
 
 
-  // VE_THANG: cần đăng ký TK để gắn QR
-  // VE_LUOT tại quầy: không cần đăng ký (trừ lượt ngay, không QR)
-  const requiresRegistration = cart.some(item => item.ticketType.ticketCategory === 'VE_THANG')
+  // VE_THANG hoặc VE_LUOT > 1 lượt: cần đăng ký TK qua SĐT để gắn vé và lưu số lượt
+  const requiresRegistration = cart.some(item => 
+    item.ticketType.ticketCategory === 'VE_THANG' ||
+    (item.ticketType.ticketCategory === 'VE_LUOT' && (item.ticketType.totalEntries ?? 1) > 1)
+  )
 
   const isValidPhone = customerPhone ? /^0\d{9}$/.test(customerPhone.trim()) : false;
   const canCheckout = cart.length > 0 && (!requiresRegistration || isValidPhone)
@@ -201,7 +201,6 @@ export default function OfflineSalesPage() {
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
-      customerName: requiresRegistration ? customerName.trim() : null,
       voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
@@ -216,7 +215,6 @@ export default function OfflineSalesPage() {
             finalAmount: data.finalAmount !== undefined ? data.finalAmount : data.totalAmount,
             voucherCode: data.voucherCode,
             cartSummary: getOrderSummary(),
-            customerName: requiresRegistration ? customerName.trim() : '',
             customerPhone: requiresRegistration ? customerPhone.trim() : ''
           })
           setSoldTickets(data.tickets)
@@ -224,7 +222,6 @@ export default function OfflineSalesPage() {
           setPaymentMethodVisible(false)
           setReceiptVisible(true)
           setCart([])
-          setCustomerName('')
           setCustomerPhone('')
           setAppliedVoucher(null)
           setVoucherCode('')
@@ -238,7 +235,6 @@ export default function OfflineSalesPage() {
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
-      customerName: requiresRegistration ? customerName.trim() : null,
       voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
@@ -253,7 +249,6 @@ export default function OfflineSalesPage() {
             finalAmount: data.finalAmount !== undefined ? data.finalAmount : data.totalAmount,
             voucherCode: data.voucherCode,
             cartSummary: getOrderSummary(),
-            customerName: requiresRegistration ? customerName.trim() : '',
             customerPhone: requiresRegistration ? customerPhone.trim() : ''
           }
           setSoldOrder(orderData)
@@ -408,9 +403,6 @@ export default function OfflineSalesPage() {
 
             {requiresRegistration && (
               <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <div style={{ fontWeight: 600, color: '#e31748', marginBottom: 12 }}>
-                  * Bắt buộc nhập thông tin khách hàng (do có mua Vé Tháng)
-                </div>
                 <Form layout="vertical">
                   <Form.Item 
                     label="Số điện thoại khách hàng" 
@@ -428,18 +420,7 @@ export default function OfflineSalesPage() {
                       }}
                       maxLength={10}
                     />
-                  </Form.Item>
-                  <Form.Item label="Tên khách hàng (Không bắt buộc)">
-                    <Input 
-                      prefix={<UserOutlined />} 
-                      placeholder="Nhập tên..." 
-                      value={customerName}
-                      onChange={e => setCustomerName(e.target.value)}
-                    />
-                  </Form.Item>
-                  <div style={{ color: '#64748b', marginBottom: 16 }}>
-                    Vé tháng có hiệu lực 30 ngày kể từ lúc mua/thanh toán.
-                  </div>
+                  </Form.Item>     
                 </Form>
               </div>
             )}

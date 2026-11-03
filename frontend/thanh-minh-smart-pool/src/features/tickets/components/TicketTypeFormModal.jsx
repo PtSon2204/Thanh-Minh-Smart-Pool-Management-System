@@ -15,6 +15,7 @@ import { TicketCategoryOptions, TicketValidityLabel } from '../types/ticketType'
 export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
   const [form] = Form.useForm()
   const ticketCategory = Form.useWatch('ticketCategory', form)
+  const totalEntries = Form.useWatch('totalEntries', form)
   
   const { mutate: createTicketType, isPending: isCreating } = useCreateTicketType()
   const { mutate: updateTicketType, isPending: isUpdating } = useUpdateTicketType()
@@ -26,7 +27,10 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
   useEffect(() => {
     if (open) {
       if (isEditMode) {
-        form.setFieldsValue(editingTicket)
+        form.setFieldsValue({
+          ...editingTicket,
+          totalEntries: editingTicket.totalEntries ?? (editingTicket.ticketCategory === 'VE_LUOT' ? 1 : null),
+        })
       } else {
         form.resetFields()
       }
@@ -39,6 +43,7 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
         name:           values.name,
         ticketCategory: values.ticketCategory,
         price:          values.price,
+        totalEntries:   values.ticketCategory === 'VE_LUOT' ? (values.totalEntries ? Number(values.totalEntries) : 1) : null,
       }
 
       if (isEditMode) {
@@ -50,6 +55,19 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
         createTicketType(payload, { onSuccess: () => onClose() })
       }
     })
+  }
+
+  const getValidityDisplay = () => {
+    if (!ticketCategory) return ''
+    if (ticketCategory === 'VE_THANG') return TicketValidityLabel.VE_THANG
+    if (ticketCategory === 'VE_LUOT') {
+      const entries = Number(totalEntries)
+      if (entries > 1) {
+        return `Không giới hạn thời gian (dùng hết ${entries} lượt)`
+      }
+      return '24 giờ kể từ lúc mua'
+    }
+    return TicketValidityLabel[ticketCategory] ?? ''
   }
 
   return (
@@ -102,7 +120,7 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
             { pattern: /^[\p{L}\p{M}\p{Nd} ()]+$/u, message: 'Tên loại vé chỉ được chứa chữ, số, khoảng trắng và dấu ngoặc ().' },
           ]}
         >
-          <Input placeholder="Ví dụ: Vé tháng (30 ngày)" maxLength={30} showCount />
+          <Input placeholder="Ví dụ: Vé lượt bơi (10 lượt)" maxLength={30} showCount />
         </Form.Item>
 
         {/* Phân loại */}
@@ -113,6 +131,30 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
         >
           <Select placeholder="Chọn phân loại..." options={TicketCategoryOptions} />
         </Form.Item>
+
+        {/* Số lượt vào bể (khi chọn Vé lượt) */}
+        {ticketCategory === 'VE_LUOT' && (
+          <Form.Item
+            label="Số lượt vào bể"
+            name="totalEntries"
+            extra="Để trống mặc định là 1 lượt. Vé từ 2 lượt trở lên sẽ không giới hạn thời gian (dùng hết số lượt)."
+            rules={[
+              {
+                type: 'number',
+                min: 1,
+                max: 500,
+                message: 'Số lượt phải từ 1 đến 500 lượt.',
+              },
+            ]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              min={1}
+              max={500}
+              placeholder="Mặc định: 1 lượt"
+            />
+          </Form.Item>
+        )}
 
         {/* Giá + Hiệu lực — 2 cột */}
         <div className="responsive-form-grid">
@@ -133,8 +175,8 @@ export default function TicketTypeFormModal({ open, onClose, editingTicket }) {
             />
           </Form.Item>
 
-          <Form.Item label="Hiệu lực" extra="Tự động theo phân loại vé">
-            <Input readOnly value={TicketValidityLabel[ticketCategory] ?? ''} placeholder="Chọn phân loại vé" />
+          <Form.Item label="Hiệu lực" extra="Tự động theo phân loại và số lượt">
+            <Input readOnly value={getValidityDisplay()} placeholder="Chọn phân loại vé" />
           </Form.Item>
         </div>
       </Form>
