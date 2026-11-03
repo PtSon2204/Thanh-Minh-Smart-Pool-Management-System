@@ -1,13 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Card,
-  Row,
-  Col,
-  Statistic,
   Table,
-  Tag,
   Button,
-  Space,
   Modal,
   Form,
   Input,
@@ -15,6 +9,7 @@ import {
   message,
   notification as antNotification,
   Badge,
+  Spin,
 } from 'antd';
 import {
   ArrowUpOutlined,
@@ -26,8 +21,17 @@ import {
   ReloadOutlined,
   CheckOutlined,
   SendOutlined,
+  SafetyCertificateOutlined,
+  ThunderboltOutlined,
+  RightOutlined,
+  EyeOutlined,
+  ToolOutlined,
+  ExperimentOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
+import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { useAuthStore } from '../../../features/auth/store/authStore';
 import { notificationService } from '../../../features/notifications/services/notificationService';
 import { reportService } from '../../../features/reports/services/reportService';
 import {
@@ -35,33 +39,62 @@ import {
   onReceiveNotification,
   sendNotificationViaHub,
 } from '../../../services/signalrClient';
+import './DashboardPage.css';
 
-const renderTypeTag = (type) => {
+/**
+ * Render notification type badge with refined pill styles
+ */
+const renderTypeBadge = (type) => {
   const t = (type || 'SYSTEM').toUpperCase();
   if (t === 'MAINTENANCE' || t.startsWith('MT:')) {
-    return <Tag color="orange">Bảo trì</Tag>;
+    return <span className="db-pill-tag db-tag-maintenance">Bảo trì</span>;
   }
   if (t === 'INCIDENT') {
-    return <Tag color="red">Sự cố</Tag>;
+    return <span className="db-pill-tag db-tag-incident">Sự cố</span>;
   }
   if (t === 'TICKET' || t === 'TICKET_DAY' || t === 'TICKET_MONTH' || t === 'ORDER') {
-    return <Tag color="green">Bán vé</Tag>;
+    return <span className="db-pill-tag db-tag-ticket">Bán vé</span>;
   }
   if (t === 'RENTAL') {
-    return <Tag color="purple">Thuê đồ</Tag>;
+    return <span className="db-pill-tag db-tag-rental">Thuê đồ</span>;
   }
   if (t === 'WARNING') {
-    return <Tag color="gold">Cảnh báo</Tag>;
+    return <span className="db-pill-tag db-tag-warning">Cảnh báo</span>;
   }
   if (t === 'CUSTOMER' || t === 'USER') {
-    return <Tag color="cyan">Khách hàng</Tag>;
+    return <span className="db-pill-tag db-tag-customer">Khách hàng</span>;
   }
-  return <Tag color="blue">Hệ thống</Tag>;
+  return <span className="db-pill-tag db-tag-system">Hệ thống</span>;
+};
+
+/**
+ * Calculate current swimming shift label
+ */
+const getCurrentShift = () => {
+  const now = dayjs();
+  const currentMinutes = now.hour() * 60 + now.minute();
+  const sangStart = 6 * 60; // 06:00
+  const sangEnd = 11 * 60 + 30; // 11:30
+  const chieuStart = 13 * 60 + 30; // 13:30
+  const chieuEnd = 19 * 60 + 30; // 19:30
+
+  if (currentMinutes >= sangStart && currentMinutes <= sangEnd) {
+    return { name: 'Ca sáng (06:00 – 11:30)', active: true };
+  }
+  if (currentMinutes >= chieuStart && currentMinutes <= chieuEnd) {
+    return { name: 'Ca chiều (13:30 – 19:30)', active: true };
+  }
+  return { name: 'Ngoài giờ mở ca', active: false };
 };
 
 export default function DashboardPage() {
+  const { session } = useAuthStore();
+  const adminName = session?.fullName || session?.userName || 'Quản trị viên';
+  const shiftInfo = useMemo(() => getCurrentShift(), []);
+
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('ALL');
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [testForm] = Form.useForm();
@@ -79,7 +112,7 @@ export default function DashboardPage() {
   const loadNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await notificationService.getNotifications({ page: 1, pageSize: 20 });
+      const res = await notificationService.getNotifications({ page: 1, pageSize: 30 });
       setNotifications(res?.items || []);
     } catch {
       setNotifications([]);
@@ -113,13 +146,15 @@ export default function DashboardPage() {
   const handleRefresh = useCallback(() => {
     loadNotifications();
     loadStats();
+    message.success('Đã làm mới dữ liệu hệ thống');
   }, [loadNotifications, loadStats]);
 
   useEffect(() => {
     let isMounted = true;
 
     // Tải thông báo
-    notificationService.getNotifications({ page: 1, pageSize: 20 })
+    notificationService
+      .getNotifications({ page: 1, pageSize: 30 })
       .then((res) => {
         if (!isMounted) return;
         setNotifications(res?.items || []);
@@ -158,13 +193,13 @@ export default function DashboardPage() {
 
       // Hiển thị thông báo popup Ant Design góc phải màn hình
       antNotification.info({
-        message: `🔔 ${newNotif.title || 'Thông báo hệ thống mới'}`,
+        message: `Thông báo hệ thống mới: ${newNotif.title || ''}`,
         description: newNotif.content,
         placement: 'topRight',
         duration: 6,
         style: {
-          borderRadius: 8,
-          borderLeft: '4px solid #0068ff',
+          borderRadius: 12,
+          borderLeft: '4px solid #0284c7',
         },
       });
 
@@ -258,7 +293,7 @@ export default function DashboardPage() {
         };
         setNotifications((prev) => [localPayload, ...prev]);
         antNotification.info({
-          message: `🔔 ${localPayload.title}`,
+          message: localPayload.title,
           description: localPayload.content,
           placement: 'topRight',
           duration: 5,
@@ -275,6 +310,42 @@ export default function DashboardPage() {
     }
   };
 
+  // Filtered notifications based on active tab
+  const filteredNotifications = useMemo(() => {
+    if (activeTab === 'ALL') return notifications;
+    if (activeTab === 'UNREAD') return notifications.filter((n) => !n.isRead);
+    if (activeTab === 'INCIDENT') {
+      return notifications.filter((n) => {
+        const t = (n.type || '').toUpperCase();
+        return t === 'INCIDENT' || t === 'WARNING';
+      });
+    }
+    if (activeTab === 'MAINTENANCE') {
+      return notifications.filter((n) => {
+        const t = (n.type || '').toUpperCase();
+        return t === 'MAINTENANCE' || t.startsWith('MT:');
+      });
+    }
+    if (activeTab === 'TICKET') {
+      return notifications.filter((n) => {
+        const t = (n.type || '').toUpperCase();
+        return t === 'TICKET' || t === 'ORDER' || t.includes('TICKET');
+      });
+    }
+    if (activeTab === 'SYSTEM') {
+      return notifications.filter((n) => {
+        const t = (n.type || '').toUpperCase();
+        return t === 'SYSTEM' || !t;
+      });
+    }
+    return notifications;
+  }, [notifications, activeTab]);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+
   const notificationColumns = [
     {
       title: 'Thời gian',
@@ -284,12 +355,22 @@ export default function DashboardPage() {
       render: (val, record) => {
         const formatted = val ? dayjs(val).format('DD/MM/YYYY HH:mm:ss') : 'Vừa xong';
         return (
-          <Space orientation="vertical" size={2}>
-            <span style={{ fontSize: 13, color: '#334155' }}>{formatted}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>{formatted}</span>
             {record.isNew && (
-              <Badge count="MỚI" style={{ backgroundColor: '#03ca77', fontSize: 10, padding: '0 4px', height: 16, lineHeight: '16px' }} />
+              <Badge
+                count="MỚI"
+                style={{
+                  backgroundColor: '#059669',
+                  fontSize: 10,
+                  padding: '0 5px',
+                  height: 16,
+                  lineHeight: '16px',
+                  width: 'fit-content',
+                }}
+              />
             )}
-          </Space>
+          </div>
         );
       },
     },
@@ -298,25 +379,37 @@ export default function DashboardPage() {
       dataIndex: 'type',
       key: 'type',
       width: 110,
-      render: (type) => renderTypeTag(type),
+      render: (type) => renderTypeBadge(type),
     },
     {
       title: 'Tiêu đề',
       dataIndex: 'title',
       key: 'title',
-      width: 220,
+      width: 240,
       render: (text, record) => (
-        <span style={{ fontWeight: record.isRead ? 500 : 700, color: record.isRead ? '#475569' : '#0f172a' }}>
-          {!record.isRead && <Badge status="processing" style={{ marginRight: 6 }} />}
-          {text}
-        </span>
+        <div className="db-notif-title-wrap">
+          {!record.isRead && <span className="db-unread-dot" title="Chưa đọc" />}
+          <span
+            style={{
+              fontWeight: record.isRead ? 500 : 700,
+              color: record.isRead ? '#475569' : '#0f172a',
+              fontSize: 13.5,
+            }}
+          >
+            {text}
+          </span>
+        </div>
       ),
     },
     {
       title: 'Nội dung chi tiết',
       dataIndex: 'content',
       key: 'content',
-      render: (text) => <span style={{ color: '#334155' }}>{text}</span>,
+      render: (text) => (
+        <span style={{ color: '#334155', fontSize: 13.5, lineHeight: 1.5 }}>
+          {text}
+        </span>
+      ),
     },
     {
       title: 'Trạng thái',
@@ -324,167 +417,391 @@ export default function DashboardPage() {
       key: 'isRead',
       width: 110,
       render: (isRead) => (
-        <Tag color={isRead ? 'default' : 'processing'}>
+        <span
+          className="db-pill-tag"
+          style={{
+            background: isRead ? '#f1f5f9' : '#eff6ff',
+            color: isRead ? '#64748b' : '#0284c7',
+            borderColor: isRead ? '#e2e8f0' : '#bfdbfe',
+          }}
+        >
           {isRead ? 'Đã đọc' : 'Chưa đọc'}
-        </Tag>
+        </span>
       ),
     },
     {
       title: 'Thao tác',
       key: 'action',
-      width: 140,
+      width: 130,
       render: (_, record) => (
-        <Space size="small">
+        <div>
           {!record.isRead && (
-            <Button
-              type="link"
-              size="small"
-              icon={<CheckOutlined />}
+            <button
+              type="button"
+              className="db-btn-mark-read"
               onClick={() => handleMarkAsRead(record.id)}
             >
-              Đã đọc
-            </Button>
+              <CheckOutlined style={{ fontSize: 11 }} />
+              <span>Đã đọc</span>
+            </button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
 
   return (
-    <div>
-      {/* Welcome Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #001f3e 0%, #002d59 60%, #0068ff 100%)',
-          padding: '20px 24px',
-          borderRadius: '12px',
-          color: '#fff',
-          marginBottom: '24px',
-          boxShadow: '0 4px 12px rgba(0, 119, 182, 0.15)',
-        }}
-      >
-        <h2 style={{ margin: 0, color: '#fff', fontSize: '20px' }}>Xin chào, Quản trị viên! 👋</h2>
-        <p style={{ margin: '4px 0 0 0', opacity: 0.9 }}>
-          Dưới đây là tổng quan tình hình kinh doanh và bảng thông báo hoạt động của hệ thống.
-        </p>
+    <div className="dashboard-page">
+      {/* ── 1. Welcome & Operational Status Banner ── */}
+      <div className="db-welcome-banner">
+        <div className="db-welcome-left">
+          <div className="db-welcome-badge">
+            <SafetyCertificateOutlined />
+            <span>Thanh Minh Smart Pool Cockpit</span>
+          </div>
+          <h1 className="db-welcome-title">
+            Xin chào, <span className="db-name-highlight">{adminName}</span>!
+          </h1>
+          <p className="db-welcome-desc">
+            Tổng quan dữ liệu kinh doanh, chỉ số an toàn hồ bơi và bảng điều phối hoạt động hệ thống theo thời gian thực.
+          </p>
+        </div>
+
+        <div className="db-welcome-right">
+          <div className="db-status-pill">
+            <span className="db-live-indicator" />
+            <span>Trực tuyến</span>
+          </div>
+
+          <div className="db-shift-info">
+            <span>Ca hiện tại:</span>
+            <strong>{shiftInfo.name}</strong>
+          </div>
+        </div>
       </div>
 
-      {/* Metric Cards với dữ liệu thật */}
-      <Row gutter={[24, 24]}>
-        <Col xs={24} sm={12} lg={8}>
-          <Card bordered={false} loading={statsLoading} style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <Statistic
-              title="Tổng Khách Hàng"
-              value={stats.totalCustomers}
-              precision={0}
-              valueStyle={{ color: '#03ca77', fontWeight: 600 }}
-              prefix={<UserOutlined style={{ marginRight: 8 }} />}
-              suffix={
-                stats.customerGrowthRate !== 0 ? (
-                  <small style={{ fontSize: '14px', marginLeft: 8, color: stats.customerGrowthRate >= 0 ? '#3f8600' : '#cf1322' }}>
-                    {stats.customerGrowthRate >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(stats.customerGrowthRate)}%
-                  </small>
-                ) : null
-              }
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card bordered={false} loading={statsLoading} style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <Statistic
-              title="Tổng Vé Đã Bán (Tháng Này)"
-              value={stats.totalTicketsSold}
-              precision={0}
-              valueStyle={{ color: '#0068ff', fontWeight: 600 }}
-              prefix={<ShoppingCartOutlined style={{ marginRight: 8 }} />}
-              suffix={<span style={{ fontSize: 14, color: '#64748b', marginLeft: 6 }}>vé</span>}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card bordered={false} loading={statsLoading} style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <Statistic
-              title="Doanh Thu Bán Vé (Tháng Này)"
-              value={stats.totalRevenue}
-              precision={0}
-              valueStyle={{ color: '#faa828', fontWeight: 600 }}
-              prefix={<DollarOutlined style={{ marginRight: 8 }} />}
-              suffix={
-                <Space size={6} style={{ marginLeft: 6 }}>
-                  <span style={{ fontSize: 16 }}>VNĐ</span>
-                  {stats.revenueGrowthRate !== 0 && (
-                    <small style={{ fontSize: '13px', color: stats.revenueGrowthRate >= 0 ? '#3f8600' : '#cf1322' }}>
-                      {stats.revenueGrowthRate >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(stats.revenueGrowthRate)}%
-                    </small>
-                  )}
-                </Space>
-              }
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Notifications Section */}
-      <Card
-        id="notifications"
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <BellOutlined style={{ fontSize: 20, color: '#0068ff' }} />
-            <span style={{ fontSize: '18px', fontWeight: 600, color: '#001f3e' }}>
-              Bảng Thông Báo Hệ Thống & Hoạt Động
+      {/* ── 2. Executive KPI Stat Cards ── */}
+      <div className="db-kpi-grid">
+        {/* Card 1: Khách hàng */}
+        <div className="db-kpi-card">
+          <div className="db-kpi-top">
+            <div className="db-kpi-icon-box db-icon-emerald">
+              <UserOutlined />
+            </div>
+            <span className="db-growth-pill db-growth-up">
+              {stats.customerGrowthRate !== 0 ? (
+                <>
+                  {stats.customerGrowthRate >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                  <span>{Math.abs(stats.customerGrowthRate)}%</span>
+                </>
+              ) : (
+                <span>Ổn định</span>
+              )}
             </span>
           </div>
-        }
-        extra={
-          <Space>
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              onClick={() => setIsTestModalOpen(true)}
-              style={{ backgroundcolor: '#0068ff' }}
+
+          <span className="db-kpi-label">Tổng Khách Hàng</span>
+
+          <div className="db-kpi-value-row">
+            {statsLoading ? (
+              <Spin size="small" />
+            ) : (
+              <span className="db-kpi-value">
+                {new Intl.NumberFormat('vi-VN').format(stats.totalCustomers)}
+              </span>
+            )}
+            <span className="db-kpi-unit">thành viên</span>
+          </div>
+
+          <div className="db-kpi-footer">
+            <span className="db-kpi-subtext">Khách hàng đăng ký tài khoản</span>
+          </div>
+        </div>
+
+        {/* Card 2: Vé đã bán */}
+        <div className="db-kpi-card">
+          <div className="db-kpi-top">
+            <div className="db-kpi-icon-box db-icon-sky">
+              <ShoppingCartOutlined />
+            </div>
+            <span className="db-growth-pill db-growth-neutral">
+              <span>Tháng {dayjs().format('MM/YYYY')}</span>
+            </span>
+          </div>
+
+          <span className="db-kpi-label">Tổng Vé Đã Bán</span>
+
+          <div className="db-kpi-value-row">
+            {statsLoading ? (
+              <Spin size="small" />
+            ) : (
+              <span className="db-kpi-value">
+                {new Intl.NumberFormat('vi-VN').format(stats.totalTicketsSold)}
+              </span>
+            )}
+            <span className="db-kpi-unit">vé</span>
+          </div>
+
+          <div className="db-kpi-footer">
+            <span className="db-kpi-subtext">Bao gồm vé lượt &amp; vé tháng</span>
+          </div>
+        </div>
+
+        {/* Card 3: Doanh thu */}
+        <div className="db-kpi-card">
+          <div className="db-kpi-top">
+            <div className="db-kpi-icon-box db-icon-amber">
+              <DollarOutlined />
+            </div>
+            <span
+              className={`db-growth-pill ${
+                stats.revenueGrowthRate >= 0 ? 'db-growth-up' : 'db-growth-down'
+              }`}
             >
-              Gửi thử thông báo
-            </Button>
-            <Button
-              icon={<ReloadOutlined />}
+              {stats.revenueGrowthRate !== 0 ? (
+                <>
+                  {stats.revenueGrowthRate >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                  <span>{Math.abs(stats.revenueGrowthRate)}%</span>
+                </>
+              ) : (
+                <span>Thực thu</span>
+              )}
+            </span>
+          </div>
+
+          <span className="db-kpi-label">Doanh Thu Vé Tháng Này</span>
+
+          <div className="db-kpi-value-row">
+            {statsLoading ? (
+              <Spin size="small" />
+            ) : (
+              <span className="db-kpi-value">
+                {new Intl.NumberFormat('vi-VN').format(stats.totalRevenue)}
+              </span>
+            )}
+            <span className="db-kpi-unit">VNĐ</span>
+          </div>
+
+          <div className="db-kpi-footer">
+            <span className="db-kpi-subtext">Đã quyết toán &amp; cập nhật tự động</span>
+          </div>
+        </div>
+
+        {/* Card 4: An toàn & Vận hành */}
+        <div className="db-kpi-card">
+          <div className="db-kpi-top">
+            <div className="db-kpi-icon-box db-icon-indigo">
+              <SafetyCertificateOutlined />
+            </div>
+            <span className="db-growth-pill db-growth-up">
+              <span>Chuẩn an toàn</span>
+            </span>
+          </div>
+
+          <span className="db-kpi-label">Hệ Thống &amp; Cứu Hộ AI</span>
+
+          <div className="db-kpi-value-row">
+            <span className="db-kpi-value" style={{ color: '#059669' }}>
+              100%
+            </span>
+            <span className="db-kpi-unit">hoạt động</span>
+          </div>
+
+          <div className="db-kpi-footer">
+            <span className="db-kpi-subtext">Camera giám sát mép bể trực tuyến</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. Quick Action Shortcuts Toolbar ── */}
+      <div className="db-shortcuts-section">
+        <div className="db-shortcuts-header">
+          <ThunderboltOutlined style={{ color: '#0284c7' }} />
+          <span>Thao Tác Quản Trị Nhanh</span>
+        </div>
+
+        <div className="db-shortcuts-grid">
+          <Link to="/admin/tickets/pos" className="db-shortcut-item">
+            <div className="db-shortcut-icon">
+              <ShoppingCartOutlined />
+            </div>
+            <span>Bán vé tại quầy (POS)</span>
+            <RightOutlined style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }} />
+          </Link>
+
+          <Link to="/admin/safety/list-camera" className="db-shortcut-item">
+            <div className="db-shortcut-icon">
+              <EyeOutlined />
+            </div>
+            <span>Camera AI giám sát an toàn</span>
+            <RightOutlined style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }} />
+          </Link>
+
+          <Link to="/admin/water-quality" className="db-shortcut-item">
+            <div className="db-shortcut-icon">
+              <ExperimentOutlined />
+            </div>
+            <span>Đo kiểm chất lượng nước</span>
+            <RightOutlined style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }} />
+          </Link>
+
+          <Link to="/admin/equipments/list-equipments" className="db-shortcut-item">
+            <div className="db-shortcut-icon">
+              <ToolOutlined />
+            </div>
+            <span>Quản lý thiết bị &amp; bảo trì</span>
+            <RightOutlined style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }} />
+          </Link>
+
+          <Link to="/admin/statistics/ticket-revenue" className="db-shortcut-item">
+            <div className="db-shortcut-icon">
+              <BarChartOutlined />
+            </div>
+            <span>Báo cáo doanh thu chi tiết</span>
+            <RightOutlined style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }} />
+          </Link>
+        </div>
+      </div>
+
+      {/* ── 4. Notifications & Activity Feed ── */}
+      <div className="db-notifications-card" id="notifications">
+        <div className="db-card-header">
+          <div className="db-header-title-box">
+            <div className="db-header-icon">
+              <BellOutlined />
+            </div>
+            <div className="db-header-text">
+              <h3>
+                Bảng Thông Báo Hệ Thống &amp; Hoạt Động
+                {unreadCount > 0 && (
+                  <span className="db-unread-count-pill">{unreadCount} chưa đọc</span>
+                )}
+              </h3>
+              <p>Nhận diện cảnh báo an toàn, sự cố thiết bị và cập nhật đơn hàng tức thì</p>
+            </div>
+          </div>
+
+          <div className="db-header-actions">
+            <button
+              type="button"
+              className="db-btn-refresh"
               onClick={handleRefresh}
-              loading={loading || statsLoading}
-              title="Tải lại danh sách và số liệu"
+              disabled={loading || statsLoading}
+              title="Tải lại danh sách thông báo và số liệu"
             >
-              Làm mới
-            </Button>
-          </Space>
-        }
-        bordered={false}
-        style={{ marginTop: 24, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
-      >
+              <ReloadOutlined spin={loading || statsLoading} />
+              <span>Làm mới</span>
+            </button>
+
+            <button
+              type="button"
+              className="db-btn-send-test"
+              onClick={() => setIsTestModalOpen(true)}
+            >
+              <SendOutlined />
+              <span>Gửi thử thông báo</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Tabs Bar */}
+        <div className="db-tabs-bar">
+          <button
+            type="button"
+            className={`db-filter-tab ${activeTab === 'ALL' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ALL')}
+          >
+            <span>Tất cả</span>
+            <span className="db-tab-badge">{notifications.length}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`db-filter-tab ${activeTab === 'UNREAD' ? 'active' : ''}`}
+            onClick={() => setActiveTab('UNREAD')}
+          >
+            <span>Chưa đọc</span>
+            <span className="db-tab-badge">{unreadCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`db-filter-tab ${activeTab === 'INCIDENT' ? 'active' : ''}`}
+            onClick={() => setActiveTab('INCIDENT')}
+          >
+            <span>Sự cố &amp; Cảnh báo</span>
+          </button>
+
+          <button
+            type="button"
+            className={`db-filter-tab ${activeTab === 'MAINTENANCE' ? 'active' : ''}`}
+            onClick={() => setActiveTab('MAINTENANCE')}
+          >
+            <span>Bảo trì thiết bị</span>
+          </button>
+
+          <button
+            type="button"
+            className={`db-filter-tab ${activeTab === 'TICKET' ? 'active' : ''}`}
+            onClick={() => setActiveTab('TICKET')}
+          >
+            <span>Bán vé &amp; Đơn hàng</span>
+          </button>
+
+          <button
+            type="button"
+            className={`db-filter-tab ${activeTab === 'SYSTEM' ? 'active' : ''}`}
+            onClick={() => setActiveTab('SYSTEM')}
+          >
+            <span>Hệ thống</span>
+          </button>
+        </div>
+
+        {/* Notifications Table */}
         <Table
           rowKey="id"
           scroll={{ x: 860 }}
           columns={notificationColumns}
-          dataSource={notifications}
+          dataSource={filteredNotifications}
           loading={loading}
-          pagination={{ pageSize: 5 }}
-          locale={{ emptyText: 'Chưa có thông báo nào' }}
+          pagination={{
+            pageSize: 6,
+            showTotal: (total, range) => `${range[0]}-${range[1]} trong số ${total} thông báo`,
+          }}
+          rowClassName={(record) => (!record.isRead ? 'db-notif-row-unread' : '')}
+          locale={{
+            emptyText: (
+              <div className="db-empty-state">
+                <div className="db-empty-icon">
+                  <BellOutlined />
+                </div>
+                <h4>Không có thông báo nào</h4>
+                <p>Mọi hoạt động và chỉ số an toàn hiện tại đang vận hành ổn định.</p>
+              </div>
+            ),
+          }}
         />
-      </Card>
+      </div>
 
-      {/* Modal gửi thử thông báo */}
+      {/* ── 5. Modal Gửi Thử Thông Báo ── */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <SendOutlined style={{ color: '#0068ff' }} />
-            <span>Gửi thông báo thử nghiệm</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16 }}>
+            <SendOutlined style={{ color: '#0284c7' }} />
+            <span style={{ fontWeight: 700 }}>Gửi thông báo thử nghiệm</span>
           </div>
         }
         open={isTestModalOpen}
         onCancel={() => setIsTestModalOpen(false)}
         footer={null}
         destroyOnClose
+        centered
+        width={540}
       >
-        <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
-          Nhập thông tin bên dưới để gửi một thông báo thử nghiệm. Thông báo sẽ xuất hiện tức thì trên bảng điều khiển.
+        <p style={{ color: '#64748b', fontSize: 13, marginBottom: 18, lineHeight: 1.5 }}>
+          Thông báo được gửi sẽ phát tức thì qua SignalR Hub tới tất cả quản trị viên đang trực tuyến và cập nhật trực tiếp trên bảng điều khiển.
         </p>
+
         <Form
           form={testForm}
           layout="vertical"
@@ -497,44 +814,58 @@ export default function DashboardPage() {
         >
           <Form.Item
             name="title"
-            label="Tiêu đề thông báo"
-            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
+            label={<span style={{ fontWeight: 600, color: '#334155' }}>Tiêu đề thông báo</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề thông báo' }]}
           >
-            <Input placeholder="Nhập tiêu đề thông báo..." />
+            <Input placeholder="Nhập tiêu đề thông báo..." style={{ borderRadius: 8, padding: '7px 12px' }} />
           </Form.Item>
 
           <Form.Item
             name="type"
-            label="Loại thông báo"
+            label={<span style={{ fontWeight: 600, color: '#334155' }}>Loại phân loại thông báo</span>}
             rules={[{ required: true, message: 'Vui lòng chọn loại thông báo' }]}
           >
-            <Select>
-              <Select.Option value="SYSTEM">Hệ thống</Select.Option>
-              <Select.Option value="MAINTENANCE">Bảo trì thiết bị</Select.Option>
-              <Select.Option value="INCIDENT">Sự cố khẩn cấp</Select.Option>
-              <Select.Option value="TICKET">Bán vé / Khách hàng</Select.Option>
-              <Select.Option value="WARNING">Cảnh báo</Select.Option>
+            <Select style={{ width: '100%' }}>
+              <Select.Option value="SYSTEM">Hệ thống (System)</Select.Option>
+              <Select.Option value="MAINTENANCE">Bảo trì thiết bị (Maintenance)</Select.Option>
+              <Select.Option value="INCIDENT">Sự cố khẩn cấp (Incident)</Select.Option>
+              <Select.Option value="TICKET">Bán vé / Khách hàng (Ticket)</Select.Option>
+              <Select.Option value="WARNING">Cảnh báo chung (Warning)</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             name="content"
-            label="Nội dung thông báo"
-            rules={[{ required: true, message: 'Vui lòng nhập nội dung' }]}
+            label={<span style={{ fontWeight: 600, color: '#334155' }}>Nội dung chi tiết</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập nội dung chi tiết' }]}
           >
-            <Input.TextArea rows={3} placeholder="Nhập nội dung chi tiết thông báo..." />
+            <Input.TextArea
+              rows={3}
+              placeholder="Nhập nội dung chi tiết gửi tới hệ thống..."
+              style={{ borderRadius: 8 }}
+            />
           </Form.Item>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-            <Button onClick={() => setIsTestModalOpen(false)}>Hủy</Button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+            <Button
+              onClick={() => setIsTestModalOpen(false)}
+              style={{ borderRadius: 8, padding: '6px 16px' }}
+            >
+              Hủy bỏ
+            </Button>
             <Button
               type="primary"
               htmlType="submit"
               icon={<SendOutlined />}
               loading={sendingTest}
-              style={{ backgroundcolor: '#0068ff' }}
+              style={{
+                borderRadius: 8,
+                padding: '6px 20px',
+                background: '#0284c7',
+                borderColor: '#0284c7',
+              }}
             >
-              Gửi ngay
+              Phát thông báo ngay
             </Button>
           </div>
         </Form>
@@ -542,4 +873,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

@@ -260,7 +260,6 @@ export default function StaffAttendancePage() {
     <section className="service-list-table staff-schedule-table" aria-label="Danh sách chấm công">
       {errorContext && <Alert type="error" showIcon message={`Không thể ${errorContext.action === 'check-in' ? 'vào ca' : 'ra ca'} cho ${errorContext.assignment.employeeName || 'nhân viên'}`} description={`${errorContext.detail} Ca: ${errorContext.assignment.shiftName || 'Ca làm việc'} · Ngày: ${formatWorkDate(errorContext.assignment.workDate)}`} />}
       {refreshLocked && <Alert type="warning" showIcon message="Thao tác chấm công đang bị khóa" description="Hãy làm mới thành công trước khi thao tác lại." />}
-      <Alert className="staff-attendance-lookback" type="info" showIcon message="Bổ sung và điều chỉnh trong 7 ngày" description="Chỉ áp dụng cho phân công chưa hủy, từ ngày hôm nay trở về 7 ngày trước. Giờ nhập là giờ Việt Nam; hệ thống không tự điền giờ theo lịch ca." />
       {attendance.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
       {attendance.isError && <Empty description="Không thể tải phân công trong ngày."><Button icon={<ReloadOutlined />} onClick={refresh}>Thử lại</Button></Empty>}
       {!attendance.isLoading && !attendance.isError && visibleGroups.length === 0 && <Empty description={selection.shiftId ? 'Không có phân công cho ca đã chọn trong ngày này.' : 'Chưa có phân công trong ngày này.'} />}

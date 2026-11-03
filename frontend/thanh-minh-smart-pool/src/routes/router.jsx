@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+﻿import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import HomePage from "../pages/HomePage/HomePage";
 import AboutPage from "../pages/AboutPage/AboutPage";
@@ -39,6 +39,7 @@ import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
 import DailyInspectionHistoryPage from "../pages/admin/equipments/DailyInspectionHistoryPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
+import WaitingInvoicesPage from "../pages/admin/payments/WaitingInvoicesPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
 import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
@@ -172,7 +173,6 @@ const router = createBrowserRouter([
                 element: <IncidentStatisticsPage />,
               },
               { path: "staff/profiles", element: <StaffProfilesPage /> },
-              { path: "payments/invoices", element: <PaymentHistoryPage /> },
               { path: "staff/attendance", element: <StaffAttendancePage /> },
               {
                 path: "staff/attendance/qr",
@@ -219,6 +219,8 @@ const router = createBrowserRouter([
               },
               { path: "rentals", element: <RentalPage /> },
               { path: "coupons", element: <VoucherPage /> },
+              { path: "payments/waiting-invoices", element: <WaitingInvoicesPage /> },
+              { path: "payments/invoices", element: <PaymentHistoryPage /> },
             ],
           },
           {
