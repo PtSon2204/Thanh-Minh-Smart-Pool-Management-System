@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Spin } from 'antd'
-import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useSwimClassDetail } from '../hooks/useSwimClasses'
@@ -10,6 +10,7 @@ import SwimClassSessionSchedule from './SwimClassSessionSchedule'
 import SwimClassDraftActions from './SwimClassDraftActions'
 import SwimClassEditModal from './SwimClassEditModal'
 import SwimClassSessionEditModal from './SwimClassSessionEditModal'
+import SwimClassCancelModal from './SwimClassCancelModal'
 import SwimClassRegistrationActions from './SwimClassRegistrationActions'
 import '../styles/swimClassManagement.css'
 import '../styles/swimClassDetail.css'
@@ -30,6 +31,8 @@ export default function SwimClassDetailView() {
   const [now, setNow] = useState(() => Date.now())
   const [editingClass, setEditingClass] = useState(false)
   const [editingSession, setEditingSession] = useState(null)
+  const [cancellingSession, setCancellingSession] = useState(null)
+  const [deactivating, setDeactivating] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000)
@@ -57,20 +60,30 @@ export default function SwimClassDetailView() {
         <header className="swim-class-detail-header">
           <div className="swim-class-detail-heading"><span className="swim-class-detail-icon"><BookOutlined /></span><div><small>CHI TIẾT LỚP DẠY BƠI</small><h1>{swimClass.name}</h1></div></div>
           <div className="swim-class-detail-header-actions">
-            {isOwner && <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Sửa thông tin lớp</Button>}
+            {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <>
+              <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Sửa thông tin lớp</Button>
+              <Button danger icon={<StopOutlined />} onClick={() => setDeactivating(true)}>Ngừng lớp</Button>
+            </>}
             <SwimClassStatusTag status={swimClass.status} />
           </div>
         </header>
         <SwimClassDetailSummary swimClass={swimClass} now={now} />
+        {swimClass.status === 'Inactive' && swimClass.inactiveReason &&
+          <Alert type="warning" showIcon title="Lớp đã ngừng hoạt động" description={`Lý do: ${swimClass.inactiveReason}`} />}
         {role === 'CUSTOMER' && <SwimClassRegistrationActions key={swimClass.id} swimClass={swimClass}
           userId={session.id} now={now} onRefresh={() => detail.refetch()} />}
         {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <SwimClassDraftActions swimClass={swimClass} now={now} />}
         <SwimClassSessionSchedule sessions={swimClass.sessions || []} now={now}
-          onEditSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined} />
+          onEditSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined}
+          onCancelSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setCancellingSession : undefined} />
         {isOwner && editingClass && <SwimClassEditModal swimClass={swimClass} open
           onClose={() => setEditingClass(false)} onReload={() => detail.refetch()} />}
         {isOwner && editingSession && <SwimClassSessionEditModal classId={swimClass.id} session={editingSession}
           onClose={() => setEditingSession(null)} onReload={() => detail.refetch()} />}
+        {isOwner && (deactivating || cancellingSession) && <SwimClassCancelModal
+          swimClass={swimClass} session={cancellingSession}
+          onClose={() => { setDeactivating(false); setCancellingSession(null) }}
+          onReload={() => detail.refetch()} />}
       </>}
     </div>
   </ConfigProvider>
