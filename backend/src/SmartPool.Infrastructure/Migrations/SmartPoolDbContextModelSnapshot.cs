@@ -430,75 +430,8 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_class_sessions_time_order", "starts_at < ends_at");
                         });
                 });
-            modelBuilder.Entity("SmartPool.Domain.Entities.DailyInspection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
 
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<DateOnly>("InspectionDate")
-                        .HasColumnType("date")
-                        .HasColumnName("inspection_date");
-
-                    b.Property<DateTime>("InspectionTime")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("inspection_time");
-
-                    b.Property<Guid>("InspectorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("inspector_id");
-
-                    b.Property<string>("ItemsJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("items_json");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("notes");
-
-                    b.Property<string>("OverallStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("overall_status")
-                        .HasDefaultValueSql("'Passed'::character varying");
-
-                    b.Property<Guid?>("ShiftId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("shift_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.HasKey("Id")
-                        .HasName("daily_inspections_pkey");
-
-                    b.HasIndex("InspectorId");
-
-                    b.HasIndex("ShiftId");
-
-                    b.HasIndex("InspectionDate", "ShiftId")
-                        .IsUnique()
-                        .HasDatabaseName("uq_daily_inspections_date_shift");
-
-                    b.ToTable("daily_inspections", "smart_pool");
-                });
-
-                modelBuilder.Entity("SmartPool.Domain.Entities.CoachApplication", b =>
+            modelBuilder.Entity("SmartPool.Domain.Entities.CoachApplication", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -581,6 +514,75 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_coach_applications_status", "status IN ('Pending', 'Approved', 'Rejected', 'Revoked')");
                         });
                 });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.DailyInspection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly>("InspectionDate")
+                        .HasColumnType("date")
+                        .HasColumnName("inspection_date");
+
+                    b.Property<DateTime>("InspectionTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inspection_time");
+
+                    b.Property<Guid>("InspectorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inspector_id");
+
+                    b.Property<string>("ItemsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("items_json");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OverallStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("overall_status")
+                        .HasDefaultValueSql("'Passed'::character varying");
+
+                    b.Property<Guid?>("ShiftId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shift_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("daily_inspections_pkey");
+
+                    b.HasIndex("InspectorId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.HasIndex("InspectionDate", "ShiftId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_daily_inspections_date_shift");
+
+                    b.ToTable("daily_inspections", "smart_pool");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1940,6 +1942,15 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("fee");
 
+                    b.Property<DateTime?>("InactivatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inactivated_at");
+
+                    b.Property<string>("InactiveReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("inactive_reason");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -2579,7 +2590,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("CustomerUser");
-
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassSession", b =>

@@ -149,6 +149,8 @@ public sealed partial class SwimClassOperations
                 item.RegistrationEndAt,
                 item.Status,
                 item.CreatedByUserId,
+                item.InactiveReason,
+                item.InactivatedAt,
                 ConfirmedStudentCount = item.Registrations.Count(
                     registration => registration.Status == "Confirmed"),
                 item.CreatedAt,
@@ -190,7 +192,9 @@ public sealed partial class SwimClassOperations
             swimClass.ConfirmedStudentCount,
             swimClass.CreatedAt,
             swimClass.UpdatedAt,
-            sessions);
+            sessions,
+            swimClass.InactiveReason,
+            swimClass.InactivatedAt);
     }
 
     private IQueryable<SwimClass> VisibleTo(Guid userId, string role)
