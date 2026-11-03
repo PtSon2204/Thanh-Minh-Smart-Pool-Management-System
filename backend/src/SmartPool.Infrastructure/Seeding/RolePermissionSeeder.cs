@@ -70,6 +70,7 @@ public static class RolePermissionSeeder
                 ["inventory"]        = ["read", "update"],
                 ["rentals"]          = ["read", "create", "update"],
                 ["vouchers"]         = ["read"],
+                ["payments"]         = ["read"],
             },
 
             ["COACH"] = new(StringComparer.Ordinal)
@@ -90,6 +91,7 @@ public static class RolePermissionSeeder
                 ["coach_applications"] = ["create", "read"],
                 ["ticket_types"]     = ["read"],
                 ["vouchers"]         = ["read"],
+                ["payments"]         = ["read"],
             },
         };
 

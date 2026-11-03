@@ -1,18 +1,38 @@
 import { useState } from 'react'
 import { Alert, Button, Modal, Result, Spin, message } from 'antd'
-import { ClockCircleOutlined, DownloadOutlined, ShoppingOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { ClockCircleOutlined, DownloadOutlined, ShoppingOutlined, CheckCircleOutlined, CopyOutlined } from '@ant-design/icons'
 import './OnlineTicketPaymentModal.css'
 
 const currency = (value) => `${new Intl.NumberFormat('vi-VN').format(value ?? 0)} đ`
+
+const BANK_NAMES = {
+  '970422': 'MB Bank',
+  'MB': 'MB Bank',
+  'MBBANK': 'MB Bank',
+  '970436': 'Vietcombank',
+  'VCB': 'Vietcombank',
+  '970415': 'VietinBank',
+  'CTG': 'VietinBank',
+  '970418': 'BIDV',
+  'BIDV': 'BIDV',
+  '970407': 'Techcombank',
+  'TCB': 'Techcombank',
+  '970423': 'TPBank',
+  'TPB': 'TPBank',
+  '970432': 'VPBank',
+  'VPB': 'VPBank',
+  '970416': 'ACB',
+  'ACB': 'ACB',
+}
 
 function QrImage({ url }) {
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   return (
     <div className="online-payment-qr-image">
-      {loading && <Spin size="large" />}
+      {loading && <Spin size="default" />}
       {failed ? <Alert type="error" title="Không tải được mã QR. Vui lòng thử lại." /> : (
-        <img src={url} alt="Mã QR thanh toán đơn vé" width="280" height="280"
+        <img src={url} alt="Mã QR thanh toán đơn vé" width="180" height="180"
           style={{ display: loading ? 'none' : 'block' }}
           onLoad={() => setLoading(false)} onError={() => { setLoading(false); setFailed(true) }} />
       )}
@@ -27,8 +47,10 @@ export default function OnlineTicketPaymentModal({ payment, onClose, onFinish, o
   const cancelled = order?.status === 'CANCELLED'
   const waiting = order?.status === 'PENDING' || order?.status === 'PARTIAL'
   const canPay = waiting && secondsLeft > 0 && !error
-  const bank = import.meta.env.VITE_VIETQR_BANK_ID || 'MB'
-  const account = import.meta.env.VITE_VIETQR_ACCOUNT_NO || '03597040604'
+  const bank = import.meta.env.VITE_VIETQR_BANK_ID || '970422'
+  const account = import.meta.env.VITE_VIETQR_ACCOUNT_NO || '1508200456788'
+  const accountName = import.meta.env.VITE_VIETQR_ACCOUNT_NAME || 'PHAM THE SON'
+  const bankDisplay = BANK_NAMES[String(bank).toUpperCase()] || bank
   const parameters = new URLSearchParams({ amount: String(order?.remainingAmount ?? 0), addInfo: order?.transactionRef ?? '' })
   const qrUrl = canPay && order?.transactionRef
     ? `https://img.vietqr.io/image/${encodeURIComponent(bank)}-${encodeURIComponent(account)}-qr_only.png?${parameters}`
@@ -56,9 +78,14 @@ export default function OnlineTicketPaymentModal({ payment, onClose, onFinish, o
     }
   }
 
+  const handleCopyAccount = () => {
+    navigator.clipboard.writeText(account)
+    message.success('Đã sao chép số tài khoản!')
+  }
+
   return (
     <Modal open={open} onCancel={onClose} footer={null} title={null} centered
-      width={1080} className="online-ticket-payment-modal" destroyOnHidden
+      width={760} className="online-ticket-payment-modal" destroyOnHidden
       styles={{ body: { padding: 0 } }}>
       {loading && !order ? (
         <div className="online-payment-loading"><Spin size="large" /><p>Đang tải thông tin đơn hàng...</p></div>
@@ -70,7 +97,7 @@ export default function OnlineTicketPaymentModal({ payment, onClose, onFinish, o
         <div className="online-payment-layout">
           <section className="online-payment-order" aria-label="Thông tin đơn hàng">
             <span className="online-payment-eyebrow"><span /> XÁC NHẬN THANH TOÁN</span>
-            <h2>Thông tin<br className="online-payment-title-break" /> đơn hàng</h2>
+            <h2>Thông tin đơn hàng</h2>
             <div className="online-payment-order-code"><ShoppingOutlined /><span>Đơn hàng <strong>#{order.orderId.slice(0, 8).toUpperCase()}</strong></span></div>
             <div className="online-payment-items">
               {order.items?.map((item) => (
@@ -95,13 +122,13 @@ export default function OnlineTicketPaymentModal({ payment, onClose, onFinish, o
             {completed ? (
               <Result status="success" icon={<CheckCircleOutlined />} title="Thanh toán thành công!"
                 subTitle="Vé đã được phát hành và lưu vào thẻ của bạn."
-                extra={<Button type="primary" size="large" onClick={onFinish}>Xem thẻ của tôi</Button>} />
+                extra={<Button type="primary" size="middle" onClick={onFinish}>Xem thẻ của tôi</Button>} />
             ) : cancelled ? (
               <Result status="warning" title="Đơn hàng đã hết hạn"
                 subTitle={order.paidAmount > 0
                   ? 'Đơn chưa được thanh toán đủ trong 5 phút nên đã tự hủy. Khoản tiền đã nhận được giữ lại để đối soát.'
                   : 'Đơn chưa được thanh toán trong 5 phút nên đã tự hủy. Vui lòng tạo đơn mới để tiếp tục.'}
-                extra={<Button type="primary" size="large" onClick={onReturnToCart}>Quay lại giỏ hàng</Button>} />
+                extra={<Button type="primary" size="middle" onClick={onReturnToCart}>Quay lại giỏ hàng</Button>} />
             ) : (
               <>
                 <h3>Quét mã QR để thanh toán</h3>
@@ -116,12 +143,41 @@ export default function OnlineTicketPaymentModal({ payment, onClose, onFinish, o
                       <Button className="online-payment-download" icon={<DownloadOutlined />} loading={downloading}
                         onClick={downloadQr}>Tải mã QR</Button>
                     </div>
+                    <p className="online-payment-bank-info">
+                      <span className="bank-info-row">
+                        <span className="bank-info-label">Chủ TK:</span>
+                        <strong className="bank-info-value">{accountName}</strong>
+                      </span>
+                      <span className="bank-info-row">
+                        <span className="bank-info-label">Số TK:</span>
+                        <strong className="bank-info-value account-no">
+                          {account}
+                          <button
+                            type="button"
+                            className="bank-info-copy-btn"
+                            title="Sao chép số tài khoản"
+                            onClick={handleCopyAccount}
+                          >
+                            <CopyOutlined />
+                          </button>
+                        </strong>
+                      </span>
+                      {bankDisplay && (
+                        <span className="bank-info-row">
+                          <span className="bank-info-label">Ngân hàng:</span>
+                          <span className="bank-info-value bank-name">{bankDisplay}</span>
+                        </span>
+                      )}
+                    </p>
                     <div className="online-payment-waiting"><Spin size="small" /><span>Đang chờ thanh toán...</span></div>
                   </>
                 )}
                 <div className={`online-payment-countdown${secondsLeft <= 60 ? ' is-urgent' : ''}`}>
                   <span className="online-payment-clock-icon"><ClockCircleOutlined /></span>
-                  <div><span>HẾT HẠN SAU</span><strong role="timer" aria-label="Thời gian thanh toán còn lại">{countdown}</strong></div>
+                  <div className="online-payment-countdown-content">
+                    <span>HẾT HẠN SAU</span>
+                    <strong role="timer" aria-label="Thời gian thanh toán còn lại">{countdown}</strong>
+                  </div>
                 </div>
                 <p className="online-payment-deadline-note">Đơn hàng tự hủy nếu chưa thanh toán đủ trong 5 phút.</p>
               </>

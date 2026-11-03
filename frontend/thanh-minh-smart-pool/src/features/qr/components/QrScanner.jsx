@@ -13,10 +13,10 @@ function stopTracks(container) {
   })
 }
 
-function ActiveQrScanner({ expectedPurpose, onDecoded, onError, ScannerComponent }) {
+function ActiveQrScanner({ expectedPurpose, onDecoded, onError, onReset, ScannerComponent, autoStart = false }) {
   const containerRef = useRef(null)
   const acceptedRef = useRef(false)
-  const [cameraRequested, setCameraRequested] = useState(false)
+  const [cameraRequested, setCameraRequested] = useState(autoStart)
   const [acceptedPayload, setAcceptedPayload] = useState(null)
   const [scannerError, setScannerError] = useState(null)
 
@@ -30,7 +30,8 @@ function ActiveQrScanner({ expectedPurpose, onDecoded, onError, ScannerComponent
     setAcceptedPayload(null)
     setScannerError(null)
     setCameraRequested(true)
-  }, [releaseCamera])
+    onReset?.()
+  }, [onReset, releaseCamera])
 
   useLayoutEffect(() => () => releaseCamera(), [releaseCamera])
 
@@ -100,10 +101,10 @@ function ActiveQrScanner({ expectedPurpose, onDecoded, onError, ScannerComponent
   </section>
 }
 
-export function QrScanner({ expectedPurpose, onDecoded, onError, open = true, ScannerComponent = Scanner }) {
+export function QrScanner({ expectedPurpose, onDecoded, onError, onReset, open = true, autoStart = false, ScannerComponent = Scanner }) {
   if (!open) return null
 
-  return <ActiveQrScanner expectedPurpose={expectedPurpose} onDecoded={onDecoded} onError={onError} ScannerComponent={ScannerComponent} />
+  return <ActiveQrScanner expectedPurpose={expectedPurpose} onDecoded={onDecoded} onError={onError} onReset={onReset} autoStart={autoStart} ScannerComponent={ScannerComponent} />
 }
 
 export default QrScanner

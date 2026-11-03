@@ -7,7 +7,8 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
         public UpdateVoucherValidator()
         {
             RuleFor(x => x.Code)
-                .NotEmpty().WithMessage("Mã voucher không được để trống.");
+                .NotEmpty().WithMessage("Mã voucher không được để trống.")
+                .MaximumLength(30).WithMessage("Mã voucher không được vượt quá 30 ký tự.");
 
             RuleFor(x => x.DiscountType)
                 .Must(v => v == "PERCENTAGE" || v == "FIXED_AMOUNT")

@@ -1,0 +1,126 @@
+/* WaitingInvoicesPage.css - Ocean theme matching Admin style */
+
+.waiting-invoices-page {
+  padding-bottom: 24px;
+  min-width: 0;
+}
+
+/* === Hero Banner === */
+.waiting-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+  padding: 24px 28px;
+  overflow: hidden;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(110deg, #0284c7 0%, #0369a1 55%, #075985 100%);
+  box-shadow: 0 5px 16px rgba(3, 105, 161, 0.2);
+  position: relative;
+}
+
+.waiting-hero::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -5%;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.waiting-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #bae6fd;
+  margin-bottom: 2px;
+}
+
+.waiting-hero-title {
+  color: #fff !important;
+  margin: 4px 0 6px !important;
+  font-weight: 700 !important;
+}
+
+.waiting-hero p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  max-width: 680px;
+}
+
+.waiting-hero-icon {
+  display: grid;
+  flex: 0 0 76px;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 36px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+
+/* === Filter Card === */
+.waiting-filter-card {
+  margin-bottom: 16px;
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* === Table Card === */
+.waiting-table-card {
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  overflow: hidden;
+}
+
+.invoice-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.method-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.method-transfer {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.action-btn-pay {
+  background: #0284c7 !important;
+  border-color: #0284c7 !important;
+  font-weight: 500;
+}
+
+.action-btn-pay:hover {
+  background: #0369a1 !important;
+  border-color: #0369a1 !important;
+}

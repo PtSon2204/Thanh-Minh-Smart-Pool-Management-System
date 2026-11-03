@@ -8,5 +8,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.DTOs
         public string QrCode { get; set; } = string.Empty;
         public DateTime? ExpiryDate { get; set; }
         public string TicketCategory { get; set; } = string.Empty;
+        public int? RemainingEntries { get; set; }
     }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, Tag, Select } from 'antd'
-import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, UserOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import { useTicketTypes } from "../../../features/tickets/hooks/useTicketTypes"
 import { useSellOfflineTicket, useCreatePendingOrder, useOrderStatus } from "../../../features/tickets/hooks/useSellOfflineTicket"
@@ -15,7 +15,6 @@ const { Title } = Typography
 export default function OfflineSalesPage() {
   const [cart, setCart] = useState([])
   const [customerPhone, setCustomerPhone] = useState('')
-  const [customerName, setCustomerName] = useState('')
 
   // Voucher state
   const [voucherCode, setVoucherCode] = useState('')
@@ -67,20 +66,48 @@ export default function OfflineSalesPage() {
     }
   })
 
-  // Watch for order completion
+  // Watch for order completion or cancellation
   useEffect(() => {
     if (orderStatusData && orderStatusData.status === 'COMPLETED') {
       message.success('Đã nhận được tiền thanh toán!');
+      try { sessionStorage.removeItem('pos_pending_order'); } catch { /* ignore */ }
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSoldTickets(orderStatusData.tickets || []);
       setQrModalVisible(false);
       setPendingOrderId(null);
       setReceiptVisible(true);
       setCart([]);
-      setCustomerName('');
       setCustomerPhone('');
+    } else if (orderStatusData && (orderStatusData.status === 'CANCELLED' || orderStatusData.status === 'EXPIRED')) {
+      message.error('Giao dịch đã hết hạn hoặc bị hủy.');
+      try { sessionStorage.removeItem('pos_pending_order'); } catch { /* ignore */ }
+      setQrModalVisible(false);
+      setPendingOrderId(null);
     }
   }, [orderStatusData])
+
+  // Khôi phục đơn hàng QR nếu nhân viên reload trang
+  useEffect(() => {
+    try {
+      const savedPending = sessionStorage.getItem('pos_pending_order');
+      if (savedPending) {
+        const parsed = JSON.parse(savedPending);
+        const elapsedSeconds = (Date.now() - (parsed.createdAt || 0)) / 1000;
+        if (elapsedSeconds < 300) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setPendingOrderId(parsed.orderId);
+          setTransactionRef(parsed.transactionRef);
+          setSoldOrder(parsed.soldOrder);
+          setGeneratedAccount(parsed.accountInfo || null);
+          setQrModalVisible(true);
+        } else {
+          sessionStorage.removeItem('pos_pending_order');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const handleSelectTicket = (tt) => {
     setCart((prev) => {
@@ -137,9 +164,11 @@ export default function OfflineSalesPage() {
   }
 
 
-  // VE_THANG: cần đăng ký TK để gắn QR
-  // VE_LUOT tại quầy: không cần đăng ký (trừ lượt ngay, không QR)
-  const requiresRegistration = cart.some(item => item.ticketType.ticketCategory === 'VE_THANG')
+  // VE_THANG hoặc VE_LUOT > 1 lượt: cần đăng ký TK qua SĐT để gắn vé và lưu số lượt
+  const requiresRegistration = cart.some(item => 
+    item.ticketType.ticketCategory === 'VE_THANG' ||
+    (item.ticketType.ticketCategory === 'VE_LUOT' && (item.ticketType.totalEntries ?? 1) > 1)
+  )
 
   const isValidPhone = customerPhone ? /^0\d{9}$/.test(customerPhone.trim()) : false;
   const canCheckout = cart.length > 0 && (!requiresRegistration || isValidPhone)
@@ -172,7 +201,6 @@ export default function OfflineSalesPage() {
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
-      customerName: requiresRegistration ? customerName.trim() : null,
       voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
@@ -187,7 +215,6 @@ export default function OfflineSalesPage() {
             finalAmount: data.finalAmount !== undefined ? data.finalAmount : data.totalAmount,
             voucherCode: data.voucherCode,
             cartSummary: getOrderSummary(),
-            customerName: requiresRegistration ? customerName.trim() : '',
             customerPhone: requiresRegistration ? customerPhone.trim() : ''
           })
           setSoldTickets(data.tickets)
@@ -195,7 +222,6 @@ export default function OfflineSalesPage() {
           setPaymentMethodVisible(false)
           setReceiptVisible(true)
           setCart([])
-          setCustomerName('')
           setCustomerPhone('')
           setAppliedVoucher(null)
           setVoucherCode('')
@@ -209,7 +235,6 @@ export default function OfflineSalesPage() {
     const payload = { 
       items: getItemsPayload(),
       customerPhone: requiresRegistration ? customerPhone.trim() : null,
-      customerName: requiresRegistration ? customerName.trim() : null,
       voucherCode: appliedVoucher ? appliedVoucher.code : null
     }
 
@@ -217,20 +242,32 @@ export default function OfflineSalesPage() {
       payload,
       {
         onSuccess: (data) => {
-          setSoldOrder({
+          const orderData = {
             id: data.orderId,
             totalAmount: data.totalAmount,
             discountAmount: data.discountAmount || 0,
             finalAmount: data.finalAmount !== undefined ? data.finalAmount : data.totalAmount,
             voucherCode: data.voucherCode,
             cartSummary: getOrderSummary(),
-            customerName: requiresRegistration ? customerName.trim() : '',
             customerPhone: requiresRegistration ? customerPhone.trim() : ''
-          })
+          }
+          setSoldOrder(orderData)
           setGeneratedAccount(data.accountInfo || null)
           setTransactionRef(data.transactionRef)
           setPendingOrderId(data.orderId)
           
+          try {
+            sessionStorage.setItem('pos_pending_order', JSON.stringify({
+              orderId: data.orderId,
+              transactionRef: data.transactionRef,
+              soldOrder: orderData,
+              accountInfo: data.accountInfo || null,
+              createdAt: Date.now()
+            }))
+          } catch {
+            // ignore
+          }
+
           setPaymentMethodVisible(false)
           setQrModalVisible(true)
           setAppliedVoucher(null)
@@ -366,9 +403,6 @@ export default function OfflineSalesPage() {
 
             {requiresRegistration && (
               <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <div style={{ fontWeight: 600, color: '#e31748', marginBottom: 12 }}>
-                  * Bắt buộc nhập thông tin khách hàng (do có mua Vé Tháng)
-                </div>
                 <Form layout="vertical">
                   <Form.Item 
                     label="Số điện thoại khách hàng" 
@@ -386,18 +420,7 @@ export default function OfflineSalesPage() {
                       }}
                       maxLength={10}
                     />
-                  </Form.Item>
-                  <Form.Item label="Tên khách hàng (Không bắt buộc)">
-                    <Input 
-                      prefix={<UserOutlined />} 
-                      placeholder="Nhập tên..." 
-                      value={customerName}
-                      onChange={e => setCustomerName(e.target.value)}
-                    />
-                  </Form.Item>
-                  <div style={{ color: '#64748b', marginBottom: 16 }}>
-                    Vé tháng có hiệu lực 30 ngày kể từ lúc mua/thanh toán.
-                  </div>
+                  </Form.Item>     
                 </Form>
               </div>
             )}
@@ -573,6 +596,7 @@ export default function OfflineSalesPage() {
         title={<span style={{ fontSize: 20 }}>Quét mã QR để thanh toán</span>}
         open={qrModalVisible}
         onCancel={() => {
+          try { sessionStorage.removeItem('pos_pending_order'); } catch { /* ignore */ }
           setQrModalVisible(false);
           setPendingOrderId(null);
         }}
@@ -625,6 +649,9 @@ export default function OfflineSalesPage() {
           <p style={{ color: '#8c8c8c', marginTop: 12, fontSize: 12 }}>
             Hệ thống sẽ tự động in vé ngay khi nhận đủ tiền.<br/>Mã đơn hàng: {transactionRef}
           </p>
+          <div style={{ marginTop: 10, padding: '6px 12px', background: '#eff6ff', borderRadius: 6, color: '#1e40af', fontSize: 12, display: 'inline-block' }}>
+            ⏱️ Đơn hàng sẽ tự động hủy sau 5 phút nếu không hoàn tất thanh toán.
+          </div>
         </div>
       </Modal>
 

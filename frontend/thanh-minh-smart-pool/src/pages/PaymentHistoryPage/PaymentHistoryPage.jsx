@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import {
   Table,
   Button,
@@ -24,7 +24,7 @@ import {
   FilterOutlined,
   TransactionOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
+  CloseCircleOutlined,
   WalletOutlined,
   AuditOutlined
 } from '@ant-design/icons'
@@ -58,6 +58,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
   const queryParams = {
     pageIndex,
     pageSize,
+    excludePending: true,
     status: status || undefined,
     paymentMethod: paymentMethod || undefined,
     search: search.trim() || undefined,
@@ -74,13 +75,13 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
     const totalCount = data?.totalCount || 0
     const completed = items.filter((x) => x.status === 'COMPLETED')
     const completedRevenue = completed.reduce((sum, item) => sum + (item.amount || 0), 0)
-    const pendingOrFailed = items.filter((x) => x.status !== 'COMPLETED').length
+    const failedCount = items.filter((x) => x.status === 'FAILED').length
 
     return {
       totalCount,
       completedCount: completed.length,
       completedRevenue,
-      pendingOrFailed,
+      failedCount,
     }
   }, [data])
 
@@ -228,6 +229,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
               onClick={() => handleOpenDetail(record.paymentId)}
             />
           </Tooltip>
+          {record.status === 'COMPLETED' && (
           <Tooltip title="Xuất hóa đơn điện tử">
             <Button
               shape="circle"
@@ -236,6 +238,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
               onClick={() => window.open(`/admin/payments/invoices/${record.paymentId}/print`, '_blank')}
             />
           </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -299,10 +302,10 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
           <Col xs={12} sm={6}>
             <Card className="payment-stat-card payment-stat-pending">
               <Statistic
-                title="Chờ xử lý / Khác"
-                value={stats.pendingOrFailed}
-                prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
-                valueStyle={{ color: '#f59e0b' }}
+                title="Thất bại (trang này)"
+                value={stats.failedCount}
+                prefix={<CloseCircleOutlined style={{ color: '#ef4444' }} />}
+                valueStyle={{ color: '#ef4444' }}
               />
             </Card>
           </Col>
@@ -342,7 +345,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
               options={[
                 { value: 'COMPLETED', label: 'Thành công' },
                 { value: 'FAILED', label: 'Thất bại' },
-                { value: 'PENDING', label: 'Chờ xử lý' },
+
               ]}
             />
           </Col>
@@ -360,7 +363,6 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
               options={[
                 { value: 'CASH', label: 'Tiền mặt' },
                 { value: 'BANK_TRANSFER', label: 'Chuyển khoản' },
-                { value: 'MANUAL', label: 'Nhân viên xác nhận' },
               ]}
             />
           </Col>

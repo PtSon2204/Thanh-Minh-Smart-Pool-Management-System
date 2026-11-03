@@ -15,6 +15,8 @@ public partial class TicketType
 
     public int? DurationDays { get; set; }
 
+    public int? TotalEntries { get; set; } = 1;
+
     public bool? IsActive { get; set; }
 
     public bool? IsDeleted { get; set; }
@@ -25,4 +27,3 @@ public partial class TicketType
 
     public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 }
-
