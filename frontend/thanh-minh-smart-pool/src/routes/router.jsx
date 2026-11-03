@@ -51,6 +51,7 @@ import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailP
 import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
 import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
 import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
+import CoachListPage from "../pages/admin/coaches/CoachListPage";
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 
 const router = createBrowserRouter([
@@ -179,6 +180,7 @@ const router = createBrowserRouter([
                 element: <StaffQrAttendancePage />,
               },
               { path: "users", element: <UserManagementPage /> },
+              { path: "coaches", element: <CoachListPage /> },
               {
                 path: "coach-applications",
                 element: <CoachApplicationsPage />,

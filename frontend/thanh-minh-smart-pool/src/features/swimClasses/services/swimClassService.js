@@ -12,5 +12,7 @@ export const swimClassService = {
   updateClass: (classId, payload) => apiClient.put(`${BASE}/${classId}`, payload).then(({ data }) => data),
   createSessions: (classId, sessions) => apiClient.post(`${BASE}/${classId}/sessions`, { sessions }).then(({ data }) => data),
   updateSession: (classId, sessionId, payload) => apiClient.patch(`${BASE}/${classId}/sessions/${sessionId}`, payload).then(({ data }) => data),
+  cancelSession: (classId, sessionId, payload) => apiClient.patch(`${BASE}/${classId}/sessions/${sessionId}/cancel`, payload).then(({ data }) => data),
   activate: (classId) => apiClient.post(`${BASE}/${classId}/activate`).then(({ data }) => data),
+  deactivate: (classId, payload) => apiClient.patch(`${BASE}/${classId}/deactivate`, payload).then(({ data }) => data),
 }

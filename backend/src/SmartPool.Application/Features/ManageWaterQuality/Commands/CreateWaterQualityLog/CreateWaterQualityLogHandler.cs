@@ -62,9 +62,7 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
         var log = new WaterQualityLog
         {
             Id = Guid.NewGuid(),
-            InspectionTime = request.InspectionTime.Kind == DateTimeKind.Unspecified
-                ? DateTime.SpecifyKind(request.InspectionTime, DateTimeKind.Utc)
-                : request.InspectionTime.ToUniversalTime(),
+            InspectionTime = nowUtc, // Luôn ghi nhận thời gian thực tế đo (real-time UTC)
             PhValue = request.PhValue,
             FreeChlorineMgL = request.FreeChlorineMgL,
             IsWaterClear = request.IsWaterClear,

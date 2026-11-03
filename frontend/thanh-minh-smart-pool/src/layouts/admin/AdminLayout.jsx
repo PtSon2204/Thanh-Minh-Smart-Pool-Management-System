@@ -388,8 +388,12 @@ export default function AdminLayout() {
           ),
         },
         isAdmin && {
-          key: '/admin/equipments/inspection-history',
-          label: <Link to="/admin/equipments/inspection-history">Lịch sử kiểm tra</Link>,
+          key: "/admin/equipments/inspection-history",
+          label: (
+            <Link to="/admin/equipments/inspection-history">
+              Lịch sử kiểm tra
+            </Link>
+          ),
         },
       ].filter(Boolean),
     },

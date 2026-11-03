@@ -15,7 +15,9 @@ public sealed record SwimClassDetailResponse(
     int ConfirmedStudentCount,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    IReadOnlyList<SwimClassSessionDetail> Sessions);
+    IReadOnlyList<SwimClassSessionDetail> Sessions,
+    string? InactiveReason = null,
+    DateTime? InactivatedAt = null);
 
 public sealed record SwimClassSessionDetail(
     Guid Id,

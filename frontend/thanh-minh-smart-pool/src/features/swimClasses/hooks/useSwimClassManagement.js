@@ -42,6 +42,31 @@ export function useUpdateClassSession() {
   })
 }
 
+function useInvalidateStoppedClass(mutationFn) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['swim-classes'] }),
+        queryClient.invalidateQueries({ queryKey: ['swim-class-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-swim-classes'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-class-registration'] }),
+      ])
+    },
+  })
+}
+
+export function useCancelClassSession() {
+  return useInvalidateStoppedClass(({ classId, sessionId, payload }) =>
+    swimClassService.cancelSession(classId, sessionId, payload))
+}
+
+export function useDeactivateSwimClass() {
+  return useInvalidateStoppedClass(({ classId, payload }) =>
+    swimClassService.deactivate(classId, payload))
+}
+
 export function useCreateClassSessions() {
   const queryClient = useQueryClient()
   return useMutation({
