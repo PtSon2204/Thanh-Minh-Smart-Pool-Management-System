@@ -17,6 +17,7 @@ import {
   ReloadOutlined,
   EyeOutlined,
   LineChartOutlined,
+  ScheduleOutlined,
   CheckCircleOutlined,
   WarningOutlined,
   CloseCircleOutlined,
@@ -26,6 +27,7 @@ import { waterQualityService } from '../../../features/waterQuality/services/wat
 import CreateWaterQualityLogModal from '../../../features/waterQuality/components/CreateWaterQualityLogModal';
 import WaterQualityLogDetailDrawer from '../../../features/waterQuality/components/WaterQualityLogDetailDrawer';
 import WaterQualityAnalyticsTab from '../../../features/waterQuality/components/WaterQualityAnalyticsTab';
+import PoolDutyScheduleTab from '../../../features/waterQuality/components/PoolDutyScheduleTab';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
@@ -126,7 +128,7 @@ export default function WaterQualityPage() {
         const isIdeal = num >= 7.2 && num <= 7.8;
         return (
           <Tooltip title={isIdeal ? 'Trong ngưỡng chuẩn (7.2 - 7.8)' : 'Lệch ngưỡng chuẩn'}>
-            <Text strong style={{ color: isIdeal ? '#03ca77' : '#e31748' }}>
+            <Text strong style={{ color: isIdeal ? '#389e0d' : '#cf1322' }}>
               {num.toFixed(2)}
             </Text>
           </Tooltip>
@@ -144,7 +146,7 @@ export default function WaterQualityPage() {
         const isIdeal = num >= 1.0 && num <= 3.0;
         return (
           <Tooltip title={isIdeal ? 'Trong ngưỡng chuẩn (1.0 - 3.0 mg/L)' : 'Lệch ngưỡng chuẩn'}>
-            <Text strong style={{ color: isIdeal ? '#03ca77' : '#e31748' }}>
+            <Text strong style={{ color: isIdeal ? '#389e0d' : '#cf1322' }}>
               {num.toFixed(2)} mg/L
             </Text>
           </Tooltip>
@@ -202,7 +204,7 @@ export default function WaterQualityPage() {
       render: (rec, record) => (
         <span
           style={{
-            color: record.status === 'Danger' ? '#e31748' : '#262626',
+            color: record.status === 'Danger' ? '#cf1322' : '#262626',
             fontWeight: record.status === 'Danger' ? 600 : 'normal',
           }}
         >
@@ -245,7 +247,7 @@ export default function WaterQualityPage() {
             Kiểm soát chất lượng nước
           </Title>
           <Text type="secondary">
-            Theo dõi nồng độ pH, Clo tự do, độ trong và nhận gợi ý châm hóa chất tự động cho bể bơi
+            Theo dõi nồng độ pH, Clo tự do, nhận gợi ý châm hóa chất và quản lý lịch trực bể định kỳ
           </Text>
         </div>
 
@@ -354,6 +356,20 @@ export default function WaterQualityPage() {
             ),
             children: <WaterQualityAnalyticsTab onViewDetail={handleOpenDetail} />,
           },
+          {
+            key: 'duty-schedule',
+            label: (
+              <Space>
+                <ScheduleOutlined />
+                <span>Lịch trực bể</span>
+              </Space>
+            ),
+            children: (
+              <PoolDutyScheduleTab
+                onOpenCreateMeasurement={() => setCreateModalVisible(true)}
+              />
+            ),
+          },
         ]}
       />
 
@@ -371,4 +387,3 @@ export default function WaterQualityPage() {
     </div>
   );
 }
-
