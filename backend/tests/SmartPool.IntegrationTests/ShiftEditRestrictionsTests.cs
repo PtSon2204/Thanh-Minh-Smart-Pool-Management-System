@@ -67,7 +67,14 @@ public sealed class ShiftEditRestrictionsTests
         var result = await fixture.Operations.SaveShiftAsync(command, CancellationToken.None);
 
         await using var read = fixture.CreateContext();
-        Assert.Equal(name, (await read.Shifts.SingleAsync(shift => shift.Id == result.Id)).Name);
+        try
+        {
+            Assert.Equal(name, (await read.Shifts.SingleAsync(shift => shift.Id == result.Id)).Name);
+        }
+        finally
+        {
+            await read.Shifts.Where(shift => shift.Id == result.Id).ExecuteDeleteAsync();
+        }
     }
 
     private sealed class ShiftFixture : IAsyncDisposable

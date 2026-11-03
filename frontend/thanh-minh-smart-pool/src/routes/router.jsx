@@ -17,6 +17,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import AdminLayout from "../layouts/admin/AdminLayout";
 import DashboardPage from "../pages/admin/dashboard/DashboardPage";
 import OfflineSalesPage from "../pages/admin/tickets/OfflineSalesPage";
+import DailySalesPage from "../pages/admin/tickets/DailySalesPage";
 import TicketTypePage from "../pages/admin/tickets/TicketTypePage";
 import ServicePage from "../pages/admin/services/ServicePage";
 import RentalPage from "../pages/admin/rentals/RentalPage";
@@ -208,6 +209,7 @@ const router = createBrowserRouter([
             element: <ProtectedRoute allowedRoles={["ADMIN", "SALES"]} />,
             children: [
               { path: "tickets/pos", element: <OfflineSalesPage /> },
+              { path: "tickets/daily-sales", element: <DailySalesPage /> },
               { path: "tickets/types", element: <TicketTypePage /> },
               { path: "tickets/scanQR", element: <TicketScannerPage /> },
               { path: "services", element: <ServicePage /> },

@@ -11,6 +11,10 @@ using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 
 namespace SmartPool.IntegrationTests;
 
+[CollectionDefinition(nameof(ShiftListingIsolation), DisableParallelization = true)]
+public sealed class ShiftListingIsolation { }
+
+[Collection(nameof(ShiftListingIsolation))]
 public sealed class FixedShiftListingTests
 {
     [Fact]

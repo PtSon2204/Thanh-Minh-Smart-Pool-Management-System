@@ -51,6 +51,7 @@ import "./AdminLayout.css";
 const { Header, Sider, Content } = Layout;
 
 function openKeysForPath(pathname) {
+  if (pathname.startsWith("/admin/tickets/")) return ["/admin/tickets"];
   if (pathname === "/admin/staff/attendance/scan") return ["staff"];
   if (pathname.startsWith("/admin/staff/attendance"))
     return ["staff", "staff-attendance"];
@@ -327,6 +328,10 @@ export default function AdminLayout() {
         {
           key: "/admin/tickets/pos",
           label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link>,
+        },
+        {
+          key: "/admin/tickets/daily-sales",
+          label: <Link to="/admin/tickets/daily-sales">Vé bán trong ngày</Link>,
         },
       ],
     },
