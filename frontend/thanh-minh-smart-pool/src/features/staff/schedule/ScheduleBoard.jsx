@@ -1,6 +1,6 @@
 import { Button, Collapse, Empty, Tag } from 'antd'
-import { CalendarOutlined, PlusOutlined } from '@ant-design/icons'
-import { formatDate, formatTime, isOvernight, statusColor, statusLabel, weekDates } from './scheduleUtils'
+import { PlusOutlined } from '@ant-design/icons'
+import { formatDate, formatTime, isOvernight, statusColor, statusLabel, vietnamToday, weekDates } from './scheduleUtils'
 
 function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, cancelPending, actionsDisabled }) {
   const label = pending ? assignment.employeeName : assignment.employeeName || 'Nhân viên'
@@ -9,15 +9,15 @@ function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, cance
       <strong>{label}</strong>
       <Tag color={pending ? 'cyan' : statusColor(assignment.status)}>{pending ? 'Chưa lưu' : statusLabel(assignment.status)}</Tag>
     </div>
-    {pending && <Button type="text" size="small" aria-label={`Bỏ phân công ${label}`} onClick={() => onRemove(assignment.localId)}>Bỏ</Button>}
+    {pending && <Button type="text" danger size="small" aria-label={`Bỏ phân công ${label}`} disabled={actionsDisabled} onClick={() => onRemove(assignment.localId)}>Bỏ</Button>}
     {!pending && isAdmin && assignment.status === 'Scheduled' && <Button type="text" size="small" danger aria-label={`Hủy phân công ${label}`} onClick={() => onCancel(assignment)} loading={cancelPending} disabled={actionsDisabled}>Hủy</Button>}
   </div>
 }
 
-function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onAttendance, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
+function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onAttendance, onCancel, cancelId, actionsDisabled, draftsLocked, canAssign, activeShiftIds, activeShiftsStatus }) {
   const isActive = activeShiftsStatus === 'ready' && activeShiftIds.has(shift.shiftId)
   const isInactive = activeShiftsStatus === 'ready' && !isActive
-  const addDisabled = actionsDisabled || !isActive
+  const addDisabled = actionsDisabled || !isActive || !canAssign || shift.workDate <= vietnamToday()
   const addExplanation = isInactive
     ? 'Ca đã ngừng hoạt động. Lịch đã phân vẫn được giữ; không thể thêm nhân viên.'
     : activeShiftsStatus === 'loading'
@@ -30,18 +30,18 @@ function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onAttendance, o
     <header className="staff-week-shift-heading">
       <strong>{shift.shiftName || shift.name}{isInactive && <Tag>Không hoạt động</Tag>}</strong>
       <span>{formatTime(shift.startTime)} - {formatTime(shift.endTime)}{isOvernight(shift) ? ' · ngày sau' : ''}</span>
-      {isAdmin && assignments.length > 0 && <div className="admin-action-group staff-week-attendance-actions"><Button className="admin-action-button admin-action-button--primary staff-week-attendance" icon={<CalendarOutlined />} onClick={() => onAttendance(assignments[0])}>Chấm công</Button></div>}
     </header>
+    {isAdmin && assignments.length > 0 && <Button type="link" size="small" disabled={actionsDisabled} onClick={() => onAttendance(shift)}>Chấm công</Button>}
     {isAdmin && addExplanation && <span className="staff-schedule-overnight">{addExplanation}</span>}
     <div className="staff-week-assignment-list">
       {assignments.map((assignment) => <AssignmentTag assignment={assignment} isAdmin={isAdmin} onCancel={onCancel} cancelPending={cancelId === assignment.id} actionsDisabled={actionsDisabled} key={assignment.id} />)}
-      {drafts.map((assignment) => <AssignmentTag assignment={assignment} pending onRemove={onRemove} key={assignment.localId} />)}
+      {drafts.map((assignment) => <AssignmentTag assignment={assignment} pending onRemove={onRemove} actionsDisabled={actionsDisabled || draftsLocked} key={assignment.localId} />)}
     </div>
-    {isAdmin && <Button className="staff-week-add" type="link" icon={<PlusOutlined />} onClick={() => isActive && !actionsDisabled && onAdd(shift)} disabled={addDisabled}>Thêm nhân viên</Button>}
+    {isAdmin && shift.workDate > vietnamToday() && <Button className="staff-week-add" type="link" icon={<PlusOutlined />} onClick={() => !addDisabled && onAdd(shift)} disabled={addDisabled}>Thêm nhân viên</Button>}
   </article>
 }
 
-export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onAttendance, onRemove, onCancel, cancelId, actionsDisabled, activeShiftIds, activeShiftsStatus }) {
+export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onRemove, onAttendance, onCancel, cancelId, actionsDisabled, draftsLocked, canAssign, activeShiftIds, activeShiftsStatus }) {
   const dates = weekDates(monday)
   const assignedCount = (employeeId) => assignments.filter((item) => item.employeeId === employeeId && item.status !== 'Cancelled').length
   return <>
@@ -58,7 +58,7 @@ export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, em
         })
         return <section className="staff-week-day" key={workDate}>
           <header><strong>{dayjsLabel(workDate)}</strong><span>{formatDate(workDate)}</span></header>
-          {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.id} onAdd={(shift) => onAdd({ ...shift, workDate })} onAttendance={onAttendance} onRemove={onRemove} onCancel={onCancel} cancelId={cancelId} actionsDisabled={actionsDisabled} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
+            {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.shiftId} onAdd={(shift) => onAdd({ ...shift, workDate })} onRemove={onRemove} onAttendance={onAttendance} onCancel={onCancel} cancelId={cancelId} actionsDisabled={actionsDisabled} draftsLocked={draftsLocked} canAssign={canAssign} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
         </section>
       })}
     </section>

@@ -13,6 +13,36 @@ export const formatTime = (value) => value ? value.slice(0, 5) : '-'
 export const isOvernight = (shift) => Boolean(shift?.startTime && shift?.endTime && shift.endTime < shift.startTime)
 export const assignmentKey = (assignment) => `${assignment.employeeId}:${assignment.shiftId}:${assignment.workDate}`
 
+export function assignmentDateError(workDate, monday) {
+  if (!workDate || !dayjs(workDate).isValid()) return 'Chọn ngày làm hợp lệ.'
+  if (workDate <= vietnamToday()) return 'Chỉ được phân ca từ ngày mai theo giờ Việt Nam.'
+  if (!weekDates(monday).includes(workDate)) return 'Chọn ngày trong tuần đang xem.'
+  return null
+}
+
+export function expandAssignmentRows(rows) {
+  return rows.flatMap((row) => (row?.employeeIds || []).map((employeeId) => ({
+    employeeId,
+    shiftId: row.shiftId,
+    workDate: row.workDate?.format('YYYY-MM-DD'),
+  })))
+}
+
+export function scheduledHours(assignments) {
+  const counted = new Set()
+  return assignments.reduce((total, assignment) => {
+    const key = assignmentKey(assignment)
+    if (assignment.status === 'Cancelled' || counted.has(key) || !assignment.startTime || !assignment.endTime) return total
+    counted.add(key)
+    const clockHours = (value) => {
+      const [hours, minutes, seconds = 0] = value.split(':').map(Number)
+      return hours + minutes / 60 + seconds / 3600
+    }
+    const duration = clockHours(assignment.endTime) - clockHours(assignment.startTime)
+    return total + (duration < 0 ? duration + 24 : duration)
+  }, 0)
+}
+
 export function statusLabel(value) {
   return ({ Scheduled: 'Đã lên lịch', Present: 'Có mặt', Completed: 'Hoàn thành', Cancelled: 'Đã hủy' })[value] || value || 'Chưa xác định'
 }
