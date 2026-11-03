@@ -20,7 +20,7 @@ const statusOptions = [
 
 export default function CoachApplicationsPage() {
   const [messageApi, contextHolder] = message.useMessage()
-  const [status, setStatus] = useState(undefined)
+  const [status, setStatus] = useState('Pending')
   const [pageIndex, setPageIndex] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [selectedId, setSelectedId] = useState(null)
@@ -47,6 +47,7 @@ export default function CoachApplicationsPage() {
       await review.mutateAsync({ id: selectedId, decision: reviewDecision, note: reviewNote.trim() || null })
       messageApi.success(reviewDecision === 'Approved' ? 'Đã duyệt và cấp quyền Coach.' : 'Đã từ chối yêu cầu.')
       setReviewDecision(null)
+      setSelectedId(null)
     } catch (error) {
       messageApi.error(getCoachApplicationError(error))
     }
@@ -62,7 +63,7 @@ export default function CoachApplicationsPage() {
     { title: 'Trạng thái', dataIndex: 'status', key: 'status',
       render: (value) => <Tag color={coachApplicationStatus[value]?.color}>{coachApplicationStatus[value]?.label || value}</Tag> },
     { title: 'Thao tác', key: 'actions',
-      render: (_, record) => <Button icon={<EyeOutlined />} onClick={() => setSelectedId(record.id)}>Xem yêu cầu</Button> },
+      render: (_, record) => <Button type={record.status === 'Pending' ? 'primary' : 'default'} icon={<EyeOutlined />} onClick={() => setSelectedId(record.id)}>{record.status === 'Pending' ? 'Kiểm tra và duyệt' : 'Xem yêu cầu'}</Button> },
   ]
 
   return <div className="coach-app-admin">
@@ -70,14 +71,15 @@ export default function CoachApplicationsPage() {
     <header className="coach-app-admin-hero">
       <div><span className="coach-app-eyebrow">QUẢN TRỊ HỆ THỐNG</span>
         <Title level={2}>Duyệt yêu cầu Coach</Title>
-        <p>Xem chứng chỉ dạy bơi và quyết định cấp quyền cho người dùng.</p>
+        <p>Chọn yêu cầu chờ duyệt, xem chứng chỉ, rồi duyệt hoặc ghi lý do từ chối.</p>
       </div>
       <SafetyCertificateOutlined />
     </header>
 
     <Card className="coach-app-card">
+      <div className="coach-app-next-step" role="status"><div><strong>Việc cần làm: kiểm tra yêu cầu đang chờ</strong><span>Mở từng yêu cầu để xem ảnh chứng chỉ trước khi quyết định. Danh sách mặc định chỉ hiện yêu cầu cần xử lý.</span></div></div>
       <div className="coach-app-toolbar">
-        <div><h2>Danh sách yêu cầu</h2><Text type="secondary">{list.data?.totalCount ?? 0} yêu cầu phù hợp</Text></div>
+        <div><h2>{status === 'Pending' ? 'Yêu cầu cần duyệt' : 'Danh sách yêu cầu'}</h2><Text type="secondary">{list.data?.totalCount ?? 0} yêu cầu phù hợp</Text></div>
         <Space wrap>
           <Select aria-label="Lọc trạng thái yêu cầu" value={status} allowClear placeholder="Tất cả trạng thái"
             options={statusOptions} style={{ minWidth: 185 }} onChange={(value) => { setStatus(value); setPageIndex(1) }} />

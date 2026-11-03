@@ -42,4 +42,10 @@
 .coach-app-review-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #edf1f7; padding-top: 20px; margin-top: 26px; }
 .coach-app-history { margin-bottom: 20px; }
 .coach-app-steps { padding-left: 22px; color: #334e68; line-height: 1.9; }
+.coach-app-next-step { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding: 18px 22px; border: 1px solid #b9d9f2; border-radius: 16px; background: #eaf5ff; }
+.coach-app-next-step > div { display: grid; gap: 4px; }
+.coach-app-next-step strong { color: #103f68; font-size: 16px; }
+.coach-app-next-step span { color: #42627e; line-height: 1.5; }
+.coach-app-submit { margin-bottom: 20px; scroll-margin-top: 20px; }
+@media (max-width: 700px) { .coach-app-next-step { align-items: stretch; flex-direction: column; } }
 @media (max-width: 700px) { .coach-app-page { padding: 24px 12px 48px; } .coach-app-hero, .coach-app-admin-hero { padding: 26px; } .coach-app-hero-icon, .coach-app-admin-hero > span.anticon { display: none; } .coach-app-grid { grid-template-columns: 1fr; } .coach-app-admin { padding: 12px; } .coach-app-toolbar, .coach-app-submit-actions { align-items: stretch; flex-direction: column; } .coach-app-review-actions { flex-wrap: wrap; } }

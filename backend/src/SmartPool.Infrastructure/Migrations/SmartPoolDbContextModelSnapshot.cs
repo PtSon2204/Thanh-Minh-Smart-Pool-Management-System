@@ -1942,6 +1942,15 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("fee");
 
+                    b.Property<DateTime?>("InactivatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inactivated_at");
+
+                    b.Property<string>("InactiveReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("inactive_reason");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)

@@ -35,6 +35,8 @@ export default function CoachApplicationPage() {
   const certificateQuery = useCoachCertificate(selectedId)
   const submit = useSubmitCoachApplication()
   const state = coachApplicationStatus[application?.status]
+  const canSubmit = (!application || ['Rejected', 'Revoked'].includes(application.status)) &&
+    (!isCoach || application?.status === 'Revoked')
 
   useEffect(() => {
     return () => { if (preview) URL.revokeObjectURL(preview) }
@@ -92,6 +94,12 @@ export default function CoachApplicationPage() {
       {applicationQuery.isLoading ? <div className="coach-app-loading"><Spin size="large" /></div> :
         applicationQuery.isError ? <Alert showIcon type="error" message="Không thể tải trạng thái yêu cầu"
           action={<Button onClick={() => applicationQuery.refetch()}>Thử lại</Button>} /> : <>
+          <div className="coach-app-next-step" role="status">
+            <div><strong>{canSubmit ? 'Bước tiếp theo: gửi chứng chỉ' : application?.status === 'Pending' ? 'Bước tiếp theo: chờ xét duyệt' : application?.status === 'Approved' && !isCoach ? 'Bước tiếp theo: cập nhật quyền Coach' : application?.status === 'Approved' ? 'Bạn đã sẵn sàng quản lý lớp' : 'Xem trạng thái yêu cầu'}</strong>
+              <span>{canSubmit ? 'Chuẩn bị ảnh JPG hoặc PNG rõ nét, tối đa 5 MB.' : application?.status === 'Pending' ? 'Admin đang kiểm tra chứng chỉ. Kết quả sẽ hiện tại đây.' : application?.status === 'Approved' && !isCoach ? 'Cập nhật phiên đăng nhập để mở khu vực Coach.' : application?.status === 'Approved' ? 'Tạo lớp, sắp lịch học và theo dõi lớp của bạn.' : 'Xem chi tiết ở bên dưới.'}</span></div>
+            {canSubmit && <Button type="primary" href="#coach-app-submit">Nộp chứng chỉ</Button>}
+            {application?.status === 'Approved' && isCoach && <Button type="primary" href="/coach/classes">Đi đến lớp của tôi</Button>}
+          </div>
           <div className="coach-app-grid">
             <Card className="coach-app-card" title="Yêu cầu gần nhất">
               {application ? <>
@@ -131,6 +139,22 @@ export default function CoachApplicationPage() {
             </Card>
           </div>
 
+          {canSubmit &&
+            <Card id="coach-app-submit" className="coach-app-card coach-app-submit" title={application ? 'Gửi lại chứng chỉ' : 'Nộp chứng chỉ'}>
+            <p>Ảnh phải rõ nội dung chứng chỉ. Hỗ trợ JPG và PNG, tối đa 5 MB.</p>
+            <label className="coach-app-upload">
+              <input type="file" accept="image/jpeg,image/png" onChange={pickFile} aria-label="Chọn ảnh chứng chỉ" />
+              <CloudUploadOutlined />
+              <strong>{file ? file.name : 'Chọn ảnh chứng chỉ'}</strong>
+              <span>Nhấn để chọn ảnh từ thiết bị</span>
+            </label>
+            {preview && <Image className="coach-app-preview" src={preview} alt="Xem trước ảnh chứng chỉ" />}
+            <div className="coach-app-submit-actions">
+              <Text type="secondary">Chỉ bạn và Admin được xem ảnh sau khi gửi.</Text>
+              <Button type="primary" disabled={!file} loading={submit.isPending} onClick={sendApplication}>Gửi yêu cầu</Button>
+            </div>
+          </Card>}
+
           <Card className="coach-app-card coach-app-history" title="Lịch sử yêu cầu của tôi">
             {requestsQuery.isError && <Alert type="error" showIcon message="Không thể tải lịch sử yêu cầu"
               action={<Button onClick={() => requestsQuery.refetch()}>Thử lại</Button>} style={{ marginBottom: 16 }} />}
@@ -150,22 +174,6 @@ export default function CoachApplicationPage() {
                 } }} />
           </Card>
 
-          {(!application || application.status === 'Rejected' || application.status === 'Revoked') &&
-            (!isCoach || application?.status === 'Revoked') &&
-            <Card className="coach-app-card coach-app-submit" title={application ? 'Gửi lại chứng chỉ' : 'Nộp chứng chỉ'}>
-            <p>Ảnh phải rõ nội dung chứng chỉ. Hỗ trợ JPG và PNG, tối đa 5 MB.</p>
-            <label className="coach-app-upload">
-              <input type="file" accept="image/jpeg,image/png" onChange={pickFile} aria-label="Chọn ảnh chứng chỉ" />
-              <CloudUploadOutlined />
-              <strong>{file ? file.name : 'Chọn ảnh chứng chỉ'}</strong>
-              <span>Nhấn để chọn ảnh từ thiết bị</span>
-            </label>
-            {preview && <Image className="coach-app-preview" src={preview} alt="Xem trước ảnh chứng chỉ" />}
-            <div className="coach-app-submit-actions">
-              <Text type="secondary">Chỉ bạn và Admin được xem ảnh sau khi gửi.</Text>
-              <Button type="primary" disabled={!file} loading={submit.isPending} onClick={sendApplication}>Gửi yêu cầu</Button>
-            </div>
-          </Card>}
         </>}
       <Drawer title="Chi tiết yêu cầu của tôi" open={Boolean(selectedId)} width={560}
         onClose={() => setSelectedId(null)}>

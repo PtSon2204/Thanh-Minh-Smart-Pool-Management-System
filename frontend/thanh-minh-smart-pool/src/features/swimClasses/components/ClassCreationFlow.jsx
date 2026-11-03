@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarOutlined, CheckCircleOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons'
+import { CalendarOutlined, CheckCircleOutlined, EyeOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons'
 import { Button, ConfigProvider, Form, Popconfirm, Steps, Tag, Typography } from 'antd'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useActivateSwimClass, useCreateClassSessions, useCreateSwimClass, useSwimClassCoaches } from '../hooks/useSwimClassManagement'
@@ -140,6 +140,12 @@ export default function ClassCreationFlow() {
           { title: 'Hoàn tất', icon: <CheckCircleOutlined /> },
         ]} />
       </section>
+
+      <div className="swim-class-flow-next" role="status">
+        <div><strong>{stage === 0 ? '1. Nhập thông tin lớp' : stage === 1 ? '2. Sắp lịch và mở đăng ký' : '3. Xem và quản lý lớp'}</strong>
+          <span>{stage === 0 ? 'Lưu thông tin lớp trước khi thêm các buổi học.' : stage === 1 ? 'Thêm buổi học, lưu lịch, sau đó kích hoạt lớp. Bạn có thể quay lại lớp nháp từ danh sách lớp.' : 'Lớp đã sẵn sàng. Mở trang lớp để xem lịch và chỉnh sửa từng buổi.'}</span></div>
+        {draft && <Button icon={<EyeOutlined />} href={`/coach/classes/${draft.id}`}>Xem lớp {stage === 1 ? 'nháp' : ''}</Button>}
+      </div>
 
       {stage === 0 && <SwimClassInfoForm form={classForm} onFinish={submitClass} pending={createClass.isPending}
         error={classError} />}
