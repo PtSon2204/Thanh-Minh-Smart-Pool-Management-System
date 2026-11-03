@@ -3,7 +3,6 @@ import {
   Modal,
   Form,
   InputNumber,
-  DatePicker,
   Radio,
   Input,
   Tag,
@@ -40,7 +39,6 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
   // Đồng hồ thời gian thực tự động nhảy giây khi mở modal
   useEffect(() => {
     if (!visible) return;
-    setCurrentTime(dayjs());
     const interval = setInterval(() => setCurrentTime(dayjs()), 1000);
     return () => clearInterval(interval);
   }, [visible]);
