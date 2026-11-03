@@ -27,6 +27,12 @@ public sealed partial class SwimClassOperations
             .Where(item => item.ClassId == request.ClassId && item.Status == "Scheduled" &&
                 item.StartsAt > now)
             .ToListAsync(cancellationToken);
+        // Resolve recipients while the class and its sessions still have their original state.
+        var notifications = await AddClassNotificationsAsync(request.ClassId,
+            futureSessions.Select(item => item.CoachUserId).Append(coachUserId),
+            "Lớp dạy bơi đã ngừng hoạt động",
+            $"Lớp {swimClass.Name} đã ngừng hoạt động. Lý do: {reason}",
+            "swim_class_deactivated", now, cancellationToken);
         foreach (var session in futureSessions)
         {
             session.Status = "Cancelled";
@@ -34,18 +40,10 @@ public sealed partial class SwimClassOperations
             session.UpdatedAt = NextVersionTimestamp(now, session.UpdatedAt);
         }
 
-        var wasActive = swimClass.Status == "Active";
         swimClass.Status = "Inactive";
         swimClass.InactiveReason = reason;
         swimClass.InactivatedAt = now;
         swimClass.UpdatedAt = NextVersionTimestamp(now, swimClass.UpdatedAt);
-        var notifications = wasActive
-            ? await AddClassNotificationsAsync(request.ClassId,
-                futureSessions.Select(item => item.CoachUserId).Append(coachUserId),
-                "Lớp dạy bơi đã ngừng hoạt động",
-                $"Lớp {swimClass.Name} đã ngừng hoạt động. Lý do: {reason}",
-                "swim_class_deactivated", now, cancellationToken)
-            : [];
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         await PublishClassNotificationsAsync(request.ClassId, notifications);

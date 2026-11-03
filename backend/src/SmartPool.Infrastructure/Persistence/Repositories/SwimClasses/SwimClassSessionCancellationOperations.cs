@@ -28,18 +28,19 @@ public sealed partial class SwimClassOperations
             throw new SwimClassStateConflictException(
                 "Chỉ có thể hủy buổi Scheduled chưa bắt đầu của lớp Draft hoặc Active.");
 
+        var reason = request.Reason.Trim();
+        // Resolve recipients before changing the session state.
+        var notifications = await AddClassNotificationsAsync(request.ClassId,
+            [session.CoachUserId, coachUserId],
+            "Buổi học đã bị hủy",
+            $"Buổi học của lớp {session.Class.Name} đã bị hủy. Lý do: {reason}",
+            "swim_class_session_cancelled", now, cancellationToken);
+
         session.Status = "Cancelled";
-        session.CancelReason = request.Reason.Trim();
+        session.CancelReason = reason;
         var updatedAt = NextVersionTimestamp(now, session.UpdatedAt, session.Class.UpdatedAt);
         session.UpdatedAt = updatedAt;
         session.Class.UpdatedAt = updatedAt;
-
-        var notifications = session.Class.Status == "Active"
-            ? await AddClassNotificationsAsync(request.ClassId, [session.CoachUserId],
-                "Buổi học đã bị hủy",
-                $"Buổi học của lớp {session.Class.Name} đã bị hủy. Lý do: {session.CancelReason}",
-                "swim_class_session_cancelled", now, cancellationToken)
-            : [];
 
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
