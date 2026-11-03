@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SmartPool.Application.Common.Models;
+using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
@@ -30,8 +31,11 @@ public sealed partial class StaffOperations
 
     public async Task<AssignShiftResponse> AssignShiftAsync(AssignShiftCommand request, CancellationToken cancellationToken)
     {
+        if (request.WorkDate <= VietnamTimeBoundary.GetDate(timeProvider))
+            throw new StaffConflictException("Chỉ có thể phân công ca từ ngày mai trở đi.");
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await LockEmployeesAsync([request.EmployeeId], cancellationToken);
+        await LockShiftAsync(request.ShiftId, cancellationToken);
         var employee = await EligibleEmployees().AsNoTracking()
             .FirstOrDefaultAsync(item => item.UserId == request.EmployeeId, cancellationToken);
         if (employee is null) throw new KeyNotFoundException("Không tìm thấy nhân viên đang làm việc.");
@@ -114,6 +118,11 @@ public sealed partial class StaffOperations
     {
         foreach (var employeeId in employeeIds.Distinct().Order())
             await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({employeeId.ToString()}, 0))", cancellationToken);
+    }
+    private async Task LockShiftAsync(Guid shiftId, CancellationToken cancellationToken)
+    {
+        var lockKey = $"shift:{shiftId}";
+        await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);
     }
     private static bool IsExactTupleViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException postgresException &&

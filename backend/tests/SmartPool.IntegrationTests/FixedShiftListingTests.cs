@@ -14,7 +14,7 @@ namespace SmartPool.IntegrationTests;
 public sealed class FixedShiftListingTests
 {
     [Fact]
-    public async Task GivenFixedAndLegacyShifts_WhenListing_ThenOnlyFixedShiftIdsAreReturned()
+    public async Task GivenFixedAndCustomShifts_WhenListing_ThenReturnsBoth()
     {
         var options = await IntegrationTestDatabase.CreateOptionsAsync();
         await using var context = new SmartPoolDbContext(options);
@@ -48,8 +48,7 @@ public sealed class FixedShiftListingTests
 
             var result = await operations.GetShiftsAsync(new GetShiftsQuery(), CancellationToken.None);
 
-            Assert.Equal(FixedShifts.Ids.Order(), result.Items.Select(item => item.Id).Order());
-            Assert.DoesNotContain(result.Items, item => item.Id == legacyId);
+            Assert.Equal(FixedShifts.Ids.Append(legacyId).Order(), result.Items.Select(item => item.Id).Order());
         }
         finally
         {

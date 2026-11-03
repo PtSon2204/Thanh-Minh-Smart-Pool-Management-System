@@ -76,16 +76,40 @@ public sealed partial class StaffOperations : IStaffOperations
 
     public async Task<PagedResponse<GetShiftsResponse>> GetShiftsAsync(GetShiftsQuery request, CancellationToken cancellationToken)
     {
-        var query = context.Shifts.AsNoTracking().Where(shift => FixedShifts.Ids.Contains(shift.Id));
+        var query = context.Shifts.AsNoTracking();
         if (request.IsActive is not null) query = query.Where(shift => shift.IsActive == request.IsActive);
         var total = await query.CountAsync(cancellationToken); var page = Normalize(request.PageIndex, request.PageSize);
         var rows = await query.OrderBy(shift => shift.StartTime).Skip((page.Page - 1) * page.PageSize).Take(page.PageSize).ToListAsync(cancellationToken);
         return new PagedResponse<GetShiftsResponse> { Items = mapper.Map<List<GetShiftsResponse>>(rows), TotalCount = total, PageIndex = page.Page, PageSize = page.PageSize };
     }
 
-    public Task<SaveShiftResponse> SaveShiftAsync(SaveShiftCommand request, CancellationToken cancellationToken) =>
-        Task.FromException<SaveShiftResponse>(
-            new StaffConflictException("Ca làm việc là cố định và không thể tạo hoặc thay đổi."));
+    public async Task<SaveShiftResponse> SaveShiftAsync(SaveShiftCommand request, CancellationToken cancellationToken)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        Shift shift;
+        if (request.Id is null)
+        {
+            shift = new Shift { Id = Guid.NewGuid() };
+            context.Shifts.Add(shift);
+        }
+        else
+        {
+            await LockShiftAsync(request.Id.Value, cancellationToken);
+            shift = await context.Shifts.FirstOrDefaultAsync(item => item.Id == request.Id.Value, cancellationToken)
+                ?? throw new KeyNotFoundException("Không tìm thấy ca làm việc.");
+            if ((shift.StartTime != request.StartTime || shift.EndTime != request.EndTime) &&
+                await context.EmployeeShifts.AnyAsync(item => item.ShiftId == shift.Id, cancellationToken))
+                throw new StaffConflictException("Ca đã được phân công nên không thể đổi giờ. Hãy tạo ca mới.");
+        }
+
+        shift.Name = request.Name.Trim();
+        shift.StartTime = request.StartTime;
+        shift.EndTime = request.EndTime;
+        shift.IsActive = request.IsActive;
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return mapper.Map<SaveShiftResponse>(shift);
+    }
 
     private static bool IsEligibleEmploymentRole(string? roleName) =>
         new[] { RoleEnum.LIFEGUARD, RoleEnum.SALES, RoleEnum.COACH, RoleEnum.ADMIN }

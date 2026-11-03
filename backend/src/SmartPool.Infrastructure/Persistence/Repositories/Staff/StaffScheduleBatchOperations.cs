@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
+using SmartPool.Application.Common.Time;
 using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.Staff
@@ -29,6 +30,8 @@ public sealed partial class StaffOperations
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await LockEmployeesAsync(request.Assignments.Select(item => item.EmployeeId), cancellationToken);
+        foreach (var shiftId in request.Assignments.Select(item => item.ShiftId).Distinct().Order())
+            await LockShiftAsync(shiftId, cancellationToken);
 
         var employeeIds = request.Assignments.Select(item => item.EmployeeId).Distinct().ToArray();
         var shiftIds = request.Assignments.Select(item => item.ShiftId).Distinct().ToArray();
@@ -44,7 +47,8 @@ public sealed partial class StaffOperations
             .Where(item => employeeIds.Contains(item.EmployeeId) && item.WorkDate >= minimumDate && item.WorkDate <= maximumDate)
             .ToListAsync(cancellationToken);
 
-        var conflicts = FindBatchConflicts(request.Assignments, employees, shifts, storedAssignments);
+        var earliestWorkDate = VietnamTimeBoundary.GetDate(timeProvider).AddDays(1);
+        var conflicts = FindBatchConflicts(request.Assignments, employees, shifts, storedAssignments, earliestWorkDate);
         if (conflicts.Count != 0) throw new AssignShiftBatchConflictException(conflicts);
 
         var now = DateTime.UtcNow;
@@ -87,14 +91,17 @@ public sealed partial class StaffOperations
         IReadOnlyList<AssignShiftBatchItem> requests,
         IReadOnlyDictionary<Guid, Employee> employees,
         IReadOnlyDictionary<Guid, Shift> shifts,
-        IReadOnlyCollection<EmployeeShift> storedAssignments)
+        IReadOnlyCollection<EmployeeShift> storedAssignments,
+        DateOnly earliestWorkDate)
     {
         var conflicts = new List<AssignShiftConflict>();
         var accepted = new List<AssignShiftBatchItem>();
         foreach (var request in requests)
         {
             AssignShiftConflict? conflict = null;
-            if (!employees.ContainsKey(request.EmployeeId))
+            if (request.WorkDate < earliestWorkDate)
+                conflict = Conflict(request, "work_date_too_soon", "Chỉ có thể phân công ca từ ngày mai trở đi.");
+            else if (!employees.ContainsKey(request.EmployeeId))
                 conflict = Conflict(request, "employee_ineligible", "Không tìm thấy nhân viên đang làm việc.");
             else if (!shifts.TryGetValue(request.ShiftId, out var shift))
                 conflict = Conflict(request, "shift_unavailable", "Không tìm thấy ca làm việc đang hoạt động.");
