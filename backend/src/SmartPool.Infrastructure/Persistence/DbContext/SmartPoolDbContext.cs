@@ -47,6 +47,7 @@ public class SmartPoolDbContext : EfDbContext
     public DbSet<Warning> Warnings { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<WaterQualityLog> WaterQualityLogs { get; set; }
+    public DbSet<PoolDutySchedule> PoolDutySchedules { get; set; }
     public DbSet<SwimClass> SwimClasses { get; set; }
     public DbSet<ClassSession> ClassSessions { get; set; }
     public DbSet<ClassRegistration> ClassRegistrations { get; set; }
@@ -91,6 +92,7 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new WarningConfiguration());
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
         modelBuilder.ApplyConfiguration(new WaterQualityLogConfiguration());
+        modelBuilder.ApplyConfiguration(new PoolDutyScheduleConfiguration());
         modelBuilder.ApplyConfiguration(new SwimClassConfiguration());
         modelBuilder.ApplyConfiguration(new ClassSessionConfiguration());
         modelBuilder.ApplyConfiguration(new ClassRegistrationConfiguration());

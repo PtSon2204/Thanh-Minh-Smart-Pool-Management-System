@@ -6,10 +6,12 @@ using SmartPool.API.Authorization;
 using SmartPool.API.Extensions;
 using SmartPool.Application.Features.ManageSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.ActivateSwimClass;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.DeactivateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateClassSessions;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassSession;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassSession;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RegisterForSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
@@ -169,6 +171,24 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         return await ExecuteAsync(async () => Ok(await sender.Send(command, cancellationToken)));
     }
 
+    [HttpPatch("{classId:guid}/sessions/{sessionId:guid}/cancel")]
+    [Authorize(Roles = "COACH")]
+    [RequirePermission("class_sessions", "update")]
+    [ProducesResponseType(typeof(CancelClassSessionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelSession(
+        Guid classId, Guid sessionId, [FromBody] CancelClassSessionCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        command.ClassId = classId;
+        command.SessionId = sessionId;
+        return await ExecuteAsync(async () => Ok(await sender.Send(command, cancellationToken)));
+    }
+
     [HttpPost("{classId:guid}/activate")]
     [Authorize(Roles = "COACH")]
     [RequirePermission("swim_classes", "update")]
@@ -181,6 +201,23 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         if (!User.TryGetUserId(out _)) return Forbid();
         return await ExecuteAsync(async () =>
             Ok(await sender.Send(new ActivateSwimClassCommand(classId), cancellationToken)));
+    }
+
+    [HttpPatch("{classId:guid}/deactivate")]
+    [Authorize(Roles = "COACH")]
+    [RequirePermission("swim_classes", "update")]
+    [ProducesResponseType(typeof(DeactivateSwimClassResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Deactivate(Guid classId,
+        [FromBody] DeactivateSwimClassCommand command, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        command.ClassId = classId;
+        return await ExecuteAsync(async () =>
+            Ok(await sender.Send(command, cancellationToken)));
     }
 
     private static async Task<IActionResult> ExecuteAsync(Func<Task<IActionResult>> operation)

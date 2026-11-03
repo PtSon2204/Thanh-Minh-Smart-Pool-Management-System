@@ -1,8 +1,10 @@
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateClassSessions;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.ActivateSwimClass;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.DeactivateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassSession;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassSession;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RegisterForSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
@@ -53,6 +55,11 @@ public interface ISwimClassOperations
         Guid coachUserId,
         CancellationToken cancellationToken);
 
+    Task<CancelClassSessionResponse> CancelSessionAsync(
+        CancelClassSessionCommand request,
+        Guid coachUserId,
+        CancellationToken cancellationToken);
+
     Task<CreateClassSessionsResponse> CreateSessionsAsync(
         CreateClassSessionsCommand request,
         Guid coachUserId,
@@ -60,6 +67,11 @@ public interface ISwimClassOperations
 
     Task<ActivateSwimClassResponse> ActivateAsync(
         Guid classId,
+        Guid coachUserId,
+        CancellationToken cancellationToken);
+
+    Task<DeactivateSwimClassResponse> DeactivateAsync(
+        DeactivateSwimClassCommand request,
         Guid coachUserId,
         CancellationToken cancellationToken);
 }

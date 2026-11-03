@@ -26,6 +26,8 @@ public sealed class SwimClassConfiguration : IEntityTypeConfiguration<SwimClass>
         entity.Property(e => e.CoachUserId).HasColumnName("coach_user_id").IsRequired();
         entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
         entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
+        entity.Property(e => e.InactiveReason).HasColumnName("inactive_reason").HasMaxLength(500);
+        entity.Property(e => e.InactivatedAt).HasColumnName("inactivated_at").HasColumnType("timestamp with time zone");
         entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
         entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
 

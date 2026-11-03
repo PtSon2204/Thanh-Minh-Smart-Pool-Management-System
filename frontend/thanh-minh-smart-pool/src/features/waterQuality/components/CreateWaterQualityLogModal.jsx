@@ -1,9 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Modal,
   Form,
   InputNumber,
-  DatePicker,
   Radio,
   Input,
   Tag,
@@ -17,6 +16,7 @@ import {
   WarningOutlined,
   CloseCircleOutlined,
   MedicineBoxOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { waterQualityService } from '../services/waterQualityService';
@@ -34,6 +34,14 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [preview, setPreview] = useState(DEFAULT_PREVIEW);
+  const [currentTime, setCurrentTime] = useState(() => dayjs());
+
+  // Đồng hồ thời gian thực tự động nhảy giây khi mở modal
+  useEffect(() => {
+    if (!visible) return;
+    const interval = setInterval(() => setCurrentTime(dayjs()), 1000);
+    return () => clearInterval(interval);
+  }, [visible]);
 
   // Live evaluation based on values
   const handleValuesChange = useCallback((changedValues, allValues) => {
@@ -66,7 +74,7 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
       setSubmitting(true);
 
       const payload = {
-        inspectionTime: values.inspectionTime.toISOString(),
+        inspectionTime: (currentTime || dayjs()).toISOString(),
         phValue: Number(values.phValue),
         freeChlorineMgL: Number(values.freeChlorineMgL),
         isWaterClear: values.isWaterClear,
@@ -150,16 +158,17 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
         }}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <Form.Item
-            name="inspectionTime"
-            label="Thời điểm đo"
-            rules={[{ required: true, message: 'Vui lòng chọn thời gian đo' }]}
-          >
-            <DatePicker
-              showTime
-              format="DD/MM/YYYY HH:mm"
-              style={{ width: '100%' }}
-              disabledDate={(current) => current && current > dayjs().endOf('day')}
+          <Form.Item label="Thời điểm đo">
+            <Input
+              prefix={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
+              value={currentTime.format('DD/MM/YYYY HH:mm:ss')}
+              disabled
+              style={{
+                backgroundColor: '#f5f5f5',
+                color: '#1f2937',
+                fontWeight: 600,
+                cursor: 'not-allowed',
+              }}
             />
           </Form.Item>
 

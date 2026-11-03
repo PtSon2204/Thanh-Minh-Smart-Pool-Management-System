@@ -103,6 +103,11 @@
 .swim-class-activate-card .swim-class-form-alert { flex-basis: 100%; margin: 0; order: 3; }
 .swim-class-complete-card .ant-result { padding-bottom: 18px; }
 .swim-class-complete-meta { align-items: center; border-top: 1px solid var(--swim-border); color: var(--swim-muted); display: flex; gap: 12px; justify-content: center; overflow-wrap: anywhere; padding: 16px; }
+.swim-class-flow-next { align-items: center; background: #eaf5ff; border: 1px solid #b9d9f2; border-radius: 12px; display: flex; gap: 18px; justify-content: space-between; padding: 17px 22px; }
+.swim-class-flow-next > div { display: grid; gap: 4px; }
+.swim-class-flow-next strong { color: #123f65; }
+.swim-class-flow-next span { color: #496982; line-height: 1.5; }
+@media (max-width: 640px) { .swim-class-flow-next { align-items: stretch; flex-direction: column; } }
 
 @media (max-width: 1050px) {
   .swim-class-schedule-layout { grid-template-columns: 1fr; }

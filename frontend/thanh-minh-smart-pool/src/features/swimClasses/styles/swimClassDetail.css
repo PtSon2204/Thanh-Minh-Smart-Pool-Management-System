@@ -64,3 +64,11 @@
   .swim-class-timetable-nav { justify-content: center; width: 100%; }
   .swim-class-timetable-shortcuts { justify-content: center; width: 100%; }
 }
+.swim-class-schedule-view-switch { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.swim-class-session-list { display: grid; gap: 10px; }
+.swim-class-session-list-row { align-items: center; border: 1px solid #dce8ef; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
+.swim-class-session-list-number { align-items: center; background: #e9f5fb; border-radius: 8px; color: #006da4; display: flex; flex: 0 0 34px; font-weight: 700; height: 34px; justify-content: center; }
+.swim-class-session-list-content { display: grid; flex: 1 1 220px; gap: 5px; min-width: 0; }
+.swim-class-session-list-content strong { color: #173c55; }
+.swim-class-session-list-content span { color: #61758a; font-size: 13px; }
+.swim-class-session-list-row .ant-tag { margin: 0; }

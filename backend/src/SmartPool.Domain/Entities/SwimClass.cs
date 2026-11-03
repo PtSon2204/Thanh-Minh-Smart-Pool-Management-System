@@ -23,6 +23,10 @@ public class SwimClass
 
     public string Status { get; set; } = null!;
 
+    public string? InactiveReason { get; set; }
+
+    public DateTime? InactivatedAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
