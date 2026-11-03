@@ -5,12 +5,14 @@ import { TicketCategoryLabel, TicketCategoryColor, TicketValidityLabel } from '.
 export default function TicketTypeDetailModal({ open, onClose, ticketType }) {
   if (!ticketType) return null
 
-  const { name, ticketCategory, price, isActive, createdAt, updatedAt } = ticketType
+  const { name, ticketCategory, price, isActive, totalEntries, createdAt, updatedAt } = ticketType
 
   const formattedPrice = new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
   }).format(price)
+
+  const isMultiEntry = ticketCategory === 'VE_LUOT' && totalEntries > 1
 
   return (
     <Modal
@@ -44,9 +46,16 @@ export default function TicketTypeDetailModal({ open, onClose, ticketType }) {
             {TicketCategoryLabel[ticketCategory] ?? ticketCategory}
           </Tag>
         </Descriptions.Item>
+        {ticketCategory === 'VE_LUOT' && (
+          <Descriptions.Item label="Số lượt vào bể">
+            <strong style={{ color: '#005f8e' }}>{totalEntries ?? 1} lượt</strong>
+          </Descriptions.Item>
+        )}
         <Descriptions.Item label="Giá vé">{formattedPrice}</Descriptions.Item>
         <Descriptions.Item label="Thời hạn">
-          {TicketValidityLabel[ticketCategory] ?? '—'}
+          {isMultiEntry
+            ? `Không giới hạn thời gian (dùng hết ${totalEntries} lượt)`
+            : (TicketValidityLabel[ticketCategory] ?? '—')}
         </Descriptions.Item>
         <Descriptions.Item label="Ngày tạo">
           {createdAt ? new Date(createdAt).toLocaleString('vi-VN') : '—'}

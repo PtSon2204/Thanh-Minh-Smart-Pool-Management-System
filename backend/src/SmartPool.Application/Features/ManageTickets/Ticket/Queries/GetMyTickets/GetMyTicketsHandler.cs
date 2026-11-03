@@ -43,6 +43,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyTicke
                     TicketCategory = type?.TicketCategory ?? "",
                     IssueDate = t.IssueDate,
                     ExpiryDate = t.ExpiryDate,
+                    RemainingEntries = t.RemainingEntries,
+                    TotalEntries = type?.TotalEntries,
                     Status = t.Status ?? "",
                     CustomerName = user?.Username ?? ""
                 });

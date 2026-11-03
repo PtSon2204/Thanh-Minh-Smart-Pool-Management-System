@@ -258,12 +258,17 @@ export default function VoucherFormModal({ open, onClose, editingVoucher = null 
         <Form.Item
           label={<Text strong style={{ color: '#096dd9' }}>Mã Voucher</Text>}
           name="code"
-          rules={[{ required: true, whitespace: true, message: 'Vui lòng nhập mã voucher' }]}
+          rules={[
+            { required: true, whitespace: true, message: 'Vui lòng nhập mã voucher' },
+            { max: 30, message: 'Mã voucher không được vượt quá 30 ký tự' }
+          ]}
         >
           <Input
             size="large"
             placeholder="VD: POOLSALE2026"
             prefix={<TagOutlined style={{ color: '#69c0ff' }} />}
+            maxLength={30}
+            showCount
             disabled={isEdit}
             style={{
               borderRadius: '8px',

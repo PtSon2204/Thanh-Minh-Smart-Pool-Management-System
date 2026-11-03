@@ -100,6 +100,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 if (ticketType.IsActive != true)
                     throw new InvalidOperationException($"Loại vé {ticketType.Name} đang bị khóa.");
 
+
                 ticketTypesCache[item.TicketTypeId] = ticketType;
                 totalAmount += ticketType.Price * item.Quantity;
             }
@@ -181,13 +182,17 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 };
                 await _orderDetailRepo.AddAsync(orderDetail, cancellationToken);
 
-                // VE_LUOT tại quầy: không tạo Ticket entity (không có QR)
-                if (ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString())
+                // VE_LUOT 1 lượt tại quầy: không tạo Ticket entity (không có QR)
+                if (ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString() && (ticketType.TotalEntries ?? 1) <= 1)
                     continue;
 
                 for (int i = 0; i < item.Quantity; i++)
                 {
-                    DateTime expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory);
+                    int? remainingEntries = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString()
+                        ? (ticketType.TotalEntries ?? 1)
+                        : null;
+
+                    DateTime? expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory, ticketType.TotalEntries);
 
                     var ticket = new Domain.Entities.Ticket
                     {
@@ -197,6 +202,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                         QrCode = await GenerateUniqueCodeAsync(cancellationToken),
                         IssueDate = issueDate,
                         ExpiryDate = expiryDate,
+                        RemainingEntries = remainingEntries,
                         Status = TicketStatusEnum.ACTIVE.ToString(),
                         CreatedAt = DateTime.UtcNow
                     };
@@ -208,7 +214,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                         Id = ticket.Id,
                         QrCode = ticket.QrCode,
                         ExpiryDate = ticket.ExpiryDate,
-                        TicketCategory = ticketType.TicketCategory
+                        TicketCategory = ticketType.TicketCategory,
+                        RemainingEntries = ticket.RemainingEntries
                     });
                 }
             }

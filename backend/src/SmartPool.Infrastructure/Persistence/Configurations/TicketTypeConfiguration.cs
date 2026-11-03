@@ -12,6 +12,7 @@ public sealed class TicketTypeConfiguration : IEntityTypeConfiguration<TicketTyp
         entity.Property(e => e.Id).HasDefaultValueSql("uuid_generate_v4()").HasColumnName("id");
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
         entity.Property(e => e.DurationDays).HasColumnName("duration_days");
+        entity.Property(e => e.TotalEntries).HasDefaultValue(1).HasColumnName("total_entries");
         entity.Property(e => e.IsActive).HasDefaultValue(true).HasColumnName("is_active");
         entity.Property(e => e.IsDeleted).HasDefaultValue(false).HasColumnName("is_deleted");
         entity.Property(e => e.Name).HasMaxLength(255).HasColumnName("name");

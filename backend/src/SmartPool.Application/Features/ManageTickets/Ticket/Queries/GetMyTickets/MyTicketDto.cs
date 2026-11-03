@@ -5,7 +5,6 @@ using System.Text.Json.Serialization;
 
 namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyTickets
 {
-
     public class MyTicketDto
     {
         public Guid Id { get; set; }
@@ -16,5 +15,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyTicke
         public DateTime? ExpiryDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? CustomerName { get; set; }
+        public int? RemainingEntries { get; set; }
+        public int? TotalEntries { get; set; }
     }
 }

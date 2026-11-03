@@ -9,6 +9,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetTic
         public TicketCategoryEnum TicketCategory { get; set; }
         public decimal Price { get; set; }
         public int? DurationDays { get; set; }
+        public int? TotalEntries { get; set; }
 
         public bool IsActive { get; set; }
 

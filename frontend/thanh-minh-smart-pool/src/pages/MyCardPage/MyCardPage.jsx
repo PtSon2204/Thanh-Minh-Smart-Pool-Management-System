@@ -40,9 +40,14 @@ export default function MyCardPage() {
     const status = ticket.status?.toUpperCase()
     if (status === 'USED') return false
     if (status === 'EXPIRED') return false
-    // Với vé lượt, nếu đã quá hạn sử dụng thì ẩn khỏi danh sách vé dùng được
-    if (ticket.ticketCategory === 'VE_LUOT' && ticket.expiryDate && dayjs(ticket.expiryDate).isBefore(dayjs())) {
-      return false
+    // Với vé lượt: nếu có ngày hết hạn và đã qua thì ẩn; nếu là vé nhiều lượt thì ẩn khi hết lượt
+    if (ticket.ticketCategory === 'VE_LUOT') {
+      if (ticket.expiryDate && dayjs(ticket.expiryDate).isBefore(dayjs())) {
+        return false
+      }
+      if (ticket.remainingEntries !== undefined && ticket.remainingEntries !== null && ticket.remainingEntries <= 0) {
+        return false
+      }
     }
     return true
   })
@@ -213,10 +218,19 @@ export default function MyCardPage() {
                       </div>
                     )}
 
+                    {ticket.ticketCategory === 'VE_LUOT' && ticket.remainingEntries !== undefined && ticket.remainingEntries !== null && (
+                      <div className="mc-ticket-remaining" style={{ fontSize: '13px', fontWeight: 600, color: '#005f8e', marginTop: '2px' }}>
+                        Còn lại: {ticket.remainingEntries} lượt
+                      </div>
+                    )}
+
                     <div className="mc-ticket-dates">
                       {ticket.ticketCategory === 'VE_THANG' 
                         ? `${dayjs(ticket.issueDate).format('DD/MM/YYYY')} ➔ ${dayjs(ticket.expiryDate).format('DD/MM/YYYY')}`
-                        : `HSD: ${dayjs(ticket.expiryDate).format('DD/MM/YYYY')}`
+                        : (ticket.expiryDate 
+                            ? `HSD: ${dayjs(ticket.expiryDate).format('DD/MM/YYYY')}`
+                            : 'Không giới hạn thời gian (dùng hết lượt)'
+                          )
                       }
                     </div>
                   </div>

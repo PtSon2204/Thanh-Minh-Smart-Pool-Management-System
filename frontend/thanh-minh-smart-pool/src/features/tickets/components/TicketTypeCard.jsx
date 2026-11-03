@@ -1,4 +1,4 @@
-import { Card, Tag, Tooltip, Button } from 'antd'
+import { Card, Tag, Tooltip, Button, Space } from 'antd'
 import { 
   TagOutlined, 
   ClockCircleOutlined,
@@ -13,10 +13,10 @@ import { TicketCategoryLabel, TicketCategoryColor, TicketValidityLabel } from '.
 /**
  * Card hiển thị thông tin 1 loại vé.
  * Props:
- *   ticketType — object từ API (id, name, ticketCategory, price, durationDays, isActive, createdAt)
+ *   ticketType — object từ API (id, name, ticketCategory, price, durationDays, totalEntries, isActive, createdAt)
  */
 export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock, onDelete, canManage = false }) {
-  const { name, ticketCategory, price, isActive } = ticketType
+  const { name, ticketCategory, price, isActive, totalEntries } = ticketType
 
   const categoryLabel = TicketCategoryLabel[ticketCategory] ?? ticketCategory
   const categoryColor = TicketCategoryColor[ticketCategory] ?? 'default'
@@ -25,6 +25,8 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
     style: 'currency',
     currency: 'VND',
   }).format(price)
+
+  const isMultiEntry = ticketCategory === 'VE_LUOT' && totalEntries > 1
 
   return (
     <Card
@@ -84,13 +86,20 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
 
       {/* Header: Phân loại + Status */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Tag 
-          icon={<TagOutlined />} 
-          color={categoryColor} 
-          style={{ fontSize: 13, borderRadius: 20, padding: '2px 10px', border: 'none', fontWeight: 600 }}
-        >
-          {categoryLabel}
-        </Tag>
+        <Space size={6} wrap>
+          <Tag 
+            icon={<TagOutlined />} 
+            color={categoryColor} 
+            style={{ fontSize: 13, borderRadius: 20, padding: '2px 10px', border: 'none', fontWeight: 600 }}
+          >
+            {categoryLabel}
+          </Tag>
+          {isMultiEntry && (
+            <Tag color="cyan" style={{ fontSize: 12, borderRadius: 20, padding: '1px 8px', border: 'none', fontWeight: 600 }}>
+              {totalEntries} lượt
+            </Tag>
+          )}
+        </Space>
         <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#52c41a' : '#8c8c8c' }}>
           {isActive ? '● Đang hoạt động' : '○ Bị khóa'}
         </span>
@@ -117,7 +126,11 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 13, fontWeight: 500, paddingLeft: 4 }}>
         <ClockCircleOutlined style={{ fontSize: 15 }} />
         <span>
-          Hiệu lực: {TicketValidityLabel[ticketCategory] ?? '—'}
+          Hiệu lực: {
+            isMultiEntry
+              ? `Không giới hạn thời gian (dùng hết ${totalEntries} lượt)`
+              : (TicketValidityLabel[ticketCategory] ?? '—')
+          }
         </span>
       </div>
     </Card>
