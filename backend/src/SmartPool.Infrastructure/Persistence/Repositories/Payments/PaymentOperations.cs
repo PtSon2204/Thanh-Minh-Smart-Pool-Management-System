@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManagePayments.DTOs;
 using SmartPool.Application.Features.ManagePayments.Queries.GetAllPayments;
@@ -43,6 +44,10 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Payments
             {
                 var statusUpper = request.Status.Trim().ToUpper();
                 query = query.Where(p => p.Status != null && p.Status.ToUpper() == statusUpper);
+            }
+            else if (request.ExcludePending == true)
+            {
+                query = query.Where(p => p.Status == null || p.Status.ToUpper() != "PENDING");
             }
 
             if (!string.IsNullOrWhiteSpace(request.PaymentMethod))
@@ -154,6 +159,10 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Payments
                     OrderId = p.OrderId,
                     InvoiceCode = $"INV-{p.Id.ToString("N")[..8].ToUpper()}",
                     PaymentTime = p.PaymentTime ?? p.CreatedAt,
+                    CreatedAt = p.CreatedAt,
+                    ExpiresAtUtc = (p.PaymentMethod == "TRANSFER" || p.PaymentMethod == "BANK_TRANSFER") && p.CreatedAt.HasValue
+                        ? DateTime.SpecifyKind(p.CreatedAt.Value, DateTimeKind.Utc).Add(OnlineOrderPaymentPolicy.Lifetime)
+                        : null,
                     CustomerName = customerName,
                     CustomerPhone = customerPhone,
                     ItemsSummary = itemsSummary,

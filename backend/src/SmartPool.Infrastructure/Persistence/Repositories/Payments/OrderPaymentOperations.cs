@@ -105,7 +105,7 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
             .Where(order => order.UserId == userId && order.IsDeleted != true
                 && (order.Status == "PENDING" || order.Status == "PARTIAL")
                 && order.CreatedAt > cutoff
-                && order.Payments.Any(payment => payment.PaymentMethod == "TRANSFER"
+                && order.Payments.Any(payment => (payment.PaymentMethod == "TRANSFER" || payment.PaymentMethod == "BANK_TRANSFER")
                     && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
                     && payment.TransactionRef.Length == 8))
             .CountAsync(cancellationToken);
@@ -132,7 +132,7 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
         var ids = await context.Orders.AsNoTracking()
             .Where(order => order.IsDeleted != true && (order.Status == "PENDING" || order.Status == "PARTIAL")
                 && order.CreatedAt <= cutoff
-                && order.Payments.Any(payment => payment.PaymentMethod == "TRANSFER"
+                && order.Payments.Any(payment => (payment.PaymentMethod == "TRANSFER" || payment.PaymentMethod == "BANK_TRANSFER")
                     && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
                     && payment.TransactionRef.Length == 8))
             .OrderBy(order => order.CreatedAt).Select(order => order.Id).Take(100)
@@ -145,7 +145,7 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
             {
                 if (order == null) return 0;
                 var payment = await context.Payments
-                    .Where(payment => payment.OrderId == id && payment.PaymentMethod == "TRANSFER"
+                    .Where(payment => payment.OrderId == id && (payment.PaymentMethod == "TRANSFER" || payment.PaymentMethod == "BANK_TRANSFER")
                         && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
                         && payment.TransactionRef.Length == 8)
                     .OrderBy(payment => payment.CreatedAt).FirstOrDefaultAsync(token);

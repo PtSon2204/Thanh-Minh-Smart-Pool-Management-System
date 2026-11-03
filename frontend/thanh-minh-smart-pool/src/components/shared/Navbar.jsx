@@ -143,12 +143,8 @@ export default function Navbar() {
       {/* Main bar */}
       <div className="navbar-main">
         <div className="container">
-          <Link to="/" className="navbar-logo">
-            <img src={logoImg} alt="Logo" className="navbar-logo-img" />
-            <div className="navbar-logo-text">
-              <span className="navbar-logo-name">Thanh Minh</span>
-              <span className="navbar-logo-sub">Smart Pool Management</span>
-            </div>
+          <Link to="/" className="navbar-logo" aria-label="Trang chủ Bể bơi Thanh Minh">
+            <img src={logoImg} alt="Logo Bể bơi Thanh Minh" className="navbar-logo-img" />
           </Link>
 
           <ul className="navbar-nav">

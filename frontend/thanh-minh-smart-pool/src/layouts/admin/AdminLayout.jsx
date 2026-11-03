@@ -84,6 +84,62 @@ export default function AdminLayout() {
   const isMobile = !screens.md;
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Khả năng kéo dãn độ rộng sidebar (resizable sidebar)
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('admin_sidebar_width');
+      const parsed = parseInt(saved, 10);
+      return !isNaN(parsed) && parsed >= 220 && parsed <= 500 ? parsed : 260;
+    } catch {
+      return 260;
+    }
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const isResizingRef = useRef(false);
+
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    setIsResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (moveEvent) => {
+      if (!isResizingRef.current) return;
+      const newWidth = Math.min(Math.max(moveEvent.clientX, 220), 500);
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = (upEvent) => {
+      if (!isResizingRef.current) return;
+      isResizingRef.current = false;
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+
+      const finalWidth = Math.min(Math.max(upEvent.clientX, 220), 500);
+      try {
+        localStorage.setItem('admin_sidebar_width', String(finalWidth));
+      } catch {
+        // ignore
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const handleResetWidth = useCallback(() => {
+    setSidebarWidth(260);
+    try {
+      localStorage.setItem('admin_sidebar_width', '260');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Global Safety Alert — phát âm thanh cảnh báo trên mọi thiết bị đang kết nối
   const { startAlarm, stopAlarm } = useAlarmSound();
   const stopAlarmTimerRef = useRef(null);
@@ -354,6 +410,10 @@ export default function AdminLayout() {
       label: "Thanh toán và giao dịch",
       children: [
         {
+          key: "/admin/payments/waiting-invoices",
+          label: <Link to="/admin/payments/waiting-invoices">Hàng chờ thanh toán</Link>,
+        },
+        {
           key: "/admin/payments/invoices",
           label: <Link to="/admin/payments/invoices">Lịch sử thanh toán</Link>,
         },
@@ -461,9 +521,19 @@ export default function AdminLayout() {
             trigger={null}
             collapsible
             collapsed={collapsed}
-            width={250}
-            className="admin-sidebar"
+            width={sidebarWidth}
+            className={`admin-sidebar ${isResizing ? "is-resizing" : ""}`}
           >
+            {!collapsed && (
+              <div
+                className="admin-sidebar-resizer"
+                onMouseDown={handleMouseDown}
+                onDoubleClick={handleResetWidth}
+                title="Kéo sang phải/trái để chỉnh độ rộng sidebar (nhấp đúp để đặt lại 260px)"
+              >
+                <div className="admin-sidebar-resizer-line" />
+              </div>
+            )}
             <div className="bubbles-container">
               <div className="bubble" />
               <div className="bubble" />
@@ -477,7 +547,7 @@ export default function AdminLayout() {
               {collapsed ? (
                 <span className="admin-logo-collapsed">TM</span>
               ) : (
-                <span className="admin-logo-text">Thanh Minh Admin</span>
+                <span className="admin-logo-text">Bể bơi Thanh Minh</span>
               )}
             </div>
             <Menu
@@ -496,7 +566,7 @@ export default function AdminLayout() {
             />
           </Sider>
         )}
-        <Layout style={{ background: "#e2e8f0", minWidth: 0 }}>
+        <Layout style={{ background: "#f4f7fb", minWidth: 0 }}>
           <Header
             className="admin-header"
             style={{

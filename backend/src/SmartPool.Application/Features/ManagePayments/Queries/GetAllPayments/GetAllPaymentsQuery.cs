@@ -13,5 +13,6 @@ namespace SmartPool.Application.Features.ManagePayments.Queries.GetAllPayments
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public string? Search { get; set; }
+        public bool? ExcludePending { get; set; }
     }
 }

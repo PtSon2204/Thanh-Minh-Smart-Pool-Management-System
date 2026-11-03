@@ -67,10 +67,11 @@ export default function OfflineSalesPage() {
     }
   })
 
-  // Watch for order completion
+  // Watch for order completion or cancellation
   useEffect(() => {
     if (orderStatusData && orderStatusData.status === 'COMPLETED') {
       message.success('Đã nhận được tiền thanh toán!');
+      try { sessionStorage.removeItem('pos_pending_order'); } catch { /* ignore */ }
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSoldTickets(orderStatusData.tickets || []);
       setQrModalVisible(false);
@@ -79,8 +80,36 @@ export default function OfflineSalesPage() {
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
+    } else if (orderStatusData && (orderStatusData.status === 'CANCELLED' || orderStatusData.status === 'EXPIRED')) {
+      message.error('Giao dịch đã hết hạn hoặc bị hủy.');
+      try { sessionStorage.removeItem('pos_pending_order'); } catch { /* ignore */ }
+      setQrModalVisible(false);
+      setPendingOrderId(null);
     }
   }, [orderStatusData])
+
+  // Khôi phục đơn hàng QR nếu nhân viên reload trang
+  useEffect(() => {
+    try {
+      const savedPending = sessionStorage.getItem('pos_pending_order');
+      if (savedPending) {
+        const parsed = JSON.parse(savedPending);
+        const elapsedSeconds = (Date.now() - (parsed.createdAt || 0)) / 1000;
+        if (elapsedSeconds < 300) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setPendingOrderId(parsed.orderId);
+          setTransactionRef(parsed.transactionRef);
+          setSoldOrder(parsed.soldOrder);
+          setGeneratedAccount(parsed.accountInfo || null);
+          setQrModalVisible(true);
+        } else {
+          sessionStorage.removeItem('pos_pending_order');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const handleSelectTicket = (tt) => {
     setCart((prev) => {
@@ -217,7 +246,7 @@ export default function OfflineSalesPage() {
       payload,
       {
         onSuccess: (data) => {
-          setSoldOrder({
+          const orderData = {
             id: data.orderId,
             totalAmount: data.totalAmount,
             discountAmount: data.discountAmount || 0,
@@ -226,11 +255,24 @@ export default function OfflineSalesPage() {
             cartSummary: getOrderSummary(),
             customerName: requiresRegistration ? customerName.trim() : '',
             customerPhone: requiresRegistration ? customerPhone.trim() : ''
-          })
+          }
+          setSoldOrder(orderData)
           setGeneratedAccount(data.accountInfo || null)
           setTransactionRef(data.transactionRef)
           setPendingOrderId(data.orderId)
           
+          try {
+            sessionStorage.setItem('pos_pending_order', JSON.stringify({
+              orderId: data.orderId,
+              transactionRef: data.transactionRef,
+              soldOrder: orderData,
+              accountInfo: data.accountInfo || null,
+              createdAt: Date.now()
+            }))
+          } catch {
+            // ignore
+          }
+
           setPaymentMethodVisible(false)
           setQrModalVisible(true)
           setAppliedVoucher(null)
@@ -573,6 +615,7 @@ export default function OfflineSalesPage() {
         title={<span style={{ fontSize: 20 }}>Quét mã QR để thanh toán</span>}
         open={qrModalVisible}
         onCancel={() => {
+          try { sessionStorage.removeItem('pos_pending_order'); } catch { /* ignore */ }
           setQrModalVisible(false);
           setPendingOrderId(null);
         }}
@@ -625,6 +668,9 @@ export default function OfflineSalesPage() {
           <p style={{ color: '#8c8c8c', marginTop: 12, fontSize: 12 }}>
             Hệ thống sẽ tự động in vé ngay khi nhận đủ tiền.<br/>Mã đơn hàng: {transactionRef}
           </p>
+          <div style={{ marginTop: 10, padding: '6px 12px', background: '#eff6ff', borderRadius: 6, color: '#1e40af', fontSize: 12, display: 'inline-block' }}>
+            ⏱️ Đơn hàng sẽ tự động hủy sau 5 phút nếu không hoàn tất thanh toán.
+          </div>
         </div>
       </Modal>
 
