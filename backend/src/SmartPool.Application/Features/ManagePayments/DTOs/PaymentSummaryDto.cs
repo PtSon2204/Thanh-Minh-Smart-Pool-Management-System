@@ -9,6 +9,8 @@ namespace SmartPool.Application.Features.ManagePayments.DTOs
         public string InvoiceCode { get; set; } = string.Empty;
 
         public DateTime? PaymentTime { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public DateTime? ExpiresAtUtc { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string? CustomerPhone { get; set; }
         public string ItemsSummary { get; set; } = string.Empty;

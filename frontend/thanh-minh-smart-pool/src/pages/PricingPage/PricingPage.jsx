@@ -160,7 +160,7 @@ export default function PricingPage() {
           </h1>
 
           <p className="pl-hero-sub">
-            Minh bạch • Linh hoạt • Phù hợp mọi đối tượng khách hàng từ bơi thư giãn đến rèn luyện sức khỏe.
+            Minh bạch • Linh hoạt • Phù hợp
           </p>
 
           <div className="pl-hero-badges">

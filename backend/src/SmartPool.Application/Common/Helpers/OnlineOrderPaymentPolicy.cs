@@ -11,7 +11,9 @@ public static class OnlineOrderPaymentPolicy
         reference is { Length: 8 } && reference.StartsWith("SP", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsOnline(Payment? payment) =>
-        string.Equals(payment?.PaymentMethod, "TRANSFER", StringComparison.OrdinalIgnoreCase);
+        payment?.PaymentMethod is not null &&
+        (payment.PaymentMethod.Equals("TRANSFER", StringComparison.OrdinalIgnoreCase) ||
+         payment.PaymentMethod.Equals("BANK_TRANSFER", StringComparison.OrdinalIgnoreCase));
 
     public static DateTime? GetExpiresAtUtc(Order order, Payment? payment) =>
         IsOnline(payment) && order.CreatedAt.HasValue
