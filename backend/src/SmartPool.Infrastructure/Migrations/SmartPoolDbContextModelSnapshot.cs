@@ -2034,6 +2034,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("qr_code");
 
+                    b.Property<int?>("RemainingEntries")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("remaining_entries");
+
                     b.Property<Guid?>("RowVersion")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -2120,6 +2126,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("ticket_category");
+
+                    b.Property<int?>("TotalEntries")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("total_entries");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAdd()

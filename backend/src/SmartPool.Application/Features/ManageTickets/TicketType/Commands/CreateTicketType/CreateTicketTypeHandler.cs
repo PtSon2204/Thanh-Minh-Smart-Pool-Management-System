@@ -22,12 +22,17 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
 
         public async Task<CreateTicketTypeResponse> Handle(CreateTicketTypeCommand request, CancellationToken cancellationToken)
         {
+            int? totalEntries = request.TicketCategory == TicketCategoryEnum.VE_LUOT
+                ? (request.TotalEntries ?? 1)
+                : null;
+
             var entity = new TicketTypeEntity
             {
                 Name           = request.Name,
                 TicketCategory = request.TicketCategory.ToString(), // Enum → string
                 Price          = request.Price,
-                DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory),
+                TotalEntries   = totalEntries,
+                DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory, totalEntries),
             };
                 
             await _repo.AddAsync(entity, cancellationToken);
@@ -37,4 +42,3 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
         }
     }
 }
-

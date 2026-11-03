@@ -12,5 +12,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
         public decimal Price { get; set; }
 
         public int? DurationDays { get; set; }
+
+        public int? TotalEntries { get; set; }
     }
 }

@@ -166,7 +166,11 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
                 for (int i = 0; i < detail.Quantity; i++)
                 {
-                    DateTime expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory);
+                    int? remainingEntries = ticketType.TicketCategory == nameof(TicketCategoryEnum.VE_LUOT)
+                        ? (ticketType.TotalEntries ?? 1)
+                        : null;
+
+                    DateTime? expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory, ticketType.TotalEntries);
 
                     var ticket = new Domain.Entities.Ticket
                     {
@@ -176,6 +180,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                         QrCode = await GenerateUniqueCodeAsync(cancellationToken),
                         IssueDate = issueDate,
                         ExpiryDate = expiryDate,
+                        RemainingEntries = remainingEntries,
                         Status = TicketStatusEnum.ACTIVE.ToString(),
                         CreatedAt = now
                     };
@@ -187,7 +192,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                         Id = ticket.Id,
                         QrCode = ticket.QrCode,
                         ExpiryDate = ticket.ExpiryDate,
-                        TicketCategory = ticketType.TicketCategory ?? ""
+                        TicketCategory = ticketType.TicketCategory ?? "",
+                        RemainingEntries = ticket.RemainingEntries
                     });
                 }
             }

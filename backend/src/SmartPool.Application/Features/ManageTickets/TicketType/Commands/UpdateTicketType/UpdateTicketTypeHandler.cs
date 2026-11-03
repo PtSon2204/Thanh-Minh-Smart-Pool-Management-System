@@ -2,6 +2,7 @@ using AutoMapper;
 using MediatR;
 using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Domain.Enums;
 using TicketTypeEntity = SmartPool.Domain.Entities.TicketType;
 
 namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.UpdateTicketType
@@ -32,11 +33,16 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
                 cancellationToken)
                 ?? throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {request.Id}");
 
+            int? totalEntries = request.TicketCategory == TicketCategoryEnum.VE_LUOT
+                ? (request.TotalEntries ?? 1)
+                : null;
+
             // Cập nhật các trường
             entity.Name           = request.Name;
             entity.TicketCategory = request.TicketCategory.ToString();
             entity.Price          = request.Price;
-            entity.DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory);
+            entity.TotalEntries   = totalEntries;
+            entity.DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory, totalEntries);
             entity.UpdatedAt      = DateTime.UtcNow;
 
             _repo.Update(entity);

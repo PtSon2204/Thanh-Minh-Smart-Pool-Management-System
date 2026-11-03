@@ -1,5 +1,6 @@
 using FluentValidation;
 using SmartPool.Application.Common.Helpers;
+using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.UpdateTicketType
 {
@@ -21,10 +22,15 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
             RuleFor(x => x.Price)
                 .GreaterThan(0).WithMessage("Giá vé phải lớn hơn 0.");
 
+            RuleFor(x => x.TotalEntries)
+                .InclusiveBetween(1, 500)
+                .When(x => x.TicketCategory == TicketCategoryEnum.VE_LUOT && x.TotalEntries.HasValue)
+                .WithMessage("Số lượt vào bể phải từ 1 đến 500 lượt.");
+
             RuleFor(x => x.DurationDays)
-                .Must((command, days) => !days.HasValue || days == TicketValidityPolicy.GetDurationDays(command.TicketCategory))
+                .Must((command, days) => !days.HasValue || days == TicketValidityPolicy.GetDurationDays(command.TicketCategory, command.TotalEntries))
                 .When(x => Enum.IsDefined(x.TicketCategory))
-                .WithMessage("Vé tháng có hiệu lực 30 ngày; vé lượt có hiệu lực 24 giờ. Không được tùy chỉnh thời hạn.");
+                .WithMessage("Vé tháng có hiệu lực 30 ngày; vé 1 lượt có hiệu lực 24 giờ; vé nhiều lượt không giới hạn thời gian. Không được tùy chỉnh thời hạn.");
         }
     }
 }
