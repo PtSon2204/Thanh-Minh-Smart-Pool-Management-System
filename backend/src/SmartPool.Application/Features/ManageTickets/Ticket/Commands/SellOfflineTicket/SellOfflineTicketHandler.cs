@@ -100,12 +100,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 if (ticketType.IsActive != true)
                     throw new InvalidOperationException($"Loại vé {ticketType.Name} đang bị khóa.");
 
-                if ((ticketType.TicketCategory == TicketCategoryEnum.VE_THANG.ToString() ||
-                     (ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString() && (ticketType.TotalEntries ?? 1) > 1)) &&
-                    string.IsNullOrWhiteSpace(request.CustomerPhone))
-                {
-                    throw new InvalidOperationException($"Vé '{ticketType.Name}' yêu cầu số điện thoại khách hàng.");
-                }
 
                 ticketTypesCache[item.TicketTypeId] = ticketType;
                 totalAmount += ticketType.Price * item.Quantity;
