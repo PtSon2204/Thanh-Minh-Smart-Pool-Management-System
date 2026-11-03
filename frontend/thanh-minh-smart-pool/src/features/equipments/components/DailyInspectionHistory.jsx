@@ -163,13 +163,6 @@ export default function DailyInspectionHistory() {
       ),
     },
     {
-      title: 'Ghi chú ca trực',
-      dataIndex: 'notes',
-      key: 'notes',
-      ellipsis: true,
-      render: (notes) => notes || <span style={{ color: '#9ca3af' }}>—</span>,
-    },
-    {
       title: 'Thao tác',
       key: 'actions',
       width: 110,

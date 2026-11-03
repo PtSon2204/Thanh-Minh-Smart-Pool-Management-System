@@ -4,8 +4,7 @@ namespace SmartPool.Application.Common.Helpers;
 
 public static class OnlineOrderPaymentPolicy
 {
-    //public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(5);
-    public static readonly TimeSpan Lifetime = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(5);
 
     public static bool IsCheckoutReference(string? reference) =>
         reference is { Length: 8 } && reference.StartsWith("SP", StringComparison.OrdinalIgnoreCase);

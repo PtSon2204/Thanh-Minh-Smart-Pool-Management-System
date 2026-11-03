@@ -77,13 +77,13 @@ export default function MyCardPage() {
     setEditValue('')
   }
 
-  const handleSaveCode = (ticketId) => {
-    if (!/^\d{6}$/.test(editValue)) {
-      message.warning('Mã vé phải là đúng 6 chữ số (0–9).')
-      return
-    }
-    updateCodeMutation.mutate({ ticketId, code: editValue })
+const handleSaveCode = (ticketId) => {
+  if (!/^\d{3,6}$/.test(editValue)) {
+    message.warning('Mã vé phải từ 3 đến 6 chữ số (0–9).')
+    return
   }
+  updateCodeMutation.mutate({ ticketId, code: editValue })
+}
 
   return (
     <div className="mc-page">
@@ -181,7 +181,7 @@ export default function MyCardPage() {
                             setEditValue(val)
                           }}
                           maxLength={6}
-                          placeholder="6 chữ số"
+                          placeholder="3 - 6 số"
                           size="small"
                           style={{ width: 100, fontFamily: 'monospace', letterSpacing: 2 }}
                           autoFocus
