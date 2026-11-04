@@ -5,7 +5,6 @@ using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Domain.Entities;
-using SmartPool.Infrastructure.Persistence.Repositories;
 
 namespace SmartPool.IntegrationTests;
 
@@ -16,7 +15,7 @@ public sealed partial class StaffScheduleBatchTests
     {
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         var shift = CreateShift(new TimeOnly(8, 0), new TimeOnly(12, 0));
-        var workDate = new DateOnly(2026, 11, 8);
+        var workDate = new DateOnly(2026, 11, 3);
         try
         {
             await AddShiftsAsync(fixture, shift);
@@ -28,7 +27,7 @@ public sealed partial class StaffScheduleBatchTests
                 Assert.True(await Task.Run(() => gate.SignalAndWait(TimeSpan.FromSeconds(10))));
                 try
                 {
-                    await fixture.CreateOperations(operationContext).AssignShiftAsync(
+                    await fixture.CreateOperations(operationContext, new FixedTimeProvider(AssignmentNow)).AssignShiftAsync(
                         Single(fixture.AttachedStaffUserId, shift.Id, workDate), CancellationToken.None);
                     return true;
                 }
@@ -44,7 +43,7 @@ public sealed partial class StaffScheduleBatchTests
                 Assert.True(await Task.Run(() => gate.SignalAndWait(TimeSpan.FromSeconds(10))));
                 try
                 {
-                    await fixture.CreateOperations(operationContext).AssignShiftBatchAsync(
+                    await fixture.CreateOperations(operationContext, new FixedTimeProvider(AssignmentNow)).AssignShiftBatchAsync(
                         Batch(Item(fixture.AttachedStaffUserId, shift.Id, workDate)), CancellationToken.None);
                     return true;
                 }
@@ -70,7 +69,7 @@ public sealed partial class StaffScheduleBatchTests
     {
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         var shift = CreateShift(new TimeOnly(13, 0), new TimeOnly(17, 0));
-        var workDate = new DateOnly(2026, 11, 9);
+        var workDate = new DateOnly(2026, 11, 4);
         try
         {
             await AddShiftsAsync(fixture, shift);
@@ -82,7 +81,7 @@ public sealed partial class StaffScheduleBatchTests
                 Assert.True(await Task.Run(() => gate.SignalAndWait(TimeSpan.FromSeconds(10))));
                 try
                 {
-                    await fixture.CreateOperations(operationContext).AssignShiftBatchAsync(
+                    await fixture.CreateOperations(operationContext, new FixedTimeProvider(AssignmentNow)).AssignShiftBatchAsync(
                         Batch(Item(fixture.AttachedStaffUserId, shift.Id, workDate)), CancellationToken.None);
                     return true;
                 }

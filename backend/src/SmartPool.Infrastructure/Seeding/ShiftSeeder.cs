@@ -18,7 +18,6 @@ public static class ShiftSeeder
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(617203041)", cancellationToken);
         var shifts = await db.Shifts.ToListAsync(cancellationToken);
-        var fixedIds = FixedShifts.All.Select(shift => shift.Id).ToHashSet();
         var changed = false;
 
         foreach (var definition in FixedShifts.All)
@@ -38,35 +37,6 @@ public static class ShiftSeeder
                 continue;
             }
 
-            if (shift.Name != definition.Name)
-            {
-                shift.Name = definition.Name;
-                changed = true;
-            }
-
-            if (shift.StartTime != definition.StartTime)
-            {
-                shift.StartTime = definition.StartTime;
-                changed = true;
-            }
-
-            if (shift.EndTime != definition.EndTime)
-            {
-                shift.EndTime = definition.EndTime;
-                changed = true;
-            }
-
-            if (shift.IsActive != true)
-            {
-                shift.IsActive = true;
-                changed = true;
-            }
-        }
-
-        foreach (var shift in shifts.Where(shift => !fixedIds.Contains(shift.Id) && shift.IsActive != false))
-        {
-            shift.IsActive = false;
-            changed = true;
         }
 
         if (changed)
@@ -76,7 +46,7 @@ public static class ShiftSeeder
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation(
-            "[ShiftSeeder] Fixed shifts are synchronized. Changed: {Changed}.",
+            "[ShiftSeeder] Missing fixed shifts are inserted. Changed: {Changed}.",
             changed);
     }
 }

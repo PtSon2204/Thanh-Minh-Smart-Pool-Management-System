@@ -32,6 +32,8 @@ import {
   AlertOutlined,
   // BookOutlined,
   ExperimentOutlined,
+  PlusCircleOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/store/authStore";
@@ -49,8 +51,7 @@ import "./AdminLayout.css";
 const { Header, Sider, Content } = Layout;
 
 function openKeysForPath(pathname) {
-  if (pathname === "/admin/coaches" || pathname === "/admin/coach-applications")
-    return ["coaches"];
+  if (pathname.startsWith("/admin/tickets/")) return ["/admin/tickets"];
   if (pathname === "/admin/staff/attendance/scan") return ["staff"];
   if (pathname.startsWith("/admin/staff/attendance"))
     return ["staff", "staff-attendance"];
@@ -250,19 +251,23 @@ export default function AdminLayout() {
       label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
     },
     isAdmin && {
-      key: "coaches",
+      key: "/admin/coach-applications",
       icon: <AuditOutlined />,
-      label: "Quản lý HLV",
-      children: [
-        {
-          key: "/admin/coaches",
-          label: <Link to="/admin/coaches">Danh sách HLV</Link>,
-        },
-        {
-          key: "/admin/coach-applications",
-          label: <Link to="/admin/coach-applications">Duyệt HLV</Link>,
-        },
-      ],
+      label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
+    },
+    isAdmin && {
+      key: "/admin/classes/create",
+      icon: <PlusCircleOutlined />,
+      label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
+    },
+    (isAdmin || isCoach) && {
+      key: "/admin/classes",
+      icon: <UnorderedListOutlined />,
+      label: (
+        <Link to="/admin/classes">
+          {isAdmin ? "Danh sách lớp dạy bơi" : "Lớp được phân công"}
+        </Link>
+      ),
     },
     {
       key: "staff",
@@ -323,6 +328,10 @@ export default function AdminLayout() {
         {
           key: "/admin/tickets/pos",
           label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link>,
+        },
+        {
+          key: "/admin/tickets/daily-sales",
+          label: <Link to="/admin/tickets/daily-sales">Vé bán trong ngày</Link>,
         },
       ],
     },

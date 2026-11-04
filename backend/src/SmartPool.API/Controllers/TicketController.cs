@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using SmartPool.API.Extensions;
 using SmartPool.API.Authorization;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOfflineTicket;
+using SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetDailySales;
 
 namespace SmartPool.API.Controllers
 {
@@ -17,6 +18,17 @@ namespace SmartPool.API.Controllers
         public TicketController(ISender sender)
         {
             _sender = sender;
+        }
+
+        [HttpGet("daily-sales")]
+        [RequirePermission("ticket_sales", "read")]
+        [ProducesResponseType(typeof(DailySalesResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetDailySales([FromQuery] DateOnly? date, CancellationToken cancellationToken)
+        {
+            if (!date.HasValue) return BadRequest(new { message = "The date query parameter is required." });
+            var result = await _sender.Send(new GetDailySalesQuery { Date = date.Value }, cancellationToken);
+            return Ok(result);
         }
 
         /// <summary>Bán vé trực tiếp tại quầy (Tiền mặt).</summary>
