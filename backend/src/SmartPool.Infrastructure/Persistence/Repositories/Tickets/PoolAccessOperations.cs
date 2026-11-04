@@ -112,31 +112,36 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             int toDeduct = 1;
             if (category == TicketCategoryEnum.VE_LUOT)
             {
-                int currentEntries = ticket.RemainingEntries ?? ticket.TicketType.TotalEntries.GetValueOrDefault(1);
-                int requested = Math.Max(1, entriesRequested);
+                bool isMultiEntry = (ticket.TicketType.TotalEntries.HasValue && ticket.TicketType.TotalEntries.Value > 1)
+                    || (ticket.TicketType.TotalEntries.HasValue && ticket.RemainingEntries.HasValue && ticket.RemainingEntries.Value > 1);
 
-                if (currentEntries < requested)
+                if (isMultiEntry)
                 {
-                    string notEnoughMsg = $"Vé chỉ còn {currentEntries} lượt, không đủ để trừ {requested} lượt.";
-                    return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, "InsufficientEntriesForRequest", transaction, cancellationToken, notEnoughMsg);
-                }
+                    int currentEntries = ticket.RemainingEntries ?? ticket.TicketType.TotalEntries.GetValueOrDefault(1);
+                    int requested = Math.Max(1, entriesRequested);
 
-                toDeduct = requested;
-                int remaining = currentEntries - toDeduct;
-                ticket.RemainingEntries = remaining;
-                if (remaining <= 0)
-                {
-                    ticket.Status = PoolAccessValues.Used;
+                    if (currentEntries < requested)
+                    {
+                        string notEnoughMsg = $"Vé chỉ còn {currentEntries} lượt, không đủ để trừ {requested} lượt.";
+                        return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, "InsufficientEntriesForRequest", transaction, cancellationToken, notEnoughMsg);
+                    }
+
+                    toDeduct = requested;
+                    int remaining = currentEntries - toDeduct;
+                    ticket.RemainingEntries = remaining;
+                    if (remaining <= 0)
+                    {
+                        ticket.Status = PoolAccessValues.Used;
+                    }
+                    else
+                    {
+                        ticket.QrCode = await GenerateUniqueTicketCodeAsync(cancellationToken);
+                    }
                 }
                 else
                 {
-                    ticket.QrCode = await GenerateUniqueTicketCodeAsync(cancellationToken);
+                    ticket.Status = PoolAccessValues.Used;
                 }
-                ticket.UpdatedAt = utcNow;
-            }
-            else if (category == TicketCategoryEnum.VE_THANG)
-            {
-                ticket.QrCode = await GenerateUniqueTicketCodeAsync(cancellationToken);
                 ticket.UpdatedAt = utcNow;
             }
 
