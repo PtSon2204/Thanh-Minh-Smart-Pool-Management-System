@@ -148,14 +148,14 @@ public sealed class UpdateTicketCodeTests
             && error.ErrorMessage == "Mã vé không được để trống.");
     }
 
-    [Fact(DisplayName = "UTCID08 (A) - Code ngắn hơn 6 ký tự -> Validator báo sai độ dài")]
+    [Fact(DisplayName = "UTCID08 (A) - Code ngắn hơn 3 ký tự -> Validator báo sai độ dài")]
     public void UTCID08_ShortCode_FailsValidation()
     {
-        var result = new UpdateTicketCodeValidator().Validate(new UpdateTicketCodeCommand { Code = "12345" });
+        var result = new UpdateTicketCodeValidator().Validate(new UpdateTicketCodeCommand { Code = "12" });
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(UpdateTicketCodeCommand.Code)
-            && error.ErrorMessage == "Mã vé phải đúng 6 ký tự.");
+            && error.ErrorMessage == "Mã vé phải có độ dài từ 3 đến 6 ký tự.");
     }
 
     [Fact(DisplayName = "UTCID09 (A) - Code dài hơn 6 ký tự -> Validator báo sai độ dài")]
@@ -165,7 +165,7 @@ public sealed class UpdateTicketCodeTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(UpdateTicketCodeCommand.Code)
-            && error.ErrorMessage == "Mã vé phải đúng 6 ký tự.");
+            && error.ErrorMessage == "Mã vé phải có độ dài từ 3 đến 6 ký tự.");
     }
 
     [Fact(DisplayName = "UTCID10 (A) - Code có ký tự không phải chữ số -> Validator từ chối")]
@@ -175,7 +175,7 @@ public sealed class UpdateTicketCodeTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(UpdateTicketCodeCommand.Code)
-            && error.ErrorMessage == "Mã vé chỉ được chứa 6 chữ số (0–9).");
+            && error.ErrorMessage == "Mã vé chỉ được chứa từ 3 đến 6 chữ số (0–9).");
     }
 
     private static TicketEntity MakeTicket(Guid ownerId) => new()

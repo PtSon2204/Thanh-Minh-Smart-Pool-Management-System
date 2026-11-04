@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../../services/apiClient'
-import { Avatar, Skeleton, Modal, Input, message } from 'antd'
-import { QrcodeOutlined, UserOutlined, EditOutlined, CheckOutlined, CloseOutlined, HistoryOutlined } from '@ant-design/icons'
+import { Avatar, Skeleton, Modal, Input, Alert, message } from 'antd'
+import { QrcodeOutlined, UserOutlined, EditOutlined, CheckOutlined, CloseOutlined, HistoryOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import dayjs from 'dayjs'
 import './MyCardPage.css'
@@ -15,7 +15,7 @@ export default function MyCardPage() {
   const { session } = useAuthStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [selectedTicket, setSelectedTicket] = useState(null)
+  const [selectedTicketId, setSelectedTicketId] = useState(null)
   // State cho chỉnh sửa mã: ticketId đang được edit
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -32,8 +32,12 @@ export default function MyCardPage() {
       const res = await apiClient.get('/api/tickets/me')
       return res.data
     },
-    enabled: !!session
+    enabled: !!session,
+    refetchInterval: 4000, // Tự động đồng bộ mỗi 4 giây để cập nhật ngay mã vé mới khi nhân viên quét
   })
+
+  // Vé đang được chọn mở Modal QR (tự động cập nhật mã mới khi tickets được refetch)
+  const selectedTicket = selectedTicketId ? (tickets || []).find(t => t.id === selectedTicketId) || null : null
 
   // Lọc chỉ giữ lại vé còn hiệu lực (chưa dùng và chưa hết hạn)
   const activeTickets = (tickets || []).filter(ticket => {
@@ -157,6 +161,24 @@ const handleSaveCode = (ticketId) => {
             </div>
           </div>
 
+          <Alert
+            message={
+              <span style={{ fontWeight: 600, color: '#134e4a' }}>
+                Bảo mật mã vé tự động
+              </span>
+            }
+            description="Mã vé và mã QR sẽ tự động đổi mới sau mỗi lần vào bể để bảo vệ số lượt của bạn, tránh bị người khác chụp lén sử dụng."
+            type="success"
+            showIcon
+            icon={<SafetyCertificateOutlined style={{ color: '#0d9488' }} />}
+            style={{ 
+              marginBottom: 16, 
+              borderRadius: 8, 
+              background: '#f0fdfa', 
+              border: '1px solid #99f6e4' 
+            }}
+          />
+
           <div className="mc-ticket-list">
             {isLoading ? (
               <Skeleton active />
@@ -229,7 +251,7 @@ const handleSaveCode = (ticketId) => {
                         ? `${dayjs(ticket.issueDate).format('DD/MM/YYYY')} ➔ ${dayjs(ticket.expiryDate).format('DD/MM/YYYY')}`
                         : (ticket.expiryDate 
                             ? `HSD: ${dayjs(ticket.expiryDate).format('DD/MM/YYYY')}`
-                            : 'Không giới hạn thời gian (dùng hết lượt)'
+                            : 'Không giới hạn thời gian'
                           )
                       }
                     </div>
@@ -237,7 +259,7 @@ const handleSaveCode = (ticketId) => {
                   <div className="mc-ticket-right">
                     <button 
                       className="mc-qr-btn" 
-                      onClick={() => setSelectedTicket(ticket)}
+                      onClick={() => setSelectedTicketId(ticket.id)}
                       title="Hiển thị mã QR"
                     >
                       <QrcodeOutlined />
@@ -273,7 +295,7 @@ const handleSaveCode = (ticketId) => {
       <Modal
         title="Mã QR Vé Của Bạn"
         open={!!selectedTicket}
-        onCancel={() => setSelectedTicket(null)}
+        onCancel={() => setSelectedTicketId(null)}
         footer={null}
         centered
         width={320}
@@ -292,6 +314,19 @@ const handleSaveCode = (ticketId) => {
               </div>
               <div style={{ marginTop: '6px', color: '#666', fontSize: 13 }}>
                 Đưa mã này cho nhân viên để quét khi qua cổng.
+              </div>
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '10px 12px', 
+                background: '#f0fdfa', 
+                border: '1px solid #99f6e4', 
+                borderRadius: 8, 
+                fontSize: '12px', 
+                color: '#0f766e', 
+                lineHeight: 1.5,
+                textAlign: 'left'
+              }}>
+             Mã vé và QR code sẽ tự động đổi mới sau mỗi lần vào bể để bảo vệ số lượt của bạn. Vui lòng mở trực tiếp trên website/ứng dụng, không sử dụng ảnh chụp màn hình cũ.
               </div>
             </>
           )}

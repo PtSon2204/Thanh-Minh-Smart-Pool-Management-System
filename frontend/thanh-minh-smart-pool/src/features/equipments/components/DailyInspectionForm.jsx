@@ -475,6 +475,20 @@ export default function DailyInspectionForm({ onSuccess }) {
           </div>
         )}
 
+        {/* Ghi chú chung của ca trực */}
+        <div style={{ marginBottom: 16 }}>
+          <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+            Ghi chú chung của ca trực (không bắt buộc):
+          </Typography.Text>
+          <Input.TextArea
+            rows={2}
+            value={generalNotes}
+            onChange={(e) => setGeneralNotes(e.target.value)}
+            placeholder="Nhập ghi chú hoặc nhận xét chung về ca trực nếu có..."
+            disabled={!canSubmitSelectedShift}
+          />
+        </div>
+
         {/* Nút gửi */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
           {issuesCount > 0 && (

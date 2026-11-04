@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, Tag, Select } from 'antd'
-import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { Button, Row, Col, Typography, Card, InputNumber, Modal, Spin, Result, Divider, List, Input, Form, Space, message, Tag, Select, Pagination, Segmented, Empty } from 'antd'
+import { ShoppingCartOutlined, PrinterOutlined, CheckCircleFilled, DeleteOutlined, PhoneOutlined, BankOutlined, DollarOutlined, LoadingOutlined, CloseCircleOutlined, CheckCircleOutlined, SearchOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import { useTicketTypes } from "../../../features/tickets/hooks/useTicketTypes"
 import { useSellOfflineTicket, useCreatePendingOrder, useOrderStatus } from "../../../features/tickets/hooks/useSellOfflineTicket"
@@ -34,10 +34,18 @@ export default function OfflineSalesPage() {
   const [soldOrder, setSoldOrder] = useState(null)
   const [generatedAccount, setGeneratedAccount] = useState(null)
 
+  // Filters & Pagination state cho catalog POS
+  const [searchTerm, setSearchTerm] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('ALL')
+  const [pageIndex, setPageIndex] = useState(1)
+  const [pageSize, setPageSize] = useState(6)
+
   const { data: pagedData, isLoading } = useTicketTypes({
     isActive: true,
-    pageIndex: 1,
-    pageSize: 100,
+    searchTerm: searchTerm.trim() || undefined,
+    category: categoryFilter !== 'ALL' ? categoryFilter : undefined,
+    pageIndex,
+    pageSize,
   })
 
   const { data: voucherData, isLoading: vouchersLoading } = useVouchers({
@@ -49,10 +57,7 @@ export default function OfflineSalesPage() {
   const now = useVoucherClock()
   
   const ticketTypes = pagedData?.items || []
-  
-  // Grouping theo loại vé
-  const veThang = ticketTypes.filter(t => t.ticketCategory === 'VE_THANG')
-  const veLuot = ticketTypes.filter(t => t.ticketCategory === 'VE_LUOT')
+  const totalCount = pagedData?.totalCount || 0
 
   const { mutate: sellTicket, isPending: isSellingCash } = useSellOfflineTicket()
   const { mutate: createPendingOrder, isPending: isCreatingOrder } = useCreatePendingOrder()
@@ -115,7 +120,7 @@ export default function OfflineSalesPage() {
       if (existing) {
         return prev.map(item => item.ticketType.id === tt.id ? { ...item, quantity: item.quantity + 1 } : item)
       }
-      return [...prev, { ticketType: tt, quantity: 1 }]
+      return [...prev, { ticketType: tt, quantity: 1, requestedEntries: 1 }]
     })
   }
 
@@ -124,11 +129,21 @@ export default function OfflineSalesPage() {
     setCart(prev => prev.map(item => item.ticketType.id === id ? { ...item, quantity: q } : item))
   }
 
+  const updateRequestedEntries = (id, entries) => {
+    const valid = entries === '' || entries === null || entries === undefined
+      ? 1
+      : Math.max(1, parseInt(entries, 10) || 1)
+    setCart(prev => prev.map(item => item.ticketType.id === id ? { ...item, requestedEntries: valid } : item))
+  }
+
   const removeItem = (id) => {
     setCart(prev => prev.filter(item => item.ticketType.id !== id))
   }
 
-  const totalAmount = cart.reduce((sum, item) => sum + (item.ticketType.price * item.quantity), 0)
+  const totalAmount = cart.reduce((sum, item) => {
+    const entriesMultiplier = item.ticketType.ticketCategory === 'VE_LUOT' ? (item.requestedEntries || 1) : 1
+    return sum + (item.ticketType.price * entriesMultiplier * item.quantity)
+  }, 0)
 
   const currentVoucher = availableVouchers.find(v => v.id === appliedVoucher?.id)
   const appliedVoucherError = appliedVoucher ? getVoucherError(currentVoucher, totalAmount, now) : null
@@ -167,7 +182,7 @@ export default function OfflineSalesPage() {
   // VE_THANG hoặc VE_LUOT > 1 lượt: cần đăng ký TK qua SĐT để gắn vé và lưu số lượt
   const requiresRegistration = cart.some(item => 
     item.ticketType.ticketCategory === 'VE_THANG' ||
-    (item.ticketType.ticketCategory === 'VE_LUOT' && (item.ticketType.totalEntries ?? 1) > 1)
+    (item.ticketType.ticketCategory === 'VE_LUOT' && (item.requestedEntries || 1) > 1)
   )
 
   const isValidPhone = customerPhone ? /^0\d{9}$/.test(customerPhone.trim()) : false;
@@ -191,10 +206,16 @@ export default function OfflineSalesPage() {
 
   const getItemsPayload = () => cart.map(item => ({
     ticketTypeId: item.ticketType.id,
-    quantity: item.quantity
+    quantity: item.quantity,
+    requestedEntries: item.ticketType.ticketCategory === 'VE_LUOT' ? (item.requestedEntries || 1) : null
   }))
 
-  const getOrderSummary = () => cart.map(c => `${c.ticketType.name} x${c.quantity}`).join(', ')
+  const getOrderSummary = () => cart.map(c => {
+    const entriesSuffix = c.ticketType.ticketCategory === 'VE_LUOT' && (c.requestedEntries || 1) > 1 
+      ? ` (${c.requestedEntries} lượt)` 
+      : ''
+    return `${c.ticketType.name}${entriesSuffix} x${c.quantity}`
+  }).join(', ')
 
   const handlePayCash = () => {
     if (isSellingCash || !validateAppliedVoucher()) return;
@@ -281,39 +302,7 @@ export default function OfflineSalesPage() {
     window.print()
   }
 
-  const renderTicketSection = (title, tickets) => (
-    tickets.length > 0 && (
-      <div style={{ marginBottom: 24 }}>
-        <Title level={5} style={{ color: '#0068ff', borderBottom: '2px solid #0068ff', paddingBottom: 8, display: 'inline-block' }}>
-          {title}
-        </Title>
-        <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
-          {tickets.map(tt => (
-            <Col xs={24} sm={12} xl={8} key={tt.id}>
-              <Card
-                hoverable
-                onClick={() => handleSelectTicket(tt)}
-                style={{
-                  borderColor: '#f0f0f0',
-                  textAlign: 'center',
-                  borderRadius: 12,
-                  transition: 'all 0.2s'
-                }}
-                bodyStyle={{ padding: 16 }}
-              >
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8, color: '#1a1a2e' }}>
-                  {tt.name}
-                </div>
-                <div style={{ color: '#0068ff', fontWeight: 700, fontSize: 18 }}>
-                  {new Intl.NumberFormat('vi-VN').format(tt.price)} đ
-                </div>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </div>
-    )
-  )
+
 
   const bankId = import.meta.env.VITE_VIETQR_BANK_ID || '970422';
   const accNo = import.meta.env.VITE_VIETQR_ACCOUNT_NO || '';
@@ -353,17 +342,148 @@ export default function OfflineSalesPage() {
         
         {/* Left Column: Ticket Types Menu */}
         <div className="pos-catalog">
-          <Title level={4} style={{ marginBottom: 16 }}>🎯 Màn hình bán vé (POS)</Title>
-          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+            <Title level={4} style={{ margin: 0 }}>🎯 Màn hình bán vé (POS)</Title>
+            <div style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>
+              {totalCount > 0 ? `${totalCount} loại vé` : ''}
+            </div>
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16, background: '#ffffff', padding: '12px 14px', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+            <Input
+              prefix={<SearchOutlined style={{ color: '#0068ff' }} />}
+              placeholder="Tìm kiếm theo tên vé..."
+              value={searchTerm}
+              onChange={e => {
+                setSearchTerm(e.target.value)
+                setPageIndex(1)
+              }}
+              allowClear
+              style={{ flex: 1, minWidth: 180, borderRadius: 8, height: 38 }}
+            />
+            <Segmented
+              options={[
+                { label: 'Tất cả', value: 'ALL' },
+                { label: 'Vé lượt', value: 'VE_LUOT' },
+                { label: 'Vé tháng', value: 'VE_THANG' }
+              ]}
+              value={categoryFilter}
+              onChange={val => {
+                setCategoryFilter(val)
+                setPageIndex(1)
+              }}
+              style={{ borderRadius: 8, padding: 3, fontWeight: 600 }}
+            />
+          </div>
+
+          {/* Ticket Cards Grid with Scroll */}
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
             {isLoading ? (
-              <div style={{ textAlign: 'center', marginTop: 100 }}><Spin size="large" /></div>
+              <div style={{ textAlign: 'center', marginTop: 80 }}><Spin size="large" /></div>
+            ) : ticketTypes.length === 0 ? (
+              <Empty 
+                description="Không tìm thấy loại vé nào phù hợp" 
+                image={Empty.PRESENTED_IMAGE_SIMPLE} 
+                style={{ marginTop: 60 }} 
+              />
             ) : (
-              <div>
-                {renderTicketSection('📅 Vé tháng (Có QR, 1 lượt/ngày)', veThang)}
-                {renderTicketSection('🎫 Vé lượt (Mua tại quầy, bơi ngay)', veLuot)}
-              </div>
+              <Row gutter={[16, 16]}>
+                {ticketTypes.map(tt => {
+                  const isVeLuot = tt.ticketCategory === 'VE_LUOT'
+                  const inCartItem = cart.find(item => item.ticketType.id === tt.id)
+
+                  return (
+                    <Col xs={24} sm={12} xl={8} key={tt.id}>
+                      <Card
+                        hoverable
+                        onClick={() => handleSelectTicket(tt)}
+                        style={{
+                          borderColor: inCartItem ? '#0068ff' : '#e2e8f0',
+                          borderRadius: 14,
+                          transition: 'all 0.25s',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          boxShadow: inCartItem ? '0 4px 16px rgba(0, 104, 255, 0.12)' : '0 2px 6px rgba(0,0,0,0.03)',
+                          background: inCartItem ? '#f8faff' : '#ffffff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          height: '100%',
+                        }}
+                        bodyStyle={{ padding: 16 }}
+                      >
+                        {/* Accent Bar on top */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 4,
+                            background: isVeLuot
+                              ? 'linear-gradient(90deg, #0d9488, #2dd4bf)'
+                              : 'linear-gradient(90deg, #0284c7, #38bdf8)',
+                          }}
+                        />
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <Tag
+                              color={isVeLuot ? 'cyan' : 'blue'}
+                              style={{ borderRadius: 10, fontSize: 11, fontWeight: 600, border: 'none', margin: 0 }}
+                            >
+                              {isVeLuot ? 'Vé lượt' : 'Vé tháng'}
+                            </Tag>
+                            {inCartItem && (
+                              <span style={{ fontSize: 11, color: '#0068ff', fontWeight: 700, background: '#e0edff', padding: '1px 8px', borderRadius: 10 }}>
+                                Trong giỏ: x{inCartItem.quantity}
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8, color: '#1a1a2e', minHeight: 40, lineHeight: 1.35 }}>
+                            {tt.name}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8 }}>
+                          <span style={{ color: '#0068ff', fontWeight: 800, fontSize: 18 }}>
+                            {new Intl.NumberFormat('vi-VN').format(tt.price)} đ
+                          </span>
+                          <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
+                            {isVeLuot ? '/ lượt' : '/ 30 ngày'}
+                          </span>
+                        </div>
+                      </Card>
+                    </Col>
+                  )
+                })}
+              </Row>
             )}
           </div>
+
+          {/* Pagination */}
+          {totalCount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14, paddingTop: 12, borderTop: '1px solid #f0f0f0', flexWrap: 'wrap', gap: 8 }}>
+              <Pagination
+                current={pageIndex}
+                pageSize={pageSize}
+                total={totalCount}
+                onChange={(page, size) => {
+                  setPageIndex(page)
+                  if (size !== pageSize) {
+                    setPageSize(size)
+                    setPageIndex(1)
+                  }
+                }}
+                showSizeChanger
+                pageSizeOptions={['6', '9', '12', '18']}
+                showTotal={(total, range) => `${range[0]}-${range[1]} / ${total} loại vé`}
+                size="small"
+              />
+            </div>
+          )}
         </div>
 
         {/* Right Column: Cart / Checkout */}
@@ -380,35 +500,88 @@ export default function OfflineSalesPage() {
             ) : (
               <List
                 dataSource={cart}
-                renderItem={(item) => (
-                  <List.Item
-                    actions={[
-                      <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeItem(item.ticketType.id)} />
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={<span style={{ fontWeight: 600 }}>{item.ticketType.name}</span>}
-                      description={<span style={{ color: '#0068ff', fontWeight: 600 }}>{new Intl.NumberFormat('vi-VN').format(item.ticketType.price)} đ</span>}
-                    />
-                    <InputNumber 
-                      min={1} 
-                      max={20} 
-                      value={item.quantity} 
-                      onChange={v => updateQuantity(item.ticketType.id, v || 1)} 
-                    />
-                  </List.Item>
-                )}
+                renderItem={(item) => {
+                  const isVeLuot = item.ticketType.ticketCategory === 'VE_LUOT'
+                  const entries = item.requestedEntries || 1
+                  const itemUnitPrice = item.ticketType.price * (isVeLuot ? entries : 1)
+                  const itemSubtotal = itemUnitPrice * item.quantity
+
+                  return (
+                    <List.Item
+                      actions={[
+                        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeItem(item.ticketType.id)} />
+                      ]}
+                      style={{ display: 'block', padding: '12px 0' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{item.ticketType.name}</div>
+                          <div style={{ color: '#0068ff', fontWeight: 700, fontSize: 14 }}>
+                            {new Intl.NumberFormat('vi-VN').format(itemSubtotal)} đ
+                            {isVeLuot && entries > 1 && (
+                              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, marginLeft: 6 }}>
+                                ({new Intl.NumberFormat('vi-VN').format(item.ticketType.price)}đ × {entries} lượt)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '6px 10px', borderRadius: 8 }}>
+                        {isVeLuot ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 12, color: '#0f766e', fontWeight: 600 }}>Số lượt:</span>
+                            <InputNumber 
+                              min={1} 
+                              max={999} 
+                              value={entries} 
+                              onChange={v => updateRequestedEntries(item.ticketType.id, v || 1)} 
+                              size="small"
+                              style={{ width: 68 }}
+                            />
+                            <span style={{ fontSize: 11, color: entries > 1 ? '#0d9488' : '#8c8c8c' }}>
+                              {entries > 1 ? '✓ Nhiều lượt' : '• 24h'}
+                            </span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: '#1e40af', fontWeight: 600 }}>
+                            Vé tháng (30 ngày)
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Số vé:</span>
+                          <InputNumber 
+                            min={1} 
+                            max={20} 
+                            value={item.quantity} 
+                            onChange={v => updateQuantity(item.ticketType.id, v || 1)} 
+                            size="small"
+                            style={{ width: 60 }}
+                          />
+                        </div>
+                      </div>
+                    </List.Item>
+                  )
+                }}
               />
             )}
 
             {requiresRegistration && (
-              <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+              <div style={{ marginTop: 20, padding: 14, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                <div style={{ fontSize: 12, color: '#166534', fontWeight: 600, marginBottom: 4 }}>
+                 Bắt buộc nhập SĐT khách hàng
+                </div>
+                <div style={{ fontSize: 11, color: '#15803d', marginBottom: 10 }}>
+                  Đơn hàng có Vé tháng hoặc Vé lượt nhiều lần (&gt;1 lượt) cần số điện thoại để tạo/gắn tài khoản lưu trữ vé.
+                </div>
                 <Form layout="vertical">
                   <Form.Item 
                     label="Số điện thoại khách hàng" 
                     required 
                     validateStatus={customerPhone && !isValidPhone ? 'error' : ''}
                     help={customerPhone && !isValidPhone ? 'Số điện thoại không hợp lệ (phải bắt đầu bằng số 0 và gồm 10 chữ số)' : ''}
+                    style={{ margin: 0 }}
                   >
                     <Input 
                       prefix={<PhoneOutlined />} 
@@ -700,6 +873,9 @@ export default function OfflineSalesPage() {
                   <p style={{ margin: '4px 0' }}>
                     <strong>Hạn dùng:</strong> {new Date().toLocaleDateString('vi-VN')} - {t.expiryDate ? new Date(t.expiryDate).toLocaleDateString('vi-VN') : 'Không thời hạn'}
                   </p>
+                  {t.remainingEntries !== undefined && t.remainingEntries !== null && (
+                    <p style={{ margin: '4px 0' }}><strong>Số lượt:</strong> {t.remainingEntries} lượt</p>
+                  )}
                 </div>
               </div>
 

@@ -34,7 +34,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
                 ?? throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {request.Id}");
 
             int? totalEntries = request.TicketCategory == TicketCategoryEnum.VE_LUOT
-                ? (request.TotalEntries ?? 1)
+                ? 1
                 : null;
 
             // Cập nhật các trường
