@@ -4,26 +4,24 @@ using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
-using SmartPool.Infrastructure.Persistence.Repositories;
 
 namespace SmartPool.IntegrationTests;
 
 public sealed class ShiftEditRestrictionsTests
 {
     [Fact]
-    public async Task GivenUnusedShift_WhenUpdatingTimes_ThenRejectsWithoutChangingHistory()
+    public async Task GivenUnusedShift_WhenUpdatingTimes_ThenPersistsChanges()
     {
         await using var fixture = await ShiftFixture.CreateAsync();
         var operations = fixture.Operations;
         var updatedStart = new TimeOnly(10, 0);
         var updatedEnd = new TimeOnly(18, 0);
 
-        await Assert.ThrowsAsync<StaffConflictException>(() => operations.SaveShiftAsync(
-            fixture.Command(updatedStart, updatedEnd), CancellationToken.None));
+        await operations.SaveShiftAsync(fixture.Command(updatedStart, updatedEnd), CancellationToken.None);
 
         var persisted = await fixture.ReadShiftAsync();
-        Assert.Equal(fixture.OriginalStart, persisted.StartTime);
-        Assert.Equal(fixture.OriginalEnd, persisted.EndTime);
+        Assert.Equal(updatedStart, persisted.StartTime);
+        Assert.Equal(updatedEnd, persisted.EndTime);
     }
 
     [Fact]
@@ -43,33 +41,40 @@ public sealed class ShiftEditRestrictionsTests
     }
 
     [Fact]
-    public async Task GivenReferencedShift_WhenUpdatingNameAndStatus_ThenRejectsWithoutChangingHistory()
+    public async Task GivenReferencedShift_WhenUpdatingNameAndStatus_ThenPersistsChanges()
     {
         await using var fixture = await ShiftFixture.CreateAsync();
         await fixture.AddAssignmentAsync("Scheduled");
 
-        await Assert.ThrowsAsync<StaffConflictException>(() => fixture.Operations.SaveShiftAsync(
-            fixture.Command(fixture.OriginalStart, fixture.OriginalEnd, "Renamed shift", false), CancellationToken.None));
+        await fixture.Operations.SaveShiftAsync(
+            fixture.Command(fixture.OriginalStart, fixture.OriginalEnd, "Renamed shift", false), CancellationToken.None);
 
         var persisted = await fixture.ReadShiftAsync();
-        Assert.Equal("Original shift", persisted.Name);
-        Assert.True(persisted.IsActive);
+        Assert.Equal("Renamed shift", persisted.Name);
+        Assert.False(persisted.IsActive);
         Assert.Equal(fixture.OriginalStart, persisted.StartTime);
         Assert.Equal(fixture.OriginalEnd, persisted.EndTime);
     }
 
     [Fact]
-    public async Task GivenCustomShift_WhenCreating_ThenRejectsWithoutInserting()
+    public async Task GivenCustomShift_WhenCreating_ThenInsertsShift()
     {
         await using var fixture = await ShiftFixture.CreateAsync();
         var name = $"Custom shift {Guid.NewGuid():N}";
         var command = fixture.Command(new TimeOnly(9, 0), new TimeOnly(17, 0), name);
         command.Id = null;
 
-        await Assert.ThrowsAsync<StaffConflictException>(() => fixture.Operations.SaveShiftAsync(command, CancellationToken.None));
+        var result = await fixture.Operations.SaveShiftAsync(command, CancellationToken.None);
 
         await using var read = fixture.CreateContext();
-        Assert.False(await read.Shifts.AnyAsync(shift => shift.Name == name));
+        try
+        {
+            Assert.Equal(name, (await read.Shifts.SingleAsync(shift => shift.Id == result.Id)).Name);
+        }
+        finally
+        {
+            await read.Shifts.Where(shift => shift.Id == result.Id).ExecuteDeleteAsync();
+        }
     }
 
     private sealed class ShiftFixture : IAsyncDisposable

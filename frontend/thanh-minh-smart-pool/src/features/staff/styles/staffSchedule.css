@@ -8,6 +8,7 @@
 
 .staff-schedule-toolbar {
   align-items: end;
+  flex-wrap: wrap;
 }
 
 .staff-schedule-page--wide .service-list-header,
@@ -21,7 +22,40 @@
 
 .staff-schedule-filters {
   align-items: end;
+  flex: 1;
   flex-wrap: wrap;
+  min-width: 0;
+}
+
+.staff-schedule-view-control {
+  display: grid;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.staff-schedule-view-control > span {
+  color: var(--list-muted);
+  font-size: var(--schedule-text-small);
+  font-weight: 600;
+}
+
+.staff-schedule-view-switch.ant-segmented {
+  background: var(--admin-surface);
+  border: var(--schedule-divider-width) solid var(--list-divider);
+  padding: var(--space-1);
+}
+
+.staff-schedule-view-switch .ant-segmented-item-selected,
+.staff-schedule-view-switch .ant-segmented-thumb {
+  background: var(--primary);
+  color: var(--text-light);
+}
+
+.staff-schedule-view-switch .ant-segmented-item-selected:hover:not(.ant-segmented-item-disabled) {
+  background: var(--primary-dark);
+  color: var(--text-light);
 }
 
 .staff-schedule-overnight {
@@ -353,6 +387,247 @@
   padding: var(--space-6);
 }
 
+.staff-schedule-page,
+.staff-assignment-modal {
+  --schedule-text-body: 14px;
+  --schedule-text-small: 12px;
+  --schedule-divider-width: 1px;
+  --schedule-modal-width: 800px;
+}
+
+.staff-schedule-header-actions,
+.staff-assignment-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.staff-schedule-filters > .service-search-control {
+  min-width: 0;
+}
+
+.staff-schedule-filters .service-search-control .ant-input-affix-wrapper {
+  min-width: 0;
+}
+
+.staff-schedule-feedback {
+  margin-bottom: var(--space-4);
+}
+
+.staff-schedule-error-list {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.staff-employee-week {
+  min-width: 0;
+}
+
+.staff-employee-week:focus-visible {
+  outline: var(--schedule-divider-width) solid var(--primary);
+  outline-offset: var(--space-1);
+}
+
+.staff-employee-week .ant-table-thead > tr > th {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.staff-employee-week .ant-table-tbody > tr > td,
+.staff-employee-week .ant-table-tbody > tr:not(:last-child) > td {
+  border-bottom: var(--schedule-divider-width) solid var(--list-divider);
+  border-inline: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--space-3);
+  vertical-align: top;
+}
+
+.staff-employee-week .ant-table-tbody > tr:nth-child(even) > td {
+  background: var(--list-canvas);
+}
+
+.staff-employee-week .ant-table-thead > tr > th.ant-table-cell-fix-left,
+.staff-employee-week .ant-table-tbody > tr > td.ant-table-cell-fix-left {
+  background: var(--admin-surface);
+}
+
+.staff-employee-week .ant-table-tbody > tr:nth-child(even) > td.ant-table-cell-fix-left {
+  background: var(--list-canvas);
+}
+
+.staff-employee-identity {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.staff-employee-identity .ant-avatar {
+  flex-shrink: 0;
+}
+
+.staff-employee-identity strong {
+  font-size: var(--schedule-text-body);
+  overflow-wrap: anywhere;
+}
+
+.staff-employee-date,
+.staff-employee-day {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.staff-employee-date {
+  gap: var(--space-1);
+}
+
+.staff-employee-date span,
+.staff-employee-empty {
+  color: var(--list-muted);
+  font-size: var(--schedule-text-small);
+}
+
+.staff-employee-shift.ant-tag {
+  border: 0;
+  border-radius: var(--list-radius);
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: var(--space-2);
+  white-space: normal;
+}
+
+.staff-employee-week .ant-table-tbody > tr:nth-child(even) .staff-employee-shift.ant-tag-default {
+  background: var(--admin-surface);
+}
+
+.staff-employee-shift strong {
+  font-size: var(--schedule-text-body);
+}
+
+.staff-employee-shift span,
+.staff-employee-shift-actions .ant-btn {
+  font-size: var(--schedule-text-small);
+}
+
+.staff-employee-shift span,
+.staff-employee-hours {
+  font-variant-numeric: tabular-nums;
+}
+
+.staff-employee-shift-actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.staff-employee-shift-actions .ant-btn {
+  padding-inline: var(--space-1);
+}
+
+.staff-employee-add {
+  color: var(--primary-dark);
+  justify-self: start;
+}
+
+.staff-assignment-modal.ant-modal {
+  width: min(var(--schedule-modal-width), calc(100vw - var(--space-8))) !important;
+}
+
+.staff-assignment-toolbar {
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.staff-assignment-toolbar > span {
+  color: var(--list-muted);
+  font-size: var(--schedule-text-small);
+}
+
+.staff-assignment-days {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.staff-assignment-day {
+  background: var(--admin-surface);
+  border: var(--schedule-divider-width) solid var(--list-divider);
+  border-radius: var(--list-radius);
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.staff-assignment-day--disabled {
+  background: var(--list-canvas);
+}
+
+.staff-assignment-day > header,
+.staff-assignment-day h3 {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.staff-assignment-day > header {
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.staff-assignment-day h3 {
+  font-size: var(--schedule-text-body);
+  margin: 0;
+}
+
+.staff-assignment-day h3 span,
+.staff-assignment-day-note {
+  color: var(--list-muted);
+  font-size: var(--schedule-text-small);
+  font-weight: 400;
+}
+
+.staff-assignment-day-note {
+  margin: 0;
+}
+
+.staff-assignment-empty {
+  margin-bottom: var(--space-4);
+}
+
+.staff-assignment-row {
+  align-items: start;
+  border-bottom: var(--schedule-divider-width) solid var(--list-divider);
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+.staff-assignment-row:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.staff-assignment-row .ant-form-item {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.staff-assignment-remove {
+  align-self: start;
+  margin-top: var(--space-8);
+}
+
+.staff-assignment-conflicts {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 960px) {
   .staff-week-shift-heading {
     align-items: baseline;
@@ -361,6 +636,41 @@
 }
 
 @media (max-width: 640px) {
+  .staff-schedule-view-control {
+    width: 100%;
+  }
+
+  .staff-schedule-view-switch .ant-segmented-group {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .staff-schedule-view-switch .ant-segmented-item {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .staff-schedule-view-switch .ant-segmented-item-label {
+    white-space: normal;
+  }
+
+  .staff-assignment-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .staff-assignment-row > .ant-form-item {
+    grid-column: 1;
+  }
+
+  .staff-assignment-remove {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .staff-schedule-header-actions {
+    justify-content: flex-end;
+  }
+
   .staff-attendance-row-actions {
     justify-content: flex-start;
   }

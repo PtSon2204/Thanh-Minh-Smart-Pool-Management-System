@@ -23,6 +23,7 @@ export function useCreateShift() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: shiftService.create,
+    retry: false,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY }),
   })
 }
@@ -36,6 +37,7 @@ export function useUpdateShift() {
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
       queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
     ]),
   })
 }
