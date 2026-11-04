@@ -102,7 +102,10 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
 
 
                 ticketTypesCache[item.TicketTypeId] = ticketType;
-                totalAmount += ticketType.Price * item.Quantity;
+                int entries = (item.RequestedEntries.HasValue && item.RequestedEntries.Value > 0) ? item.RequestedEntries.Value : 1;
+                bool isVeLuot = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString();
+                int priceMultiplier = isVeLuot ? entries : 1;
+                totalAmount += ticketType.Price * priceMultiplier * item.Quantity;
             }
 
             // 3. Validate và áp dụng Voucher (nếu có)
@@ -167,7 +170,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             foreach (var item in request.Items)
             {
                 var ticketType = ticketTypesCache[item.TicketTypeId];
-                decimal itemTotal = ticketType.Price * item.Quantity;
+                int entries = (item.RequestedEntries.HasValue && item.RequestedEntries.Value > 0) ? item.RequestedEntries.Value : 1;
+                bool isVeLuot = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString();
+                decimal itemTotal = (isVeLuot ? ticketType.Price * entries : ticketType.Price) * item.Quantity;
 
                 // Tạo Order Detail
                 var orderDetail = new Domain.Entities.OrderDetail
@@ -177,22 +182,23 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                     ItemType = "TICKET",
                     ItemId = ticketType.Id,
                     Quantity = item.Quantity,
-                    UnitPrice = ticketType.Price,
+                    UnitPrice = isVeLuot ? ticketType.Price * entries : ticketType.Price,
+                    CustomEntries = isVeLuot ? entries : null,
                     CreatedAt = DateTime.UtcNow
                 };
                 await _orderDetailRepo.AddAsync(orderDetail, cancellationToken);
 
                 // VE_LUOT 1 lượt tại quầy: không tạo Ticket entity (không có QR)
-                if (ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString() && (ticketType.TotalEntries ?? 1) <= 1)
+                if (isVeLuot && entries <= 1)
                     continue;
 
                 for (int i = 0; i < item.Quantity; i++)
                 {
-                    int? remainingEntries = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString()
-                        ? (ticketType.TotalEntries ?? 1)
-                        : null;
+                    int? remainingEntries = isVeLuot ? entries : null;
 
-                    DateTime? expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory, ticketType.TotalEntries);
+
+
+                    DateTime? expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory, entries);
 
                     var ticket = new Domain.Entities.Ticket
                     {

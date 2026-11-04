@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry;
@@ -51,7 +52,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             DateTime? usedAt = null;
             if (ticket.Status?.ToLower() == PoolAccessValues.Used.ToLower()
                 || category == TicketCategoryEnum.VE_THANG
-                || (category == TicketCategoryEnum.VE_LUOT && (ticket.TicketType.TotalEntries ?? 1) > 1 && ticket.RemainingEntries.HasValue && ticket.RemainingEntries.Value < (ticket.TicketType.TotalEntries ?? 1)))
+                || category == TicketCategoryEnum.VE_LUOT)
             {
                 usedAt = await _context.EntryLogs.AsNoTracking()
                     .Where(item => item.TicketId == ticket.Id
@@ -70,10 +71,18 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             return CreateLookupResponse(true, allowed, reason, ticket, usedAt);
         }
 
+        public Task<ConfirmEntryResponse> ConfirmAsync(
+            string code,
+            string inputMode,
+            Guid operatorId,
+            CancellationToken cancellationToken)
+            => ConfirmAsync(code, inputMode, operatorId, 1, cancellationToken);
+
         public async Task<ConfirmEntryResponse> ConfirmAsync(
             string code,
             string inputMode,
             Guid operatorId,
+            int entriesRequested,
             CancellationToken cancellationToken)
         {
             await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -100,16 +109,33 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, "AlreadyEnteredToday", transaction, cancellationToken);
             }
 
+            int toDeduct = 1;
             if (category == TicketCategoryEnum.VE_LUOT)
             {
-                if ((ticket.TicketType.TotalEntries ?? 1) > 1)
+                bool isMultiEntry = (ticket.TicketType.TotalEntries.HasValue && ticket.TicketType.TotalEntries.Value > 1)
+                    || (ticket.TicketType.TotalEntries.HasValue && ticket.RemainingEntries.HasValue && ticket.RemainingEntries.Value > 1);
+
+                if (isMultiEntry)
                 {
                     int currentEntries = ticket.RemainingEntries ?? ticket.TicketType.TotalEntries.GetValueOrDefault(1);
-                    int remaining = currentEntries - 1;
+                    int requested = Math.Max(1, entriesRequested);
+
+                    if (currentEntries < requested)
+                    {
+                        string notEnoughMsg = $"Vé chỉ còn {currentEntries} lượt, không đủ để trừ {requested} lượt.";
+                        return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, false, "InsufficientEntriesForRequest", transaction, cancellationToken, notEnoughMsg);
+                    }
+
+                    toDeduct = requested;
+                    int remaining = currentEntries - toDeduct;
                     ticket.RemainingEntries = remaining;
                     if (remaining <= 0)
                     {
                         ticket.Status = PoolAccessValues.Used;
+                    }
+                    else
+                    {
+                        ticket.QrCode = await GenerateUniqueTicketCodeAsync(cancellationToken);
                     }
                 }
                 else
@@ -119,7 +145,11 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 ticket.UpdatedAt = utcNow;
             }
 
-            return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, true, "Allowed", transaction, cancellationToken);
+            string successMsg = toDeduct > 1
+                ? $"Vé hợp lệ. Đã xác nhận {toDeduct} lượt vào bể."
+                : "Vé hợp lệ. Đã xác nhận lượt vào bể.";
+
+            return await SaveResultAsync(ticket, inputMode, operatorId, utcNow, true, "Allowed", transaction, cancellationToken, successMsg, toDeduct);
         }
 
         public async Task<PagedResponse<GetEntryHistoryResponse>> GetHistoryAsync(GetEntryHistoryQuery query, CancellationToken cancellationToken)
@@ -189,18 +219,25 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             bool allowed,
             string reason,
             IDbContextTransaction transaction,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? customMessage = null,
+            int logCount = 1)
         {
-            _context.EntryLogs.Add(new EntryLog
+            var message = customMessage ?? GetMessage(reason);
+            var logsToWrite = allowed ? Math.Max(1, logCount) : 1;
+            for (int i = 0; i < logsToWrite; i++)
             {
-                Id = Guid.NewGuid(),
-                TicketId = ticket?.Id,
-                Status = allowed ? PoolAccessValues.Allowed : PoolAccessValues.Denied,
-                Message = reason,
-                ScanTime = utcNow,
-                OperatorId = operatorId,
-                InputMode = inputMode
-            });
+                _context.EntryLogs.Add(new EntryLog
+                {
+                    Id = Guid.NewGuid(),
+                    TicketId = ticket?.Id,
+                    Status = allowed ? PoolAccessValues.Allowed : PoolAccessValues.Denied,
+                    Message = reason,
+                    ScanTime = utcNow,
+                    OperatorId = operatorId,
+                    InputMode = inputMode
+                });
+            }
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
@@ -210,7 +247,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             {
                 Allowed = allowed,
                 Reason = reason,
-                Message = GetMessage(reason),
+                Message = message,
                 Ticket = ticket is null ? null : ToTicket(ticket, usedAt),
                 ScanTime = utcNow,
                 InputMode = inputMode
@@ -255,7 +292,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 return false;
             }
 
-            if (category == TicketCategoryEnum.VE_LUOT && (ticket.TicketType.TotalEntries ?? 1) > 1 && ticket.RemainingEntries.HasValue && ticket.RemainingEntries.Value <= 0)
+            if (category == TicketCategoryEnum.VE_LUOT && ticket.RemainingEntries.HasValue && ticket.RemainingEntries.Value <= 0)
             {
                 reason = "InsufficientEntries";
                 return false;
@@ -311,6 +348,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 "MonthlyExpiryMissing" => "Vé tháng thiếu ngày hết hạn.",
                 "TicketExpired" => "Vé đã hết hạn.",
                 "InsufficientEntries" => "Vé lượt không còn lượt vào bể.",
+                "InsufficientEntriesForRequest" => "Số lượt còn lại của vé không đủ cho yêu cầu vào bể.",
                 "DuplicateScan" => "Vé vừa được quét. Vui lòng không quét lại ngay.",
                 "AlreadyEnteredToday" => "Vé tháng đã được xác nhận vào bể hôm nay.",
                 "UnsupportedCategory" => "Phân loại vé không được hỗ trợ.",
@@ -330,5 +368,17 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
             var (startUtc, endUtc) = VietnamTimeBoundary.GetUtcDayBounds(date);
             return query.Where(item => item.ScanTime >= startUtc && item.ScanTime < endUtc);
         }
-    }
+    
+        private async Task<string> GenerateUniqueTicketCodeAsync(CancellationToken cancellationToken)
+        {
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                var code = TicketCodeGenerator.Generate();
+                var exists = await _context.Tickets.AnyAsync(t => t.QrCode == code, cancellationToken);
+                if (!exists)
+                    return code;
+            }
+            throw new InvalidOperationException("Không thể sinh mã vé duy nhất sau 10 lần thử. Vui lòng thử lại.");
+        }
+}
 }

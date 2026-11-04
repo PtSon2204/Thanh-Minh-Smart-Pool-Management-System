@@ -17,6 +17,13 @@ public interface IPoolAccessOperations
         Guid operatorId,
         CancellationToken cancellationToken);
 
+    Task<ConfirmEntryResponse> ConfirmAsync(
+        string code,
+        string inputMode,
+        Guid operatorId,
+        int entriesRequested,
+        CancellationToken cancellationToken);
+
     Task<PagedResponse<GetEntryHistoryResponse>> GetHistoryAsync(
         GetEntryHistoryQuery query,
         CancellationToken cancellationToken);

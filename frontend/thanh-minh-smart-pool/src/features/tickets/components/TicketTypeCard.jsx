@@ -16,7 +16,7 @@ import { TicketCategoryLabel, TicketCategoryColor, TicketValidityLabel } from '.
  *   ticketType — object từ API (id, name, ticketCategory, price, durationDays, totalEntries, isActive, createdAt)
  */
 export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLock, onDelete, canManage = false }) {
-  const { name, ticketCategory, price, isActive, totalEntries } = ticketType
+  const { name, ticketCategory, price, isActive } = ticketType
 
   const categoryLabel = TicketCategoryLabel[ticketCategory] ?? ticketCategory
   const categoryColor = TicketCategoryColor[ticketCategory] ?? 'default'
@@ -25,8 +25,6 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
     style: 'currency',
     currency: 'VND',
   }).format(price)
-
-  const isMultiEntry = ticketCategory === 'VE_LUOT' && totalEntries > 1
 
   return (
     <Card
@@ -94,11 +92,6 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
           >
             {categoryLabel}
           </Tag>
-          {isMultiEntry && (
-            <Tag color="cyan" style={{ fontSize: 12, borderRadius: 20, padding: '1px 8px', border: 'none', fontWeight: 600 }}>
-              {totalEntries} lượt
-            </Tag>
-          )}
         </Space>
         <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#52c41a' : '#8c8c8c' }}>
           {isActive ? '● Đang hoạt động' : '○ Bị khóa'}
@@ -115,9 +108,12 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
         <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: 600 }}>
           Mức giá
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
           <span style={{ fontWeight: 800, fontSize: 24, color: '#005f8e' }}>
             {formattedPrice}
+          </span>
+          <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+            {ticketCategory === 'VE_LUOT' ? '/ lượt' : '/ 30 ngày'}
           </span>
         </div>
       </div>
@@ -127,8 +123,8 @@ export default function TicketTypeCard({ ticketType, onEdit, onView, onToggleLoc
         <ClockCircleOutlined style={{ fontSize: 15 }} />
         <span>
           Hiệu lực: {
-            isMultiEntry
-              ? `Không giới hạn thời gian (dùng hết ${totalEntries} lượt)`
+            ticketCategory === 'VE_LUOT'
+              ? '24h kể từ lúc mua (1 lượt) hoặc không giới hạn thời gian (khi khách mua nhiều lượt)'
               : (TicketValidityLabel[ticketCategory] ?? '—')
           }
         </span>

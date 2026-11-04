@@ -1063,6 +1063,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<int?>("CustomEntries")
+                        .HasColumnType("integer")
+                        .HasColumnName("custom_entries");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
@@ -1153,6 +1157,83 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasIndex("OrderId");
 
                     b.ToTable("payments", "smart_pool");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.PoolDutySchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<Guid>("AssignedEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_employee_id");
+
+                    b.Property<string>("AssignmentType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Auto")
+                        .HasColumnName("assignment_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly>("DutyDate")
+                        .HasColumnType("date")
+                        .HasColumnName("duty_date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("ShiftId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shift_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Scheduled")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("WaterQualityLogId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("water_quality_log_id");
+
+                    b.HasKey("Id")
+                        .HasName("pool_duty_schedules_pkey");
+
+                    b.HasIndex("AssignedEmployeeId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.HasIndex("WaterQualityLogId");
+
+                    b.HasIndex("DutyDate", "ShiftId")
+                        .HasDatabaseName("ix_pool_duty_schedules_date_shift");
+
+                    b.ToTable("pool_duty_schedules", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_pool_duty_schedules_assignment_type", "assignment_type IN ('Auto', 'Manual')");
+
+                            t.HasCheckConstraint("ck_pool_duty_schedules_status", "status IN ('Scheduled', 'InProgress', 'Completed', 'Absent', 'Cancelled')");
+                        });
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Product", b =>
@@ -2809,6 +2890,35 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Cashier");
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.PoolDutySchedule", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "AssignedEmployee")
+                        .WithMany()
+                        .HasForeignKey("AssignedEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("pool_duty_schedules_assigned_employee_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.Shift", "Shift")
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("pool_duty_schedules_shift_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.WaterQualityLog", "WaterQualityLog")
+                        .WithMany()
+                        .HasForeignKey("WaterQualityLogId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("pool_duty_schedules_water_quality_log_id_fkey");
+
+                    b.Navigation("AssignedEmployee");
+
+                    b.Navigation("Shift");
+
+                    b.Navigation("WaterQualityLog");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.RefreshToken", b =>

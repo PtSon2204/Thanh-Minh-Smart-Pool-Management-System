@@ -17,6 +17,8 @@ public partial class OrderDetail
 
     public decimal UnitPrice { get; set; }
 
+    public int? CustomEntries { get; set; }
+
     public DateTime? CreatedAt { get; set; }
 
     public virtual Order Order { get; set; } = null!;

@@ -16,6 +16,12 @@ namespace SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry
                 .WithMessage("Phương thức quét không hợp lệ.");
             RuleFor(command => command.OperatorId)
                 .NotEmpty().WithMessage("Nhân viên xác nhận không hợp lệ.");
+
+            When(command => command.EntriesRequested.HasValue, () =>
+            {
+                RuleFor(command => command.EntriesRequested!.Value)
+                    .GreaterThan(0).WithMessage("Số lượt cần trừ phải lớn hơn 0.");
+            });
         }
     }
 }

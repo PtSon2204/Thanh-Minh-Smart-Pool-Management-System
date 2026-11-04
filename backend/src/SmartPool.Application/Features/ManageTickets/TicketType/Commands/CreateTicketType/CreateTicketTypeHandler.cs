@@ -23,7 +23,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
         public async Task<CreateTicketTypeResponse> Handle(CreateTicketTypeCommand request, CancellationToken cancellationToken)
         {
             int? totalEntries = request.TicketCategory == TicketCategoryEnum.VE_LUOT
-                ? (request.TotalEntries ?? 1)
+                ? 1
                 : null;
 
             var entity = new TicketTypeEntity

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { QrcodeOutlined, SearchOutlined, UsergroupAddOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Descriptions, Input, Segmented, Space, Spin } from 'antd'
+import { ExclamationCircleOutlined, QrcodeOutlined, SearchOutlined, UsergroupAddOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Descriptions, Input, InputNumber, Modal, Segmented, Space, Spin } from 'antd'
 import { QrScanner } from "../../../features/qr/components/QrScanner"
 import { QR_PURPOSE } from "../../../features/qr/utils/qrPurpose"
 import poolAccessService from "../../../features/tickets/services/poolAccessService"
@@ -63,6 +63,7 @@ export default function TicketScannerPage() {
   const [scannerOpen, setScannerOpen] = useState(true)
   const [countdown, setCountdown] = useState(null)
   const [countdownPaused, setCountdownPaused] = useState(false)
+  const [entriesRequested, setEntriesRequested] = useState(1)
 
   const reset = useCallback(() => {
     setScannerOpen(true)
@@ -73,6 +74,7 @@ export default function TicketScannerPage() {
     setNotice(null)
     setCountdown(null)
     setCountdownPaused(false)
+    setEntriesRequested(1)
   }, [])
 
   useEffect(() => {
@@ -124,18 +126,20 @@ export default function TicketScannerPage() {
     }
   }
 
-  const scanAndConfirm = async (nextCode, nextInputMode) => {
+  const scanAndConfirm = async (nextCode, nextInputMode, overrideEntries) => {
     const preparedCode = prepareTicketCode(nextCode)
     if (!preparedCode.accepted) {
       setNotice({ type: 'error', message: preparedCode.reason })
       return
     }
 
+    const countToDeduct = overrideEntries !== undefined ? overrideEntries : (entriesRequested || 1)
+
     setPhase('processing')
     setNotice(null)
 
     try {
-      const response = await poolAccessService.confirm(preparedCode.payload, nextInputMode)
+      const response = await poolAccessService.confirm(preparedCode.payload, nextInputMode, countToDeduct)
       setResult(response)
       if (valueOf(response, 'allowed', 'Allowed') === true) {
         setPhase('accepted')
@@ -148,6 +152,27 @@ export default function TicketScannerPage() {
           : ''
         setNotice({ type: 'success', message: `${resultMessage(response, 'Vé hợp lệ. Đã xác nhận lượt vào bể.')}${extraMsg}` })
       } else {
+        const reason = valueOf(response, 'reason', 'Reason')
+        const t = ticketOf(response)
+        const rem = valueOf(t, 'remainingEntries', 'RemainingEntries')
+        if (reason === 'InsufficientEntriesForRequest' && rem !== undefined && rem > 0) {
+          Modal.confirm({
+            title: 'Không đủ số lượt yêu cầu',
+            icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
+            content: `Vé này chỉ còn ${rem} lượt, không đủ để trừ ${countToDeduct} lượt. Bạn có muốn tiếp tục trừ hết ${rem} lượt còn lại cho khách vào bể không?`,
+            okText: `Đồng ý trừ ${rem} lượt`,
+            cancelText: 'Hủy bỏ',
+            onOk: () => {
+              scanAndConfirm(nextCode, nextInputMode, rem)
+            },
+            onCancel: () => {
+              setPhase('denied')
+              setNotice({ type: 'warning', message: `Đã hủy thao tác. Vé vẫn giữ nguyên ${rem} lượt.` })
+            }
+          })
+          return
+        }
+
         setPhase('denied')
         setNotice({ type: 'error', message: resultMessage(response, 'Vé không thể vào bể.') })
       }
@@ -178,6 +203,19 @@ export default function TicketScannerPage() {
               value={source}
               onChange={(value) => { reset(); setSource(value) }}
             />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#f6ffed', borderRadius: '8px', border: '1px solid #b7eb8f' }}>
+              <span style={{ fontWeight: 600, color: '#389e0d' }}>Số lượt muốn trừ:</span>
+              <InputNumber
+                min={1}
+                max={99}
+                value={entriesRequested}
+                onChange={(val) => setEntriesRequested(val ? Math.max(1, parseInt(val, 10) || 1) : 1)}
+                style={{ width: '80px' }}
+              />
+              <span style={{ fontSize: '13px', color: '#52c41a' }}>
+                (Nhập số lượt/người đi cùng để trừ 1 lần, mặc định là 1)
+              </span>
+            </div>
             {source === INPUT_MODE.qr ? (
               <>
                 <Button onClick={() => setScannerOpen((current) => !current)}>{scannerOpen ? 'Dừng quét' : 'Bắt đầu quét'}</Button>
@@ -210,7 +248,7 @@ export default function TicketScannerPage() {
                     onClick={() => {
                       pauseCountdown()
                       if (source === INPUT_MODE.manual && manualCode) {
-                        scanAndConfirm(manualCode, INPUT_MODE.manual)
+                        scanAndConfirm(manualCode, INPUT_MODE.manual, entriesRequested)
                       } else {
                         setScannerKey((current) => current + 1)
                         setScannerOpen(true)

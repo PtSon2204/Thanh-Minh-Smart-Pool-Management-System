@@ -166,11 +166,12 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
                 for (int i = 0; i < detail.Quantity; i++)
                 {
+                    int? resolvedEntries = detail.CustomEntries ?? (ticketType.TicketCategory == nameof(TicketCategoryEnum.VE_LUOT) ? (ticketType.TotalEntries ?? 1) : null);
                     int? remainingEntries = ticketType.TicketCategory == nameof(TicketCategoryEnum.VE_LUOT)
-                        ? (ticketType.TotalEntries ?? 1)
+                        ? resolvedEntries
                         : null;
 
-                    DateTime? expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory, ticketType.TotalEntries);
+                    DateTime? expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory, resolvedEntries);
 
                     var ticket = new Domain.Entities.Ticket
                     {

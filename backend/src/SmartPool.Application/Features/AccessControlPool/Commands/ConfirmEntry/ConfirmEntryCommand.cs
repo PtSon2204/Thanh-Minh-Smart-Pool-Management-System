@@ -8,6 +8,7 @@ namespace SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry
     {
         public string? Code { get; set; }
         public string? InputMode { get; set; }
+        public int? EntriesRequested { get; set; }
         [JsonIgnore]
         public Guid OperatorId { get; set; }
     }
