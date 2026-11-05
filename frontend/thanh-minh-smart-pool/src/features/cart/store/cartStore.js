@@ -9,17 +9,45 @@ export const useCartStore = create(
 
       addToCart: (item) => {
         set((state) => {
+          const itemEntries = item.ticketCategory === 'VE_LUOT'
+            ? (item.requestedEntries ? Math.max(1, parseInt(item.requestedEntries, 10) || 1) : 1)
+            : undefined
+
           const existing = state.items.find((i) => i.id === item.id)
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + (item.quantity || 1) } : i
+                i.id === item.id ? { 
+                  ...i, 
+                  quantity: i.quantity + (item.quantity || 1),
+                  ...(itemEntries !== undefined ? { requestedEntries: itemEntries } : {})
+                } : i
               ),
               isCartOpen: true
             }
           }
-          return { items: [...state.items, { ...item, quantity: item.quantity || 1 }], isCartOpen: true }
+
+          const newItem = {
+            ...item,
+            quantity: item.quantity || 1,
+            ...(itemEntries !== undefined ? { requestedEntries: itemEntries } : {})
+          }
+          return { items: [...state.items, newItem], isCartOpen: true }
         })
+      },
+
+      updateRequestedEntries: (id, entries) => {
+        set((state) => ({
+          items: state.items.map((i) => {
+            if (i.id === id) {
+              const validEntries = entries === '' || entries === null || entries === undefined
+                ? 1
+                : Math.max(1, parseInt(entries, 10) || 1)
+              return { ...i, requestedEntries: validEntries }
+            }
+            return i
+          })
+        }))
       },
 
       removeFromCart: (id) => {

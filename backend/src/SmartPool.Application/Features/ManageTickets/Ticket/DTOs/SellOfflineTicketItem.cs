@@ -6,5 +6,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.DTOs
     {
         public Guid TicketTypeId { get; set; }
         public int Quantity { get; set; } = 1;
+        public int? RequestedEntries { get; set; }
     }
 }

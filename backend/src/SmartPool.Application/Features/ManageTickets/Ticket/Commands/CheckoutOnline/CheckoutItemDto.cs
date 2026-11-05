@@ -10,5 +10,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
     {
         public Guid TicketTypeId { get; set; }
         public int Quantity { get; set; }
+        public int? RequestedEntries { get; set; }
     }
 }

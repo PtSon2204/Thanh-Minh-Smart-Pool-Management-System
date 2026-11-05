@@ -85,6 +85,7 @@ const getInfoGrid = (ticket) => {
 export default function PricingPage() {
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('ALL')
+  const [entriesMap, setEntriesMap] = useState({})
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -105,13 +106,19 @@ export default function PricingPage() {
       navigate('/dang-nhap?redirect=' + encodeURIComponent(location.pathname))
       return
     }
+    const requestedEntries = ticket.ticketCategory === 'VE_LUOT'
+      ? (entriesMap[ticket.id] !== undefined ? entriesMap[ticket.id] : 1)
+      : undefined
+
     addToCart({
       id: ticket.id,
       name: ticket.name,
       price: ticket.price,
       ticketCategory: ticket.ticketCategory,
+      requestedEntries: requestedEntries || 1,
     })
-    message.success(`Đã thêm "${ticket.name}" vào giỏ hàng`)
+    const entriesSuffix = requestedEntries && requestedEntries > 1 ? ` (${requestedEntries} lượt)` : ''
+    message.success(`Đã thêm "${ticket.name}"${entriesSuffix} vào giỏ hàng`)
   }
 
   const tickets = useMemo(() => {
@@ -376,15 +383,57 @@ export default function PricingPage() {
                       ))}
                     </div>
 
+                    {/* Entry Input for Single/Multi-entry ticket */}
+                    {!isThang && (
+                      <div style={{ margin: '10px 0', padding: '10px 12px', background: '#f0fdfa', borderRadius: '8px', border: '1px solid #ccfbf1' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f766e' }}>Số lượt muốn mua:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={999}
+                            value={entriesMap[ticket.id] ?? 1}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 1)
+                              setEntriesMap(prev => ({ ...prev, [ticket.id]: val }))
+                            }}
+                            style={{
+                              width: '75px',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid #99f6e4',
+                              textAlign: 'center',
+                              fontWeight: 700,
+                              color: '#0f766e',
+                              fontSize: '14px'
+                            }}
+                          />
+                        </div>
+                        <div style={{ fontSize: '11px', color: (entriesMap[ticket.id] ?? 1) > 1 ? '#0d9488' : '#d97706' }}>
+                          {(entriesMap[ticket.id] ?? 1) > 1
+                            ? '✓ Vé không thời hạn (dùng hết lượt thì khóa)'
+                            : '⏱ Hiệu lực 24 giờ kể từ lúc mua'}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Card Footer: Price & CTA */}
                     <div className="pl-ticket-footer">
                       <div className="pl-price-block">
                         <span className="pl-price-num">
-                          {new Intl.NumberFormat('vi-VN').format(ticket.price)}
+                          {new Intl.NumberFormat('vi-VN').format(
+                            isThang 
+                              ? ticket.price 
+                              : ticket.price * (entriesMap[ticket.id] ?? 1)
+                          )}
                         </span>
                         <span className="pl-price-curr">đ</span>
                         <span className="pl-price-unit">
-                          {isThang ? ` / ${ticket.durationDays || 30} ngày` : ' / lượt'}
+                          {isThang
+                            ? ` / ${ticket.durationDays || 30} ngày`
+                            : ((entriesMap[ticket.id] ?? 1) > 1 
+                                ? ` (${entriesMap[ticket.id] ?? 1} lượt • ${new Intl.NumberFormat('vi-VN').format(ticket.price)}đ/lượt)` 
+                                : ' / lượt')}
                         </span>
                       </div>
 

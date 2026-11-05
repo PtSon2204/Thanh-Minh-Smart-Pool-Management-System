@@ -497,11 +497,7 @@ export default function DailyInspectionDetailsModal({
               maxLength={500}
               showCount
             />
-          </div>
-
-          <div style={{ marginTop: 12, fontSize: 12, color: '#6b7280' }}>
-            ℹ️ Sau khi xác nhận, thiết bị sẽ tự động được chuyển về trạng thái <strong>Hoạt động (Active)</strong> để tiếp tục sử dụng.
-          </div>
+          </div>  
         </div>
       </Modal>
     </>

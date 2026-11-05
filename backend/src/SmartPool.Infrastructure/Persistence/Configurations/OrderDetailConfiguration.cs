@@ -16,6 +16,7 @@ public sealed class OrderDetailConfiguration : IEntityTypeConfiguration<OrderDet
         entity.Property(e => e.OrderId).HasColumnName("order_id");
         entity.Property(e => e.Quantity).HasColumnName("quantity");
         entity.Property(e => e.UnitPrice).HasPrecision(18, 2).HasColumnName("unit_price");
+        entity.Property(e => e.CustomEntries).HasColumnName("custom_entries");
         entity.HasOne(d => d.Order).WithMany(p => p.OrderDetails).HasForeignKey(d => d.OrderId).OnDelete(DeleteBehavior.ClientSetNull).HasConstraintName("order_details_order_id_fkey");
     }
 }

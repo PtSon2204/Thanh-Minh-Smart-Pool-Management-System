@@ -23,7 +23,8 @@ namespace SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry
             {
                 Code = code,
                 InputMode = request.InputMode,
-                OperatorId = request.OperatorId
+                OperatorId = request.OperatorId,
+                EntriesRequested = request.EntriesRequested
             };
             var validation = await _validator.ValidateAsync(validationRequest, cancellationToken);
             if (!validation.IsValid)
@@ -32,7 +33,11 @@ namespace SmartPool.Application.Features.AccessControlPool.Commands.ConfirmEntry
                 return PoolAccessValidationResult<ConfirmEntryResponse>.Failure(failure.PropertyName, failure.ErrorMessage);
             }
 
-            var result = await _operations.ConfirmAsync(code!, request.InputMode!, request.OperatorId, cancellationToken);
+            int entriesToDeduct = (request.EntriesRequested.HasValue && request.EntriesRequested.Value > 1) ? request.EntriesRequested.Value : 1;
+            var result = entriesToDeduct > 1
+                ? await _operations.ConfirmAsync(code!, request.InputMode!, request.OperatorId, entriesToDeduct, cancellationToken)
+                : await _operations.ConfirmAsync(code!, request.InputMode!, request.OperatorId, cancellationToken);
+
             return PoolAccessValidationResult<ConfirmEntryResponse>.Success(result);
         }
     }

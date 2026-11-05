@@ -330,17 +330,6 @@ export default function DailyInspectionForm({ onSuccess }) {
 
   return (
     <div>
-      {/* Banner thông báo trạng thái ca trực tổng quát */}
-      {formData?.disableReason && (
-        <Alert
-          type={formData?.canSubmit ? 'info' : 'warning'}
-          message={formData?.canSubmit ? 'Thông báo kiểm tra ca trực' : 'Lưu ý khung giờ kiểm tra'}
-          description={formData.disableReason}
-          showIcon
-          style={{ marginBottom: 16, borderRadius: 10 }}
-        />
-      )}
-
       {/* Thanh tổng quan & Thao tác nhanh */}
       <Card
         style={{ marginBottom: 16, borderRadius: 10 }}
@@ -486,16 +475,17 @@ export default function DailyInspectionForm({ onSuccess }) {
           </div>
         )}
 
-        {/* Ô ghi chú thêm */}
+        {/* Ghi chú chung của ca trực */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8, fontSize: 13, color: '#4b5563' }}>
-            Ghi chú bổ sung về ca trực (tùy chọn):
-          </div>
+          <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+            Ghi chú chung của ca trực (không bắt buộc):
+          </Typography.Text>
           <Input.TextArea
             rows={2}
-            placeholder="Ghi nhận thêm về thời tiết, độ trong của nước, khách đông, hoặc lưu ý đặc biệt đầu ca..."
             value={generalNotes}
             onChange={(e) => setGeneralNotes(e.target.value)}
+            placeholder="Nhập ghi chú hoặc nhận xét chung về ca trực nếu có..."
+            disabled={!canSubmitSelectedShift}
           />
         </div>
 

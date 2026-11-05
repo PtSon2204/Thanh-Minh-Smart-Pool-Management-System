@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Drawer, Button, Typography, Divider, Select, message } from 'antd'
+import { Drawer, Button, Typography, Divider, Select, InputNumber, message } from 'antd'
 import { DeleteOutlined, MinusOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons'
 import { useCartStore } from '../store/cartStore'
 import { useNavigate } from 'react-router-dom'
@@ -15,7 +15,7 @@ import './CartDrawer.css'
 const { Text, Title } = Typography
 
 export default function CartDrawer() {
-  const { isCartOpen, closeCart, items, removeFromCart, updateQuantity, removePurchasedItems } = useCartStore()
+  const { isCartOpen, closeCart, items, removeFromCart, updateQuantity, updateRequestedEntries, removePurchasedItems } = useCartStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [selectedVoucherCode, setSelectedVoucherCode] = useState(null)
@@ -26,7 +26,7 @@ export default function CartDrawer() {
   const vouchers = vouchersQuery.data?.items || []
   const now = useVoucherClock(isCartOpen)
 
-  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const totalPrice = items.reduce((sum, item) => sum + item.price * (item.ticketCategory === 'VE_LUOT' ? (item.requestedEntries || 1) : 1) * item.quantity, 0)
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
 
   const selectedVoucher = vouchers.find(v => v.code === selectedVoucherCode)
@@ -69,7 +69,11 @@ export default function CartDrawer() {
 
     try {
       const payload = {
-        items: items.map(i => ({ ticketTypeId: i.id, quantity: i.quantity })),
+        items: items.map(i => ({
+          ticketTypeId: i.id,
+          quantity: i.quantity,
+          requestedEntries: i.ticketCategory === 'VE_LUOT' ? (i.requestedEntries || 1) : null
+        })),
         voucherCode: selectedVoucherCode || null
       }
       const order = await payment.start(payload)
@@ -142,10 +146,35 @@ export default function CartDrawer() {
                     <Text strong className="cart-item-title">{item.name}</Text>
                     <Button type="text" icon={<DeleteOutlined />} onClick={() => removeFromCart(item.id)} size="small" danger />
                   </div>
+                  {item.ticketCategory === 'VE_LUOT' && (
+                    <div style={{ margin: '6px 0', padding: '6px 10px', background: '#f0fdfa', borderRadius: '6px', border: '1px solid #ccfbf1' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: '12px', color: '#0f766e', fontWeight: 600 }}>Số lượt / vé:</span>
+                        <InputNumber
+                          min={1}
+                          max={999}
+                          value={item.requestedEntries || 1}
+                          onChange={(val) => updateRequestedEntries(item.id, val)}
+                          size="small"
+                          style={{ width: '75px' }}
+                        />
+                      </div>
+                      <div style={{ fontSize: '11px', color: (item.requestedEntries || 1) > 1 ? '#0d9488' : '#d97706' }}>
+                        {(item.requestedEntries || 1) > 1 ? '✓ Không giới hạn thời hạn' : '⏱ Hiệu lực 24h'}
+                      </div>
+                    </div>
+                  )}
                   <div className="cart-item-footer">
-                    <Text strong style={{ color: '#0088cc', fontSize: '15px' }}>
-                      {new Intl.NumberFormat('vi-VN').format(item.price)} đ
-                    </Text>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <Text strong style={{ color: '#0088cc', fontSize: '15px' }}>
+                        {new Intl.NumberFormat('vi-VN').format(item.price * (item.ticketCategory === 'VE_LUOT' ? (item.requestedEntries || 1) : 1) * item.quantity)} đ
+                      </Text>
+                      {item.ticketCategory === 'VE_LUOT' && (item.requestedEntries || 1) > 1 && (
+                        <span style={{ fontSize: '11px', color: '#888' }}>
+                          ({new Intl.NumberFormat('vi-VN').format(item.price)} đ × {item.requestedEntries || 1} lượt)
+                        </span>
+                      )}
+                    </div>
                     <div className="quantity-control">
                       <button onClick={() => updateQuantity(item.id, -1)}><MinusOutlined style={{ fontSize: 10 }} /></button>
                       <span>{item.quantity}</span>

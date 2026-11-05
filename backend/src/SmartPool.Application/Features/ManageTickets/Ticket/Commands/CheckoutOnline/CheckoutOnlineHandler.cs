@@ -52,7 +52,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             if (request.Items == null || request.Items.Count == 0 || request.Items.Any(item => item.Quantity <= 0))
                 throw new ArgumentException("Giỏ hàng phải có vé với số lượng lớn hơn 0.");
             decimal totalAmount = 0;
-            var validatedItems = new List<(Domain.Entities.TicketType Type, int Quantity)>();
+            var validatedItems = new List<(Domain.Entities.TicketType Type, int Quantity, int? CustomEntries)>();
 
             foreach (var item in request.Items)
             {
@@ -63,8 +63,12 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                 if (ticketType.IsActive != true)
                     throw new InvalidOperationException($"Loại vé {ticketType.Name} đang bị khóa.");
 
-                totalAmount += ticketType.Price * item.Quantity;
-                validatedItems.Add((ticketType, item.Quantity));
+                int entries = (item.RequestedEntries.HasValue && item.RequestedEntries.Value > 0) ? item.RequestedEntries.Value : 1;
+                bool isVeLuot = string.Equals(ticketType.TicketCategory, nameof(TicketCategoryEnum.VE_LUOT), StringComparison.OrdinalIgnoreCase);
+                int priceMultiplier = isVeLuot ? entries : 1;
+
+                totalAmount += ticketType.Price * priceMultiplier * item.Quantity;
+                validatedItems.Add((ticketType, item.Quantity, isVeLuot ? entries : null));
             }
 
             var hasMonthlyTicket = validatedItems.Any(item =>
@@ -133,7 +137,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                     ItemType = "TICKET",
                     ItemId = vItem.Type.Id,
                     Quantity = vItem.Quantity,
-                    UnitPrice = vItem.Type.Price,
+                    UnitPrice = vItem.Type.Price * (vItem.CustomEntries ?? 1),
+                    CustomEntries = vItem.CustomEntries,
                     CreatedAt = createdAt
                 };
                 await _orderDetailRepo.AddAsync(detail, cancellationToken);
@@ -184,7 +189,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                     TicketTypeId = item.Type.Id,
                     Name = item.Type.Name,
                     Quantity = item.Quantity,
-                    UnitPrice = item.Type.Price
+                    UnitPrice = item.Type.Price * (item.CustomEntries ?? 1)
                 }).ToList(),
                 Tickets = confirmation?.Tickets ?? []
             };
