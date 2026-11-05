@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { ConfigProvider } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import DailyInspectionHistory from '../../../features/equipments/components/DailyInspectionHistory'
+import PoolOperationalSettingsModal from '../../../features/equipments/components/PoolOperationalSettingsModal'
 import '../../../features/equipments/styles/equipmentManagement.css'
 
 export default function DailyInspectionHistoryPage() {
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   return (
     <ConfigProvider
       theme={{
@@ -15,7 +19,7 @@ export default function DailyInspectionHistoryPage() {
       }}
     >
       <div className="equipment-list-page" style={{ padding: '24px' }}>
-        <header className="equipment-page-header" style={{ marginBottom: 20 }}>
+        <header className="equipment-page-header" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div className="equipment-page-heading">
             <span className="equipment-header-icon" aria-hidden="true">
               <HistoryOutlined />
@@ -32,8 +36,12 @@ export default function DailyInspectionHistoryPage() {
         </header>
 
         <DailyInspectionHistory />
+
+        <PoolOperationalSettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
       </div>
     </ConfigProvider>
   )
 }
-

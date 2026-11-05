@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using MediatR;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.Commands.UpdateEquipment;
 
@@ -23,6 +24,14 @@ public sealed class UpdateEquipmentHandler(IRepository<Equipment> repository, IU
         equipment.Category = category;
         equipment.Location = string.IsNullOrWhiteSpace(request.Location) ? null : request.Location.Trim();
         equipment.Metadata = CameraMetadata.UpdateSpecifications(equipment.Metadata, request.Metadata);
+        if (!string.IsNullOrWhiteSpace(request.PriorityLevel))
+        {
+            var match = EquipmentPriorityLevels.All.FirstOrDefault(p => string.Equals(p, request.PriorityLevel.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                equipment.PriorityLevel = match;
+            }
+        }
         equipment.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
         // Updating public specifications preserves protected camera configuration and maintenance records.
         repository.Update(equipment);

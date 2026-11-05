@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, ConfigProvider, Empty, Input, Pagination, Popconfirm, Select, Spin, Table, Tag } from 'antd'
-import { EditOutlined, EnvironmentOutlined, EyeOutlined, FilterOutlined, LockOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, ToolOutlined, UnlockOutlined } from '@ant-design/icons'
+import { Alert, Button, ConfigProvider, Empty, Input, Pagination, Popconfirm, Select, Space, Spin, Table, Tag } from 'antd'
+import { EditOutlined, EnvironmentOutlined, EyeOutlined, FilterOutlined, LockOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, ToolOutlined, UnlockOutlined, DashboardOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { useEquipmentFilters, useEquipments } from "../../../features/equipments/hooks/useEquipments"
 import { useSetEquipmentStatus } from "../../../features/equipments/hooks/useEquipmentMutations"
 import { equipmentStatuses } from "../../../features/equipments/utils/equipmentDisplay"
@@ -46,6 +47,7 @@ function EquipmentActions({ equipment, onView, onEdit, statusMutation }) {
 }
 
 export default function EquipmentPage() {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingEquipment, setEditingEquipment] = useState(null)
@@ -61,10 +63,10 @@ export default function EquipmentPage() {
   const busy = list.isFetching || searching
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handle = setTimeout(() => {
       setParams(previous => previous.searchTerm === search.trim() ? previous : { ...previous, searchTerm: search.trim(), pageIndex: 1 })
-    }, 350)
-    return () => clearTimeout(timer)
+    }, 300)
+    return () => clearTimeout(handle)
   }, [search])
 
   function setFilter(key, value) {
@@ -82,10 +84,20 @@ export default function EquipmentPage() {
 
   const columns = [
     { title: 'Tên thiết bị', dataIndex: 'name', render: (_, equipment) => <EquipmentName equipment={equipment} /> },
-    { title: 'Nhóm thiết bị', dataIndex: 'category', width: '16%', render: value => <span className="equipment-category">{value || '—'}</span> },
-    { title: 'Khu vực', dataIndex: 'location', width: '17%', render: value => <span className={`equipment-location ${value ? '' : 'equipment-muted'}`}><EnvironmentOutlined aria-hidden="true" />{value || 'Chưa xác định'}</span> },
-    { title: 'Trạng thái', dataIndex: 'status', width: 175, render: value => <EquipmentStatus status={value} /> },
-    { title: 'Thao tác', key: 'actions', width: 310, render: (_, equipment) => renderActions(equipment) },
+    { title: 'Nhóm thiết bị', dataIndex: 'category', width: '15%', render: value => <span className="equipment-category">{value || '—'}</span> },
+    {
+      title: 'Mức ưu tiên',
+      dataIndex: 'priorityLevel',
+      width: 140,
+      render: value => (
+        <Tag color={value === 'Critical' ? 'error' : value === 'High' ? 'warning' : 'default'}>
+          {value === 'Critical' ? '🔴 Critical' : value === 'High' ? '🟠 High' : '🟢 Normal'}
+        </Tag>
+      )
+    },
+    { title: 'Khu vực', dataIndex: 'location', width: '15%', render: value => <span className={`equipment-location ${value ? '' : 'equipment-muted'}`}><EnvironmentOutlined aria-hidden="true" />{value || 'Chưa xác định'}</span> },
+    { title: 'Trạng thái', dataIndex: 'status', width: 160, render: value => <EquipmentStatus status={value} /> },
+    { title: 'Thao tác', key: 'actions', width: 290, render: (_, equipment) => renderActions(equipment) },
   ]
 
   const emptyState = <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -100,7 +112,18 @@ export default function EquipmentPage() {
           <span className="equipment-header-icon" aria-hidden="true"><ToolOutlined /></span>
           <div><h1>Quản lý thiết bị</h1><p>Theo dõi và quản lý thiết bị trong khu vực hồ bơi.</p></div>
         </div>
-        <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>Thêm thiết bị</Button>
+        <Space>
+          <Button
+            icon={<DashboardOutlined />}
+            style={{ height: 40, borderRadius: 8, fontWeight: 500 }}
+            onClick={() => navigate('/admin/equipments/operations')}
+          >
+            Quản lý vận hành bể
+          </Button>
+          <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>
+            Thêm thiết bị
+          </Button>
+        </Space>
       </header>
 
       <section className="equipment-filter-panel" aria-label="Tìm kiếm và lọc thiết bị">
@@ -127,7 +150,12 @@ export default function EquipmentPage() {
             <div className="equipment-mobile-list">
               {items.map(equipment => <article className="equipment-mobile-card" key={equipment.id}>
                 <EquipmentName equipment={equipment} />
-                <dl><div><dt>Nhóm thiết bị</dt><dd><span className="equipment-category">{equipment.category}</span></dd></div><div><dt>Trạng thái</dt><dd><EquipmentStatus status={equipment.status} /></dd></div><div className="equipment-card-location"><dt>Khu vực</dt><dd><EnvironmentOutlined aria-hidden="true" /> {equipment.location || 'Chưa xác định'}</dd></div></dl>
+                <dl>
+                  <div><dt>Nhóm thiết bị</dt><dd><span className="equipment-category">{equipment.category}</span></dd></div>
+                  <div><dt>Ưu tiên</dt><dd><Tag color={equipment.priorityLevel === 'Critical' ? 'error' : equipment.priorityLevel === 'High' ? 'warning' : 'default'}>{equipment.priorityLevel || 'Normal'}</Tag></dd></div>
+                  <div><dt>Trạng thái</dt><dd><EquipmentStatus status={equipment.status} /></dd></div>
+                  <div className="equipment-card-location"><dt>Khu vực</dt><dd><EnvironmentOutlined aria-hidden="true" /> {equipment.location || 'Chưa xác định'}</dd></div>
+                </dl>
                 {renderActions(equipment)}
               </article>)}
               {!items.length && (busy ? <div className="equipment-loading">Đang tải thiết bị...</div> : emptyState)}
@@ -144,11 +172,10 @@ export default function EquipmentPage() {
 
       <EquipmentFormModal open={formOpen} onClose={() => setFormOpen(false)} />
       <EquipmentUpdateModal equipment={editingEquipment} onClose={() => setEditingEquipment(null)} />
-      <EquipmentDetailsModal equipment={viewingEquipment && (items.find(item => item.id === viewingEquipment.id) || viewingEquipment)} onClose={() => setViewingEquipment(null)}
+      <EquipmentDetailsModal equipment={viewingEquipment} onClose={() => setViewingEquipment(null)}
         onEdit={equipment => { setViewingEquipment(null); setEditingEquipment(equipment) }}
         onViewCamera={equipment => { setViewingEquipment(null); setViewingCamera(equipment) }} />
-      {viewingCamera && <CameraViewModal key={viewingCamera.id} equipment={viewingCamera} onClose={() => setViewingCamera(null)} />}
+      <CameraViewModal equipment={viewingCamera} onClose={() => setViewingCamera(null)} />
     </div>
   </ConfigProvider>
 }
-

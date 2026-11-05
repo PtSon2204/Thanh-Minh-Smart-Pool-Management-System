@@ -13,7 +13,7 @@ function applyServerErrors(form, error) {
     const field = key.split('.').at(-1)
     const cameraFields = { streamurl: 'cameraStreamUrl', protocol: 'cameraSource', username: 'cameraUsername', password: 'cameraPassword', cameraconnection: 'cameraSource' }
     const name = field.toLowerCase() === 'metadata' ? 'specifications' : cameraFields[field.toLowerCase()] || field.charAt(0).toLowerCase() + field.slice(1)
-    return ['name', 'category', 'location', 'specifications', ...Object.values(cameraFields)].includes(name)
+    return ['name', 'category', 'location', 'priorityLevel', 'specifications', ...Object.values(cameraFields)].includes(name)
       ? [{ name, errors: Array.isArray(messages) ? messages : [String(messages)] }] : []
   })
   form.setFields(fields)
@@ -42,7 +42,9 @@ export default function EquipmentFormModal({ open, onClose }) {
     submitting.current = true
     mutation.reset()
     mutation.mutate({
-      name: values.name.trim(), category: values.category.trim(),
+      name: values.name.trim(),
+      category: values.category.trim(),
+      priorityLevel: values.priorityLevel || 'Normal',
       location: values.location?.trim() || null,
       metadata: specificationsToMetadata(values.specifications),
       ...(isCamera ? { cameraConnection: cameraSource === 'Browser' ? { protocol: 'Browser' } : {
@@ -91,6 +93,20 @@ export default function EquipmentFormModal({ open, onClose }) {
         filterOption={(input, option) => option.value.toLocaleLowerCase('vi-VN').includes(input.trim().toLocaleLowerCase('vi-VN'))}>
         <Input maxLength={50} placeholder="Nhập hoặc chọn nhóm thiết bị" />
       </AutoComplete></Form.Item>
+      <Form.Item
+        label="Mức độ ưu tiên"
+        name="priorityLevel"
+        initialValue="Normal"
+        extra="Thiết bị có mức Critical (phao cứu sinh, sào cứu hộ, máy bơm lọc theo Luật TT 03/2018) nếu bị hỏng sẽ kích hoạt cảnh báo đỏ đề xuất tạm dừng bể bơi."
+      >
+        <Select
+          options={[
+            { value: 'Critical', label: '🔴 Critical - Khẩn cấp (Theo luật an toàn: Hỏng đề xuất tạm dừng bể)' },
+            { value: 'High', label: '🟠 High - Quan trọng (Loa cứu hộ, Tủ thuốc, Dây phao làn)' },
+            { value: 'Normal', label: '🟢 Normal - Bình thường / Tiêu chuẩn' },
+          ]}
+        />
+      </Form.Item>
       <Form.Item label="Khu vực/Vị trí" name="location" rules={[
         { transform: value => value?.trim(), max: 255, message: 'Vị trí không được vượt quá 255 ký tự.' },
       ]}><Input placeholder="Nhập vị trí (không bắt buộc)" /></Form.Item>

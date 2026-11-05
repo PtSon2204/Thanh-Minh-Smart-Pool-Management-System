@@ -17,6 +17,19 @@ export default function EquipmentDetailsModal({ equipment, onClose, onEdit, onVi
       <Descriptions bordered column={1} size="small" items={[
         { key: 'name', label: 'Tên thiết bị', children: <strong>{equipment.name}</strong> },
         { key: 'category', label: 'Nhóm thiết bị', children: equipment.category },
+        {
+          key: 'priorityLevel',
+          label: 'Mức độ ưu tiên',
+          children: (
+            <Tag color={
+              equipment.priorityLevel === 'Critical' ? 'error' :
+              equipment.priorityLevel === 'High' ? 'warning' : 'default'
+            }>
+              {equipment.priorityLevel === 'Critical' ? '🔴 Critical (Khẩn cấp theo luật)' :
+               equipment.priorityLevel === 'High' ? '🟠 High (Quan trọng)' : '🟢 Normal (Bình thường)'}
+            </Tag>
+          )
+        },
         { key: 'location', label: 'Khu vực', children: equipment.location || 'Chưa xác định' },
         { key: 'status', label: 'Trạng thái', children: <Tag color={status?.color || 'default'}>{status?.label || equipment.status || 'Chưa xác định'}</Tag> },
         ...(isCamera(equipment.category) ? [{ key: 'source', label: 'Nguồn camera', children: equipment.cameraSource === 'Browser' ? 'Webcam trên máy đang mở trang' : 'Camera IP — RTSP' }] : []),

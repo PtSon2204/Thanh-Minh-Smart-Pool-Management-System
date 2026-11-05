@@ -34,6 +34,7 @@ public sealed class GetDailyInspectionFormHandler(
                 EquipmentId = x.Id,
                 Name = x.Name,
                 Category = x.Category,
+                PriorityLevel = x.PriorityLevel ?? SmartPool.Domain.Enums.EquipmentPriorityLevels.Normal,
                 Location = x.Location,
                 Status = x.Status ?? "Active"
             })

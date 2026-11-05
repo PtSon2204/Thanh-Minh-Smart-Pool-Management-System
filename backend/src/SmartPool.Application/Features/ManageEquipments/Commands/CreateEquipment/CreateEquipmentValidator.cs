@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.Commands.CreateEquipment;
 
@@ -49,6 +50,9 @@ public sealed class CreateEquipmentValidator : AbstractValidator<CreateEquipment
             .NotEmpty().WithMessage("Nhóm thiết bị không được để trống.")
             .Must(value => value.Trim().Length <= 50).WithMessage("Nhóm thiết bị không được vượt quá 50 ký tự.")
             .Must(value => !value.Contains('\0')).WithMessage("Nhóm thiết bị chứa ký tự không hợp lệ.");
+        RuleFor(x => x.PriorityLevel)
+            .Must(value => string.IsNullOrEmpty(value) || EquipmentPriorityLevels.All.Any(p => string.Equals(p, value, StringComparison.OrdinalIgnoreCase)))
+            .WithMessage("Mức độ ưu tiên chỉ chấp nhận: Critical, High hoặc Normal.");
         RuleFor(x => x.Location)
             .Must(value => value == null || value.Trim().Length <= 255).WithMessage("Vị trí không được vượt quá 255 ký tự.")
             .Must(value => value == null || !value.Contains('\0')).WithMessage("Vị trí chứa ký tự không hợp lệ.");

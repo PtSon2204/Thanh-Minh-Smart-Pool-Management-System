@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Alert, AutoComplete, Button, Form, Input, Modal } from 'antd'
+import { Alert, AutoComplete, Button, Form, Input, Modal, Select } from 'antd'
 import { useEquipmentFilters } from '../hooks/useEquipments'
 import { useUpdateEquipment } from '../hooks/useEquipmentMutations'
 import { isCamera } from '../utils/equipmentDisplay'
@@ -17,7 +17,13 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
   useEffect(() => {
     if (equipment) {
       form.resetFields()
-      form.setFieldsValue({ name: equipment.name, category: equipment.category, location: equipment.location || '', specifications: specificationsFromMetadata(equipment.metadata) })
+      form.setFieldsValue({
+        name: equipment.name,
+        category: equipment.category,
+        priorityLevel: equipment.priorityLevel || 'Normal',
+        location: equipment.location || '',
+        specifications: specificationsFromMetadata(equipment.metadata),
+      })
       reset()
     }
   }, [equipment, form, reset])
@@ -26,7 +32,10 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
     if (submitting.current || mutation.isPending) return
     submitting.current = true
     mutation.mutate({
-      id: equipment.id, name: values.name.trim(), category: values.category.trim(),
+      id: equipment.id,
+      name: values.name.trim(),
+      category: values.category.trim(),
+      priorityLevel: values.priorityLevel || 'Normal',
       location: values.location?.trim() || null,
       metadata: specificationsToMetadata(values.specifications),
     }, {
@@ -37,7 +46,7 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
           form.setFields(Object.entries(errors).flatMap(([key, messages]) => {
             const field = key.split('.').at(-1)
             const name = field.toLowerCase() === 'metadata' ? 'specifications' : field.charAt(0).toLowerCase() + field.slice(1)
-            return ['name', 'category', 'location', 'specifications'].includes(name) ? [{ name, errors: Array.isArray(messages) ? messages : [String(messages)] }] : []
+            return ['name', 'category', 'location', 'priorityLevel', 'specifications'].includes(name) ? [{ name, errors: Array.isArray(messages) ? messages : [String(messages)] }] : []
           }))
         }
       },
@@ -66,6 +75,19 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
             filterOption={(input, option) => option.value.toLocaleLowerCase('vi-VN').includes(input.trim().toLocaleLowerCase('vi-VN'))}>
             <Input maxLength={50} placeholder="Nhập hoặc chọn nhóm thiết bị" />
           </AutoComplete>}
+      </Form.Item>
+      <Form.Item
+        label="Mức độ ưu tiên"
+        name="priorityLevel"
+        extra="Thiết bị có mức Critical (phao cứu sinh, sào cứu hộ, máy bơm lọc theo Luật TT 03/2018) nếu bị hỏng sẽ kích hoạt cảnh báo đỏ đề xuất tạm dừng bể bơi."
+      >
+        <Select
+          options={[
+            { value: 'Critical', label: '🔴 Critical - Khẩn cấp (Theo luật an toàn: Hỏng đề xuất tạm dừng bể)' },
+            { value: 'High', label: '🟠 High - Quan trọng (Loa cứu hộ, Tủ thuốc, Dây phao làn)' },
+            { value: 'Normal', label: '🟢 Normal - Bình thường / Tiêu chuẩn' },
+          ]}
+        />
       </Form.Item>
       <Form.Item label="Khu vực" name="location" rules={[{ transform: value => value?.trim(), max: 255, message: 'Khu vực không được vượt quá 255 ký tự.' }]}><Input maxLength={255} placeholder="Nhập khu vực đặt thiết bị" /></Form.Item>
       <Form.Item label="Thông số thiết bị" name="specifications" extra="Mỗi thiết bị có thông số riêng. Thêm, sửa hoặc xóa từng dòng theo nhu cầu." rules={[{
