@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import { Drawer, Button, Typography, Divider, Select, InputNumber, message } from 'antd'
-import { DeleteOutlined, MinusOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons'
+import { Drawer, Button, Typography, Divider, Select, InputNumber, message, Modal, Alert } from 'antd'
+import { DeleteOutlined, MinusOutlined, PlusOutlined, SendOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useCartStore } from '../store/cartStore'
 import { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useVouchers } from '../../vouchers/hooks/useVouchers'
 import { useVoucherClock } from '../../vouchers/hooks/useVoucherClock'
 import { getVoucherDiscount, getVoucherError, VoucherStatus } from '../../vouchers/utils/voucherValidity'
 import useOnlineTicketPayment from '../../payments/hooks/useOnlineTicketPayment'
 import OnlineTicketPaymentModal from '../../payments/components/OnlineTicketPaymentModal'
 import profileService from '../../profiles/services/profileService'
+import { poolAccessService } from '../../tickets/services/poolAccessService'
 import './CartDrawer.css'
 
 const { Text, Title } = Typography
@@ -26,8 +27,19 @@ export default function CartDrawer() {
   const vouchers = vouchersQuery.data?.items || []
   const now = useVoucherClock(isCartOpen)
 
+  const { data: liveStatus } = useQuery({
+    queryKey: ['poolLiveStatus'],
+    queryFn: poolAccessService.getLiveStatus,
+    enabled: isCartOpen,
+    refetchInterval: 30000,
+  })
+
   const totalPrice = items.reduce((sum, item) => sum + item.price * (item.ticketCategory === 'VE_LUOT' ? (item.requestedEntries || 1) : 1) * item.quantity, 0)
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
+  const totalEntriesInCart = items.reduce(
+    (sum, item) => sum + (item.ticketCategory === 'VE_LUOT' ? (item.requestedEntries || 1) : 1) * item.quantity,
+    0
+  )
 
   const selectedVoucher = vouchers.find(v => v.code === selectedVoucherCode)
   const selectedVoucherError = selectedVoucherCode ? getVoucherError(selectedVoucher, totalPrice, now) : null
@@ -35,8 +47,41 @@ export default function CartDrawer() {
 
   const finalPrice = Math.max(0, totalPrice - discountAmount)
 
+  const executePayment = async () => {
+    try {
+      const payload = {
+        items: items.map(i => ({
+          ticketTypeId: i.id,
+          quantity: i.quantity,
+          requestedEntries: i.ticketCategory === 'VE_LUOT' ? (i.requestedEntries || 1) : null
+        })),
+        voucherCode: selectedVoucherCode || null
+      }
+      const order = await payment.start(payload)
+      if (!order) return
+      removePurchasedItems(order.items || [])
+      setSelectedVoucherCode(null)
+      queryClient.invalidateQueries({ queryKey: ['myOrders'] })
+      queryClient.invalidateQueries({ queryKey: ['myOrderSummary'] })
+      closeCart()
+      navigate('/don-hang')
+    } catch (error) {
+      message.error(error.response?.data?.message || error.message || 'Lỗi khi thanh toán')
+    }
+  }
+
   const handleCheckout = async () => {
     if (payment.checkingOut) return
+
+    if (liveStatus?.operationalStatus === 'Maintenance') {
+      message.error(
+        liveStatus?.statusReason
+          ? `Bể bơi đang tạm dừng bảo trì: ${liveStatus.statusReason}. Tạm ngưng thanh toán vé.`
+          : 'Bể bơi hiện đang tạm dừng hoạt động để bảo dưỡng an toàn. Vui lòng quay lại sau.'
+      )
+      return
+    }
+
     if (selectedVoucherCode) {
       const error = getVoucherError(selectedVoucher, totalPrice)
       if (error) {
@@ -67,26 +112,38 @@ export default function CartDrawer() {
       }
     }
 
-    try {
-      const payload = {
-        items: items.map(i => ({
-          ticketTypeId: i.id,
-          quantity: i.quantity,
-          requestedEntries: i.ticketCategory === 'VE_LUOT' ? (i.requestedEntries || 1) : null
-        })),
-        voucherCode: selectedVoucherCode || null
-      }
-      const order = await payment.start(payload)
-      if (!order) return
-      removePurchasedItems(order.items || [])
-      setSelectedVoucherCode(null)
-      queryClient.invalidateQueries({ queryKey: ['myOrders'] })
-      queryClient.invalidateQueries({ queryKey: ['myOrderSummary'] })
-      closeCart()
-      navigate('/don-hang')
-    } catch (error) {
-      message.error(error.response?.data?.message || error.message || 'Lỗi khi thanh toán')
+    const currentSwimmers = liveStatus?.currentSwimmers || 0
+    const maxCap = liveStatus?.maxCapacity || 100
+    const isCrowded = liveStatus?.isCrowded || false
+    const isBulkOrder = totalEntriesInCart >= 20
+    const willExceedCapacity = currentSwimmers + totalEntriesInCart >= maxCap
+
+    if (isBulkOrder || willExceedCapacity || isCrowded) {
+      Modal.confirm({
+        title: '⚠️ Cảnh báo mật độ bể bơi đông khách',
+        icon: <ExclamationCircleOutlined style={{ color: '#f59e0b', fontSize: 22 }} />,
+        content: (
+          <div style={{ marginTop: 8 }}>
+            <p style={{ color: '#334155', fontSize: 14 }}>
+              Hiện tại bể bơi đang có <strong>{currentSwimmers} / {maxCap}</strong> khách trong bể.
+            </p>
+            <p style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
+              Tổng số lượng lượt vé trong giỏ ({totalEntriesInCart} lượt) là số lượng khá lớn hoặc có thể khiến bể bơi đạt ngưỡng đông khách, dẫn đến việc có thể phải chờ đợi tại cổng soát vé.
+            </p>
+            <p style={{ color: '#0284c7', fontSize: 13, fontWeight: 500 }}>
+              Bạn có muốn tiếp tục tiến hành thanh toán đơn hàng này không?
+            </p>
+          </div>
+        ),
+        okText: 'Tiếp tục thanh toán',
+        cancelText: 'Xem lại giỏ hàng',
+        okButtonProps: { style: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' } },
+        onOk: executePayment
+      })
+      return
     }
+
+    await executePayment()
   }
 
   const completePayment = () => {
@@ -133,6 +190,15 @@ export default function CartDrawer() {
         width={400}
         className="custom-cart-drawer"
       >
+        {liveStatus?.operationalStatus === 'Maintenance' && (
+          <Alert
+            type="error"
+            showIcon
+            message="Bể bơi đang tạm dừng hoạt động"
+            description={liveStatus.statusReason || 'Hệ thống tạm ngưng thanh toán vé cho đến khi hoàn tất xử lý kỹ thuật/bảo trì.'}
+            style={{ margin: '12px', borderRadius: '8px' }}
+          />
+        )}
         <div className="cart-items-container">
           {items.length === 0 ? (
             <div className="empty-cart">
@@ -227,15 +293,22 @@ export default function CartDrawer() {
                 {new Intl.NumberFormat('vi-VN').format(finalPrice)} đ
               </Title>
             </div>
+            {liveStatus?.isCrowded && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '6px', fontSize: '12px', color: '#b45309' }}>
+                ⚠️ Bể bơi hiện đang khá đông ({liveStatus.currentSwimmers}/{liveStatus.maxCapacity} người).
+              </div>
+            )}
             <Button 
               type="primary" 
               size="large" 
               block 
               icon={<SendOutlined />}
-              onClick={handleCheckout} loading={payment.checkingOut}
+              onClick={handleCheckout} 
+              loading={payment.checkingOut}
+              disabled={liveStatus?.operationalStatus === 'Maintenance'}
               className="checkout-btn"
             >
-              Thanh toán ngay
+              {liveStatus?.operationalStatus === 'Maintenance' ? 'Tạm ngưng thanh toán' : 'Thanh toán ngay'}
             </Button>
             <div style={{ textAlign: 'center', marginTop: '12px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>

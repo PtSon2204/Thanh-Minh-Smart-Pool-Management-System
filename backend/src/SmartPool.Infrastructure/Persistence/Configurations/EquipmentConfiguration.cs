@@ -11,6 +11,7 @@ public sealed class EquipmentConfiguration : IEntityTypeConfiguration<Equipment>
         entity.ToTable("equipments", "smart_pool");
         entity.Property(e => e.Id).HasDefaultValueSql("uuid_generate_v4()").HasColumnName("id");
         entity.Property(e => e.Category).HasMaxLength(50).HasColumnName("category");
+        entity.Property(e => e.PriorityLevel).HasMaxLength(50).HasDefaultValueSql("'Normal'::character varying").HasColumnName("priority_level");
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
         entity.Property(e => e.IsDeleted).HasDefaultValue(false).HasColumnName("is_deleted");
         entity.Property(e => e.Location).HasMaxLength(255).HasColumnName("location");

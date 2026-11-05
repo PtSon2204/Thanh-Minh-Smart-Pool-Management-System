@@ -25,9 +25,16 @@ public sealed class CreateEquipmentHandler(
         var category = request.Category.Trim();
         var browser = CameraMetadata.IsCamera(category) && request.CameraConnection?.Protocol == "Browser";
         var now = timeProvider.GetUtcNow().UtcDateTime;
+
+        var priority = string.IsNullOrWhiteSpace(request.PriorityLevel)
+            ? EquipmentPriorityLevels.Normal
+            : EquipmentPriorityLevels.All.FirstOrDefault(p => string.Equals(p, request.PriorityLevel.Trim(), StringComparison.OrdinalIgnoreCase))
+              ?? EquipmentPriorityLevels.Normal;
+
         var equipment = new Equipment
         {
             Id = Guid.NewGuid(), Name = request.Name.Trim(), Category = category,
+            PriorityLevel = priority,
             Location = string.IsNullOrWhiteSpace(request.Location) ? null : request.Location.Trim(),
             Metadata = request.Metadata is { ValueKind: not JsonValueKind.Null and not JsonValueKind.Undefined } metadata
                 ? metadata.GetRawText() : null,
@@ -54,7 +61,9 @@ public sealed class CreateEquipmentHandler(
         }
         return new EquipmentListItem
         {
-            Id = equipment.Id, Name = equipment.Name, Category = equipment.Category, Location = equipment.Location,
+            Id = equipment.Id, Name = equipment.Name, Category = equipment.Category,
+            PriorityLevel = equipment.PriorityLevel ?? EquipmentPriorityLevels.Normal,
+            Location = equipment.Location,
             Metadata = CameraMetadata.PublicSpecifications(equipment.Metadata), Status = equipment.Status, NextMaintenanceDate = null,
             CameraSource = CameraMetadata.IsCamera(category) ? browser ? "Browser" : "RTSP" : null,
             CameraConnection = CameraMetadata.IsCamera(category) && !browser ? cameras!.GetStatus(equipment.Id) : null

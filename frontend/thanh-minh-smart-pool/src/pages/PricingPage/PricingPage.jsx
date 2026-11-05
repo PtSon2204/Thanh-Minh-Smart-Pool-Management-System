@@ -3,9 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { useState, useMemo } from 'react'
-import { message } from 'antd'
+import { message, Modal } from 'antd'
+import { ExclamationCircleOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../../features/auth/store/authStore'
 import { useCartStore } from '../../features/cart/store/cartStore'
+import poolAccessService from '../../features/tickets/services/poolAccessService'
 
 const categoryMeta = {
   VE_THANG: {
@@ -101,15 +103,13 @@ export default function PricingPage() {
     retry: 1,
   })
 
-  const handleAddToCart = (ticket) => {
-    if (!session) {
-      navigate('/dang-nhap?redirect=' + encodeURIComponent(location.pathname))
-      return
-    }
-    const requestedEntries = ticket.ticketCategory === 'VE_LUOT'
-      ? (entriesMap[ticket.id] !== undefined ? entriesMap[ticket.id] : 1)
-      : undefined
+  const { data: liveStatus } = useQuery({
+    queryKey: ['poolLiveStatus'],
+    queryFn: poolAccessService.getLiveStatus,
+    staleTime: 10000,
+  })
 
+  const performAddToCart = (ticket, requestedEntries) => {
     addToCart({
       id: ticket.id,
       name: ticket.name,
@@ -119,6 +119,60 @@ export default function PricingPage() {
     })
     const entriesSuffix = requestedEntries && requestedEntries > 1 ? ` (${requestedEntries} lượt)` : ''
     message.success(`Đã thêm "${ticket.name}"${entriesSuffix} vào giỏ hàng`)
+  }
+
+  const handleAddToCart = (ticket) => {
+    if (!session) {
+      navigate('/dang-nhap?redirect=' + encodeURIComponent(location.pathname))
+      return
+    }
+
+    if (liveStatus?.operationalStatus === 'Maintenance') {
+      message.error(
+        liveStatus?.statusReason
+          ? `Bể bơi đang tạm dừng bảo trì: ${liveStatus.statusReason}. Tạm ngưng đặt vé.`
+          : 'Bể bơi hiện đang tạm dừng hoạt động để bảo dưỡng an toàn. Vui lòng quay lại sau.'
+      )
+      return
+    }
+
+    const requestedEntries = ticket.ticketCategory === 'VE_LUOT'
+      ? (entriesMap[ticket.id] !== undefined ? entriesMap[ticket.id] : 1)
+      : 1
+
+    const currentSwimmers = liveStatus?.currentSwimmers || 0
+    const maxCap = liveStatus?.maxCapacity || 100
+    const isCrowded = liveStatus?.isCrowded || false
+    const isBulkOrder = requestedEntries >= 20
+    const willExceedCapacity = currentSwimmers + requestedEntries >= maxCap
+
+    if (isBulkOrder || willExceedCapacity || isCrowded) {
+      Modal.confirm({
+        title: '⚠️ Cảnh báo mật độ bể bơi đông khách',
+        icon: <ExclamationCircleOutlined style={{ color: '#f59e0b', fontSize: 22 }} />,
+        content: (
+          <div style={{ marginTop: 8 }}>
+            <p style={{ color: '#334155', fontSize: 14 }}>
+              Hiện tại bể bơi đang có <strong>{currentSwimmers} / {maxCap}</strong> khách trong bể.
+            </p>
+            <p style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
+              Số lượng lượt vé bạn đặt (<strong>{requestedEntries} lượt</strong>) là số lượng khá lớn hoặc có thể khiến bể bơi đạt ngưỡng quá tải, dẫn đến việc phải chờ đợi tại cổng soát vé.
+            </p>
+            <p style={{ fontWeight: 600, color: '#1e293b', marginTop: 10 }}>
+              Bạn có muốn tiếp tục thêm số lượng vé này vào giỏ hàng không?
+            </p>
+          </div>
+        ),
+        okText: 'Tiếp tục đặt vé',
+        cancelText: 'Để khi khác',
+        onOk: () => {
+          performAddToCart(ticket, requestedEntries)
+        },
+      })
+      return
+    }
+
+    performAddToCart(ticket, requestedEntries)
   }
 
   const tickets = useMemo(() => {

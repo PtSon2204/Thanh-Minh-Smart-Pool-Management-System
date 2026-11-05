@@ -57,6 +57,7 @@ public sealed class ResolveInspectionItemHandler(
         targetItem.ResolvedAt = nowUtc;
         targetItem.ResolvedBy = adminName;
         targetItem.ResolutionNote = command.Note?.Trim();
+        targetItem.ResolutionImageUrls = command.ResolutionImageUrls ?? [];
 
         // 2. Tính toán lại trạng thái tổng thể của toàn bộ biên bản
         var unresolvedCount = items.Count(i => !i.IsPassed && i.ResolutionStatus != "Repaired" && i.ResolutionStatus != "Replaced");

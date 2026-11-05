@@ -61,10 +61,10 @@ export default function EquipmentPage() {
   const busy = list.isFetching || searching
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handle = setTimeout(() => {
       setParams(previous => previous.searchTerm === search.trim() ? previous : { ...previous, searchTerm: search.trim(), pageIndex: 1 })
-    }, 350)
-    return () => clearTimeout(timer)
+    }, 300)
+    return () => clearTimeout(handle)
   }, [search])
 
   function setFilter(key, value) {
@@ -82,10 +82,20 @@ export default function EquipmentPage() {
 
   const columns = [
     { title: 'Tên thiết bị', dataIndex: 'name', render: (_, equipment) => <EquipmentName equipment={equipment} /> },
-    { title: 'Nhóm thiết bị', dataIndex: 'category', width: '16%', render: value => <span className="equipment-category">{value || '—'}</span> },
-    { title: 'Khu vực', dataIndex: 'location', width: '17%', render: value => <span className={`equipment-location ${value ? '' : 'equipment-muted'}`}><EnvironmentOutlined aria-hidden="true" />{value || 'Chưa xác định'}</span> },
-    { title: 'Trạng thái', dataIndex: 'status', width: 175, render: value => <EquipmentStatus status={value} /> },
-    { title: 'Thao tác', key: 'actions', width: 310, render: (_, equipment) => renderActions(equipment) },
+    { title: 'Nhóm thiết bị', dataIndex: 'category', width: '15%', render: value => <span className="equipment-category">{value || '—'}</span> },
+    {
+      title: 'Mức ưu tiên',
+      dataIndex: 'priorityLevel',
+      width: 140,
+      render: value => (
+        <Tag color={value === 'Critical' ? 'error' : value === 'High' ? 'warning' : 'default'}>
+          {value === 'Critical' ? '🔴 Critical' : value === 'High' ? '🟠 High' : '🟢 Normal'}
+        </Tag>
+      )
+    },
+    { title: 'Khu vực', dataIndex: 'location', width: '15%', render: value => <span className={`equipment-location ${value ? '' : 'equipment-muted'}`}><EnvironmentOutlined aria-hidden="true" />{value || 'Chưa xác định'}</span> },
+    { title: 'Trạng thái', dataIndex: 'status', width: 160, render: value => <EquipmentStatus status={value} /> },
+    { title: 'Thao tác', key: 'actions', width: 290, render: (_, equipment) => renderActions(equipment) },
   ]
 
   const emptyState = <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -127,7 +137,12 @@ export default function EquipmentPage() {
             <div className="equipment-mobile-list">
               {items.map(equipment => <article className="equipment-mobile-card" key={equipment.id}>
                 <EquipmentName equipment={equipment} />
-                <dl><div><dt>Nhóm thiết bị</dt><dd><span className="equipment-category">{equipment.category}</span></dd></div><div><dt>Trạng thái</dt><dd><EquipmentStatus status={equipment.status} /></dd></div><div className="equipment-card-location"><dt>Khu vực</dt><dd><EnvironmentOutlined aria-hidden="true" /> {equipment.location || 'Chưa xác định'}</dd></div></dl>
+                <dl>
+                  <div><dt>Nhóm thiết bị</dt><dd><span className="equipment-category">{equipment.category}</span></dd></div>
+                  <div><dt>Ưu tiên</dt><dd><Tag color={equipment.priorityLevel === 'Critical' ? 'error' : equipment.priorityLevel === 'High' ? 'warning' : 'default'}>{equipment.priorityLevel || 'Normal'}</Tag></dd></div>
+                  <div><dt>Trạng thái</dt><dd><EquipmentStatus status={equipment.status} /></dd></div>
+                  <div className="equipment-card-location"><dt>Khu vực</dt><dd><EnvironmentOutlined aria-hidden="true" /> {equipment.location || 'Chưa xác định'}</dd></div>
+                </dl>
                 {renderActions(equipment)}
               </article>)}
               {!items.length && (busy ? <div className="equipment-loading">Đang tải thiết bị...</div> : emptyState)}
@@ -144,11 +159,10 @@ export default function EquipmentPage() {
 
       <EquipmentFormModal open={formOpen} onClose={() => setFormOpen(false)} />
       <EquipmentUpdateModal equipment={editingEquipment} onClose={() => setEditingEquipment(null)} />
-      <EquipmentDetailsModal equipment={viewingEquipment && (items.find(item => item.id === viewingEquipment.id) || viewingEquipment)} onClose={() => setViewingEquipment(null)}
+      <EquipmentDetailsModal equipment={viewingEquipment} onClose={() => setViewingEquipment(null)}
         onEdit={equipment => { setViewingEquipment(null); setEditingEquipment(equipment) }}
         onViewCamera={equipment => { setViewingEquipment(null); setViewingCamera(equipment) }} />
-      {viewingCamera && <CameraViewModal key={viewingCamera.id} equipment={viewingCamera} onClose={() => setViewingCamera(null)} />}
+      <CameraViewModal equipment={viewingCamera} onClose={() => setViewingCamera(null)} />
     </div>
   </ConfigProvider>
 }
-

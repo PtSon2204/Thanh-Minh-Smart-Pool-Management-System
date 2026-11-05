@@ -11,4 +11,5 @@ public sealed class ResolveInspectionItemCommand : IRequest<DailyInspectionDto>
     public Guid AdminId { get; set; }
     public string Action { get; set; } = string.Empty; // "Repaired" hoặc "Replaced"
     public string? Note { get; set; }
+    public List<string> ResolutionImageUrls { get; set; } = [];
 }
