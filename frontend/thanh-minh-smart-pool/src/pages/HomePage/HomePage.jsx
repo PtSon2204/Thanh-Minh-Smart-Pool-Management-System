@@ -87,7 +87,6 @@ export default function HomePage() {
   })
 
   const currentSwimmers = liveStatus?.currentSwimmers ?? 0
-  const maxCapacity = liveStatus?.maxCapacity ?? 100
   const isMaintenance = liveStatus?.operationalStatus === 'Maintenance'
   const isCrowded = liveStatus?.isCrowded ?? false
   const statusReason = liveStatus?.statusReason

@@ -6,25 +6,22 @@ import {
   TimePicker,
   Radio,
   Input,
-  Button,
   Card,
   Row,
   Col,
   Statistic,
-  Tag,
   notification,
   Divider,
 } from 'antd'
 import {
   SettingOutlined,
-  DashboardOutlined,
   UserOutlined,
   ShoppingOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import poolAccessService from '../../tickets/services/poolAccessService'
 
 export default function PoolOperationalSettingsModal({ open, onClose }) {
@@ -32,7 +29,7 @@ export default function PoolOperationalSettingsModal({ open, onClose }) {
   const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
 
-  const { data: liveStatus, isLoading, refetch } = useQuery({
+  const { data: liveStatus } = useQuery({
     queryKey: ['poolLiveStatus'],
     queryFn: poolAccessService.getLiveStatus,
     enabled: open,
@@ -97,7 +94,7 @@ export default function PoolOperationalSettingsModal({ open, onClose }) {
     }
   }
 
-  const isMaintenance = liveStatus?.operationalStatus === 'Maintenance'
+  // const isMaintenance = liveStatus?.operationalStatus === 'Maintenance'
 
   return (
     <Modal

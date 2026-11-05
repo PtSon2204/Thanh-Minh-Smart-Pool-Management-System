@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import HomePage from "../pages/HomePage/HomePage";
 import AboutPage from "../pages/AboutPage/AboutPage";
@@ -39,6 +39,7 @@ import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage"
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
 import DailyInspectionHistoryPage from "../pages/admin/equipments/DailyInspectionHistoryPage";
+import PoolOperationsPage from "../pages/admin/equipments/PoolOperationsPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import WaitingInvoicesPage from "../pages/admin/payments/WaitingInvoicesPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
@@ -147,6 +148,16 @@ const router = createBrowserRouter([
                 element: <DailyInspectionHistoryPage />,
               },
               {
+                path: "equipments/operations",
+                element: <PoolOperationsPage />,
+              },
+              {
+                path: "pool-operations",
+                element: (
+                  <Navigate to="/admin/equipments/operations" replace />
+                ),
+              },
+              {
                 path: "equipment",
                 element: (
                   <Navigate to="/admin/equipments/list-equipments" replace />
@@ -241,4 +252,3 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
-

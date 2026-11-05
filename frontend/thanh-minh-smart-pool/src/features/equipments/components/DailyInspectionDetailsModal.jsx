@@ -30,12 +30,14 @@ import {
   LoadingOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
+import { useQueryClient } from '@tanstack/react-query'
+import CameraCaptureModal from './CameraCaptureModal'
 import { useResolveInspectionItem } from '../hooks/useInspections'
 import { useAuthStore } from '../../../features/auth/store/authStore'
 import inspectionService from '../services/inspectionService'
 import poolAccessService from '../../tickets/services/poolAccessService'
 
-const { Text } = Typography
+
 const { TextArea } = Input
 
 export default function DailyInspectionDetailsModal({
@@ -66,6 +68,41 @@ export default function DailyInspectionDetailsModal({
   const [resolveImages, setResolveImages] = useState([])
   const [isUploadingResolve, setIsUploadingResolve] = useState(false)
   const [suspendingPool, setSuspendingPool] = useState(false)
+  const [cameraModalOpen, setCameraModalOpen] = useState(false)
+  const queryClient = useQueryClient()
+
+  const handleSuspendPool = () => {
+    Modal.confirm({
+      title: 'Xác nhận tạm dừng hoạt động bể bơi?',
+      icon: <WarningOutlined style={{ color: '#dc2626' }} />,
+      content: (
+        <div>
+          <p>
+            Bạn có chắc chắn muốn chuyển trạng thái bể bơi sang <strong>Bảo trì khẩn cấp</strong> do có thiết bị cốt lõi bị hư hỏng?
+          </p>
+          <p style={{ color: '#dc2626', fontSize: 13 }}>
+            Hệ thống sẽ tạm khóa đặt vé online và hiển thị banner thông báo bảo trì tại trang chủ cho khách hàng.
+          </p>
+        </div>
+      ),
+      okText: 'Xác nhận tạm dừng bể',
+      cancelText: 'Hủy bỏ',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          setSuspendingPool(true)
+          const reason = `Tạm dừng khẩn cấp do ${criticalIssueItems.map((c) => c.equipmentName).join(', ')} gặp sự cố (Biên bản ${dayjs(inspection?.inspectionDate).format('DD/MM/YYYY')}).`
+          await poolAccessService.toggleMaintenance('Maintenance', reason)
+          message.success('Đã chuyển trạng thái bể bơi sang Bảo trì khẩn cấp.')
+          queryClient.invalidateQueries({ queryKey: ['poolLiveStatus'] })
+        } catch (err) {
+          message.error(err?.response?.data?.message || 'Lỗi khi tạm dừng hoạt động bể bơi.')
+        } finally {
+          setSuspendingPool(false)
+        }
+      },
+    })
+  }
 
   const allItems = useMemo(() => inspection?.items || [], [inspection])
 
@@ -78,6 +115,7 @@ export default function DailyInspectionDetailsModal({
     [allItems]
   )
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const criticalIssueItems = useMemo(
     () =>
       issueItems.filter((i) => {
@@ -106,8 +144,29 @@ export default function DailyInspectionDetailsModal({
     setResolveImages(item.resolutionImageUrls || [])
   }
 
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
+  const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png']
+
+  const validateImageFiles = (files) => {
+    const invalid = Array.from(files).filter((f) => {
+      const ext = '.' + f.name.split('.').pop().toLowerCase()
+      return !ALLOWED_IMAGE_TYPES.includes(f.type) || !ALLOWED_IMAGE_EXTS.includes(ext)
+    })
+    return invalid
+  }
+
   const handleResolveImageSelected = async (files) => {
     if (!files || files.length === 0) return
+
+    const invalidFiles = validateImageFiles(files)
+    if (invalidFiles.length > 0) {
+      notification.error({
+        message: 'Định dạng file không được hỗ trợ',
+        description: `File "${invalidFiles.map((f) => f.name).join('", "')}" không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG, JPEG.`,
+      })
+      return
+    }
+
     if (resolveImages.length >= 5) {
       notification.warning({ message: 'Tối đa 5 ảnh minh chứng.' })
       return
@@ -676,34 +735,21 @@ export default function DailyInspectionDetailsModal({
 
             {resolveImages.length < 5 && (
               <Space size="small">
-                {/* Nút 1: Chụp ảnh trực tiếp từ Camera điện thoại */}
-                <label style={{ cursor: isUploadingResolve ? 'not-allowed' : 'pointer' }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    disabled={isUploadingResolve}
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      handleResolveImageSelected(e.target.files)
-                      e.target.value = ''
-                    }}
-                  />
-                  <Button
-                    size="small"
-                    icon={isUploadingResolve ? <LoadingOutlined /> : <CameraOutlined />}
-                    disabled={isUploadingResolve}
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    Chụp ảnh sau khi sửa
-                  </Button>
-                </label>
+                {/* Nút 1: Mở Camera trực tiếp */}
+                <Button
+                  size="small"
+                  icon={isUploadingResolve ? <LoadingOutlined /> : <CameraOutlined />}
+                  disabled={isUploadingResolve}
+                  onClick={() => setCameraModalOpen(true)}
+                >
+                  Chụp ảnh sau khi sửa
+                </Button>
 
-                {/* Nút 2: Tải ảnh từ Thư viện */}
+                {/* Nút 2: Tải ảnh từ máy / Thư viện */}
                 <label style={{ cursor: isUploadingResolve ? 'not-allowed' : 'pointer' }}>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                     multiple
                     disabled={isUploadingResolve}
                     style={{ display: 'none' }}
@@ -729,6 +775,19 @@ export default function DailyInspectionDetailsModal({
             </div>
           </div>  
         </div>
+      
+      {cameraModalOpen && (
+        <CameraCaptureModal
+          open={cameraModalOpen}
+          onClose={() => setCameraModalOpen(false)}
+          onCapture={async (file) => {
+            await handleResolveImageSelected([file])
+          }}
+          title={`Chụp ảnh khắc phục - ${resolveTarget?.equipmentName || ''}`}
+          currentCount={resolveImages.length}
+        />
+      )}
+
       </Modal>
     </>
   )

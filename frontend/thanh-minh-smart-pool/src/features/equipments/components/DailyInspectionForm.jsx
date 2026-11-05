@@ -32,6 +32,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import CameraCaptureModal from './CameraCaptureModal'
 import { useInspectionForm, useSubmitInspection } from '../hooks/useInspections'
 import inspectionService from '../services/inspectionService'
 
@@ -78,6 +79,7 @@ export default function DailyInspectionForm({ onSuccess }) {
   const [formSearch, setFormSearch] = useState('')
   const [filterOnlyIssues, setFilterOnlyIssues] = useState(false)
   const [uploadingByEqId, setUploadingByEqId] = useState({})
+  const [cameraModalTarget, setCameraModalTarget] = useState(null)
 
   // Xác định ca trực được chọn (mặc định ưu tiên ca đang mở từ backend hoặc ca đầu tiên)
   const effectiveShiftId =
@@ -131,8 +133,29 @@ export default function DailyInspectionForm({ onSuccess }) {
     }))
   }
 
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
+  const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png']
+
+  const validateImageFiles = (files) => {
+    const invalid = Array.from(files).filter((f) => {
+      const ext = '.' + f.name.split('.').pop().toLowerCase()
+      return !ALLOWED_IMAGE_TYPES.includes(f.type) || !ALLOWED_IMAGE_EXTS.includes(ext)
+    })
+    return invalid
+  }
+
   const handleImageFileSelected = async (equipmentId, files) => {
     if (!files || files.length === 0) return
+
+    const invalidFiles = validateImageFiles(files)
+    if (invalidFiles.length > 0) {
+      notification.error({
+        message: 'Định dạng file không được hỗ trợ',
+        description: `File "${invalidFiles.map((f) => f.name).join('", "')}" không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG, JPEG.`,
+      })
+      return
+    }
+
     const currentImages = itemEdits[equipmentId]?.defectImageUrls || []
     if (currentImages.length >= 5) {
       notification.warning({
@@ -446,34 +469,27 @@ export default function DailyInspectionForm({ onSuccess }) {
 
                 {images.length < 5 && (
                   <Space size="small">
-                    {/* Nút 1: Chụp ảnh trực tiếp từ Camera điện thoại */}
-                    <label style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        disabled={isUploading}
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          handleImageFileSelected(record.equipmentId, e.target.files)
-                          e.target.value = '' // Reset ngay để chụp nối tiếp các ảnh sau không bị chặn
-                        }}
-                      />
-                      <Button
-                        size="small"
-                        icon={isUploading ? <LoadingOutlined /> : <CameraOutlined />}
-                        disabled={isUploading}
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        Chụp ảnh
-                      </Button>
-                    </label>
+                    {/* Nút 1: Chụp ảnh trực tiếp qua Camera Modal */}
+                    <Button
+                      size="small"
+                      icon={isUploading ? <LoadingOutlined /> : <CameraOutlined />}
+                      disabled={isUploading}
+                      onClick={() =>
+                        setCameraModalTarget({
+                          equipmentId: record.equipmentId,
+                          equipmentName: record.equipmentName,
+                          currentCount: images.length,
+                        })
+                      }
+                    >
+                      Chụp ảnh
+                    </Button>
 
                     {/* Nút 2: Tải ảnh từ Thư viện / Bộ sưu tập */}
                     <label style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                         multiple
                         disabled={isUploading}
                         style={{ display: 'none' }}
@@ -731,6 +747,22 @@ export default function DailyInspectionForm({ onSuccess }) {
           style={{ marginTop: 12 }}
         />
       </Modal>
+      {cameraModalTarget && (
+        <CameraCaptureModal
+          open={Boolean(cameraModalTarget)}
+          onClose={() => setCameraModalTarget(null)}
+          onCapture={async (file) => {
+            await handleImageFileSelected(cameraModalTarget.equipmentId, [file])
+          }}
+          title={`Chụp ảnh sự cố - ${cameraModalTarget.equipmentName}`}
+          currentCount={
+            itemEdits[cameraModalTarget.equipmentId]?.defectImageUrls !== undefined
+              ? (itemEdits[cameraModalTarget.equipmentId]?.defectImageUrls?.length || 0)
+              : (formItems.find((i) => i.equipmentId === cameraModalTarget.equipmentId)?.defectImageUrls?.length || 0)
+          }
+        />
+      )}
+
     </div>
   )
 }

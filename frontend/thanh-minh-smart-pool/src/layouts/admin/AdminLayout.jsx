@@ -395,6 +395,14 @@ export default function AdminLayout() {
             </Link>
           ),
         },
+        isAdmin && {
+          key: "/admin/equipments/operations",
+          label: (
+            <Link to="/admin/equipments/operations">
+              Quản lý vận hành bể
+            </Link>
+          ),
+        },
       ].filter(Boolean),
     },
     (isAdmin || role === "SALES") && {

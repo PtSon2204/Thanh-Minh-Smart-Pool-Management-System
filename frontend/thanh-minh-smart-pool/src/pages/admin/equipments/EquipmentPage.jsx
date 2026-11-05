@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, ConfigProvider, Empty, Input, Pagination, Popconfirm, Select, Spin, Table, Tag } from 'antd'
-import { EditOutlined, EnvironmentOutlined, EyeOutlined, FilterOutlined, LockOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, ToolOutlined, UnlockOutlined } from '@ant-design/icons'
+import { Alert, Button, ConfigProvider, Empty, Input, Pagination, Popconfirm, Select, Space, Spin, Table, Tag } from 'antd'
+import { EditOutlined, EnvironmentOutlined, EyeOutlined, FilterOutlined, LockOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, ToolOutlined, UnlockOutlined, DashboardOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { useEquipmentFilters, useEquipments } from "../../../features/equipments/hooks/useEquipments"
 import { useSetEquipmentStatus } from "../../../features/equipments/hooks/useEquipmentMutations"
 import { equipmentStatuses } from "../../../features/equipments/utils/equipmentDisplay"
@@ -46,6 +47,7 @@ function EquipmentActions({ equipment, onView, onEdit, statusMutation }) {
 }
 
 export default function EquipmentPage() {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingEquipment, setEditingEquipment] = useState(null)
@@ -110,7 +112,18 @@ export default function EquipmentPage() {
           <span className="equipment-header-icon" aria-hidden="true"><ToolOutlined /></span>
           <div><h1>Quản lý thiết bị</h1><p>Theo dõi và quản lý thiết bị trong khu vực hồ bơi.</p></div>
         </div>
-        <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>Thêm thiết bị</Button>
+        <Space>
+          <Button
+            icon={<DashboardOutlined />}
+            style={{ height: 40, borderRadius: 8, fontWeight: 500 }}
+            onClick={() => navigate('/admin/equipments/operations')}
+          >
+            Quản lý vận hành bể
+          </Button>
+          <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>
+            Thêm thiết bị
+          </Button>
+        </Space>
       </header>
 
       <section className="equipment-filter-panel" aria-label="Tìm kiếm và lọc thiết bị">

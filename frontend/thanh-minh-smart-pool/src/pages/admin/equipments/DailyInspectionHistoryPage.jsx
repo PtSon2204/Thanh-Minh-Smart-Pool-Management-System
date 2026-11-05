@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ConfigProvider, Button } from 'antd'
-import { HistoryOutlined, SettingOutlined } from '@ant-design/icons'
+import { ConfigProvider } from 'antd'
+import { HistoryOutlined } from '@ant-design/icons'
 import DailyInspectionHistory from '../../../features/equipments/components/DailyInspectionHistory'
 import PoolOperationalSettingsModal from '../../../features/equipments/components/PoolOperationalSettingsModal'
 import '../../../features/equipments/styles/equipmentManagement.css'
@@ -33,15 +33,6 @@ export default function DailyInspectionHistoryPage() {
               </p>
             </div>
           </div>
-
-          <Button
-            type="primary"
-            icon={<SettingOutlined />}
-            style={{ background: '#0284c7', borderColor: '#0284c7', height: 40, fontWeight: 600, borderRadius: 8 }}
-            onClick={() => setSettingsOpen(true)}
-          >
-            Cấu hình vận hành & Sức chứa bể
-          </Button>
         </header>
 
         <DailyInspectionHistory />
@@ -54,4 +45,3 @@ export default function DailyInspectionHistoryPage() {
     </ConfigProvider>
   )
 }
-
