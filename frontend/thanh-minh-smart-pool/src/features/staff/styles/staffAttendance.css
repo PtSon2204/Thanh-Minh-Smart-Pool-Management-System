@@ -1,0 +1,72 @@
+.staff-attendance-qr {
+  min-width: 0;
+}
+
+.staff-attendance-qr > svg {
+  height: auto;
+  max-width: 100%;
+}
+
+.staff-attendance-scan-page .staff-schedule-table {
+  overflow-wrap: anywhere;
+}
+
+.staff-qr-attendance-page .staff-week-shift-heading {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.staff-attendance-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--list-divider);
+  border-radius: var(--list-radius);
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.staff-attendance-card-identity {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.staff-attendance-card-identity strong {
+  flex: 1 1 8rem;
+  font-size: 14px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-attendance-card-identity .ant-tag {
+  margin: 0;
+}
+
+.staff-attendance-card-times {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+}
+
+.staff-attendance-card-times dt {
+  color: var(--list-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.staff-attendance-card-times dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-attendance-card .staff-attendance-row-actions {
+  justify-content: flex-start;
+}
+
+.staff-attendance-card .staff-attendance-row-actions .ant-btn {
+  white-space: normal;
+}

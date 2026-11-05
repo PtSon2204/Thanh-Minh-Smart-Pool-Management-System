@@ -56,7 +56,7 @@ export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, em
           current[item.localId ? 'drafts' : 'assignments'].push(item)
           groups.set(key, current)
         })
-        return <section className="staff-week-day" key={workDate}>
+        return <section className="staff-week-day" key={workDate} aria-label={`${dayjsLabel(workDate)}, ${formatDate(workDate)}`}>
           <header><strong>{dayjsLabel(workDate)}</strong><span>{formatDate(workDate)}</span></header>
             {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.shiftId} onAdd={(shift) => onAdd({ ...shift, workDate })} onRemove={onRemove} onAttendance={onAttendance} onCancel={onCancel} cancelId={cancelId} actionsDisabled={actionsDisabled} draftsLocked={draftsLocked} canAssign={canAssign} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
         </section>
