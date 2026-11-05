@@ -232,6 +232,10 @@
   min-width: 0;
 }
 
+.staff-profiles-drawer .ant-descriptions-item-content {
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 641px) and (max-width: 1024px) {
   .staff-profiles-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -11,6 +11,7 @@ import { ServiceListHeader } from "../../../features/services/components/Service
 import "../../../features/services/styles/serviceManagement.css"
 import "../../../components/shared/styles/adminActions.css"
 import "../../../features/staff/styles/staffSchedule.css"
+import "../../../features/staff/styles/staffAttendance.css"
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -100,7 +101,7 @@ export default function StaffQrAttendancePage() {
 
   if (!isAdmin) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên có thể tạo phiên chấm công QR." /></div>
 
-  return <div className="service-list-page staff-schedule-page">
+  return <div className="service-list-page staff-schedule-page staff-qr-attendance-page">
     <ServiceListHeader title="Chấm công QR" />
     <section className="service-list-toolbar staff-schedule-toolbar" aria-label="Chọn phiên chấm công QR">
       <div className="service-list-filters staff-schedule-filters">
@@ -140,7 +141,7 @@ export default function StaffQrAttendancePage() {
           <Descriptions.Item label="Ca">{selectedGroup.shift.shiftName || 'Ca làm việc'} · {formatTime(selectedGroup.shift.startTime)} - {formatTime(selectedGroup.shift.endTime)}</Descriptions.Item>
         </Descriptions>
         {qrSession.canDisplay
-          ? <div className="admin-management-state"><QrDisplay payload={qrSession.state.session.qrPayload} size={220} includeMargin /></div>
+          ? <div className="admin-management-state staff-attendance-qr"><QrDisplay payload={qrSession.state.session.qrPayload} size={220} includeMargin /></div>
           : <div className="admin-management-state"><Spin tip="Đang làm mới mã QR" /></div>}
         <div className="admin-action-group"><Button className="admin-action-button admin-action-button--danger" danger onClick={() => { void qrSession.stop() }} loading={qrSession.state.phase === 'stopping'}>Dừng phiên QR</Button></div>
       </section>}

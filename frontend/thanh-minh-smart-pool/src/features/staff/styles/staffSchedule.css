@@ -422,7 +422,58 @@
 }
 
 .staff-employee-week {
+  max-width: 100%;
   min-width: 0;
+}
+
+.staff-employee-summary,
+.staff-employee-agenda,
+.staff-employee-agenda-day,
+.staff-employee-agenda-card {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.staff-employee-summary {
+  gap: var(--space-1);
+}
+
+.staff-employee-weekly-hours,
+.staff-employee-agenda-empty {
+  color: var(--list-muted);
+  font-size: var(--schedule-text-small);
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.staff-employee-agenda {
+  gap: var(--space-4);
+}
+
+.staff-employee-agenda-day {
+  background: var(--list-canvas);
+  border: var(--schedule-divider-width) solid var(--list-divider);
+  border-radius: var(--list-radius);
+  padding: var(--space-3);
+}
+
+.staff-employee-agenda-day > header .staff-employee-date {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.staff-employee-agenda-card {
+  background: var(--admin-surface);
+  border: var(--schedule-divider-width) solid var(--list-divider);
+  border-radius: var(--list-radius);
+  padding: var(--space-3);
+}
+
+.staff-employee-agenda-empty {
+  margin: 0;
 }
 
 .staff-employee-week:focus-visible {
@@ -619,6 +670,16 @@
   min-width: 0;
 }
 
+.staff-assignment-row .ant-select {
+  width: 100%;
+}
+
+.staff-assignment-row .ant-select-selection-item,
+.staff-assignment-modal .ant-alert-description {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .staff-assignment-remove {
   align-self: start;
   margin-top: var(--space-8);
@@ -632,6 +693,57 @@
   .staff-week-shift-heading {
     align-items: baseline;
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 991px) {
+  .staff-assignment-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .staff-assignment-row > .ant-form-item {
+    grid-column: 1;
+  }
+
+  .staff-assignment-remove {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .staff-week-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-week-shift-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-assignment-toolbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+
+  .staff-assignment-toolbar > span {
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
+  .staff-assignment-modal .ant-modal-footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .staff-assignment-modal .ant-modal-footer > .ant-btn {
+    height: auto;
+    margin-inline-start: 0;
+    min-height: var(--space-8);
+    padding-block: var(--space-2);
+    white-space: normal;
+    width: 100%;
   }
 }
 

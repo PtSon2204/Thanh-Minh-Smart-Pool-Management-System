@@ -4,16 +4,21 @@ import dayjs from 'dayjs'
 import { assignmentDateError, conflictFor, expandAssignmentRows, formatDate, formatTime, isOvernight, vietnamToday, weekDates } from './scheduleUtils'
 
 const dayNames = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
+const repeatedShiftMessage = 'Ca đã có trong ngày này. Thêm nhân viên vào dòng đã chọn.'
+
+function shiftSelectedInOtherRow(shiftId, workDate, rows, index) {
+  return Boolean(shiftId && workDate && rows.some((row, rowIndex) => rowIndex !== index && row?.shiftId === shiftId && row?.workDate?.format('YYYY-MM-DD') === workDate.format('YYYY-MM-DD')))
+}
 
 function rowConflicts(row, index, rows, assignments, drafts, shifts, employees) {
   if (!row?.shiftId || !row?.workDate) return []
   const otherRows = expandAssignmentRows(rows.filter((_, rowIndex) => rowIndex !== index))
-  return (row?.employeeIds || []).flatMap((employeeId) => {
+  return [...(shiftSelectedInOtherRow(row.shiftId, row.workDate, rows, index) ? [repeatedShiftMessage] : []), ...(row?.employeeIds || []).flatMap((employeeId) => {
     const employee = employees.find((item) => item.employeeId === employeeId)
     const candidate = { employeeId, shiftId: row.shiftId, workDate: row.workDate?.format('YYYY-MM-DD') }
     const error = !employee ? 'Nhân viên không còn đủ điều kiện.' : conflictFor(candidate, [...assignments, ...drafts, ...otherRows], shifts)
     return error ? [`${employee?.name || 'Nhân viên'}: ${error}`] : []
-  })
+  })]
 }
 
 function AssignmentRow({ field, index, rows, monday, employees, shifts, assignments, drafts, remove }) {
@@ -21,11 +26,12 @@ function AssignmentRow({ field, index, rows, monday, employees, shifts, assignme
   const otherRows = expandAssignmentRows(rows.filter((_, rowIndex) => rowIndex !== index))
   const conflicts = rowConflicts(row, index, rows, assignments, drafts, shifts, employees)
   const shiftOptions = shifts.map((shift) => {
+    const selectedElsewhere = shiftSelectedInOtherRow(shift.id, row?.workDate, rows, index)
     const conflicting = Boolean(row?.workDate && row?.employeeIds?.some((employeeId) => conflictFor({ employeeId, shiftId: shift.id, workDate: row.workDate.format('YYYY-MM-DD') }, [...assignments, ...drafts, ...otherRows], shifts)))
     return {
       value: shift.id,
-      label: `${shift.name} · ${formatTime(shift.startTime)} - ${formatTime(shift.endTime)}${isOvernight(shift) ? ' · ngày sau' : ''}${conflicting ? ' · Đã phân công / trùng giờ' : ''}`,
-      disabled: conflicting,
+      label: `${shift.name} · ${formatTime(shift.startTime)} - ${formatTime(shift.endTime)}${isOvernight(shift) ? ' · ngày sau' : ''}${selectedElsewhere ? ` · ${repeatedShiftMessage}` : conflicting ? ' · Đã phân công / trùng giờ' : ''}`,
+      disabled: shift.id !== row?.shiftId && (selectedElsewhere || conflicting),
     }
   })
   const dateError = assignmentDateError(row?.workDate?.format('YYYY-MM-DD'), monday)

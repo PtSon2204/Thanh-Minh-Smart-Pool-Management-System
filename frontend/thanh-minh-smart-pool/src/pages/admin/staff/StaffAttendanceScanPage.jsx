@@ -13,6 +13,7 @@ import { ServiceListHeader } from "../../../features/services/components/Service
 import "../../../features/services/styles/serviceManagement.css"
 import "../../../components/shared/styles/adminActions.css"
 import "../../../features/staff/styles/staffSchedule.css"
+import "../../../features/staff/styles/staffAttendance.css"
 
 const VERIFIED_QR_PURPOSE = 'StaffAttendance'
 
