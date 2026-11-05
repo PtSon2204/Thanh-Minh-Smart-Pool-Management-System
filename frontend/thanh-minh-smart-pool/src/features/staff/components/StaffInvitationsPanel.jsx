@@ -97,7 +97,7 @@ export default function StaffInvitationsPanel({ createOpen, onCloseCreate, emplo
     {error && <Alert type="error" showIcon title="Không thể hoàn tất thao tác" description={error} />}
     {uncertain && <Alert type="warning" showIcon title="Kết quả chưa xác định" description="Không gửi lại ngay. Tải lại trạng thái và kiểm tra lời mời trước khi tiếp tục." />}
     <Table rowKey={(row) => row.invitation.id} dataSource={items} columns={columns} loading={loading} pagination={false} scroll={{ x: 780 }} locale={{ emptyText: <Empty description="Chưa có lời mời." /> }} />
-    <Space className="onboarding-actions"><Button disabled={page === 1 || loading} onClick={() => { setLoading(true); setPage(page - 1) }}>Trang trước</Button><span>Trang {page}</span><Button disabled={items.length < 20 || loading} onClick={() => { setLoading(true); setPage(page + 1) }}>Trang sau</Button></Space>
+    <Space wrap className="onboarding-actions"><Button disabled={page === 1 || loading} onClick={() => { setLoading(true); setPage(page - 1) }}>Trang trước</Button><span>Trang {page}</span><Button disabled={items.length < 20 || loading} onClick={() => { setLoading(true); setPage(page + 1) }}>Trang sau</Button></Space>
     <Drawer title="Mời nhân viên mới" open={createOpen} onClose={() => { if (!busy) { setCreateError(''); onCloseCreate() } }} width={520} destroyOnHidden>
       <div className="staff-invitation-content">
       <Alert type="info" title="Chỉ dành cho email chưa có tài khoản" description="Không chuyển khách hàng thành nhân viên. Lời mời chưa tạo tài khoản hoặc quyền làm việc." />
@@ -126,7 +126,7 @@ export default function StaffInvitationsPanel({ createOpen, onCloseCreate, emplo
       </>}
       </div>
     </Drawer>
-    <Modal title={actions[decision?.action]} open={Boolean(decision)} onCancel={() => !busy && setDecision(null)} footer={<Space><Button disabled={busy} onClick={() => setDecision(null)}>Quay lại</Button><Button type="primary" danger={['reject', 'cancel'].includes(decision?.action)} loading={busy} disabled={uncertain || (needsReason && !reason.trim()) || (decision?.action === 'approve' && !confirmed)} onClick={decide}>{actions[decision?.action]}</Button></Space>} destroyOnHidden>
+    <Modal title={actions[decision?.action]} open={Boolean(decision)} onCancel={() => !busy && setDecision(null)} footer={<Space wrap><Button disabled={busy} onClick={() => setDecision(null)}>Quay lại</Button><Button type="primary" danger={['reject', 'cancel'].includes(decision?.action)} loading={busy} disabled={uncertain || (needsReason && !reason.trim()) || (decision?.action === 'approve' && !confirmed)} onClick={decide}>{actions[decision?.action]}</Button></Space>} destroyOnHidden>
       <div className="staff-review-confirmation">
       {error && <Alert type="error" title={error} />}
       {needsReason && <Input.TextArea aria-label="Lý do quyết định" rows={4} maxLength={1000} showCount value={reason} onChange={(event) => setReason(event.target.value)} />}

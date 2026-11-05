@@ -12,6 +12,7 @@ import { ServiceListHeader } from "../../../features/services/components/Service
 import "../../../features/services/styles/serviceManagement.css"
 import "../../../components/shared/styles/adminActions.css"
 import "../../../features/staff/styles/staffSchedule.css"
+import "../../../features/staff/styles/staffAttendance.css"
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -253,7 +254,7 @@ export default function StaffAttendancePage() {
       title={<>Check-in / Check-out <span className="staff-schedule-count">{attendance.isLoading ? 'Đang tải…' : `${attendance.data?.totalCount ?? 0} phân công`}</span></>}
       action={<div className="admin-action-group">
         {openedFromShortcut && <Button disabled={Boolean(pendingId)} onClick={() => { setSearchParams({}); setErrorContext(null) }}>Về hôm nay</Button>}
-        <DatePicker aria-label="Ngày chấm công" allowClear={false} value={dayjs(selection.date)} disabled={Boolean(pendingId)} onChange={(value) => { if (value) { setSearchParams({ date: value.format('YYYY-MM-DD') }); setErrorContext(null); setRefreshLocked(false) } }} />
+        <DatePicker aria-label="Ngày chấm công" allowClear={false} value={dayjs(selection.date)} format="DD/MM/YYYY" disabled={Boolean(pendingId)} onChange={(value) => { if (value) { setSearchParams({ date: value.format('YYYY-MM-DD') }); setErrorContext(null); setRefreshLocked(false) } }} />
         <Button className="admin-action-button admin-action-button--primary" icon={<ReloadOutlined />} loading={attendance.isFetching} disabled={Boolean(pendingId)} onClick={refresh}>Làm mới</Button>
       </div>}
     />
