@@ -23,6 +23,8 @@ public sealed class ClassRegistrationConfiguration : IEntityTypeConfiguration<Cl
         entity.Property(e => e.RegisteredAt).HasColumnName("registered_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
         entity.Property(e => e.ConfirmedAt).HasColumnName("confirmed_at").HasColumnType("timestamp with time zone");
         entity.Property(e => e.CancelledAt).HasColumnName("cancelled_at").HasColumnType("timestamp with time zone");
+        entity.Property(e => e.CancelledByUserId).HasColumnName("cancelled_by_user_id");
+        entity.Property(e => e.CancelReason).HasColumnName("cancel_reason").HasMaxLength(500);
         entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
         entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
 
@@ -36,6 +38,9 @@ public sealed class ClassRegistrationConfiguration : IEntityTypeConfiguration<Cl
             .HasForeignKey(e => e.CustomerUserId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("class_registrations_customer_user_id_fkey");
+        entity.HasOne<User>().WithMany().HasForeignKey(e => e.CancelledByUserId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("class_registrations_cancelled_by_user_id_fkey");
 
         entity.HasIndex(e => new { e.ClassId, e.CustomerUserId })
             .IsUnique()

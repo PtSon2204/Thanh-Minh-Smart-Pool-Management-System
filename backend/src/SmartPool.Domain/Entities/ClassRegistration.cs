@@ -16,6 +16,10 @@ public class ClassRegistration
 
     public DateTime? CancelledAt { get; set; }
 
+    public Guid? CancelledByUserId { get; set; }
+
+    public string? CancelReason { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

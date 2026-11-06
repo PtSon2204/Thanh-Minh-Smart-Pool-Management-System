@@ -36,8 +36,8 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, o
     {registrationQuery.isError && <Alert type="error" showIcon title="Không tải được trạng thái đăng ký"
       action={<Button icon={<ReloadOutlined />} loading={registrationQuery.isFetching} onClick={() => registrationQuery.refetch()}>Thử lại</Button>} />}
     {!registrationQuery.isPending && !registrationQuery.isError && <>
-      {confirmed ? <Alert type="success" showIcon title="Bạn đã đăng ký lớp thành công"
-        description="Đăng ký đã được xác nhận. Lịch học của bạn ở thời khóa biểu phía dưới." />
+      {confirmed ? <Alert type="info" showIcon title="Bạn đang tham gia lớp này"
+        description="Xem lịch học của bạn ở thời khóa biểu phía dưới." />
         : cancelled ? <>
           <Alert type="warning" showIcon title="Đăng ký trước đã bị hủy"
             description={canRegister ? 'Bạn có thể đăng ký lại nếu lớp vẫn còn chỗ.' : availability.text} />
