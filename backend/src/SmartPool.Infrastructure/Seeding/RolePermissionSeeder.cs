@@ -79,7 +79,7 @@ public static class RolePermissionSeeder
                 ["staff_schedule"]   = ["read"],
                 ["swim_classes"]     = ["read", "create", "update"],
                 ["class_sessions"]   = ["create", "update"],
-                ["class_registrations"] = ["read"],
+                ["class_registrations"] = ["read", "update"],
                 ["attendance"]       = ["read", "update"],
             },
 

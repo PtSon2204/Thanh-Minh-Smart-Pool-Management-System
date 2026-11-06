@@ -48,7 +48,8 @@ public sealed partial class SwimClassOperations
                 item.ConfirmedAt,
                 item.CancelledAt,
                 item.CancelledByUserId,
-                item.CancelReason))
+                item.CancelReason,
+                item.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<ClassRegistrationResponse>

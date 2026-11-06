@@ -9,4 +9,5 @@ public sealed record ClassRegistrationResponse(
     DateTime? ConfirmedAt,
     DateTime? CancelledAt,
     Guid? CancelledByUserId,
-    string? CancelReason);
+    string? CancelReason,
+    DateTime UpdatedAt);

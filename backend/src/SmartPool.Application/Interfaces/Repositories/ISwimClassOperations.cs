@@ -7,6 +7,7 @@ using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassSessi
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassSession;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RegisterForSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelMyClassRegistration;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassRegistration;
@@ -34,6 +35,8 @@ public interface ISwimClassOperations
         CancellationToken cancellationToken);
     Task<CancelMyClassRegistrationResponse> CancelMyRegistrationAsync(
         Guid classId, Guid customerUserId, CancellationToken cancellationToken);
+    Task<CancelClassRegistrationResponse> CancelClassRegistrationAsync(
+        CancelClassRegistrationCommand request, Guid coachUserId, CancellationToken cancellationToken);
     Task<PagedResponse<SwimClassListItem>> GetListAsync(
         GetSwimClassesQuery request,
         Guid userId,

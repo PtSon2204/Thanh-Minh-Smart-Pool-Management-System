@@ -14,6 +14,7 @@ using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassSessi
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassSession;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RegisterForSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelMyClassRegistration;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassRegistration;
@@ -144,6 +145,25 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         if (!User.TryGetUserId(out _)) return Forbid();
         query.ClassId = classId;
         return await ExecuteAsync(async () => Ok(await sender.Send(query, cancellationToken)));
+    }
+
+    [HttpPatch("{classId:guid}/registrations/{registrationId:guid}/cancel")]
+    [Authorize(Roles = "COACH")]
+    [RequirePermission("class_registrations", "update")]
+    [ProducesResponseType(typeof(CancelClassRegistrationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelRegistration(
+        Guid classId, Guid registrationId,
+        [FromBody] CancelClassRegistrationCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        command.ClassId = classId;
+        command.RegistrationId = registrationId;
+        return await ExecuteAsync(async () => Ok(await sender.Send(command, cancellationToken)));
     }
 
     [HttpPut("{classId:guid}")]
