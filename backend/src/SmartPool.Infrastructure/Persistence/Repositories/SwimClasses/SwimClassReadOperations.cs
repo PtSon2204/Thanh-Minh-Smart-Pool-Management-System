@@ -98,7 +98,10 @@ public sealed partial class SwimClassOperations
                 item.Status,
                 item.RegisteredAt,
                 item.ConfirmedAt,
-                item.CancelledAt))
+                item.CancelledAt,
+                item.Status == "Confirmed" &&
+                !item.Class.Sessions.Any(session =>
+                    session.Status == "Scheduled" && session.StartsAt <= now)))
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<MySwimClassItem>
