@@ -79,6 +79,7 @@ public static class RolePermissionSeeder
                 ["staff_schedule"]   = ["read"],
                 ["swim_classes"]     = ["read", "create", "update"],
                 ["class_sessions"]   = ["create", "update"],
+                ["class_registrations"] = ["read"],
                 ["attendance"]       = ["read", "update"],
             },
 
@@ -155,6 +156,7 @@ public static class RolePermissionSeeder
             {
                 changed = current.Remove("swim_classes") || changed;
                 changed = current.Remove("class_sessions") || changed;
+                changed = current.Remove("class_registrations") || changed;
             }
             if (roleName is "LIFEGUARD" or "SALES")
                 changed = current.Remove("shifts") || changed;

@@ -11,12 +11,15 @@ using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMySwimClasses;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassRegistrations;
 using SmartPool.Application.Common.Models;
 
 namespace SmartPool.Application.Interfaces.Repositories;
 
 public interface ISwimClassOperations
 {
+    Task<PagedResponse<ClassRegistrationResponse>> GetClassRegistrationsAsync(
+        GetClassRegistrationsQuery request, Guid coachUserId, CancellationToken cancellationToken);
     Task<PagedResponse<MySwimClassItem>> GetMyClassesAsync(
         GetMySwimClassesQuery request,
         Guid customerUserId,

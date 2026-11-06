@@ -1,0 +1,12 @@
+using MediatR;
+using SmartPool.Application.Common.Models;
+
+namespace SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassRegistrations;
+
+public sealed class GetClassRegistrationsQuery : IRequest<PagedResponse<ClassRegistrationResponse>>
+{
+    public Guid ClassId { get; set; }
+    public string? Status { get; set; }
+    public int PageIndex { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}

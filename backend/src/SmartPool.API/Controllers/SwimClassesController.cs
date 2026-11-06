@@ -18,6 +18,7 @@ using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMySwimClasses;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassRegistrations;
 using SmartPool.Application.Common.Models;
 
 namespace SmartPool.API.Controllers;
@@ -126,6 +127,22 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out _)) return Forbid();
+        return await ExecuteAsync(async () => Ok(await sender.Send(query, cancellationToken)));
+    }
+
+    [HttpGet("{classId:guid}/registrations")]
+    [Authorize(Roles = "COACH")]
+    [RequirePermission("class_registrations", "read")]
+    [ProducesResponseType(typeof(PagedResponse<ClassRegistrationResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRegistrations(
+        Guid classId, [FromQuery] GetClassRegistrationsQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        query.ClassId = classId;
         return await ExecuteAsync(async () => Ok(await sender.Send(query, cancellationToken)));
     }
 

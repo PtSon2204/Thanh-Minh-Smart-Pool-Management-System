@@ -4,12 +4,62 @@ using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMySwimClasses;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassRegistrations;
 using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
 public sealed partial class SwimClassOperations
 {
+    public async Task<PagedResponse<ClassRegistrationResponse>> GetClassRegistrationsAsync(
+        GetClassRegistrationsQuery request, Guid coachUserId, CancellationToken cancellationToken)
+    {
+        var swimClass = await context.SwimClasses.AsNoTracking()
+            .Where(item => item.Id == request.ClassId)
+            .Select(item => new { item.CreatedByUserId })
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy lớp dạy bơi.");
+
+        if (swimClass.CreatedByUserId != coachUserId)
+            throw new UnauthorizedAccessException("Chỉ Coach tạo lớp được xem danh sách đăng ký.");
+
+        var query = context.ClassRegistrations.AsNoTracking()
+            .Where(item => item.ClassId == request.ClassId);
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            var status = request.Status.Trim();
+            query = query.Where(item => EF.Functions.ILike(item.Status, status));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(item => item.RegisteredAt)
+            .ThenByDescending(item => item.Id)
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(item => new ClassRegistrationResponse(
+                item.Id,
+                item.CustomerUserId,
+                item.CustomerUser.UserProfile != null
+                    ? item.CustomerUser.UserProfile.FullName
+                    : item.CustomerUser.Username,
+                item.Status,
+                item.RegisteredAt,
+                item.ConfirmedAt,
+                item.CancelledAt,
+                item.CancelledByUserId,
+                item.CancelReason))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResponse<ClassRegistrationResponse>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize
+        };
+    }
+
     public async Task<PagedResponse<MySwimClassItem>> GetMyClassesAsync(
         GetMySwimClassesQuery request,
         Guid customerUserId,
