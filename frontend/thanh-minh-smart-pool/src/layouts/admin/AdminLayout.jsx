@@ -44,6 +44,7 @@ import authService from "../../features/auth/services/authService";
 import { getSessionRoles } from "../../features/auth/utils/sessionRoles";
 import { useAlarmSound } from "../../features/safety/hooks/useAlarmSound";
 import { useSafetyAlertSignalR } from "../../features/safety/hooks/useSafetyAlertSignalR";
+import logoImg from "../../assets/logo-be-boi-thanh-minh.png";
 import "./AdminLayout.css";
 
 const { Header, Sider, Content } = Layout;
@@ -234,240 +235,279 @@ export default function AdminLayout() {
       ? "Khách hàng · Coach"
       : roleLabelMap[role] || (isAdmin ? "Quản trị viên" : "Nhân viên");
 
-  const menuItems = [
-    isAdmin && {
-      key: "/admin",
-      icon: <DashboardOutlined />,
-      label: <Link to="/admin">Bảng điều khiển</Link>,
-    },
-    isAdmin && {
-      key: "/admin/users",
-      icon: <UserOutlined />,
-      label: <Link to="/admin/users">Quản lý người dùng</Link>,
-    },
-    isAdmin && {
-      key: "/admin/roles/permissions",
-      icon: <SafetyCertificateOutlined />,
-      label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
-    },
-    isAdmin && {
-      key: "coaches",
-      icon: <AuditOutlined />,
-      label: "Quản lý HLV",
-      children: [
-        {
-          key: "/admin/coaches",
-          label: <Link to="/admin/coaches">Danh sách HLV</Link>,
-        },
-        {
-          key: "/admin/coach-applications",
-          label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
-        },
-      ],
-    },
+  const menuGroups = [
     {
-      key: "staff",
-      icon: <TeamOutlined />,
-      label: "Quản lý nhân viên",
+      type: "group",
+      key: "grp-overview",
+      label: "Tổng quan",
       children: [
         isAdmin && {
-          key: "staff-attendance",
-          label: "Chấm công nhân viên",
+          key: "/admin",
+          icon: <DashboardOutlined />,
+          label: <Link to="/admin">Bảng điều khiển</Link>,
+        },
+      ].filter(Boolean),
+    },
+    {
+      type: "group",
+      key: "grp-users-classes",
+      label: "Người dùng & HLV",
+      children: [
+        isAdmin && {
+          key: "/admin/users",
+          icon: <UserOutlined />,
+          label: <Link to="/admin/users">Quản lý người dùng</Link>,
+        },
+        isAdmin && {
+          key: "/admin/roles/permissions",
+          icon: <SafetyCertificateOutlined />,
+          label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
+        },
+        isAdmin && {
+          key: "coaches",
+          icon: <AuditOutlined />,
+          label: "Quản lý HLV",
           children: [
             {
-              key: "/admin/staff/attendance",
-              label: (
-                <Link to="/admin/staff/attendance">Check-in / Check-out</Link>
-              ),
+              key: "/admin/coaches",
+              label: <Link to="/admin/coaches">Danh sách HLV</Link>,
             },
             {
-              key: "/admin/staff/attendance/qr",
-              label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link>,
+              key: "/admin/coach-applications",
+              label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
             },
           ],
         },
-        (role === "SALES" || role === "LIFEGUARD") && {
-          key: "/admin/staff/attendance/scan",
-          label: (
-            <Link to="/admin/staff/attendance/scan">
-              Quét QR chấm công cá nhân
-            </Link>
-          ),
-        },
-        isAdmin && {
-          key: "/admin/staff/shifts",
-          label: <Link to="/admin/staff/shifts">Ca làm việc</Link>,
-        },
+      ].filter(Boolean),
+    },
+    {
+      type: "group",
+      key: "grp-operations",
+      label: "Vận hành bể bơi",
+      children: [
         {
-          key: "/admin/staff/schedule",
-          label: <Link to="/admin/staff/schedule">Lịch làm việc</Link>,
+          key: "staff",
+          icon: <TeamOutlined />,
+          label: "Quản lý nhân viên",
+          children: [
+            isAdmin && {
+              key: "staff-attendance",
+              label: "Chấm công nhân viên",
+              children: [
+                {
+                  key: "/admin/staff/attendance",
+                  label: (
+                    <Link to="/admin/staff/attendance">Check-in / Check-out</Link>
+                  ),
+                },
+                {
+                  key: "/admin/staff/attendance/qr",
+                  label: <Link to="/admin/staff/attendance/qr">Chấm công QR</Link>,
+                },
+              ],
+            },
+            (role === "SALES" || role === "LIFEGUARD") && {
+              key: "/admin/staff/attendance/scan",
+              label: (
+                <Link to="/admin/staff/attendance/scan">
+                  Quét QR chấm công cá nhân
+                </Link>
+              ),
+            },
+            isAdmin && {
+              key: "/admin/staff/shifts",
+              label: <Link to="/admin/staff/shifts">Ca làm việc</Link>,
+            },
+            {
+              key: "/admin/staff/schedule",
+              label: <Link to="/admin/staff/schedule">Lịch làm việc</Link>,
+            },
+            isAdmin && {
+              key: "/admin/staff/profiles",
+              label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link>,
+            },
+          ].filter(Boolean),
         },
-        isAdmin && {
-          key: "/admin/staff/profiles",
-          label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link>,
+        (isAdmin || isLifeguard) && {
+          key: "safety",
+          icon: <SecurityScanOutlined />,
+          label: "Giám sát an toàn",
+          children: [
+            isAdmin && {
+              key: "/admin/safety/list-camera",
+              label: <Link to="/admin/safety/list-camera">Danh sách camera</Link>,
+            },
+            {
+              key: "/admin/safety/activate-alerts",
+              label: (
+                <Link to="/admin/safety/activate-alerts">Kích hoạt cảnh báo</Link>
+              ),
+            },
+            {
+              key: "/admin/safety/incidents",
+              label: <Link to="/admin/safety/incidents">Lịch sử sự cố</Link>,
+            },
+          ].filter(Boolean),
+        },
+        (isAdmin || isLifeguard) && {
+          key: "/admin/water-quality",
+          icon: <ExperimentOutlined />,
+          label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
+        },
+        (isAdmin || isLifeguard) && {
+          key: "equipments",
+          icon: <ToolOutlined />,
+          label: "Quản lý thiết bị",
+          children: [
+            {
+              key: "/admin/equipments/daily-inspections",
+              label: (
+                <Link to="/admin/equipments/daily-inspections">
+                  Kiểm tra đầu ca (Checklist)
+                </Link>
+              ),
+            },
+            isAdmin && {
+              key: "/admin/equipments/list-equipments",
+              label: (
+                <Link to="/admin/equipments/list-equipments">
+                  Danh sách thiết bị
+                </Link>
+              ),
+            },
+            isAdmin && {
+              key: "/admin/equipments/inspection-history",
+              label: (
+                <Link to="/admin/equipments/inspection-history">
+                  Lịch sử kiểm tra
+                </Link>
+              ),
+            },
+            isAdmin && {
+              key: "/admin/equipments/operations",
+              label: (
+                <Link to="/admin/equipments/operations">
+                  Quản lý vận hành bể
+                </Link>
+              ),
+            },
+          ].filter(Boolean),
         },
       ].filter(Boolean),
     },
-    (isAdmin || role === "SALES") && {
-      key: "/admin/tickets",
-      icon: <IdcardOutlined />,
-      label: "Quản lý vé",
+    {
+      type: "group",
+      key: "grp-business",
+      label: "Kinh doanh & Dịch vụ",
       children: [
-        {
-          key: "/admin/tickets/scanQR",
-          label: <Link to="/admin/tickets/scanQR">Quét QR vào cổng</Link>,
+        (isAdmin || role === "SALES") && {
+          key: "/admin/tickets",
+          icon: <IdcardOutlined />,
+          label: "Quản lý vé",
+          children: [
+            {
+              key: "/admin/tickets/scanQR",
+              label: <Link to="/admin/tickets/scanQR">Quét QR vào cổng</Link>,
+            },
+            {
+              key: "/admin/tickets/types",
+              label: <Link to="/admin/tickets/types">Loại vé</Link>,
+            },
+            {
+              key: "/admin/tickets/pos",
+              label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link>,
+            },
+            {
+              key: "/admin/tickets/daily-sales",
+              label: <Link to="/admin/tickets/daily-sales">Vé bán trong ngày</Link>,
+            },
+          ],
         },
-        {
-          key: "/admin/tickets/types",
-          label: <Link to="/admin/tickets/types">Loại vé</Link>,
+        (isAdmin || role === "SALES") && {
+          key: "/admin/coupons",
+          icon: <TagOutlined />,
+          label: <Link to="/admin/coupons">Quản lý mã giảm giá</Link>,
         },
-        {
-          key: "/admin/tickets/pos",
-          label: <Link to="/admin/tickets/pos">Bán vé tại quầy (POS)</Link>,
+        (isAdmin || role === "SALES") && {
+          key: "services",
+          className: "admin-service-menu",
+          icon: <AppstoreOutlined />,
+          label: "Dịch vụ cho thuê",
+          children: [
+            {
+              key: "/admin/services",
+              label: <Link to="/admin/services">Đồ cho thuê</Link>,
+            },
+            {
+              key: "/admin/rentals",
+              label: <Link to="/admin/rentals">Giao dịch cho thuê</Link>,
+            },
+          ],
         },
-        {
-          key: "/admin/tickets/daily-sales",
-          label: <Link to="/admin/tickets/daily-sales">Vé bán trong ngày</Link>,
-        },
-      ],
-    },
-    (isAdmin || role === "SALES") && {
-      key: "/admin/coupons",
-      icon: <TagOutlined />,
-      label: <Link to="/admin/coupons">Quản lý mã giảm giá</Link>,
-    },
-    (isAdmin || isLifeguard) && {
-      key: "safety",
-      icon: <SecurityScanOutlined />,
-      label: "Giám sát an toàn",
-      children: [
         isAdmin && {
-          key: "/admin/safety/list-camera",
-          label: <Link to="/admin/safety/list-camera">Danh sách camera</Link>,
-        },
-        {
-          key: "/admin/safety/activate-alerts",
-          label: (
-            <Link to="/admin/safety/activate-alerts">Kích hoạt cảnh báo</Link>
-          ),
-        },
-        {
-          key: "/admin/safety/incidents",
-          label: <Link to="/admin/safety/incidents">Lịch sử sự cố</Link>,
+          key: "payments",
+          icon: <TransactionOutlined />,
+          label: "Thanh toán và giao dịch",
+          children: [
+            {
+              key: "/admin/payments/waiting-invoices",
+              label: <Link to="/admin/payments/waiting-invoices">Hàng chờ thanh toán</Link>,
+            },
+            {
+              key: "/admin/payments/invoices",
+              label: <Link to="/admin/payments/invoices">Lịch sử thanh toán</Link>,
+            },
+          ],
         },
       ].filter(Boolean),
     },
-    (isAdmin || isLifeguard) && {
-      key: "/admin/water-quality",
-      icon: <ExperimentOutlined />,
-      label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
-    },
-    (isAdmin || isLifeguard) && {
-      key: "equipments",
-      icon: <ToolOutlined />,
-      label: "Quản lý thiết bị",
+    {
+      type: "group",
+      key: "grp-reports",
+      label: "Báo cáo & Thống kê",
       children: [
-        {
-          key: "/admin/equipments/daily-inspections",
-          label: (
-            <Link to="/admin/equipments/daily-inspections">
-              Kiểm tra đầu ca (Checklist)
-            </Link>
-          ),
-        },
         isAdmin && {
-          key: "/admin/equipments/list-equipments",
-          label: (
-            <Link to="/admin/equipments/list-equipments">
-              Danh sách thiết bị
-            </Link>
-          ),
-        },
-        isAdmin && {
-          key: "/admin/equipments/inspection-history",
-          label: (
-            <Link to="/admin/equipments/inspection-history">
-              Lịch sử kiểm tra
-            </Link>
-          ),
-        },
-        isAdmin && {
-          key: "/admin/equipments/operations",
-          label: (
-            <Link to="/admin/equipments/operations">
-              Quản lý vận hành bể
-            </Link>
-          ),
+          key: "statistics",
+          icon: <BarChartOutlined />,
+          label: "Thống kê",
+          children: [
+            {
+              key: "/admin/statistics/ticket-revenue",
+              label: (
+                <Link to="/admin/statistics/ticket-revenue">
+                  Thống kê số tiền vé
+                </Link>
+              ),
+            },
+            {
+              key: "/admin/statistics/monthly-tickets",
+              label: (
+                <Link to="/admin/statistics/monthly-tickets">
+                  Thống kê vé tháng
+                </Link>
+              ),
+            },
+            {
+              key: "/admin/statistics/user-count",
+              label: (
+                <Link to="/admin/statistics/user-count">
+                  Thống kê số lượng người dùng
+                </Link>
+              ),
+            },
+            {
+              key: "/admin/statistics/incidents",
+              label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link>,
+            },
+          ],
         },
       ].filter(Boolean),
     },
-    (isAdmin || role === "SALES") && {
-      key: "services",
-      className: "admin-service-menu",
-      icon: <AppstoreOutlined />,
-      label: "Dịch vụ cho thuê",
-      children: [
-        {
-          key: "/admin/services",
-          label: <Link to="/admin/services">Đồ cho thuê</Link>,
-        },
-        {
-          key: "/admin/rentals",
-          label: <Link to="/admin/rentals">Giao dịch cho thuê</Link>,
-        },
-      ],
-    },
-    isAdmin && {
-      key: "payments",
-      icon: <TransactionOutlined />,
-      label: "Thanh toán và giao dịch",
-      children: [
-        {
-          key: "/admin/payments/waiting-invoices",
-          label: <Link to="/admin/payments/waiting-invoices">Hàng chờ thanh toán</Link>,
-        },
-        {
-          key: "/admin/payments/invoices",
-          label: <Link to="/admin/payments/invoices">Lịch sử thanh toán</Link>,
-        },
-      ],
-    },
-    isAdmin && {
-      key: "statistics",
-      icon: <BarChartOutlined />,
-      label: "Thống kê",
-      children: [
-        {
-          key: "/admin/statistics/ticket-revenue",
-          label: (
-            <Link to="/admin/statistics/ticket-revenue">
-              Thống kê số tiền vé
-            </Link>
-          ),
-        },
-        {
-          key: "/admin/statistics/monthly-tickets",
-          label: (
-            <Link to="/admin/statistics/monthly-tickets">
-              Thống kê vé tháng
-            </Link>
-          ),
-        },
-        {
-          key: "/admin/statistics/user-count",
-          label: (
-            <Link to="/admin/statistics/user-count">
-              Thống kê số lượng người dùng
-            </Link>
-          ),
-        },
-        {
-          key: "/admin/statistics/incidents",
-          label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link>,
-        },
-      ],
-    },
-  ].filter(Boolean);
+  ];
+
+  const menuItems = menuGroups.filter(
+    (group) => group.children && group.children.length > 0,
+  );
 
   const handleLogout = async () => {
     try {
@@ -558,9 +598,16 @@ export default function AdminLayout() {
             </div>
             <div className="admin-logo">
               {collapsed ? (
-                <span className="admin-logo-collapsed">TM</span>
+                <div className="admin-logo-collapsed-box" title="Bể bơi Thanh Minh">
+                  <img src={logoImg} alt="Logo" className="admin-logo-img-collapsed" />
+                </div>
               ) : (
-                <span className="admin-logo-text">Bể bơi Thanh Minh</span>
+                <div className="admin-logo-expanded-box">
+                  <img src={logoImg} alt="Logo" className="admin-logo-img" />
+                  <div className="admin-logo-text-group">
+                    <span className="admin-logo-text">Bể bơi Thanh Minh</span>
+                  </div>
+                </div>
               )}
             </div>
             <Menu
