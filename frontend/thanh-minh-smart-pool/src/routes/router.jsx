@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import HomePage from "../pages/HomePage/HomePage";
 import AboutPage from "../pages/AboutPage/AboutPage";
@@ -39,6 +39,7 @@ import RolePermissionsPage from "../pages/admin/permissions/RolePermissionsPage"
 import EquipmentPage from "../pages/admin/equipments/EquipmentPage";
 import DailyInspectionPage from "../pages/admin/equipments/DailyInspectionPage";
 import DailyInspectionHistoryPage from "../pages/admin/equipments/DailyInspectionHistoryPage";
+import PoolOperationsPage from "../pages/admin/equipments/PoolOperationsPage";
 import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import WaitingInvoicesPage from "../pages/admin/payments/WaitingInvoicesPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
@@ -47,6 +48,7 @@ import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
 import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
 import SwimClassDetailPage from "../pages/coach/classes/SwimClassDetailPage";
+import SwimClassStudentsPage from "../pages/coach/classes/SwimClassStudentsPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
 import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
 import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
@@ -97,6 +99,7 @@ const router = createBrowserRouter([
         children: [
           { path: "/coach/classes", element: <SwimClassListPage /> },
           { path: "/coach/classes/create", element: <CreateSwimClassPage /> },
+          { path: "/coach/classes/:classId/students", element: <SwimClassStudentsPage /> },
           { path: "/coach/classes/:classId", element: <SwimClassDetailPage /> },
         ],
       },
@@ -145,6 +148,16 @@ const router = createBrowserRouter([
               {
                 path: "equipments/inspection-history",
                 element: <DailyInspectionHistoryPage />,
+              },
+              {
+                path: "equipments/operations",
+                element: <PoolOperationsPage />,
+              },
+              {
+                path: "pool-operations",
+                element: (
+                  <Navigate to="/admin/equipments/operations" replace />
+                ),
               },
               {
                 path: "equipment",
@@ -241,4 +254,3 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
-

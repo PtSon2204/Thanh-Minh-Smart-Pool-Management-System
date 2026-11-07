@@ -11,4 +11,5 @@ public sealed record MySwimClassItem(
     string RegistrationStatus,
     DateTime RegisteredAt,
     DateTime? ConfirmedAt,
-    DateTime? CancelledAt);
+    DateTime? CancelledAt,
+    bool CanSelfCancel);

@@ -13,6 +13,9 @@ import {
   Segmented,
   Empty,
   notification,
+  Alert,
+  Image,
+  message,
 } from 'antd'
 import dayjs from 'dayjs'
 import {
@@ -21,11 +24,20 @@ import {
   ClockCircleOutlined,
   ToolOutlined,
   SearchOutlined,
+  CameraOutlined,
+  UploadOutlined,
+  DeleteOutlined,
+  LoadingOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
+import { useQueryClient } from '@tanstack/react-query'
+import CameraCaptureModal from './CameraCaptureModal'
 import { useResolveInspectionItem } from '../hooks/useInspections'
 import { useAuthStore } from '../../../features/auth/store/authStore'
+import inspectionService from '../services/inspectionService'
+import poolAccessService from '../../tickets/services/poolAccessService'
 
-const { Text } = Typography
+
 const { TextArea } = Input
 
 export default function DailyInspectionDetailsModal({
@@ -53,6 +65,44 @@ export default function DailyInspectionDetailsModal({
   const [resolveTarget, setResolveTarget] = useState(null)
   const [resolveAction, setResolveAction] = useState('Repaired')
   const [resolveNote, setResolveNote] = useState('')
+  const [resolveImages, setResolveImages] = useState([])
+  const [isUploadingResolve, setIsUploadingResolve] = useState(false)
+  const [suspendingPool, setSuspendingPool] = useState(false)
+  const [cameraModalOpen, setCameraModalOpen] = useState(false)
+  const queryClient = useQueryClient()
+
+  const handleSuspendPool = () => {
+    Modal.confirm({
+      title: 'Xác nhận tạm dừng hoạt động bể bơi?',
+      icon: <WarningOutlined style={{ color: '#dc2626' }} />,
+      content: (
+        <div>
+          <p>
+            Bạn có chắc chắn muốn chuyển trạng thái bể bơi sang <strong>Bảo trì khẩn cấp</strong> do có thiết bị cốt lõi bị hư hỏng?
+          </p>
+          <p style={{ color: '#dc2626', fontSize: 13 }}>
+            Hệ thống sẽ tạm khóa đặt vé online và hiển thị banner thông báo bảo trì tại trang chủ cho khách hàng.
+          </p>
+        </div>
+      ),
+      okText: 'Xác nhận tạm dừng bể',
+      cancelText: 'Hủy bỏ',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          setSuspendingPool(true)
+          const reason = `Tạm dừng khẩn cấp do ${criticalIssueItems.map((c) => c.equipmentName).join(', ')} gặp sự cố (Biên bản ${dayjs(inspection?.inspectionDate).format('DD/MM/YYYY')}).`
+          await poolAccessService.toggleMaintenance('Maintenance', reason)
+          message.success('Đã chuyển trạng thái bể bơi sang Bảo trì khẩn cấp.')
+          queryClient.invalidateQueries({ queryKey: ['poolLiveStatus'] })
+        } catch (err) {
+          message.error(err?.response?.data?.message || 'Lỗi khi tạm dừng hoạt động bể bơi.')
+        } finally {
+          setSuspendingPool(false)
+        }
+      },
+    })
+  }
 
   const allItems = useMemo(() => inspection?.items || [], [inspection])
 
@@ -63,6 +113,21 @@ export default function DailyInspectionDetailsModal({
   const passedItems = useMemo(
     () => allItems.filter((item) => item.isPassed),
     [allItems]
+  )
+
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const criticalIssueItems = useMemo(
+    () =>
+      issueItems.filter((i) => {
+        const name = (i.equipmentName || '').toLowerCase()
+        return (
+          i.priorityLevel === 'Critical' ||
+          name.includes('bơm') ||
+          name.includes('phao') ||
+          name.includes('sào')
+        )
+      }),
+    [issueItems]
   )
 
   // Mặc định: nếu có thiết bị sự cố thì ưu tiên chỉ hiển thị thiết bị hỏng trước ('issues'), nếu không thì 'all'
@@ -76,10 +141,66 @@ export default function DailyInspectionDetailsModal({
     setResolveTarget(item)
     setResolveAction(item.resolutionStatus === 'Replaced' ? 'Replaced' : 'Repaired')
     setResolveNote(item.resolutionNote || '')
+    setResolveImages(item.resolutionImageUrls || [])
+  }
+
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
+  const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png']
+
+  const validateImageFiles = (files) => {
+    const invalid = Array.from(files).filter((f) => {
+      const ext = '.' + f.name.split('.').pop().toLowerCase()
+      return !ALLOWED_IMAGE_TYPES.includes(f.type) || !ALLOWED_IMAGE_EXTS.includes(ext)
+    })
+    return invalid
+  }
+
+  const handleResolveImageSelected = async (files) => {
+    if (!files || files.length === 0) return
+
+    const invalidFiles = validateImageFiles(files)
+    if (invalidFiles.length > 0) {
+      notification.error({
+        message: 'Định dạng file không được hỗ trợ',
+        description: `File "${invalidFiles.map((f) => f.name).join('", "')}" không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG, JPEG.`,
+      })
+      return
+    }
+
+    if (resolveImages.length >= 5) {
+      notification.warning({ message: 'Tối đa 5 ảnh minh chứng.' })
+      return
+    }
+    const slots = 5 - resolveImages.length
+    const toUpload = Array.from(files).slice(0, slots)
+    setIsUploadingResolve(true)
+    try {
+      const promises = toUpload.map((f) => inspectionService.uploadImage(f))
+      const res = await Promise.all(promises)
+      const urls = res.map((r) => r.url).filter(Boolean)
+      setResolveImages((prev) => [...prev, ...urls])
+      message.success(`Đã thêm ${urls.length} ảnh minh chứng.`)
+    } catch (err) {
+      notification.error({ message: 'Lỗi tải ảnh minh chứng', description: err.message })
+    } finally {
+      setIsUploadingResolve(false)
+    }
+  }
+
+  const handleRemoveResolveImage = (indexToRemove) => {
+    setResolveImages((prev) => prev.filter((_, idx) => idx !== indexToRemove))
   }
 
   const handleConfirmResolve = async () => {
     if (!resolveTarget) return
+
+    if (resolveImages.length === 0) {
+      notification.warning({
+        message: 'Thiếu ảnh minh chứng',
+        description: 'Vui lòng chụp ảnh hoặc tải lên ít nhất 1 ảnh minh chứng sau khi sửa chữa/thay thế mới trước khi xác nhận.',
+      })
+      return
+    }
 
     try {
       const updatedInspection = await resolveMutation.mutateAsync({
@@ -87,6 +208,7 @@ export default function DailyInspectionDetailsModal({
         equipmentId: resolveTarget.equipmentId,
         action: resolveAction,
         note: resolveNote.trim() || null,
+        resolutionImageUrls: resolveImages,
       })
 
       notification.success({
@@ -224,24 +346,29 @@ export default function DailyInspectionDetailsModal({
       title: 'Thiết bị & Khu vực',
       key: 'equipmentName',
       width: '24%',
-      render: (_, item) => (
-        <div>
-          <strong>{item.equipmentName}</strong>
-          {item.location && <div style={{ fontSize: 12, color: '#6b7280' }}>📍 {item.location}</div>}
-        </div>
-      ),
-    },
-    {
-      title: 'Danh mục',
-      dataIndex: 'category',
-      key: 'category',
-      width: 110,
-      render: (cat) => <Tag color="blue">{cat}</Tag>,
+      render: (_, item) => {
+        const isCritical =
+          item.priorityLevel === 'Critical' ||
+          (item.equipmentName && (item.equipmentName.toLowerCase().includes('bơm') || item.equipmentName.toLowerCase().includes('phao') || item.equipmentName.toLowerCase().includes('sào')))
+
+        return (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <strong>{item.equipmentName}</strong>
+              {isCritical && <Tag color="error" style={{ fontSize: 10, padding: '0 4px' }}>Cốt lõi an toàn</Tag>}
+            </div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+              <Tag color="blue" style={{ fontSize: 11 }}>{item.category}</Tag>
+              {item.location && <span>📍 {item.location}</span>}
+            </div>
+          </div>
+        )
+      },
     },
     {
       title: 'Đánh giá',
       key: 'isPassed',
-      width: 120,
+      width: 100,
       render: (_, item) =>
         item.isPassed ? (
           <Tag icon={<CheckCircleOutlined />} color="success">
@@ -254,21 +381,42 @@ export default function DailyInspectionDetailsModal({
         ),
     },
     {
-      title: 'Ghi chú sự cố',
-      dataIndex: 'note',
-      key: 'note',
-      width: '24%',
-      render: (note, item) =>
-        !item.isPassed ? (
-          <Text type="danger">{note || 'Không có mô tả chi tiết'}</Text>
-        ) : (
-          <span style={{ color: '#9ca3af' }}>—</span>
-        ),
+      title: 'Lúc hỏng (Nhân viên báo cáo)',
+      key: 'defectDetails',
+      width: '32%',
+      render: (_, item) => {
+        if (item.isPassed) return <span style={{ color: '#9ca3af' }}>—</span>
+        const defectImages = item.defectImageUrls || []
+
+        return (
+          <div>
+            <div style={{ color: '#dc2626', fontSize: 13, marginBottom: 4 }}>
+              {item.note || 'Không có mô tả chi tiết'}
+            </div>
+            {defectImages.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                <Image.PreviewGroup>
+                  {defectImages.map((imgUrl, i) => (
+                    <Image
+                      key={i}
+                      src={imgUrl}
+                      alt="Ảnh hư hỏng"
+                      width={48}
+                      height={48}
+                      style={{ objectFit: 'cover', borderRadius: 4, border: '1px solid #fee2e2' }}
+                    />
+                  ))}
+                </Image.PreviewGroup>
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
-      title: 'Trạng thái & Xử lý',
+      title: 'Lúc khắc phục (Admin xử lý)',
       key: 'resolution',
-      width: 190,
+      width: '34%',
       render: (_, item) => {
         if (item.isPassed) {
           return <span style={{ color: '#9ca3af' }}>—</span>
@@ -277,6 +425,7 @@ export default function DailyInspectionDetailsModal({
         const isRepaired = item.resolutionStatus === 'Repaired'
         const isReplaced = item.resolutionStatus === 'Replaced'
         const isHandled = isRepaired || isReplaced
+        const resImages = item.resolutionImageUrls || []
 
         return (
           <div>
@@ -297,20 +446,37 @@ export default function DailyInspectionDetailsModal({
             )}
 
             {isHandled && (
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 3 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
                 {item.resolvedBy && <span>Bởi: <strong>{item.resolvedBy}</strong></span>}
-                {item.resolvedAt && <div>{dayjs(item.resolvedAt).format('HH:mm - DD/MM')}</div>}
+                {item.resolvedAt && <span> ({dayjs(item.resolvedAt).format('HH:mm - DD/MM')})</span>}
               </div>
             )}
 
             {item.resolutionNote && (
-              <div style={{ fontSize: 11, color: '#374151', fontStyle: 'italic', marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: '#15803d', fontStyle: 'italic', marginTop: 2 }}>
                 "{item.resolutionNote}"
               </div>
             )}
 
+            {resImages.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                <Image.PreviewGroup>
+                  {resImages.map((imgUrl, i) => (
+                    <Image
+                      key={i}
+                      src={imgUrl}
+                      alt="Ảnh minh chứng"
+                      width={48}
+                      height={48}
+                      style={{ objectFit: 'cover', borderRadius: 4, border: '1px solid #bbf7d0' }}
+                    />
+                  ))}
+                </Image.PreviewGroup>
+              </div>
+            )}
+
             {isAdmin && (
-              <div style={{ marginTop: 6 }}>
+              <div style={{ marginTop: 8 }}>
                 <Button
                   type={isHandled ? 'link' : 'primary'}
                   size="small"
@@ -350,9 +516,36 @@ export default function DailyInspectionDetailsModal({
         open={open}
         onCancel={onClose}
         footer={null}
-        width={880}
+        width={980}
         destroyOnClose
       >
+        {criticalIssueItems.length > 0 && !isResolved && (
+          <Alert
+            type="error"
+            showIcon
+            icon={<WarningOutlined style={{ fontSize: 20, color: '#dc2626' }} />}
+            style={{ marginBottom: 16, border: '1px solid #fca5a5', background: '#fef2f2' }}
+            message={<strong style={{ color: '#b91c1c' }}>CẢNH BÁO AN TOÀN PHÁP LÝ HỒ BƠI</strong>}
+            description={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 4 }}>
+                <div style={{ maxWidth: '75%', color: '#991b1b', fontSize: 13, lineHeight: 1.5 }}>
+                  Biên bản ghi nhận <strong>{criticalIssueItems.length} thiết bị cốt lõi</strong> ({criticalIssueItems.map((c) => c.equipmentName).join(', ')}) bị hư hỏng, có nguy cơ vi phạm quy chuẩn an toàn bơi lội (Thông tư 03/2018/TT-BVHTTDL). Bạn có thể chủ động bấm tạm dừng hoạt động bể bơi để bảo trì ngay bên dưới.
+                </div>
+                {isAdmin && (
+                  <Button
+                    type="primary"
+                    danger
+                    loading={suspendingPool}
+                    onClick={handleSuspendPool}
+                  >
+                    ⚠️ Tạm dừng hoạt động bể bơi
+                  </Button>
+                )}
+              </div>
+            }
+          />
+        )}
+
         <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }} style={{ marginBottom: 16 }}>
           <Descriptions.Item label="Ca trực">
             <Tag color={inspection.shiftName?.includes('sáng') ? 'orange' : 'purple'}>
@@ -485,7 +678,7 @@ export default function DailyInspectionDetailsModal({
             </Radio.Group>
           </div>
 
-          <div>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
               Ghi chú phương án xử lý:
             </label>
@@ -497,8 +690,104 @@ export default function DailyInspectionDetailsModal({
               maxLength={500}
               showCount
             />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
+              Ảnh minh chứng sau khi sửa chữa / thay thế mới <span style={{ color: '#dc2626' }}>*</span>:
+            </label>
+
+            {resolveImages.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                <Image.PreviewGroup>
+                  {resolveImages.map((imgUrl, i) => (
+                    <div key={i} style={{ position: 'relative', width: 64, height: 64 }}>
+                      <Image
+                        src={imgUrl}
+                        alt="Minh chứng"
+                        width={64}
+                        height={64}
+                        style={{ objectFit: 'cover', borderRadius: 4, border: '1px solid #bbf7d0' }}
+                      />
+                      <Button
+                        type="primary"
+                        danger
+                        shape="circle"
+                        size="small"
+                        icon={<DeleteOutlined style={{ fontSize: 10 }} />}
+                        onClick={() => handleRemoveResolveImage(i)}
+                        style={{
+                          position: 'absolute',
+                          top: -4,
+                          right: -4,
+                          width: 18,
+                          height: 18,
+                          minWidth: 18,
+                          padding: 0,
+                          lineHeight: '18px',
+                        }}
+                      />
+                    </div>
+                  ))}
+                </Image.PreviewGroup>
+              </div>
+            )}
+
+            {resolveImages.length < 5 && (
+              <Space size="small">
+                {/* Nút 1: Mở Camera trực tiếp */}
+                <Button
+                  size="small"
+                  icon={isUploadingResolve ? <LoadingOutlined /> : <CameraOutlined />}
+                  disabled={isUploadingResolve}
+                  onClick={() => setCameraModalOpen(true)}
+                >
+                  Chụp ảnh sau khi sửa
+                </Button>
+
+                {/* Nút 2: Tải ảnh từ máy / Thư viện */}
+                <label style={{ cursor: isUploadingResolve ? 'not-allowed' : 'pointer' }}>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                    multiple
+                    disabled={isUploadingResolve}
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      handleResolveImageSelected(e.target.files)
+                      e.target.value = ''
+                    }}
+                  />
+                  <Button
+                    size="small"
+                    icon={<UploadOutlined />}
+                    disabled={isUploadingResolve}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    Tải ảnh minh chứng
+                  </Button>
+                </label>
+              </Space>
+            )}
+
+            <div style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
+              * Bắt buộc có ít nhất 1 ảnh minh chứng rõ nét sau khi đã khắc phục sự cố.
+            </div>
           </div>  
         </div>
+      
+      {cameraModalOpen && (
+        <CameraCaptureModal
+          open={cameraModalOpen}
+          onClose={() => setCameraModalOpen(false)}
+          onCapture={async (file) => {
+            await handleResolveImageSelected([file])
+          }}
+          title={`Chụp ảnh khắc phục - ${resolveTarget?.equipmentName || ''}`}
+          currentCount={resolveImages.length}
+        />
+      )}
+
       </Modal>
     </>
   )

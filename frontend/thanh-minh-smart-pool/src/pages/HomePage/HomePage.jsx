@@ -79,14 +79,18 @@ const services = [
 export default function HomePage() {
   const [showScrollTop, setShowScrollTop] = useState(false)
 
-  const { data: occupancyData, isLoading: loadingOccupancy } = useQuery({
-    queryKey: ['poolOccupancy'],
-    queryFn: poolAccessService.getOccupancy,
+  const { data: liveStatus, isLoading: loadingLiveStatus } = useQuery({
+    queryKey: ['poolLiveStatus'],
+    queryFn: poolAccessService.getLiveStatus,
     refetchInterval: 15000,
     staleTime: 5000,
   })
 
-  const currentSwimmers = occupancyData?.acceptedEntries ?? 0
+  const currentSwimmers = liveStatus?.currentSwimmers ?? 0
+  const isMaintenance = liveStatus?.operationalStatus === 'Maintenance'
+  const isCrowded = liveStatus?.isCrowded ?? false
+  const statusReason = liveStatus?.statusReason
+  const currentShiftName = liveStatus?.currentShiftName || 'Đang mở cửa'
 
   useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 400)
@@ -138,6 +142,34 @@ export default function HomePage() {
 
         <div className="hero-content">
           <div className="container">
+            {isMaintenance && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #f87171',
+                  borderRadius: 12,
+                  padding: '16px 20px',
+                  marginBottom: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.15)',
+                  animation: 'fadeIn 0.3s ease-in-out',
+                }}
+              >
+                <span style={{ fontSize: 32 }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#b91c1c', fontSize: 16 }}>
+                    THÔNG BÁO: BỂ BƠI TẠM DỪNG HOẠT ĐỘNG ĐỂ BẢO TRÌ THIẾT BỊ AN TOÀN
+                  </div>
+                  <div style={{ color: '#7f1d1d', fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
+                    {statusReason ||
+                      'Hệ thống đang tiến hành bảo dưỡng thiết bị an toàn kỹ thuật theo quy định. Quý khách vui lòng tạm hoãn đặt vé cho đến khi có thông báo mở cửa trở lại.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Text side */}
             <div className="hero-text">
               <div className="hero-badge">
@@ -171,19 +203,42 @@ export default function HomePage() {
               <div className="hero-live-card">
                 <div className="live-card-header">
                   <div className="live-indicator">
-                    <span className="live-dot" />
-                    <span className="live-text">Đang hoạt động</span>
+                    <span
+                      className="live-dot"
+                      style={{
+                        backgroundColor: isMaintenance ? '#ef4444' : isCrowded ? '#f59e0b' : '#10b981',
+                      }}
+                    />
+                    <span className="live-text">
+                      {isMaintenance ? 'Đang bảo trì' : currentShiftName}
+                    </span>
                   </div>
+                  {isCrowded && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        background: '#fef3c7',
+                        color: '#b45309',
+                        padding: '2px 8px',
+                        borderRadius: 99,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Đang đông
+                    </span>
+                  )}
                   <span className="live-badge-smart">AI Smart Pool</span>
                 </div>
 
                 <div className="live-card-body">
-                  <div className="live-metric-title">Số khách đang bơi</div>
+                  <div className="live-metric-title">Số khách trong bể</div>
                   <div className="live-metric-value">
-                    {loadingOccupancy ? (
+                    {loadingLiveStatus ? (
                       <span className="metric-loading">...</span>
                     ) : (
-                      currentSwimmers
+                      <>
+                        <span>{currentSwimmers}</span>
+                      </>
                     )}
                     <span className="live-metric-unit">người</span>
                   </div>

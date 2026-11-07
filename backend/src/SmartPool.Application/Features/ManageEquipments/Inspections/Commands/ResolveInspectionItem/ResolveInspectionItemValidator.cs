@@ -17,6 +17,9 @@ public sealed class ResolveInspectionItemValidator : AbstractValidator<ResolveIn
             .Must(a => a is "Repaired" or "Replaced")
             .WithMessage("Hình thức xử lý không hợp lệ. Chỉ chấp nhận 'Repaired' (Đã sửa chữa) hoặc 'Replaced' (Đã thay thế).");
 
+        RuleFor(x => x.ResolutionImageUrls)
+            .NotEmpty().WithMessage("Vui lòng chụp hoặc tải lên ít nhất 1 ảnh minh chứng sau khi sửa chữa hoặc thay thế.");
+
         When(x => !string.IsNullOrEmpty(x.Note), () =>
         {
             RuleFor(x => x.Note)

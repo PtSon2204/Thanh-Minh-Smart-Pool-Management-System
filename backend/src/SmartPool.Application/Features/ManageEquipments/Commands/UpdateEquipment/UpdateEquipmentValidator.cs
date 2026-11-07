@@ -15,9 +15,13 @@ public sealed class UpdateEquipmentValidator : AbstractValidator<UpdateEquipment
         {
             var validation = new CreateEquipmentValidator().Validate(new CreateEquipmentCommand
             {
-                Name = request.Name, Category = request.Category, Location = request.Location, Metadata = request.Metadata
+                Name = request.Name,
+                Category = request.Category,
+                Location = request.Location,
+                Metadata = request.Metadata,
+                PriorityLevel = request.PriorityLevel
             });
-            foreach (var error in validation.Errors.Where(x => x.PropertyName is "Name" or "Category" or "Location" or "Metadata"))
+            foreach (var error in validation.Errors.Where(x => x.PropertyName is "Name" or "Category" or "Location" or "Metadata" or "PriorityLevel"))
                 context.AddFailure(error);
         });
     }

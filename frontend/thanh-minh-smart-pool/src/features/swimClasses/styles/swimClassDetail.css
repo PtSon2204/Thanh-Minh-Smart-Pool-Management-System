@@ -53,6 +53,16 @@
 .swim-class-registration-panel > p { color: #425e70; margin: 0; }
 .swim-class-registration-loading { align-items: center; color: #61758a; display: flex; gap: 10px; }
 .swim-class-registration-error { margin-top: 4px; }
+.swim-class-students-toolbar { align-items: center; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.swim-class-students-loading { align-items: center; color: #61758a; display: flex; gap: 10px; min-height: 100px; }
+.swim-class-students-list { display: grid; gap: 9px; }
+.swim-class-student { align-items: center; border: 1px solid #dce8ef; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 12px; padding: 13px 15px; }
+.swim-class-student-main { display: grid; flex: 1 1 200px; gap: 4px; min-width: 0; }
+.swim-class-student-main strong { color: #173c55; }
+.swim-class-student-main span { color: #61758a; font-size: 12px; }
+.swim-class-student-main .swim-class-student-reason { color: #a33b2b; overflow-wrap: anywhere; }
+.swim-class-student .ant-tag { margin: 0; }
+.swim-class-students-pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
 @media (max-width: 640px) {
   .swim-class-detail-page { gap: 12px; }
   .swim-class-detail-page--customer { margin-top: 18px; padding: 0 12px; }

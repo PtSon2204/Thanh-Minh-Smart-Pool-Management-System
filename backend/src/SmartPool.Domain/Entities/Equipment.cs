@@ -10,6 +10,8 @@ public partial class Equipment
 
     public string Category { get; set; } = null!;
 
+    public string? PriorityLevel { get; set; } = "Normal";
+
     public string? Metadata { get; set; }
 
     public string? Location { get; set; }

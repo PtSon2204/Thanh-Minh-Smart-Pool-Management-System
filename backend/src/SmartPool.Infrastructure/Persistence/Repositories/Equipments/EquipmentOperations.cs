@@ -57,7 +57,9 @@ public sealed class EquipmentOperations(SmartPoolDbContext db) : IEquipmentOpera
             .Skip((request.PageIndex - 1) * request.PageSize).Take(request.PageSize)
             .Select(x => new EquipmentListItem
             {
-                Id = x.Id, Name = x.Name, Category = x.Category, Location = x.Location,
+                Id = x.Id, Name = x.Name, Category = x.Category,
+                PriorityLevel = x.PriorityLevel ?? EquipmentPriorityLevels.Normal,
+                Location = x.Location,
                 Metadata = x.Metadata, Status = x.Status,
                 NextMaintenanceDate = null
             }).ToListAsync(cancellationToken);

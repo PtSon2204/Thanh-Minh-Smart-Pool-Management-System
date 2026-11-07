@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.DTOs;
 
@@ -11,6 +12,7 @@ public sealed class EquipmentListItem
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    public string PriorityLevel { get; set; } = EquipmentPriorityLevels.Normal;
     public string? Location { get; set; }
     public string? Metadata { get; set; }
     public string? Status { get; set; }

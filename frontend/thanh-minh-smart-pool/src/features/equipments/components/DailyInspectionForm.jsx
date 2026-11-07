@@ -14,6 +14,8 @@ import {
   notification,
   Typography,
   Select,
+  Image,
+  message,
 } from 'antd'
 import {
   CheckCircleOutlined,
@@ -24,9 +26,15 @@ import {
   InfoCircleOutlined,
   ClockCircleOutlined,
   SearchOutlined,
+  CameraOutlined,
+  UploadOutlined,
+  DeleteOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import CameraCaptureModal from './CameraCaptureModal'
 import { useInspectionForm, useSubmitInspection } from '../hooks/useInspections'
+import inspectionService from '../services/inspectionService'
 
 const { Text } = Typography
 
@@ -70,6 +78,8 @@ export default function DailyInspectionForm({ onSuccess }) {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
   const [formSearch, setFormSearch] = useState('')
   const [filterOnlyIssues, setFilterOnlyIssues] = useState(false)
+  const [uploadingByEqId, setUploadingByEqId] = useState({})
+  const [cameraModalTarget, setCameraModalTarget] = useState(null)
 
   // Xác định ca trực được chọn (mặc định ưu tiên ca đang mở từ backend hoặc ca đầu tiên)
   const effectiveShiftId =
@@ -93,9 +103,11 @@ export default function DailyInspectionForm({ onSuccess }) {
       equipmentId: item.equipmentId,
       equipmentName: item.name,
       category: item.category,
+      priorityLevel: item.priorityLevel || 'Normal',
       location: item.location,
       isPassed: edit?.isPassed !== undefined ? edit.isPassed : true,
       note: edit?.note !== undefined ? edit.note : '',
+      defectImageUrls: edit?.defectImageUrls || [],
     }
   })
 
@@ -106,6 +118,7 @@ export default function DailyInspectionForm({ onSuccess }) {
         ...prev[equipmentId],
         isPassed,
         note: isPassed ? '' : (prev[equipmentId]?.note || ''),
+        defectImageUrls: isPassed ? [] : (prev[equipmentId]?.defectImageUrls || []),
       },
     }))
   }
@@ -116,6 +129,75 @@ export default function DailyInspectionForm({ onSuccess }) {
       [equipmentId]: {
         ...prev[equipmentId],
         note,
+      },
+    }))
+  }
+
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
+  const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png']
+
+  const validateImageFiles = (files) => {
+    const invalid = Array.from(files).filter((f) => {
+      const ext = '.' + f.name.split('.').pop().toLowerCase()
+      return !ALLOWED_IMAGE_TYPES.includes(f.type) || !ALLOWED_IMAGE_EXTS.includes(ext)
+    })
+    return invalid
+  }
+
+  const handleImageFileSelected = async (equipmentId, files) => {
+    if (!files || files.length === 0) return
+
+    const invalidFiles = validateImageFiles(files)
+    if (invalidFiles.length > 0) {
+      notification.error({
+        message: 'Định dạng file không được hỗ trợ',
+        description: `File "${invalidFiles.map((f) => f.name).join('", "')}" không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG, JPEG.`,
+      })
+      return
+    }
+
+    const currentImages = itemEdits[equipmentId]?.defectImageUrls || []
+    if (currentImages.length >= 5) {
+      notification.warning({
+        message: 'Đã đạt giới hạn ảnh',
+        description: 'Mỗi thiết bị chỉ được tải lên tối đa 5 ảnh sự cố.',
+      })
+      return
+    }
+
+    const availableSlots = 5 - currentImages.length
+    const filesToUpload = Array.from(files).slice(0, availableSlots)
+
+    setUploadingByEqId((prev) => ({ ...prev, [equipmentId]: true }))
+    try {
+      const uploadPromises = filesToUpload.map((file) => inspectionService.uploadImage(file))
+      const results = await Promise.all(uploadPromises)
+      const uploadedUrls = results.map((r) => r.url).filter(Boolean)
+
+      setItemEdits((prev) => ({
+        ...prev,
+        [equipmentId]: {
+          ...prev[equipmentId],
+          defectImageUrls: [...(prev[equipmentId]?.defectImageUrls || []), ...uploadedUrls],
+        },
+      }))
+      message.success(`Đã thêm ${uploadedUrls.length} ảnh hiện trường.`)
+    } catch (err) {
+      notification.error({
+        message: 'Lỗi tải ảnh sự cố',
+        description: err?.response?.data?.message || err.message || 'Không thể tải ảnh lên.',
+      })
+    } finally {
+      setUploadingByEqId((prev) => ({ ...prev, [equipmentId]: false }))
+    }
+  }
+
+  const handleRemoveImage = (equipmentId, indexToRemove) => {
+    setItemEdits((prev) => ({
+      ...prev,
+      [equipmentId]: {
+        ...prev[equipmentId],
+        defectImageUrls: (prev[equipmentId]?.defectImageUrls || []).filter((_, idx) => idx !== indexToRemove),
       },
     }))
   }
@@ -192,9 +274,11 @@ export default function DailyInspectionForm({ onSuccess }) {
           equipmentId: c.equipmentId,
           equipmentName: c.equipmentName,
           category: c.category,
+          priorityLevel: c.priorityLevel || 'Normal',
           location: c.location,
           isPassed: c.isPassed,
           note: c.note?.trim() || null,
+          defectImageUrls: c.defectImageUrls || [],
         })),
       }
 
@@ -270,14 +354,22 @@ export default function DailyInspectionForm({ onSuccess }) {
             <ToolOutlined style={{ color: '#0077b6', fontSize: 16 }} />
             <strong>{record.equipmentName}</strong>
           </Space>
-          <div style={{ marginTop: 4 }}>
+          <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <Tag color="cyan">{record.category}</Tag>
+            <Tag color={record.priorityLevel === 'Critical' ? 'error' : record.priorityLevel === 'High' ? 'warning' : 'default'}>
+              {record.priorityLevel === 'Critical' ? '🔴 Critical' : record.priorityLevel === 'High' ? '🟠 High' : '🟢 Normal'}
+            </Tag>
             {record.location && (
               <span style={{ fontSize: 12, color: '#6b7280' }}>
                 📍 {record.location}
               </span>
             )}
           </div>
+          {!record.isPassed && record.priorityLevel === 'Critical' && (
+            <div style={{ marginTop: 6, padding: '4px 8px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 4, fontSize: 12, color: '#b91c1c' }}>
+              ⚠️ Thiết bị cốt lõi theo luật an toàn (Critical). Hỏng sẽ kích hoạt cảnh báo tạm dừng bể bơi.
+            </div>
+          )}
         </div>
       ),
     },
@@ -302,29 +394,126 @@ export default function DailyInspectionForm({ onSuccess }) {
       ),
     },
     {
-      title: 'Ghi chú hư hỏng / Chi tiết sự cố',
+      title: 'Ghi chú hư hỏng & Ảnh hiện trường',
       key: 'note',
-      width: '40%',
-      render: (_, record) => (
-        <div>
-          <Input
-            placeholder={
-              record.isPassed
-                ? 'Ghi chú bổ sung (nếu có)...'
-                : 'Mô tả hư hỏng (bắt buộc: xịt hơi, nứt, chập điện...)'
-            }
-            status={!record.isPassed && !record.note?.trim() ? 'error' : ''}
-            value={record.note}
-            onChange={(e) => handleNoteChange(record.equipmentId, e.target.value)}
-            allowClear
-          />
-          {!record.isPassed && !record.note?.trim() && (
-            <div style={{ color: '#dc2626', fontSize: 11, marginTop: 4 }}>
-              * Vui lòng nhập mô tả sự cố hư hỏng
-            </div>
-          )}
-        </div>
-      ),
+      width: '45%',
+      render: (_, record) => {
+        const images = record.defectImageUrls || []
+        const isUploading = Boolean(uploadingByEqId[record.equipmentId])
+
+        return (
+          <div>
+            <Input
+              placeholder={
+                record.isPassed
+                  ? 'Ghi chú bổ sung (nếu có)...'
+                  : 'Mô tả hư hỏng (bắt buộc: xịt hơi, nứt, chập điện...)'
+              }
+              status={!record.isPassed && !record.note?.trim() ? 'error' : ''}
+              value={record.note}
+              onChange={(e) => handleNoteChange(record.equipmentId, e.target.value)}
+              allowClear
+            />
+            {!record.isPassed && !record.note?.trim() && (
+              <div style={{ color: '#dc2626', fontSize: 11, marginTop: 4 }}>
+                * Vui lòng nhập mô tả sự cố hư hỏng
+              </div>
+            )}
+
+            {!record.isPassed && (
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8fafc', borderRadius: 6, border: '1px dashed #cbd5e1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: '#334155' }}>
+                    📸 Ảnh hiện trường ({images.length}/5):
+                  </span>
+                  {images.length >= 5 && (
+                    <span style={{ fontSize: 11, color: '#f59e0b' }}>Đã đạt tối đa 5 ảnh</span>
+                  )}
+                </div>
+
+                {images.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                    <Image.PreviewGroup>
+                      {images.map((url, idx) => (
+                        <div key={idx} style={{ position: 'relative', width: 56, height: 56 }}>
+                          <Image
+                            src={url}
+                            alt="Sự cố"
+                            width={56}
+                            height={56}
+                            style={{ objectFit: 'cover', borderRadius: 4, border: '1px solid #e2e8f0' }}
+                          />
+                          <Button
+                            type="primary"
+                            danger
+                            shape="circle"
+                            size="small"
+                            icon={<DeleteOutlined style={{ fontSize: 10 }} />}
+                            onClick={() => handleRemoveImage(record.equipmentId, idx)}
+                            style={{
+                              position: 'absolute',
+                              top: -4,
+                              right: -4,
+                              width: 18,
+                              height: 18,
+                              minWidth: 18,
+                              padding: 0,
+                              lineHeight: '18px',
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </Image.PreviewGroup>
+                  </div>
+                )}
+
+                {images.length < 5 && (
+                  <Space size="small">
+                    {/* Nút 1: Chụp ảnh trực tiếp qua Camera Modal */}
+                    <Button
+                      size="small"
+                      icon={isUploading ? <LoadingOutlined /> : <CameraOutlined />}
+                      disabled={isUploading}
+                      onClick={() =>
+                        setCameraModalTarget({
+                          equipmentId: record.equipmentId,
+                          equipmentName: record.equipmentName,
+                          currentCount: images.length,
+                        })
+                      }
+                    >
+                      Chụp ảnh
+                    </Button>
+
+                    {/* Nút 2: Tải ảnh từ Thư viện / Bộ sưu tập */}
+                    <label style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}>
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                        multiple
+                        disabled={isUploading}
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          handleImageFileSelected(record.equipmentId, e.target.files)
+                          e.target.value = ''
+                        }}
+                      />
+                      <Button
+                        size="small"
+                        icon={<UploadOutlined />}
+                        disabled={isUploading}
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        Tải ảnh
+                      </Button>
+                    </label>
+                  </Space>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      },
     },
   ]
 
@@ -528,6 +717,15 @@ export default function DailyInspectionForm({ onSuccess }) {
         cancelText="Kiểm tra lại"
         okButtonProps={{ danger: true }}
       >
+        {checklist.some((item) => !item.isPassed && item.priorityLevel === 'Critical') && (
+          <Alert
+            type="error"
+            showIcon
+            message="Cảnh báo an toàn cấp độ Critical (Theo luật an toàn)"
+            description="Biên bản có thiết bị cốt lõi (Critical) bị hư hỏng. Khi gửi, hệ thống sẽ kích hoạt cảnh báo đỏ và đề xuất Quản trị viên xem xét tạm dừng hoạt động bể bơi để khắc phục."
+            style={{ marginBottom: 12 }}
+          />
+        )}
         <p>
           Bạn đang đánh dấu <strong>{issuesCount}</strong> thiết bị gặp sự cố/không đạt chuẩn cho{' '}
           <strong>{selectedShift?.name}</strong>:
@@ -549,6 +747,22 @@ export default function DailyInspectionForm({ onSuccess }) {
           style={{ marginTop: 12 }}
         />
       </Modal>
+      {cameraModalTarget && (
+        <CameraCaptureModal
+          open={Boolean(cameraModalTarget)}
+          onClose={() => setCameraModalTarget(null)}
+          onCapture={async (file) => {
+            await handleImageFileSelected(cameraModalTarget.equipmentId, [file])
+          }}
+          title={`Chụp ảnh sự cố - ${cameraModalTarget.equipmentName}`}
+          currentCount={
+            itemEdits[cameraModalTarget.equipmentId]?.defectImageUrls !== undefined
+              ? (itemEdits[cameraModalTarget.equipmentId]?.defectImageUrls?.length || 0)
+              : (formItems.find((i) => i.equipmentId === cameraModalTarget.equipmentId)?.defectImageUrls?.length || 0)
+          }
+        />
+      )}
+
     </div>
   )
 }

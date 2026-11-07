@@ -1,10 +1,28 @@
 /* AdminLayout.css */
 
 /* ─── Layout shell ─────────────────────────────────────────────── */
-.admin-layout { min-width: 0; }
+.admin-layout {
+  min-width: 0;
+}
 
 /* ─── Top header ───────────────────────────────────────────────── */
-.admin-header-actions { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.admin-header.ant-layout-header {
+  padding: 0 24px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  z-index: 10;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
 
 .admin-account-trigger {
   display: flex;
@@ -20,9 +38,11 @@
   transition: background 0.18s;
 }
 .admin-account-trigger:hover {
-  background: rgba(0, 119, 182, 0.06);
+  background: rgba(2, 132, 199, 0.08);
 }
-.admin-account-trigger .ant-avatar { flex-shrink: 0; }
+.admin-account-trigger .ant-avatar {
+  flex-shrink: 0;
+}
 .admin-account-name {
   min-width: 0;
   max-width: 320px;
@@ -31,73 +51,133 @@
   white-space: nowrap;
   font-weight: 600;
   font-size: 0.875rem;
-  color: #005f8e;
+  color: #034674;
 }
 
-/* Mobile drawer */
-.admin-navigation-drawer .ant-drawer-body { padding: 8px; }
-.admin-navigation-drawer .ant-menu-title-content { white-space: normal; line-height: 1.4; }
+/* ─── Mobile drawer ────────────────────────────────────────────── */
+.admin-navigation-drawer .ant-drawer-header {
+  background: linear-gradient(135deg, #0077b6 0%, #0284c7 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 16px 20px;
+}
+.admin-navigation-drawer .ant-drawer-title {
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.admin-navigation-drawer .ant-drawer-close {
+  color: #ffffff !important;
+}
+.admin-navigation-drawer .ant-drawer-body {
+  padding: 8px 6px;
+  background: linear-gradient(180deg, #0284c7 0%, #0ea5e9 100%);
+}
+.admin-navigation-drawer .ant-menu {
+  background: transparent !important;
+  border-inline-end: none !important;
+}
+.admin-navigation-drawer .ant-menu-item-group-title {
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  padding: 12px 14px 4px 14px !important;
+}
 .admin-navigation-drawer .ant-menu-item,
-.admin-navigation-drawer .ant-menu-submenu-title { height: auto; min-height: 44px; padding-block: 10px; }
+.admin-navigation-drawer .ant-menu-submenu-title {
+  color: rgba(255, 255, 255, 0.88) !important;
+  border-radius: 10px !important;
+  margin-inline: 4px !important;
+  margin-block: 2px !important;
+  width: calc(100% - 8px) !important;
+  font-size: 0.875rem !important;
+}
+.admin-navigation-drawer .ant-menu-item-selected {
+  background: #ffffff !important;
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+.admin-navigation-drawer .ant-menu-item-selected a {
+  color: #0284c7 !important;
+}
 
 @media (max-width: 767px) {
-  .admin-header.ant-layout-header { padding-inline: 16px !important; }
-  .admin-header-actions { gap: 10px; }
-  .admin-account-name { max-width: min(42vw, 220px); }
+  .admin-header.ant-layout-header {
+    padding-inline: 16px !important;
+  }
+  .admin-header-actions {
+    gap: 10px;
+  }
+  .admin-account-name {
+    max-width: min(42vw, 220px);
+  }
 }
 
 /* ─── Content area ─────────────────────────────────────────────── */
-.admin-content { margin: 24px; min-width: 0; }
-.admin-content:has(.staff-schedule-page--wide) { margin: 12px; }
-@media (max-width: 640px) { .admin-content { margin: 12px; } }
+.admin-content {
+  margin: 24px;
+  min-width: 0;
+}
+.admin-content:has(.staff-schedule-page--wide) {
+  margin: 12px;
+}
+@media (max-width: 640px) {
+  .admin-content {
+    margin: 12px;
+  }
+}
 
 /* ─── Sidebar shell ────────────────────────────────────────────── */
 .admin-sidebar {
   position: relative;
   overflow: hidden;
   /*
-   * Dùng đúng bộ màu của web:
-   * primary-dark #005f8e (trên) → secondary #00b4d8 (dưới)
-   * thêm một lớp tối nhẹ để chữ dễ đọc hơn
+   * Tông màu xanh biển tươi sáng của Landing Page:
+   * #0077b6 (vibrant ocean top) -> #0284c7 (clean cyan-blue) -> #0ea5e9 -> #38bdf8
+   * Sáng và tươi hơn màu xanh đen cũ (#004a70), tạo cảm giác hồ bơi hiện đại
    */
   background: linear-gradient(180deg,
-    #004a70 0%,
-    #005f8e 30%,
-    #007aad 65%,
-    #00a8cc 100%
+    #0077b6 0%,
+    #0284c7 35%,
+    #0ea5e9 75%,
+    #38bdf8 100%
   ) !important;
-  border-right: none !important;
-  box-shadow: 4px 0 20px rgba(0, 95, 142, 0.35) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 4px 0 24px rgba(0, 119, 182, 0.22) !important;
 }
 
 /* ─── Gloss overlay – dải sáng nhẹ ở trên cùng ─────────────────── */
 .admin-sidebar::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 180px;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
   background: linear-gradient(180deg,
-    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.04) 60%,
     transparent 100%
   );
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
 }
 
-/* Accent glow nhỏ phía dưới – dùng màu cam của web */
+/* ─── Accent glow nhỏ phía dưới ───────────────────────────────── */
 .admin-sidebar::after {
   content: '';
   position: absolute;
   bottom: -40px;
   right: -40px;
-  width: 160px;
-  height: 160px;
+  width: 180px;
+  height: 180px;
   background: radial-gradient(circle,
-    rgba(247, 127, 0, 0.12) 0%,
+    rgba(255, 255, 255, 0.2) 0%,
     transparent 70%
   );
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
 }
 
 /* ─── Logo bar ─────────────────────────────────────────────────── */
@@ -107,117 +187,282 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 64px;
-  /* Kính mờ nhẹ */
-  background: rgba(0, 0, 0, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  height: 68px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.admin-logo-expanded-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.admin-logo-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 3px;
+  box-shadow: 0 2px 8px rgba(0, 48, 86, 0.18);
+  flex-shrink: 0;
+}
+
+.admin-logo-text-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .admin-logo-text {
-  font-size: 1.1rem;
+  font-size: 1.02rem;
   font-weight: 800;
-  letter-spacing: 0.03em;
+  letter-spacing: -0.01em;
   color: #ffffff;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px rgba(0, 48, 86, 0.25);
+  line-height: 1.25;
 }
 
-.admin-logo-collapsed {
-  font-size: 1.15rem;
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: 0.05em;
+.admin-logo-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+
+.admin-logo-collapsed-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-logo-img-collapsed {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 3px;
+  box-shadow: 0 2px 8px rgba(0, 48, 86, 0.2);
 }
 
 /* ─── Ant Menu overrides ───────────────────────────────────────── */
 .admin-sidebar .ant-menu {
   background: transparent !important;
   border-inline-end: none !important;
+  padding-bottom: 24px;
 }
 
-/* Default item */
+/* Custom scrollbar for menu */
+.admin-sidebar .ant-menu::-webkit-scrollbar {
+  width: 5px;
+}
+.admin-sidebar .ant-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-sidebar .ant-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+.admin-sidebar .ant-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+/* Group titles (nhóm danh mục phong cách Ảnh 2) */
+.admin-sidebar .ant-menu-item-group-title {
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  padding: 14px 16px 4px 16px !important;
+  transition: all 0.2s ease !important;
+  user-select: none;
+}
+
+.admin-sidebar .ant-menu-item-group-list {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Default item & submenu header */
 .admin-sidebar .ant-menu-item,
 .admin-sidebar .ant-menu-submenu-title {
-  color: rgba(255, 255, 255, 0.82) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
   border-radius: 10px !important;
   margin-inline: 8px !important;
+  margin-block: 2px !important;
   width: calc(100% - 16px) !important;
-  transition: background 0.2s, color 0.2s !important;
+  height: 42px !important;
+  line-height: 42px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Icons */
 .admin-sidebar .ant-menu-item .anticon,
 .admin-sidebar .ant-menu-submenu-title .anticon {
-  color: rgba(255, 255, 255, 0.65) !important;
-  font-size: 15px !important;
-  transition: color 0.2s !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  font-size: 16px !important;
+  transition: all 0.2s ease !important;
 }
 
 /* Hover */
 .admin-sidebar .ant-menu-item:hover,
 .admin-sidebar .ant-menu-submenu-title:hover {
-  background: rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
   color: #ffffff !important;
+  transform: translateX(2px);
 }
 .admin-sidebar .ant-menu-item:hover .anticon,
 .admin-sidebar .ant-menu-submenu-title:hover .anticon {
   color: #ffffff !important;
+  transform: scale(1.08);
 }
 
-/* Selected / active — pill trắng bán trong suốt + viền mỏng */
+/* Active / Selected — Dạng viên thuốc (Pill) nổi bật như Ảnh 2 */
 .admin-sidebar .ant-menu-item-selected {
-  background: rgba(255, 255, 255, 0.22) !important;
-  color: #ffffff !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 2px 12px rgba(0, 0, 0, 0.15) !important;
-  backdrop-filter: blur(4px);
+  background: #ffffff !important;
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0, 48, 86, 0.18), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  transform: translateX(2px);
 }
 .admin-sidebar .ant-menu-item-selected .anticon {
-  color: #ffffff !important;
+  color: #0284c7 !important;
+  font-size: 17px !important;
 }
 .admin-sidebar .ant-menu-item-selected a {
-  color: #ffffff !important;
-  font-weight: 700;
+  color: #0284c7 !important;
+  font-weight: 700 !important;
 }
 
-/* Tất cả link trong menu */
+/* Links inside menu */
 .admin-sidebar .ant-menu-item a,
 .admin-sidebar .ant-menu-submenu-title a {
   color: inherit !important;
-  font-size: 0.875rem;
+  font-size: 0.875rem !important;
+  display: inline-block;
+  width: 100%;
 }
 
-/* Sub-menu */
+/* ─── Sub-menu & Đường nhánh cây (Tree Lines) từ Ảnh 2 ──────────── */
 .admin-sidebar .ant-menu-sub {
-  background: rgba(0, 0, 0, 0.10) !important;
+  background: rgba(0, 0, 0, 0.08) !important;
+  border-radius: 10px !important;
+  margin: 4px 8px 8px 8px !important;
+  padding: 6px 0 !important;
+  position: relative !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.06);
 }
+
+/* Đường thẳng đứng nối các cấp con (Tree line vertical) */
+.admin-sidebar .ant-menu-sub::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 22px;
+  width: 1.5px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 1px;
+}
+
+/* Submenu items */
 .admin-sidebar .ant-menu-sub .ant-menu-item {
-  padding-left: 36px !important;
-  font-size: 0.83rem;
-  color: rgba(255, 255, 255, 0.75) !important;
+  position: relative;
+  padding-left: 38px !important;
+  margin-inline: 6px !important;
+  margin-block: 2px !important;
+  width: calc(100% - 12px) !important;
+  height: 38px !important;
+  line-height: 38px !important;
+  font-size: 0.835rem !important;
+  color: rgba(255, 255, 255, 0.85) !important;
   border-radius: 8px !important;
 }
+
+/* Nhánh ngang chữ L nối từ trục đứng vào từng mục con */
+.admin-sidebar .ant-menu-sub .ant-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 14px;
+  height: 1.5px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 1px;
+  transition: all 0.2s ease;
+}
+
 .admin-sidebar .ant-menu-sub .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
   color: #ffffff !important;
+}
+.admin-sidebar .ant-menu-sub .ant-menu-item:hover::before {
+  background: rgba(255, 255, 255, 0.9);
+  width: 16px;
+}
+
+/* Active submenu item */
+.admin-sidebar .ant-menu-sub .ant-menu-item-selected {
+  background: #ffffff !important;
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 3px 10px rgba(0, 48, 86, 0.15) !important;
+}
+.admin-sidebar .ant-menu-sub .ant-menu-item-selected::before {
+  background: #ffffff !important;
+  width: 16px;
+}
+.admin-sidebar .ant-menu-sub .ant-menu-item-selected a {
+  color: #0284c7 !important;
+}
+
+/* Nested submenus (cấp 3) */
+.admin-sidebar .ant-menu-sub .ant-menu-sub {
+  background: rgba(0, 0, 0, 0.06) !important;
+  margin-left: 14px !important;
+}
+.admin-sidebar .ant-menu-sub .ant-menu-sub .ant-menu-item {
+  padding-left: 32px !important;
+}
+
+/* Submenu parent header khi đang mở */
+.admin-sidebar .ant-menu-submenu-open > .ant-menu-submenu-title {
   background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+.admin-sidebar .ant-menu-submenu-open > .ant-menu-submenu-title .anticon {
+  color: #ffffff !important;
 }
 
 /* Submenu arrow */
 .admin-sidebar .ant-menu-submenu-arrow {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  transition: transform 0.2s ease, color 0.2s ease !important;
 }
 .admin-sidebar .ant-menu-submenu-open > .ant-menu-submenu-title .ant-menu-submenu-arrow,
 .admin-sidebar .ant-menu-submenu-title:hover .ant-menu-submenu-arrow {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: #ffffff !important;
 }
 
-/* Divider */
-.admin-sidebar .ant-menu-item-divider {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-/* Collapsed */
+/* ─── Collapsed Sider state ────────────────────────────────────── */
 .admin-sidebar.ant-layout-sider-collapsed .ant-menu-title-content {
   overflow: hidden;
   white-space: nowrap;
@@ -230,12 +475,31 @@
   align-items: center;
   justify-content: center;
 }
+.admin-sidebar.ant-layout-sider-collapsed .ant-menu-item-group-title {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.admin-sidebar.ant-layout-sider-collapsed .ant-menu-item-group {
+  margin-bottom: 6px !important;
+}
+.admin-sidebar.ant-layout-sider-collapsed .ant-menu-item-group:not(:last-child)::after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 1px;
+  margin: 6px auto;
+  background: rgba(255, 255, 255, 0.2);
+}
 
-/* ─── Orb decorations (giữ nguyên div.bubble trong JSX) ─────────── */
+/* ─── Orb decorations (div.bubble trong JSX) ───────────────────── */
 .bubbles-container {
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -248,65 +512,116 @@
   opacity: 0;
 }
 
-/* Dùng màu trắng/cyan hài hoà với nền xanh của web */
 .bubble:nth-child(1) {
-  width: 80px; height: 80px; left: 5%; top: 10%;
-  background: radial-gradient(circle, rgba(255,255,255,0.10), transparent 65%);
-  animation-duration: 11s; animation-delay: 0s;
+  width: 80px;
+  height: 80px;
+  left: 5%;
+  top: 10%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14), transparent 65%);
+  animation-duration: 11s;
+  animation-delay: 0s;
 }
 .bubble:nth-child(2) {
-  width: 50px; height: 50px; left: 68%; top: 30%;
-  background: radial-gradient(circle, rgba(144,224,239,0.12), transparent 65%);
-  animation-duration: 15s; animation-delay: 2.5s;
+  width: 50px;
+  height: 50px;
+  left: 68%;
+  top: 30%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 65%);
+  animation-duration: 15s;
+  animation-delay: 2.5s;
 }
 .bubble:nth-child(3) {
-  width: 90px; height: 90px; left: 28%; top: 55%;
-  background: radial-gradient(circle, rgba(255,255,255,0.07), transparent 65%);
-  animation-duration: 18s; animation-delay: 4s;
+  width: 90px;
+  height: 90px;
+  left: 28%;
+  top: 55%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.10), transparent 65%);
+  animation-duration: 18s;
+  animation-delay: 4s;
 }
 .bubble:nth-child(4) {
-  width: 35px; height: 35px; left: 78%; top: 65%;
-  background: radial-gradient(circle, rgba(247,127,0,0.10), transparent 65%);
-  animation-duration: 12s; animation-delay: 1s;
+  width: 35px;
+  height: 35px;
+  left: 78%;
+  top: 65%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 65%);
+  animation-duration: 12s;
+  animation-delay: 1s;
 }
 .bubble:nth-child(5) {
-  width: 55px; height: 55px; left: 48%; top: 80%;
-  background: radial-gradient(circle, rgba(144,224,239,0.09), transparent 65%);
-  animation-duration: 14s; animation-delay: 3s;
+  width: 55px;
+  height: 55px;
+  left: 48%;
+  top: 80%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.11), transparent 65%);
+  animation-duration: 14s;
+  animation-delay: 3s;
 }
 .bubble:nth-child(6) {
-  width: 40px; height: 40px; left: 12%; top: 75%;
-  background: radial-gradient(circle, rgba(255,255,255,0.08), transparent 65%);
-  animation-duration: 10s; animation-delay: 5.5s;
+  width: 40px;
+  height: 40px;
+  left: 12%;
+  top: 75%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.10), transparent 65%);
+  animation-duration: 10s;
+  animation-delay: 5.5s;
 }
 .bubble:nth-child(7) {
-  width: 60px; height: 60px; left: 58%; top: 18%;
-  background: radial-gradient(circle, rgba(247,127,0,0.07), transparent 65%);
-  animation-duration: 16s; animation-delay: 1.8s;
+  width: 60px;
+  height: 60px;
+  left: 58%;
+  top: 18%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 65%);
+  animation-duration: 16s;
+  animation-delay: 1.8s;
 }
 
 @keyframes orbDrift {
-  0%   { opacity: 0;   transform: translate(0, 0) scale(1); }
-  20%  { opacity: 1; }
-  50%  { opacity: 0.8; transform: translate(10px, -14px) scale(1.06); }
-  80%  { opacity: 0.5; }
-  100% { opacity: 0;   transform: translate(-6px, 8px) scale(0.94); }
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate(10px, -14px) scale(1.06);
+  }
+  80% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-6px, 8px) scale(0.94);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .admin-sidebar .bubble { animation: none; opacity: 0; }
+  .admin-sidebar .bubble {
+    animation: none;
+    opacity: 0;
+  }
   .admin-sidebar::before,
-  .admin-sidebar::after { display: none; }
+  .admin-sidebar::after {
+    display: none;
+  }
 }
 
-/* ── Nút bật âm thanh cảnh báo ── */
+/* ─── Nút bật âm thanh cảnh báo ─────────────────────────────────── */
 @keyframes pulse-red {
-  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
-  70%  { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
 }
 
-/* ─── Sidebar Resizer Handle ────────────────────────────────────────── */
+/* ─── Sidebar Resizer Handle ────────────────────────────────────── */
 .admin-sidebar-resizer {
   position: absolute;
   top: 0;
@@ -323,7 +638,7 @@
 
 .admin-sidebar-resizer:hover,
 .admin-sidebar.is-resizing .admin-sidebar-resizer {
-  background: rgba(56, 189, 248, 0.45);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .admin-sidebar-resizer-line {
@@ -331,7 +646,7 @@
   height: 48px;
   border-radius: 2px;
   background: #ffffff;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -348,4 +663,3 @@
 .admin-sidebar.is-resizing * {
   user-select: none !important;
 }
-

@@ -9,6 +9,7 @@ using SmartPool.Application.Features.ManageEquipments.Inspections.Commands.Submi
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspectionForm;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspections;
+using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.API.Controllers;
 
@@ -98,7 +99,43 @@ public sealed class EquipmentInspectionsController : ControllerBase
         }
     }
 
-    public sealed record ResolveItemRequest(string Action, string? Note);
+    /// <summary>
+    /// Upload ảnh hiện trường hư hỏng hoặc ảnh minh chứng sau sửa chữa lên Cloudinary.
+    /// </summary>
+    [HttpPost("images")]
+    [Authorize]
+    [RequestSizeLimit(15 * 1024 * 1024)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UploadImage(
+        IFormFile? file,
+        [FromServices] IStorageService storageService,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "Vui lòng chọn tệp hình ảnh hợp lệ." });
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+            return BadRequest(new { message = "Chỉ chấp nhận định dạng ảnh JPG, JPEG, PNG, WEBP." });
+
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(new { message = "Kích thước ảnh không được vượt quá 10MB." });
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var imageUrl = await storageService.UploadAsync(stream, file.FileName, file.ContentType, cancellationToken);
+            return Ok(new { url = imageUrl });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi tải ảnh kiểm tra thiết bị lên Cloudinary.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Không thể tải ảnh lên hệ thống lưu trữ. Vui lòng thử lại." });
+        }
+    }
+
+    public sealed record ResolveItemRequest(string Action, string? Note, List<string>? ResolutionImageUrls);
 
     /// <summary>
     /// Quản trị viên (Admin) xác nhận đã sửa chữa hoặc thay thế thiết bị gặp sự cố trong biên bản kiểm tra.
@@ -122,7 +159,8 @@ public sealed class EquipmentInspectionsController : ControllerBase
             EquipmentId = equipmentId,
             AdminId = adminId,
             Action = request.Action,
-            Note = request.Note
+            Note = request.Note,
+            ResolutionImageUrls = request.ResolutionImageUrls ?? []
         };
 
         try

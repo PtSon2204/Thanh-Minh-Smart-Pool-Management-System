@@ -306,9 +306,18 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancel_reason");
+
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cancelled_at");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by_user_id");
 
                     b.Property<Guid>("ClassId")
                         .HasColumnType("uuid")
@@ -348,6 +357,8 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("class_registrations_pkey");
+
+                    b.HasIndex("CancelledByUserId");
 
                     b.HasIndex("ClassId", "CustomerUserId")
                         .IsUnique()
@@ -798,6 +809,13 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
+                    b.Property<string>("PriorityLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("priority_level")
+                        .HasDefaultValueSql("'Normal'::character varying");
+
                     b.Property<string>("Status")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
@@ -1245,6 +1263,84 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_pool_duty_schedules_assignment_type", "assignment_type IN ('Auto', 'Manual')");
 
                             t.HasCheckConstraint("ck_pool_duty_schedules_status", "status IN ('Scheduled', 'InProgress', 'Completed', 'Absent', 'Cancelled', 'Unassigned')");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.PoolOperationalConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<TimeOnly>("AfternoonEndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<TimeOnly>("AfternoonStartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<bool>("IsAutoSuspended")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxCapacity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(100);
+
+                    b.Property<TimeOnly>("MorningEndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<TimeOnly>("MorningStartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("OperationalStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Operating");
+
+                    b.Property<string>("PoolName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasDefaultValue("Bể bơi Thành Minh");
+
+                    b.Property<string>("StatusReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("WarningThresholdPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(80);
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PoolOperationalConfigs", "smart_pool");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-000000000001"),
+                            AfternoonEndTime = new TimeOnly(19, 30, 0),
+                            AfternoonStartTime = new TimeOnly(13, 30, 0),
+                            IsAutoSuspended = false,
+                            MaxCapacity = 100,
+                            MorningEndTime = new TimeOnly(11, 30, 0),
+                            MorningStartTime = new TimeOnly(6, 0, 0),
+                            OperationalStatus = "Operating",
+                            PoolName = "Bể bơi Thành Minh",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedBy = "System",
+                            WarningThresholdPercent = 80
                         });
                 });
 
@@ -2912,6 +3008,12 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassRegistration", b =>
                 {
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("class_registrations_cancelled_by_user_id_fkey");
+
                     b.HasOne("SmartPool.Domain.Entities.SwimClass", "Class")
                         .WithMany("Registrations")
                         .HasForeignKey("ClassId")

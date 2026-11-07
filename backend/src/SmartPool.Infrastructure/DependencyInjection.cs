@@ -202,6 +202,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<SmartPool.Application.Interfaces.Repositories.IWaterQualityOperations, SmartPool.Infrastructure.Persistence.Repositories.WaterQuality.WaterQualityOperations>();
             services.AddHostedService<ExpiredOnlineOrderWorker>();
             services.AddHostedService<ExpiredRentalPaymentWorker>();
+            services.AddHostedService<InspectionSafetyReminderWorker>();
 
             return services;
         }

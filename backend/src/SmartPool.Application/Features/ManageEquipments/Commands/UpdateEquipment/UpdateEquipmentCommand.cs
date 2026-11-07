@@ -10,6 +10,7 @@ public sealed class UpdateEquipmentCommand : IRequest<bool>
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    public string? PriorityLevel { get; set; }
     public string? Location { get; set; }
     public JsonElement? Metadata { get; set; }
 }

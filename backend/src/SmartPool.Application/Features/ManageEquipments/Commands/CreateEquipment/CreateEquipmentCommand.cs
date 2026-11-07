@@ -5,6 +5,7 @@ using FluentValidation;
 using MediatR;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.Commands.CreateEquipment;
 
@@ -12,6 +13,7 @@ public sealed class CreateEquipmentCommand : IRequest<EquipmentListItem>
 {
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    public string? PriorityLevel { get; set; } = EquipmentPriorityLevels.Normal;
     public string? Location { get; set; }
     public JsonElement? Metadata { get; set; }
     public CameraConnectionConfiguration? CameraConnection { get; set; }

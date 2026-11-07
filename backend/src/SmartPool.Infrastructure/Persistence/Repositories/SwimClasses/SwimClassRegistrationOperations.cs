@@ -53,6 +53,8 @@ public sealed partial class SwimClassOperations
         registration.RegisteredAt = now;
         registration.ConfirmedAt = now;
         registration.CancelledAt = null;
+        registration.CancelledByUserId = null;
+        registration.CancelReason = null;
         registration.UpdatedAt = now;
 
         await context.SaveChangesAsync(cancellationToken);

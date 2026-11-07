@@ -4,10 +4,12 @@ import {
   Button,
   ConfigProvider,
   Empty,
+  Modal,
   Pagination,
   Segmented,
   Spin,
   Tag,
+  message,
 } from "antd";
 import {
   CalendarOutlined,
@@ -15,6 +17,7 @@ import {
   ReadOutlined,
   ReloadOutlined,
   RightOutlined,
+  StopOutlined,
   UnorderedListOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -22,6 +25,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../auth/store/authStore";
 import { formatVietnamTime } from "../utils/classSchedule";
 import { useMySwimClasses } from "../hooks/useMySwimClasses";
+import { useCancelMyClassRegistration } from "../hooks/useClassRegistration";
+import { classServerMessage } from "../utils/classDisplay";
 import "../styles/mySwimClasses.css";
 
 const filters = [
@@ -50,6 +55,7 @@ export default function MySwimClassesView() {
     ...(status !== "all" ? { status } : {}),
   };
   const classes = useMySwimClasses(params, userId);
+  const cancelRegistration = useCancelMyClassRegistration();
   const items = classes.data?.items || [];
   const upcoming = items
     .filter(
@@ -65,6 +71,25 @@ export default function MySwimClassesView() {
     )[0];
   function openClass(item) {
     navigate(`/lop-hoc/${item.classId}`, { state: { fromMyClasses: true } });
+  }
+
+  function confirmCancel(item) {
+    Modal.confirm({
+      title: `Hủy đăng ký lớp ${item.className}?`,
+      content: 'Sau khi hủy, bạn sẽ không còn giữ chỗ trong lớp. Bạn có thể đăng ký lại nếu lớp vẫn nhận đăng ký và còn chỗ.',
+      okText: 'Xác nhận hủy',
+      okType: 'danger',
+      cancelText: 'Giữ đăng ký',
+      onOk: async () => {
+        try {
+          await cancelRegistration.mutateAsync(item.classId);
+          message.success('Đã hủy đăng ký lớp.');
+        } catch (error) {
+          message.error(classServerMessage(error, 'Không thể hủy đăng ký. Vui lòng thử lại.'));
+          void classes.refetch();
+        }
+      },
+    });
   }
 
   return (
@@ -230,6 +255,15 @@ export default function MySwimClassesView() {
                           </Button>
                         ) : (
                           <span>Chi tiết lớp hiện không khả dụng.</span>
+                        )}
+                        {item.registrationStatus === 'Confirmed' && item.canSelfCancel && (
+                          <Button danger icon={<StopOutlined />} loading={cancelRegistration.isPending && cancelRegistration.variables === item.classId}
+                            onClick={() => confirmCancel(item)}>
+                            Hủy đăng ký
+                          </Button>
+                        )}
+                        {item.registrationStatus === 'Confirmed' && !item.canSelfCancel && (
+                          <span>Đã qua hạn tự hủy; vui lòng liên hệ Coach.</span>
                         )}
                       </div>
                     </article>

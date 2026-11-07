@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Spin } from 'antd'
-import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined, StopOutlined, TeamOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useSwimClassDetail } from '../hooks/useSwimClasses'
@@ -60,6 +60,7 @@ export default function SwimClassDetailView() {
         <header className="swim-class-detail-header">
           <div className="swim-class-detail-heading"><span className="swim-class-detail-icon"><BookOutlined /></span><div><small>CHI TIẾT LỚP DẠY BƠI</small><h1>{swimClass.name}</h1></div></div>
           <div className="swim-class-detail-header-actions">
+            {isOwner && <Button icon={<TeamOutlined />} onClick={() => navigate(`/coach/classes/${swimClass.id}/students`)}>Xem danh sách học viên</Button>}
             {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <>
               <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Sửa thông tin lớp</Button>
               <Button danger icon={<StopOutlined />} onClick={() => setDeactivating(true)}>Ngừng lớp</Button>
