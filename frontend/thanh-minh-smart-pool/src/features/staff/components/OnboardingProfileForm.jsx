@@ -120,7 +120,7 @@ export default function OnboardingProfileForm({ revision, invitation, disabled, 
       continueStep()
     }
   }}>
-    {invitation && <Alert type="info" showIcon title="Thông tin lời mời do quản trị viên quyết định" description={<div className="onboarding-invitation-meta"><span>{invitation.email}</span><span>{invitationRoleOptions.find((role) => role.value === invitation.targetRole)?.label || invitation.targetRole}</span><span>Ngày vào làm: {dayjs(invitation.joinDate).format('DD/MM/YYYY')}</span></div>} />}
+     {invitation && <Alert type="info" showIcon title="Thông tin lời mời do quản trị viên quyết định" description={<div className="onboarding-invitation-meta"><span>{invitation.email}</span><span>{invitationRoleOptions.find((role) => role.value === invitation.targetRole)?.label || invitation.targetRole}</span><span>Ngày vào làm: {dayjs(invitation.joinDate).format('DD/MM/YYYY')}</span></div>} />}
     <nav className="onboarding-stepper" aria-label="Các bước hoàn thiện hồ sơ">
       <Steps current={currentStep} size="small" orientation="horizontal" responsive={false} titlePlacement="vertical" items={steps.map(({ title }) => ({ title }))} />
     </nav>

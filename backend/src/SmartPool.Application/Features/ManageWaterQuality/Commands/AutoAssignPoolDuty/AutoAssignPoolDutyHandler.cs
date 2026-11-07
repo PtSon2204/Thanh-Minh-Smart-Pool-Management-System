@@ -54,7 +54,8 @@ public sealed class AutoAssignPoolDutyHandler : IRequestHandler<AutoAssignPoolDu
     {
         try
         {
-            var groupedByEmployee = schedules.GroupBy(s => s.AssignedEmployeeId);
+            var groupedByEmployee = schedules.Where(s => s.AssignedEmployeeId.HasValue)
+                .GroupBy(s => s.AssignedEmployeeId.GetValueOrDefault());
             var nowUtc = _timeProvider.GetUtcNow().UtcDateTime;
 
             foreach (var group in groupedByEmployee)

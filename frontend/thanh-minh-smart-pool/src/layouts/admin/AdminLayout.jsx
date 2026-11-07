@@ -288,7 +288,7 @@ export default function AdminLayout() {
         {
           key: "staff",
           icon: <TeamOutlined />,
-          label: "Quản lý nhân viên",
+          label: isAdmin ? "Quản lý nhân viên" : "Lịch làm việc và chấm công",
           children: [
             isAdmin && {
               key: "staff-attendance",

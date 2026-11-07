@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
+using SmartPool.API.Extensions;
+using SmartPool.Application.Features.Notifications;
 using SmartPool.Application.Features.Notifications.Commands.CreateNotification;
 using SmartPool.Application.Features.Notifications.Commands.MarkNotificationAsRead;
 using SmartPool.Application.Features.Notifications.Queries.GetNotifications;
@@ -17,6 +19,22 @@ public sealed class NotificationsController : ControllerBase
     public NotificationsController(ISender sender)
     {
         _sender = sender;
+    }
+
+    [HttpGet("mine"), Authorize]
+    public async Task<IActionResult> GetMine([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+        return Ok(await _sender.Send(new GetMyNotificationsQuery(page, pageSize) { UserId = userId }, cancellationToken));
+    }
+
+    [HttpPatch("mine/{id:guid}/read"), Authorize]
+    public async Task<IActionResult> MarkMineAsRead(Guid id, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+        var changed = await _sender.Send(new MarkMyNotificationReadCommand(id) { UserId = userId }, cancellationToken);
+        return changed ? Ok(new { success = true }) : NotFound(new { code = "NOTIFICATION_NOT_FOUND" });
     }
 
     /// <summary>Lấy danh sách thông báo dành cho Admin (có phân trang, lọc theo type, isRead).</summary>

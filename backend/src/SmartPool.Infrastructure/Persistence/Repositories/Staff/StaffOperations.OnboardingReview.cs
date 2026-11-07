@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageStaffs.Onboarding;
+using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.Staff;
@@ -77,7 +78,7 @@ public sealed partial class StaffOperations
             var avatar = await context.StaffOnboardingDocuments.SingleOrDefaultAsync(item => item.RevisionId == revision.Id && item.Purpose == "AVATAR" && item.DeletionState == "AVAILABLE", cancellationToken);
             context.UserProfiles.Add(new UserProfile { UserId = user.Id, FullName = profile.FullName, DateOfBirth = profile.DateOfBirth,
                 AvatarUrl = avatar is null ? null : Onboarding.Storage.AvatarUrl(avatar), UpdatedAt = OnboardingNow });
-            context.Employees.Add(new Employee { UserId = user.Id, JoinDate = invitation.JoinDate, Status = "Working", CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow });
+            context.Employees.Add(new Employee { UserId = user.Id, User = user, JoinDate = invitation.JoinDate, Status = "Working", CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow });
             invitation.CompletedUserId = user.Id;
             invitation.ProtectedPasswordHash = null;
             invitation.Status = "COMPLETED";
@@ -138,19 +139,25 @@ public sealed partial class StaffOperations
         context.StaffIdentityClaims.RemoveRange(await context.StaffIdentityClaims.Where(item => item.OwnerId == owner && !keep.Contains(item.Digest)).ToListAsync(cancellationToken));
     }
 
-    private static StaffInvitationView InvitationView(StaffInvitation invitation) => new(invitation.Id, invitation.Email, invitation.TargetRole,
+    private StaffInvitationView InvitationView(StaffInvitation invitation) => new(invitation.Id, invitation.Email, invitation.TargetRole,
         invitation.JoinDate, invitation.Status, invitation.DeliveryStatus, invitation.DeliveryErrorCode, invitation.ExpiresAtUtc,
-        invitation.CreatedAtUtc, invitation.CompletedUserId, invitation.Version);
+        invitation.CreatedAtUtc, invitation.CompletedUserId, invitation.Version,
+        invitation.ContractJson is null ? null : ScheduleDeserialize<ContractTerms>(invitation.ContractJson));
 
     private async Task<StaffRevisionView?> RevisionViewAsync(StaffOnboardingRevision? revision, CancellationToken cancellationToken)
     {
         if (revision is null) return null;
         var documents = await context.StaffOnboardingDocuments.AsNoTracking().Where(item => item.RevisionId == revision.Id).OrderBy(item => item.UploadedAtUtc).ToListAsync(cancellationToken);
+        var reviewerName = revision.ReviewerId.HasValue
+            ? await context.Users.AsNoTracking().Where(item => item.Id == revision.ReviewerId)
+                .Select(item => item.UserProfile != null && item.UserProfile.FullName.Trim() != ""
+                    ? item.UserProfile.FullName : item.Username).SingleOrDefaultAsync(cancellationToken)
+            : null;
         return new(revision.Id, revision.RevisionNumber, revision.State, revision.Version, Onboarding.Profile(revision.ProtectedProfile),
             documents.Select(item => new StaffDocumentView(item.Id, item.Purpose,
                 item.DeletionState == "AVAILABLE" && item.DeleteAfterUtc <= OnboardingNow ? "EXPIRED" : item.DeletionState == "PENDING" ? "PENDING_DELETION" : item.DeletionState,
                 item.ContentType, item.UploadedAtUtc, item.DeleteAfterUtc, item.DeletedAtUtc, item.LastErrorCode)).ToList(),
-            revision.SubmittedAtUtc, revision.ReviewedAtUtc, revision.ReviewerId, revision.CorrectionReason, revision.DocumentsProvided);
+            revision.SubmittedAtUtc, revision.ReviewedAtUtc, revision.ReviewerId, revision.CorrectionReason, revision.DocumentsProvided, reviewerName);
     }
 
     private async Task<OnboardingWorkspace> WorkspaceAsync(string code, StaffInvitation? invitation, StaffOnboardingRevision? revision,
@@ -160,9 +167,28 @@ public sealed partial class StaffOperations
             .OrderByDescending(item => item.RevisionNumber).FirstOrDefaultAsync(cancellationToken) : null;
         var correction = employeeId.HasValue ? await context.StaffCorrectionRequests.Where(item => item.EmployeeId == employeeId && item.State != "CLOSED")
             .OrderByDescending(item => item.CreatedAtUtc).FirstOrDefaultAsync(cancellationToken) : null;
-        return new(code, invitation is null ? null : InvitationView(invitation), await RevisionViewAsync(revision, cancellationToken),
+        var contractJson = employeeId.HasValue
+            ? await context.StaffWorkPatterns.AsNoTracking().Where(item => item.EmployeeId == employeeId)
+                .OrderByDescending(item => item.Version).Select(item => item.ContractJson).FirstOrDefaultAsync(cancellationToken)
+            : null;
+        var contract = contractJson is not null ? ScheduleDeserialize<ContractTerms>(contractJson)
+            : invitation?.ContractJson is not null ? ScheduleDeserialize<ContractTerms>(invitation.ContractJson) : null;
+        var shifts = await ContractShiftsAsync(contract, cancellationToken);
+        var invitationView = invitation is null ? null : InvitationView(invitation);
+        if (invitationView is not null)
+            invitationView = invitationView with { Shifts = await ContractShiftsAsync(invitationView.Contract, cancellationToken) };
+        return new(code, invitationView, await RevisionViewAsync(revision, cancellationToken),
             await RevisionViewAsync(approved, cancellationToken), correction is null ? null : new(correction.Id, correction.EmployeeId,
-                correction.Reason, correction.State, correction.CreatedAtUtc, correction.RevisionId, correction.Version));
+                correction.Reason, correction.State, correction.CreatedAtUtc, correction.RevisionId, correction.Version),
+            Contract: contract, Shifts: shifts);
+    }
+
+    private async Task<IReadOnlyList<ContractShiftView>> ContractShiftsAsync(ContractTerms? contract, CancellationToken cancellationToken)
+    {
+        var ids = contract?.WeeklyPattern.SelectMany(item => item.ShiftIds).Distinct().ToArray() ?? [];
+        return await context.Shifts.AsNoTracking().Where(item => ids.Contains(item.Id)).OrderBy(item => item.StartTime)
+            .Select(item => new ContractShiftView(item.Id, item.Name, item.StartTime, item.EndTime, item.IsActive == true))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<StaffInvitationListItem>> ListInvitationsAsync(ListStaffInvitationsQuery request, CancellationToken cancellationToken)

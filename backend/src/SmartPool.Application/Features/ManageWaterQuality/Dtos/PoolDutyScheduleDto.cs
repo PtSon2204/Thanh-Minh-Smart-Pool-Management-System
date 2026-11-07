@@ -8,7 +8,7 @@ public sealed class PoolDutyScheduleDto
     public string ShiftName { get; set; } = string.Empty;
     public TimeOnly ShiftStartTime { get; set; }
     public TimeOnly ShiftEndTime { get; set; }
-    public Guid AssignedEmployeeId { get; set; }
+    public Guid? AssignedEmployeeId { get; set; }
     public string AssignedEmployeeName { get; set; } = string.Empty;
     public string? AssignedEmployeeEmail { get; set; }
     public string? EmployeeRole { get; set; }

@@ -22,6 +22,10 @@ public sealed class EmployeeShiftConfiguration : IEntityTypeConfiguration<Employ
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
         entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
         entity.Property(e => e.ShiftId).HasColumnName("shift_id");
+        entity.Property(e => e.WorkPatternId).HasColumnName("work_pattern_id");
+        entity.Property(e => e.ScheduleExceptionId).HasColumnName("schedule_exception_id");
+        entity.HasOne<StaffWorkPattern>().WithMany().HasForeignKey(item => item.WorkPatternId).OnDelete(DeleteBehavior.Restrict);
+        entity.HasOne<StaffScheduleException>().WithMany().HasForeignKey(item => item.ScheduleExceptionId).OnDelete(DeleteBehavior.Restrict);
         entity.Property(e => e.Status).HasMaxLength(50).HasDefaultValueSql("'Scheduled'::character varying").HasColumnName("status");
         entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()").HasColumnName("updated_at");
         entity.Property(e => e.WorkDate).HasColumnName("work_date");

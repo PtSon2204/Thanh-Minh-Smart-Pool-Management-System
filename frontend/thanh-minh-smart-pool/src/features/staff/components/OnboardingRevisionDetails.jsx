@@ -24,7 +24,7 @@ export default function OnboardingRevisionDetails({ revision }) {
       <Descriptions.Item label="Mối quan hệ">{profile.emergencyContactRelationship || '-'}</Descriptions.Item>
       <Descriptions.Item label="Gửi duyệt lúc">{formatOnboardingDate(revision.submittedAtUtc, true)}</Descriptions.Item>
       <Descriptions.Item label="Duyệt / phản hồi lúc">{formatOnboardingDate(revision.reviewedAtUtc, true)}</Descriptions.Item>
-      <Descriptions.Item label="Người duyệt">{revision.reviewerId || '-'}</Descriptions.Item>
+      <Descriptions.Item label="Người duyệt">{revision.reviewerName || (revision.reviewedAtUtc ? 'Chưa có tên người duyệt' : 'Chưa duyệt')}</Descriptions.Item>
       <Descriptions.Item label="Ảnh CCCD tại thời điểm duyệt">{revision.documentsProvided ? 'Có cung cấp ảnh; xem trạng thái truy cập riêng' : 'Không cung cấp ảnh CCCD'}</Descriptions.Item>
     </Descriptions>
   </section>

@@ -665,6 +665,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("employee_id");
 
+                    b.Property<Guid?>("ScheduleExceptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("schedule_exception_id");
+
                     b.Property<Guid>("ShiftId")
                         .HasColumnType("uuid")
                         .HasColumnName("shift_id");
@@ -686,10 +690,18 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("date")
                         .HasColumnName("work_date");
 
+                    b.Property<Guid?>("WorkPatternId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_pattern_id");
+
                     b.HasKey("Id")
                         .HasName("employee_shifts_pkey");
 
+                    b.HasIndex("ScheduleExceptionId");
+
                     b.HasIndex("ShiftId");
+
+                    b.HasIndex("WorkPatternId");
 
                     b.HasIndex(new[] { "EmployeeId", "ShiftId", "WorkDate" }, "ux_employee_shifts_employee_id_shift_id_work_date")
                         .IsUnique();
@@ -1185,7 +1197,7 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
-                    b.Property<Guid>("AssignedEmployeeId")
+                    b.Property<Guid?>("AssignedEmployeeId")
                         .HasColumnType("uuid")
                         .HasColumnName("assigned_employee_id");
 
@@ -1250,7 +1262,7 @@ namespace SmartPool.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_pool_duty_schedules_assignment_type", "assignment_type IN ('Auto', 'Manual')");
 
-                            t.HasCheckConstraint("ck_pool_duty_schedules_status", "status IN ('Scheduled', 'InProgress', 'Completed', 'Absent', 'Cancelled')");
+                            t.HasCheckConstraint("ck_pool_duty_schedules_status", "status IN ('Scheduled', 'InProgress', 'Completed', 'Absent', 'Cancelled', 'Unassigned')");
                         });
                 });
 
@@ -1852,6 +1864,9 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Property<Guid?>("CompletedUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ContractJson")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2082,6 +2097,237 @@ namespace SmartPool.Infrastructure.Migrations
 
                             t.HasCheckConstraint("ck_staff_revision_state", "\"State\" IN ('DRAFT','SUBMITTED','APPROVED','CHANGES_REQUESTED','REJECTED')");
                         });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("HtmlBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("LeaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<Guid>("RecipientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("RecipientId");
+
+                    b.HasIndex("OperationId", "RecipientId", "Channel")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("staff_schedule_deliveries", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_staff_schedule_delivery_status", "\"Status\" IN ('Pending','Sending','Sent','Failed','Unknown')");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleException", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DestinationShiftId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DestinationEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("SourceAssignmentIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("DestinationShiftId");
+
+                    b.HasIndex("DestinationEmployeeId");
+
+                    b.HasIndex("EmployeeId", "Version")
+                        .IsUnique();
+
+                    b.HasIndex("EmployeeId", "WorkDate");
+
+                    b.ToTable("staff_schedule_exceptions", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_schedule_exception_kind", "\"Kind\" IN ('Leave','Move','Replace')");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProposalHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "CreatedAtUtc");
+
+                    b.ToTable("staff_schedule_operations", "smart_pool");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffSchedulePreview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProposalHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("StateHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("staff_schedule_previews", "smart_pool");
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffWorkPattern", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContractJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("EmployeeId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("staff_work_patterns", "smart_pool");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>
@@ -2874,11 +3120,21 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("employee_shifts_employee_id_fkey");
 
+                    b.HasOne("SmartPool.Domain.Entities.StaffScheduleException", null)
+                        .WithMany()
+                        .HasForeignKey("ScheduleExceptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SmartPool.Domain.Entities.Shift", "Shift")
                         .WithMany("EmployeeShifts")
                         .HasForeignKey("ShiftId")
                         .IsRequired()
                         .HasConstraintName("employee_shifts_shift_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.StaffWorkPattern", null)
+                        .WithMany()
+                        .HasForeignKey("WorkPatternId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Employee");
 
@@ -3000,7 +3256,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("AssignedEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("pool_duty_schedules_assigned_employee_id_fkey");
 
                     b.HasOne("SmartPool.Domain.Entities.Shift", "Shift")
@@ -3156,6 +3411,79 @@ namespace SmartPool.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ReviewerId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleDelivery", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleException", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.Shift", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationShiftId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleOperation", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffSchedulePreview", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffWorkPattern", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>
