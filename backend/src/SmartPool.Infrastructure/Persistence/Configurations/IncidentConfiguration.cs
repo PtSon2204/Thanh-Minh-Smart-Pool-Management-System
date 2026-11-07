@@ -20,5 +20,13 @@ public sealed class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()").HasColumnName("updated_at");
         entity.HasOne(d => d.ReportedByNavigation).WithMany(p => p.Incidents).HasForeignKey(d => d.ReportedBy).HasConstraintName("incidents_reported_by_fkey");
         entity.Property(e => e.ImageIncidents).HasColumnName("image_incidents");
+
+        // Giám sát an toàn
+        entity.Property(e => e.WarningId).HasColumnName("warning_id");
+        entity.Property(e => e.CameraId).HasColumnName("camera_id");
+        entity.Property(e => e.Location).HasColumnName("location").HasMaxLength(200);
+
+        entity.HasOne(d => d.Camera).WithMany().HasForeignKey(d => d.CameraId).OnDelete(DeleteBehavior.Restrict);
+        entity.HasOne(d => d.Warning).WithMany().HasForeignKey(d => d.WarningId).OnDelete(DeleteBehavior.Restrict);
     }
 }
