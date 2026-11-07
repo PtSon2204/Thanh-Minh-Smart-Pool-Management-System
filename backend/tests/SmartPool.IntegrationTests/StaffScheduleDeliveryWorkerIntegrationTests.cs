@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
@@ -15,47 +15,52 @@ public sealed class StaffScheduleDeliveryWorkerIntegrationTests
     {
         await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
         var now = fixture.Clock.GetUtcNow().UtcDateTime;
-        var firstDeliveryId = Guid.Parse("11111111-1111-4111-8111-111111111111");
-        var secondDeliveryId = Guid.Parse("22222222-2222-4222-8222-222222222222");
         var operationId = Guid.NewGuid();
-        foreach (var (id, recipientId) in new[] { (firstDeliveryId, fixture.EmployeeId), (secondDeliveryId, fixture.AdminId) })
+        var deliveries = new[]
+        {
+            (Id: Guid.NewGuid(), RecipientId: fixture.EmployeeId, CreatedAtUtc: now),
+            (Id: Guid.NewGuid(), RecipientId: fixture.AdminId, CreatedAtUtc: now.AddSeconds(1))
+        };
+        var firstDeliveryId = deliveries[0].Id;
+        foreach (var delivery in deliveries)
             fixture.Context.StaffScheduleDeliveries.Add(new StaffScheduleDelivery
             {
-                Id = id,
+                Id = delivery.Id,
                 OperationId = operationId,
                 EmployeeId = fixture.EmployeeId,
-                RecipientId = recipientId,
+                RecipientId = delivery.RecipientId,
                 Channel = "EMAIL",
-                RecipientEmail = $"{id:N}@example.test",
+                RecipientEmail = $"{delivery.Id:N}@example.test",
                 Subject = "Synthetic delivery",
                 HtmlBody = "Synthetic body",
                 Status = "Pending",
                 AttemptCount = 0,
-                CreatedAtUtc = now
+                CreatedAtUtc = delivery.CreatedAtUtc
             });
         await fixture.Context.SaveChangesAsync();
 
         var options = new DbContextOptionsBuilder<SmartPoolDbContext>()
             .UseNpgsql(fixture.Context.Database.GetConnectionString()).Options;
         var mail = new LeasedEmailService(options, firstDeliveryId, fixture.Clock.GetUtcNow().AddMinutes(3).UtcDateTime);
+        var logger = new CapturingLogger();
         var services = new ServiceCollection()
             .AddLogging()
             .AddScoped(_ => new SmartPoolDbContext(options))
             .AddSingleton<IEmailService>(mail)
             .BuildServiceProvider();
         using var worker = new StaffScheduleDeliveryWorker(services.GetRequiredService<IServiceScopeFactory>(),
-            fixture.Clock, NullLogger<StaffScheduleDeliveryWorker>.Instance);
+            fixture.Clock, logger);
 
         try
         {
             await worker.StartAsync(CancellationToken.None);
-            await mail.FirstSendStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await WaitForSignalOrWorkerFailureAsync(mail.FirstSendStarted.Task, logger, "first email send");
             var first = await fixture.Context.StaffScheduleDeliveries.AsNoTracking().SingleAsync(item => item.Id == firstDeliveryId);
             Assert.Equal("Unknown", first.Status);
             Assert.Equal("DELIVERY_RESULT_UNKNOWN", first.LastErrorCode);
 
             mail.ReleaseFirstSend.TrySetResult(true);
-            await mail.SecondSendStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await WaitForSignalOrWorkerFailureAsync(mail.SecondSendStarted.Task, logger, "second email send");
 
             var finalFirst = await fixture.Context.StaffScheduleDeliveries.AsNoTracking().SingleAsync(item => item.Id == firstDeliveryId);
             Assert.Equal("Unknown", finalFirst.Status);
@@ -64,8 +69,38 @@ public sealed class StaffScheduleDeliveryWorkerIntegrationTests
         finally
         {
             mail.ReleaseFirstSend.TrySetResult(true);
-            await worker.StopAsync(CancellationToken.None);
-            await services.DisposeAsync();
+            using var shutdownTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            try
+            {
+                await worker.StopAsync(shutdownTimeout.Token);
+            }
+            finally
+            {
+                await services.DisposeAsync();
+            }
+        }
+    }
+
+    private static async Task WaitForSignalOrWorkerFailureAsync(Task signal, CapturingLogger logger, string expectedAction)
+    {
+        var completed = await Task.WhenAny(signal, logger.BatchFailure.Task).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(ReferenceEquals(signal, completed),
+            $"The schedule delivery worker failed before the {expectedAction}: {await logger.BatchFailure.Task}");
+        await signal;
+    }
+
+    private sealed class CapturingLogger : ILogger<StaffScheduleDeliveryWorker>
+    {
+        public TaskCompletionSource<Exception> BatchFailure { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (exception is not null) BatchFailure.TrySetResult(exception);
         }
     }
 
