@@ -191,6 +191,31 @@
   white-space: nowrap;
 }
 
+.navbar-notifications {
+  width: min(360px, calc(100vw - 32px));
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.navbar-notification-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar-notification-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.navbar-notification-item .ant-typography-paragraph {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
 .navbar-mobile-actions {
   display: none;
 }

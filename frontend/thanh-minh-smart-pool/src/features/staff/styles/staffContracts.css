@@ -1,0 +1,120 @@
+.staff-contract-stack {
+  --contract-day-width: 152px;
+  --contract-body-size: 14px;
+  --contract-caption-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.staff-contract-stack .ant-typography,
+.staff-contract-stack .ant-form-item {
+  margin-bottom: 0;
+}
+
+.staff-contract-stack + .staff-contract-stack,
+.staff-contract-section {
+  margin-top: var(--space-6);
+}
+
+.staff-contract-preset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.staff-contract-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.staff-contract-day {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.staff-contract-day .ant-select {
+  min-width: 0;
+}
+
+.staff-contract-wrap {
+  overflow-wrap: anywhere;
+}
+
+.staff-contract-month-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.staff-contract-month-label {
+  color: var(--text-secondary);
+  font-size: var(--contract-body-size);
+  font-weight: 600;
+}
+
+.staff-contract-month-actions {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 220px) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 100%;
+}
+
+.staff-contract-month-picker {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .staff-contract-month-controls {
+    width: 100%;
+  }
+
+  .staff-contract-month-actions {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .staff-contract-month-picker {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .staff-contract-month-previous {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .staff-contract-month-next {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .staff-contract-month-refresh {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+  }
+
+  .staff-contract-day {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
+
+@media (max-width: 767px) {
+  .staff-profiles-drawer .ant-drawer-content-wrapper {
+    width: 100vw !important;
+    max-width: 100vw;
+  }
+}

@@ -5,6 +5,7 @@ import { useAuthStore } from '../../features/auth/store/authStore'
 import OnboardingProfileForm from '../../features/staff/components/OnboardingProfileForm'
 import OnboardingDocuments from '../../features/staff/components/OnboardingDocuments'
 import OnboardingRevisionDetails from '../../features/staff/components/OnboardingRevisionDetails'
+import StaffContractSchedule from '../../features/staff/components/StaffContractSchedule'
 import { onboardingService } from '../../features/staff/services/onboardingService'
 import { onboardingError, stateLabels } from '../../features/staff/onboarding/onboardingUi'
 import '../../features/staff/styles/staffOnboarding.css'
@@ -94,6 +95,7 @@ export default function StaffOnboardingPage() {
     {canRead && (loading ? <Spin aria-label="Đang tải hồ sơ" /> : workspace && <>
       <Typography.Title level={3}>{stateLabels[revision?.state] || 'Hồ sơ hiện có'}</Typography.Title>
       {revision?.correctionReason && <Alert type="warning" showIcon title="Yêu cầu bổ sung" description={revision.correctionReason} />}
+      <div className="onboarding-workspace onboarding-contract"><StaffContractSchedule contract={workspace.contract || workspace.invitation?.contract} shifts={workspace.shifts || workspace.invitation?.shifts || []} employeeId={!credentials && staffSession ? session.id : undefined} scope="self" /></div>
       {editable ? <OnboardingProfileForm key={revision.id} revision={revision} invitation={workspace.invitation} busy={busy} disabled={uncertain} requirePassword={Boolean(credentials)}
         onSave={(profile) => mutate(() => onboardingService.save(credentials, { profile, expectedVersion: revision.version }))}
         onSubmit={(data) => mutate(() => onboardingService.submit(credentials, { ...data, expectedVersion: revision.version }))}

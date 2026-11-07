@@ -1,8 +1,8 @@
-import { Button, Collapse, Empty, Tag } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Button, Collapse, Empty, Space, Tag } from 'antd'
+import { PlusOutlined, SwapOutlined } from '@ant-design/icons'
 import { formatDate, formatTime, isOvernight, statusColor, statusLabel, vietnamToday, weekDates } from './scheduleUtils'
 
-function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, cancelPending, actionsDisabled }) {
+function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, onReplace, cancelPending, replacePending, actionsDisabled }) {
   const label = pending ? assignment.employeeName : assignment.employeeName || 'Nhân viên'
   return <div className="staff-week-assignment">
     <div className="staff-week-assignment-identity">
@@ -10,11 +10,14 @@ function AssignmentTag({ assignment, pending, onRemove, isAdmin, onCancel, cance
       <Tag color={pending ? 'cyan' : statusColor(assignment.status)}>{pending ? 'Chưa lưu' : statusLabel(assignment.status)}</Tag>
     </div>
     {pending && <Button type="text" danger size="small" aria-label={`Bỏ phân công ${label}`} disabled={actionsDisabled} onClick={() => onRemove(assignment.localId)}>Bỏ</Button>}
-    {!pending && isAdmin && assignment.status === 'Scheduled' && <Button type="text" size="small" danger aria-label={`Hủy phân công ${label}`} onClick={() => onCancel(assignment)} loading={cancelPending} disabled={actionsDisabled}>Hủy</Button>}
+    {!pending && isAdmin && assignment.status === 'Scheduled' && <Space size={4}>
+      <Button type="text" size="small" icon={<SwapOutlined />} aria-label={`Thay nhân viên cho ca ${label}`} onClick={() => onReplace(assignment)} loading={replacePending} disabled={actionsDisabled}>Thay</Button>
+      <Button type="text" size="small" danger aria-label={`Hủy phân công ${label}`} onClick={() => onCancel(assignment)} loading={cancelPending} disabled={actionsDisabled}>Hủy</Button>
+    </Space>}
   </div>
 }
 
-function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onAttendance, onCancel, cancelId, actionsDisabled, draftsLocked, canAssign, activeShiftIds, activeShiftsStatus }) {
+function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onAttendance, onCancel, onReplace, cancelId, replaceId, actionsDisabled, draftsLocked, canAssign, activeShiftIds, activeShiftsStatus }) {
   const isActive = activeShiftsStatus === 'ready' && activeShiftIds.has(shift.shiftId)
   const isInactive = activeShiftsStatus === 'ready' && !isActive
   const addDisabled = actionsDisabled || !isActive || !canAssign || shift.workDate <= vietnamToday()
@@ -34,14 +37,14 @@ function ShiftCard({ shift, assignments, drafts, isAdmin, onAdd, onRemove, onAtt
     {isAdmin && assignments.length > 0 && <Button type="link" size="small" disabled={actionsDisabled} onClick={() => onAttendance(shift)}>Chấm công</Button>}
     {isAdmin && addExplanation && <span className="staff-schedule-overnight">{addExplanation}</span>}
     <div className="staff-week-assignment-list">
-      {assignments.map((assignment) => <AssignmentTag assignment={assignment} isAdmin={isAdmin} onCancel={onCancel} cancelPending={cancelId === assignment.id} actionsDisabled={actionsDisabled} key={assignment.id} />)}
+      {assignments.map((assignment) => <AssignmentTag assignment={assignment} isAdmin={isAdmin} onCancel={onCancel} onReplace={onReplace} cancelPending={cancelId === assignment.id} replacePending={replaceId === assignment.id} actionsDisabled={actionsDisabled} key={assignment.id} />)}
       {drafts.map((assignment) => <AssignmentTag assignment={assignment} pending onRemove={onRemove} actionsDisabled={actionsDisabled || draftsLocked} key={assignment.localId} />)}
     </div>
     {isAdmin && shift.workDate > vietnamToday() && <Button className="staff-week-add" type="link" icon={<PlusOutlined />} onClick={() => !addDisabled && onAdd(shift)} disabled={addDisabled}>Thêm nhân viên</Button>}
   </article>
 }
 
-export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onRemove, onAttendance, onCancel, cancelId, actionsDisabled, draftsLocked, canAssign, activeShiftIds, activeShiftsStatus }) {
+export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, employees, onAdd, onRemove, onAttendance, onCancel, onReplace, cancelId, replaceId, actionsDisabled, draftsLocked, canAssign, activeShiftIds, activeShiftsStatus }) {
   const dates = weekDates(monday)
   const assignedCount = (employeeId) => assignments.filter((item) => item.employeeId === employeeId && item.status !== 'Cancelled').length
   return <>
@@ -58,7 +61,7 @@ export default function ScheduleBoard({ monday, assignments, drafts, isAdmin, em
         })
         return <section className="staff-week-day" key={workDate} aria-label={`${dayjsLabel(workDate)}, ${formatDate(workDate)}`}>
           <header><strong>{dayjsLabel(workDate)}</strong><span>{formatDate(workDate)}</span></header>
-            {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.shiftId} onAdd={(shift) => onAdd({ ...shift, workDate })} onRemove={onRemove} onAttendance={onAttendance} onCancel={onCancel} cancelId={cancelId} actionsDisabled={actionsDisabled} draftsLocked={draftsLocked} canAssign={canAssign} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
+            {groups.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có ca được phân" /> : [...groups.values()].map((group) => <ShiftCard {...group} isAdmin={isAdmin} key={group.shift.shiftId} onAdd={(shift) => onAdd({ ...shift, workDate })} onRemove={onRemove} onAttendance={onAttendance} onCancel={onCancel} onReplace={onReplace} cancelId={cancelId} replaceId={replaceId} actionsDisabled={actionsDisabled} draftsLocked={draftsLocked} canAssign={canAssign} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />)}
         </section>
       })}
     </section>
