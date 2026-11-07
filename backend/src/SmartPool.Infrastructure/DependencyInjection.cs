@@ -154,6 +154,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<StaffOnboarding.StaffDocumentCleanup>();
             services.AddScoped<StaffOnboarding.StaffOnboardingServices>();
             services.AddHostedService<StaffOnboarding.StaffDocumentCleanupWorker>();
+            services.AddHostedService<StaffOnboarding.StaffScheduleDeliveryWorker>();
 
             // Email — MailKit
             services.AddScoped<IEmailService, EmailService>();

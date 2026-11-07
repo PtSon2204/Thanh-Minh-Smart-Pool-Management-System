@@ -40,10 +40,12 @@ public sealed class UpdatePoolDutyScheduleHandler : IRequestHandler<UpdatePoolDu
 
         try
         {
+            var assignedEmployeeId = updated.AssignedEmployeeId;
+            if (assignedEmployeeId is null) return updated;
             var notif = new Notification
             {
                 Id = Guid.NewGuid(),
-                UserId = updated.AssignedEmployeeId,
+                UserId = assignedEmployeeId.Value,
                 Title = "Cập nhật lịch trực bể",
                 Content = $"Lịch trực bể ngày {updated.DutyDate:dd/MM/yyyy} ({updated.ShiftName}) của bạn đã được cập nhật (Trạng thái: {updated.Status}).",
                 Type = "POOL_DUTY_UPDATED",

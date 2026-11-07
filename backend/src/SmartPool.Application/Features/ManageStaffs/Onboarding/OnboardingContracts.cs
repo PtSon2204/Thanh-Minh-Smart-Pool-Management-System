@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using MediatR;
+using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 
 namespace SmartPool.Application.Features.ManageStaffs.Onboarding;
 
@@ -23,7 +24,7 @@ public sealed record StaffLegalProfile
 public enum OnboardingAction
 {
     Create, Inspect, Detail, Resend, Cancel, Draft, Submit, Review, Approve,
-    RequestChanges, Reject, Own, RequestCorrection, OpenCorrection, Upload, EmployeeDetail
+    RequestChanges, Reject, Own, RequestCorrection, OpenCorrection, Upload, EmployeeDetail, Contract
 }
 
 public sealed class OnboardingCommand : IRequest<OnboardingWorkspace>
@@ -39,6 +40,7 @@ public sealed class OnboardingCommand : IRequest<OnboardingWorkspace>
     public string? Email { get; set; }
     public string? TargetRole { get; set; }
     public DateOnly? JoinDate { get; set; }
+    public ContractTerms? Contract { get; set; }
     public string? FullName { get; set; }
     public string? Phone { get; set; }
     public StaffLegalProfile? Profile { get; set; }
@@ -53,14 +55,18 @@ public sealed record StaffDocumentView(Guid Id, string Purpose, string Status, s
     DateTime UploadedAtUtc, DateTime? DeleteAfterUtc, DateTime? DeletedAtUtc, string? DeletionErrorCode);
 public sealed record StaffRevisionView(Guid Id, int RevisionNumber, string State, long Version,
     StaffLegalProfile Profile, IReadOnlyList<StaffDocumentView> Documents, DateTime? SubmittedAtUtc,
-    DateTime? ReviewedAtUtc, Guid? ReviewerId, string? CorrectionReason, bool DocumentsProvided);
+    DateTime? ReviewedAtUtc, Guid? ReviewerId, string? CorrectionReason, bool DocumentsProvided,
+    string? ReviewerName = null);
 public sealed record StaffInvitationView(Guid Id, string Email, string TargetRole, DateOnly JoinDate,
     string Status, string DeliveryStatus, string? DeliveryErrorCode, DateTime ExpiresAtUtc,
-    DateTime CreatedAtUtc, Guid? CompletedUserId, long Version);
+    DateTime CreatedAtUtc, Guid? CompletedUserId, long Version, ContractTerms? Contract = null,
+    IReadOnlyList<ContractShiftView>? Shifts = null);
 public sealed record StaffCorrectionView(Guid Id, Guid EmployeeId, string Reason, string State,
     DateTime CreatedAtUtc, Guid? RevisionId, long Version);
 public sealed record OnboardingWorkspace(string Code, StaffInvitationView? Invitation,
-    StaffRevisionView? Revision, StaffRevisionView? ApprovedRevision, StaffCorrectionView? CorrectionRequest);
+    StaffRevisionView? Revision, StaffRevisionView? ApprovedRevision, StaffCorrectionView? CorrectionRequest,
+    ScheduleResult? ScheduleResult = null, ContractTerms? Contract = null,
+    IReadOnlyList<ContractShiftView>? Shifts = null);
 public sealed record StaffInvitationListItem(StaffInvitationView Invitation, Guid? RevisionId,
     string? FullName, string? ReviewStatus, DateTime? SubmittedAtUtc);
 public sealed record ListStaffInvitationsQuery(int Page = 1, int PageSize = 30)
