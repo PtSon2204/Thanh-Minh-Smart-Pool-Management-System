@@ -13,10 +13,13 @@ using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassSession;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassSession;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RegisterForSwimClass;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelMyClassRegistration;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.CancelClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetSwimClassById;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMySwimClasses;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassRegistrations;
 using SmartPool.Application.Common.Models;
 
 namespace SmartPool.API.Controllers;
@@ -86,6 +89,21 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         });
     }
 
+    [HttpPatch("{classId:guid}/registrations/me/cancel")]
+    [Authorize(Roles = "CUSTOMER")]
+    [RequirePermission("class_registrations", "create")]
+    [ProducesResponseType(typeof(CancelMyClassRegistrationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelMyRegistration(Guid classId,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        return await ExecuteAsync(async () => Ok(await sender.Send(
+            new CancelMyClassRegistrationCommand(classId), cancellationToken)));
+    }
+
     [HttpGet("{classId:guid}/registrations/me")]
     [Authorize(Roles = "CUSTOMER")]
     [RequirePermission("class_registrations", "read")]
@@ -111,6 +129,41 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     {
         if (!User.TryGetUserId(out _)) return Forbid();
         return await ExecuteAsync(async () => Ok(await sender.Send(query, cancellationToken)));
+    }
+
+    [HttpGet("{classId:guid}/registrations")]
+    [Authorize(Roles = "COACH")]
+    [RequirePermission("class_registrations", "read")]
+    [ProducesResponseType(typeof(PagedResponse<ClassRegistrationResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRegistrations(
+        Guid classId, [FromQuery] GetClassRegistrationsQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        query.ClassId = classId;
+        return await ExecuteAsync(async () => Ok(await sender.Send(query, cancellationToken)));
+    }
+
+    [HttpPatch("{classId:guid}/registrations/{registrationId:guid}/cancel")]
+    [Authorize(Roles = "COACH")]
+    [RequirePermission("class_registrations", "update")]
+    [ProducesResponseType(typeof(CancelClassRegistrationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelRegistration(
+        Guid classId, Guid registrationId,
+        [FromBody] CancelClassRegistrationCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        command.ClassId = classId;
+        command.RegistrationId = registrationId;
+        return await ExecuteAsync(async () => Ok(await sender.Send(command, cancellationToken)));
     }
 
     [HttpPut("{classId:guid}")]
