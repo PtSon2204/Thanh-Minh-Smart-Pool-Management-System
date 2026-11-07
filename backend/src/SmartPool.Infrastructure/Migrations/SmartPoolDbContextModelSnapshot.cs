@@ -306,9 +306,18 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancel_reason");
+
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cancelled_at");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by_user_id");
 
                     b.Property<Guid>("ClassId")
                         .HasColumnType("uuid")
@@ -348,6 +357,8 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("class_registrations_pkey");
+
+                    b.HasIndex("CancelledByUserId");
 
                     b.HasIndex("ClassId", "CustomerUserId")
                         .IsUnique()
@@ -2751,6 +2762,12 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.ClassRegistration", b =>
                 {
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("class_registrations_cancelled_by_user_id_fkey");
+
                     b.HasOne("SmartPool.Domain.Entities.SwimClass", "Class")
                         .WithMany("Registrations")
                         .HasForeignKey("ClassId")

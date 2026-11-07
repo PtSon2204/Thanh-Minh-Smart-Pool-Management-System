@@ -48,6 +48,7 @@ import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
 import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
 import SwimClassDetailPage from "../pages/coach/classes/SwimClassDetailPage";
+import SwimClassStudentsPage from "../pages/coach/classes/SwimClassStudentsPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
 import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
 import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
@@ -98,6 +99,7 @@ const router = createBrowserRouter([
         children: [
           { path: "/coach/classes", element: <SwimClassListPage /> },
           { path: "/coach/classes/create", element: <CreateSwimClassPage /> },
+          { path: "/coach/classes/:classId/students", element: <SwimClassStudentsPage /> },
           { path: "/coach/classes/:classId", element: <SwimClassDetailPage /> },
         ],
       },

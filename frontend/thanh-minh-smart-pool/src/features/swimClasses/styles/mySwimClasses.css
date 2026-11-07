@@ -33,7 +33,7 @@
 .my-swim-class-card dt .anticon { color: #0077b6; margin-right: 4px; }
 .my-swim-class-card dd { color: #294a5e; font-size: 12px; font-weight: 700; margin: 0; text-align: right; overflow-wrap: anywhere; }
 .my-swim-class-registered-at { color: #7a8b99; font-size: 12px; margin: 18px 0 0; }
-.my-swim-class-card-actions { border-top: 1px solid #edf2f5; margin-top: auto; padding-top: 15px; }
+.my-swim-class-card-actions { border-top: 1px solid #edf2f5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 15px; }
 .my-swim-class-card-actions span { color: #7a8b99; font-size: 12px; }
 .my-swim-classes-pagination { display: flex; justify-content: flex-end; margin-top: 22px; }
 @media (max-width: 1000px) { .my-swim-classes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
