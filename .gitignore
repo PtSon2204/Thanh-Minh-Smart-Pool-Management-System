@@ -171,8 +171,3 @@ docs/
 
 # Bỏ qua tất cả file Markdown
 *.md
-
-# Keep the staff transition guide in the repository despite the docs/ and Markdown ignore rules.
-!docs/
-docs/*
-!docs/staff-schedule-state.md
