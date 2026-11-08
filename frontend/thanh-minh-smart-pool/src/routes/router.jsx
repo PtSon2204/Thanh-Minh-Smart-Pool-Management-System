@@ -51,6 +51,8 @@ import SwimClassDetailPage from "../pages/coach/classes/SwimClassDetailPage";
 import SwimClassStudentsPage from "../pages/coach/classes/SwimClassStudentsPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
 import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
+import MyClassAttendancesPage from "../pages/classes/MyClassAttendancesPage";
+import CoachSessionAttendancesPage from "../pages/coach/classes/CoachSessionAttendancesPage";
 import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
 import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
 import CoachListPage from "../pages/admin/coaches/CoachListPage";
@@ -87,6 +89,7 @@ const router = createBrowserRouter([
           { path: "/don-hang", element: <MyOrdersPage /> },
           { path: "/lop-hoc", element: <SwimClassCatalogPage /> },
           { path: "/lop-hoc-cua-toi", element: <MySwimClassesPage /> },
+          { path: "/lop-hoc-cua-toi/:classId/diem-danh", element: <MyClassAttendancesPage /> },
           { path: "/tro-thanh-coach", element: <CoachApplicationPage /> },
           {
             path: "/lop-hoc/:classId",
@@ -100,6 +103,7 @@ const router = createBrowserRouter([
           { path: "/coach/classes", element: <SwimClassListPage /> },
           { path: "/coach/classes/create", element: <CreateSwimClassPage /> },
           { path: "/coach/classes/:classId/students", element: <SwimClassStudentsPage /> },
+          { path: "/coach/classes/:classId/sessions/:sessionId/attendances", element: <CoachSessionAttendancesPage /> },
           { path: "/coach/classes/:classId", element: <SwimClassDetailPage /> },
         ],
       },

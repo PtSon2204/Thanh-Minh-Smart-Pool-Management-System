@@ -13,6 +13,7 @@ import {
 } from "antd";
 import {
   CalendarOutlined,
+  CameraOutlined,
   ClockCircleOutlined,
   ReadOutlined,
   ReloadOutlined,
@@ -71,6 +72,10 @@ export default function MySwimClassesView() {
     )[0];
   function openClass(item) {
     navigate(`/lop-hoc/${item.classId}`, { state: { fromMyClasses: true } });
+  }
+  function openAttendance(item) {
+    navigate(`/lop-hoc-cua-toi/${item.classId}/diem-danh`,
+      { state: { className: item.className } });
   }
 
   function confirmCancel(item) {
@@ -246,6 +251,9 @@ export default function MySwimClassesView() {
                         Đăng ký lúc {formatVietnamTime(item.registeredAt)}
                       </p>
                       <div className="my-swim-class-card-actions">
+                        <Button icon={<CameraOutlined />} onClick={() => openAttendance(item)}>
+                          Điểm danh
+                        </Button>
                         {canOpen ? (
                           <Button
                             icon={<RightOutlined />}
