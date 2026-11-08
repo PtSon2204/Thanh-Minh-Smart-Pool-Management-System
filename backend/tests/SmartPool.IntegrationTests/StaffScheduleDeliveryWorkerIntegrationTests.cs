@@ -39,8 +39,7 @@ public sealed class StaffScheduleDeliveryWorkerIntegrationTests
             });
         await fixture.Context.SaveChangesAsync();
 
-        var options = new DbContextOptionsBuilder<SmartPoolDbContext>()
-            .UseNpgsql(fixture.Context.Database.GetConnectionString()).Options;
+        var options = await IntegrationTestDatabase.CreateOptionsAsync();
         var mail = new LeasedEmailService(options, firstDeliveryId, fixture.Clock.GetUtcNow().AddMinutes(3).UtcDateTime);
         var logger = new CapturingLogger();
         var services = new ServiceCollection()
@@ -84,8 +83,11 @@ public sealed class StaffScheduleDeliveryWorkerIntegrationTests
     private static async Task WaitForSignalOrWorkerFailureAsync(Task signal, CapturingLogger logger, string expectedAction)
     {
         var completed = await Task.WhenAny(signal, logger.BatchFailure.Task).WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.True(ReferenceEquals(signal, completed),
-            $"The schedule delivery worker failed before the {expectedAction}: {await logger.BatchFailure.Task}");
+        if (!ReferenceEquals(signal, completed))
+        {
+            var failure = await logger.BatchFailure.Task;
+            Assert.True(false, $"The schedule delivery worker failed before the {expectedAction}: {failure}");
+        }
         await signal;
     }
 

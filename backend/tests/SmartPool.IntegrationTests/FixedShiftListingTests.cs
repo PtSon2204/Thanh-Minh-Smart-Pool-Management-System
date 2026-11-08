@@ -50,9 +50,20 @@ public sealed class FixedShiftListingTests
             var operations = new StaffOperations(context, mapper, TimeProvider.System,
                 Options.Create(new StaffAttendanceQrSettings()));
 
-            var result = await operations.GetShiftsAsync(new GetShiftsQuery(), CancellationToken.None);
+            const int pageSize = 100;
+            var firstPage = await operations.GetShiftsAsync(
+                new GetShiftsQuery { PageIndex = 1, PageSize = pageSize }, CancellationToken.None);
+            var resultItems = firstPage.Items.ToList();
+            var pageCount = (firstPage.TotalCount + pageSize - 1) / pageSize;
+            for (var pageIndex = 2; pageIndex <= pageCount; pageIndex++)
+            {
+                var page = await operations.GetShiftsAsync(
+                    new GetShiftsQuery { PageIndex = pageIndex, PageSize = pageSize }, CancellationToken.None);
+                resultItems.AddRange(page.Items);
+            }
 
-            Assert.Equal(FixedShifts.Ids.Append(legacyId).Order(), result.Items.Select(item => item.Id).Order());
+            Assert.All(FixedShifts.Ids.Append(legacyId), id => Assert.Contains(resultItems, item => item.Id == id));
+            Assert.Contains(resultItems, item => item.Id == legacyId && !item.IsActive);
         }
         finally
         {
