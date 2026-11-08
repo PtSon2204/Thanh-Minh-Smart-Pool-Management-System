@@ -14,12 +14,18 @@ using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetShifts;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
+using SmartPool.Application.Features.Notifications.Queries.GetNotifications;
 
 namespace SmartPool.Application.Interfaces.Repositories
 {
 
 public interface IStaffOperations
 {
+    Task<GetNotificationsResult> GetMyNotificationsAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken);
+    Task<bool> MarkMyNotificationReadAsync(Guid userId, Guid notificationId, CancellationToken cancellationToken);
+    Task<object> ExecuteWorkPatternAsync(SmartPool.Application.Features.ManageStaffs.WorkPatterns.WorkPatternCommand request, CancellationToken cancellationToken);
+    Task<SmartPool.Application.Features.ManageStaffs.WorkPatterns.StaffShiftReplacementResult> ReplaceStaffShiftAsync(
+        SmartPool.Application.Features.ManageStaffs.WorkPatterns.ReplaceStaffShiftCommand request, CancellationToken cancellationToken);
     Task<OnboardingWorkspace> ExecuteOnboardingAsync(OnboardingCommand request, CancellationToken cancellationToken);
     Task<IReadOnlyList<StaffInvitationListItem>> ListInvitationsAsync(ListStaffInvitationsQuery request, CancellationToken cancellationToken);
     Task<StaffDocumentContent> ReadStaffDocumentAsync(ReadStaffDocumentQuery request, CancellationToken cancellationToken);

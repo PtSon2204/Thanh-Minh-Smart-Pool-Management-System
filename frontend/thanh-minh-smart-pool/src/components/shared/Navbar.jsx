@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Badge, Drawer, Dropdown, message } from 'antd'
-import { UserOutlined, LogoutOutlined, LockOutlined, CalendarOutlined, SafetyCertificateOutlined, TeamOutlined, DashboardOutlined, IdcardOutlined, HistoryOutlined, ShoppingOutlined } from '@ant-design/icons'
-import { useQuery } from '@tanstack/react-query'
+import { Avatar, Badge, Button, Drawer, Dropdown, message, Popover, Spin, Typography } from 'antd'
+import { BellOutlined, CheckOutlined, UserOutlined, LogoutOutlined, LockOutlined, CalendarOutlined, SafetyCertificateOutlined, TeamOutlined, DashboardOutlined, IdcardOutlined, HistoryOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import './Navbar.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
 import VoltageButton from './VoltageButton'
@@ -12,6 +12,36 @@ import profileService from '../../features/profiles/services/profileService'
 import authService from '../../features/auth/services/authService'
 import { getSessionRoles } from '../../features/auth/utils/sessionRoles'
 import ticketService from '../../features/tickets/services/ticketService'
+import { notificationService } from '../../features/notifications/services/notificationService'
+
+function MyNotificationBell({ userId }) {
+  const cache = useQueryClient()
+  const query = useQuery({
+    queryKey: ['my-notifications', userId],
+    queryFn: () => notificationService.getMine({ page: 1, pageSize: 8 }),
+    enabled: Boolean(userId),
+    refetchInterval: 60000,
+    retry: false,
+  })
+  const markRead = useMutation({
+    mutationFn: notificationService.markMineAsRead,
+    retry: false,
+    onSuccess: () => cache.invalidateQueries({ queryKey: ['my-notifications', userId] }),
+    onError: () => message.error('Không thể cập nhật trạng thái thông báo.'),
+  })
+  const content = query.isLoading ? <Spin size="small" aria-label="Đang tải thông báo" /> : (
+    <div className="navbar-notification-list" role="list">
+      {(query.data?.items || []).length === 0 && <Typography.Text type="secondary">Chưa có thông báo.</Typography.Text>}
+      {(query.data?.items || []).map((item) => <div className="navbar-notification-item" key={item.id} role="listitem">
+        <div><Typography.Text strong={!item.isRead}>{item.title}</Typography.Text><Typography.Paragraph type="secondary">{item.content}</Typography.Paragraph></div>
+        {!item.isRead && <Button type="link" size="small" icon={<CheckOutlined />} disabled={markRead.isPending} onClick={() => markRead.mutate(item.id)}>Đã đọc</Button>}
+      </div>)}
+    </div>
+  )
+  return <Popover title="Thông báo của tôi" content={<div className="navbar-notifications">{query.isError ? <Button type="link" onClick={() => query.refetch()}>Không tải được. Thử lại</Button> : content}</div>} trigger="click" placement="bottomRight">
+    <Button type="text" aria-label={`Thông báo của tôi, ${query.data?.unreadCount || 0} chưa đọc`} icon={<Badge count={query.data?.unreadCount || 0} size="small"><BellOutlined /></Badge>} />
+  </Popover>
+}
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
@@ -176,6 +206,7 @@ export default function Navbar() {
             {session ? (
               <>
                 {isCustomer && <CartIcon />}
+                <MyNotificationBell userId={session.id} />
                 <div style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '4px 8px', borderRadius: '24px', background: 'transparent', transition: 'background 0.2s' }} className="user-dropdown-trigger">
@@ -199,6 +230,7 @@ export default function Navbar() {
 
           <div className="navbar-mobile-actions">
             {isCustomer && <CartIcon />}
+            {session && <MyNotificationBell userId={session.id} />}
             <button
               className="hamburger"
               onClick={() => setMenuOpen(!menuOpen)}

@@ -64,10 +64,17 @@ public sealed class StaffOnboardingServices(
 
     public string InvitationLink(Guid invitationId, string token)
     {
+        return $"{FrontendOrigin()}/staff/onboarding#invitation={invitationId:D}&token={token}";
+    }
+
+    public string StaffScheduleLink() => $"{FrontendOrigin()}/admin/staff/schedule";
+
+    private string FrontendOrigin()
+    {
         if (!Uri.TryCreate(Options.FrontendOrigin, UriKind.Absolute, out var origin) ||
             (origin.Scheme != "https" && !(origin.Scheme == "http" && origin.IsLoopback)) ||
             origin.UserInfo.Length != 0 || origin.Query.Length != 0 || origin.Fragment.Length != 0 || origin.AbsolutePath != "/")
             throw new StaffOnboardingException("ONBOARDING_ORIGIN_UNAVAILABLE", 503);
-        return $"{origin.GetLeftPart(UriPartial.Authority)}/staff/onboarding#invitation={invitationId:D}&token={token}";
+        return origin.GetLeftPart(UriPartial.Authority);
     }
 }

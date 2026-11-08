@@ -17,6 +17,12 @@ export const notificationService = {
   markAsRead: (id) =>
     apiClient.patch(`${BASE}/${id}/read`).then((res) => res.data),
 
+  getMine: (params = {}) =>
+    apiClient.get(`${BASE}/mine`, { params }).then((res) => res.data),
+
+  markMineAsRead: (id) =>
+    apiClient.patch(`${BASE}/mine/${id}/read`).then((res) => res.data),
+
   /**
    * Tạo thông báo mới (internal / test)
    */

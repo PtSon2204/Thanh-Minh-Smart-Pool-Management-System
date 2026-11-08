@@ -6,6 +6,7 @@ public sealed class StaffInvitation
     public string Email { get; set; } = "";
     public string TargetRole { get; set; } = "";
     public DateOnly JoinDate { get; set; }
+    public string? ContractJson { get; set; }
     public string TokenDigest { get; set; } = "";
     public DateTime ExpiresAtUtc { get; set; }
     public string Status { get; set; } = "PENDING";

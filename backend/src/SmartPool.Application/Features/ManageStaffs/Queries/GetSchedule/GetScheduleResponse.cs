@@ -6,6 +6,7 @@ namespace SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule
         public Guid EmployeeId { get; set; }
         public string EmployeeName { get; set; } = string.Empty;
         public Guid ShiftId { get; set; }
+        public bool IsWorkPatternGenerated { get; set; }
         public string ShiftName { get; set; } = string.Empty;
         public TimeOnly StartTime { get; set; }
         public TimeOnly EndTime { get; set; }
