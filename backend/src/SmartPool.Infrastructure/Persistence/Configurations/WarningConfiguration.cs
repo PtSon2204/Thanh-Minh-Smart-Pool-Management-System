@@ -12,7 +12,8 @@ public sealed class WarningConfiguration : IEntityTypeConfiguration<Warning>
         entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
         entity.Property(e => e.CamId).HasColumnName("cam_id");
         entity.Property(e => e.WarningTime).HasColumnName("warning_time").HasDefaultValueSql("NOW()");
-        entity.Property(e => e.ImageUrl).HasColumnName("image_url");
+        // Không bao giờ null: rỗng cho tới khi ảnh snapshot upload xong.
+        entity.Property(e => e.ImageUrl).HasColumnName("image_url").IsRequired().HasDefaultValue("");
         entity.Property(e => e.SeverityLevel).HasColumnName("severity_level").HasMaxLength(50);
         entity.Property(e => e.Confidence).HasColumnName("confidence").HasColumnType("numeric(5, 2)");
         entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("Pending");

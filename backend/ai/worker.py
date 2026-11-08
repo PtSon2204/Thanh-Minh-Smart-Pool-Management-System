@@ -134,6 +134,14 @@ def main():
                 result = {"timestamp": frame_index / fps, "progress": frame_index / max(total, 1),
                           "detections": detector.infer(image, "upload")}
                 frame_index += 1
+        elif op == "capture":
+            # Frame gốc chưa vẽ khung, dùng làm ảnh nền cho snapshot của cảnh báo.
+            if image is None:
+                raise ValueError("No frame captured yet")
+            ok, encoded = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            if not ok:
+                raise ValueError("Snapshot encoding failed")
+            result = {"jpeg": base64.b64encode(encoded).decode("ascii")}
         elif op in ("render", "paint"):
             annotated = draw(image, request["decisions"], font)
             if op == "paint":

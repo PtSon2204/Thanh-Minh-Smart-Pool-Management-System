@@ -97,17 +97,18 @@ public sealed class MonitoringRepository(SmartPoolDbContext db, INotificationSer
                 WarningTime = command.ObservedAt, VideoTimestamp = command.SourceType == "UPLOAD" ? d.Timestamp : null,
                 SeverityLevel = d.Severity, Status = "PENDING", Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1),
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
-            if (command.SourceType == "LIVE" && d.Severity == "CRITICAL") warning.SnapshotStatus = "CAPTURING";
+            // Mọi cảnh báo (LIVE/UPLOAD, WARNING/CRITICAL) đều chờ chụp ảnh snapshot; worker đánh dấu PENDING khi đã đủ source.
+            warning.SnapshotStatus = "CAPTURING";
             db.Warnings.Add(warning);
         }
         else if (escalate) { warning!.SeverityLevel = "CRITICAL"; warning.UpdatedAt = DateTime.UtcNow; warning.WarningTime = command.ObservedAt;
             warning.Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1);
             if (command.SourceType == "UPLOAD") warning.VideoTimestamp = d.Timestamp;
-            if (command.SourceType == "LIVE") warning.SnapshotStatus = "CAPTURING"; }
+            warning.SnapshotStatus = "CAPTURING"; }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         var dto = await GetAsync(warning!.Id, Guid.Empty, true, ct);
         if (command.SourceType == "LIVE" && (created || escalate)) await PublishAsync(created ? "alert_created" : "alert_escalated", dto);
-        return new(dto, command.SourceType == "LIVE" && d.Severity == "CRITICAL" && (created || escalate));
+        return new(dto, created || escalate);
     }
 
     public async Task CompleteSnapshotAsync(Guid id, string url, CancellationToken ct)

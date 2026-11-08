@@ -88,6 +88,9 @@ class WorkerSmokeTests(unittest.TestCase):
                 for index in range(4):
                     next_frame = send({"op": "next"})
                     self.assertAlmostEqual(index / 2, next_frame["timestamp"])
+                    # Capture exposes the raw (unannotated) frame as a decodable JPEG.
+                    snap = send({"op": "capture"})
+                    self.assertIsNotNone(cv2.imdecode(np.frombuffer(base64.b64decode(snap["jpeg"]), np.uint8), cv2.IMREAD_COLOR))
                     self.assertTrue(send({"op": "paint", "decisions": []})["painted"])
                 self.assertTrue(send({"op": "next"})["done"])
                 check = cv2.VideoCapture(output)

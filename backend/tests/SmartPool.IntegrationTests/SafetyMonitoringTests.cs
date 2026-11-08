@@ -138,7 +138,7 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         var alert = await Repo(db).RecordAsync(Event("CRITICAL", "UPLOAD", jobId), default);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => Repo(db).GetAsync(alert.Alert.Id, Guid.NewGuid(), false, default));
         await Repo(db).HandleAsync(alert.Alert.Id, "ACKNOWLEDGED", userId, false, default);
-        Assert.Empty(await db.Incidents.ToListAsync()); Assert.Empty(events.Names); Assert.False(alert.SnapshotRequired);
+        Assert.Empty(await db.Incidents.ToListAsync()); Assert.Empty(events.Names); Assert.True(alert.SnapshotRequired);
     }
 
     [Fact]

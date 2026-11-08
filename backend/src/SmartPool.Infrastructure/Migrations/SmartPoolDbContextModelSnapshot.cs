@@ -2606,7 +2606,9 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
+                        .HasDefaultValue("")
                         .HasColumnName("image_url");
 
                     b.Property<Guid?>("IncidentId")

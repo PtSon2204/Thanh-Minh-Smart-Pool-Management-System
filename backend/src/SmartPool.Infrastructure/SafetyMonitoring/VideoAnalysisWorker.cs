@@ -64,8 +64,20 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                             var decisions = engine.Observe(timestamp, detections);
                             stage = "SAVE_ALERT";
                             foreach (var decision in decisions)
-                                await scope.ServiceProvider.GetRequiredService<ISender>().Send(new RecordRiskCommand("UPLOAD", job.Id, decision,
+                            {
+                                var write = await scope.ServiceProvider.GetRequiredService<ISender>().Send(new RecordRiskCommand("UPLOAD", job.Id, decision,
                                     detections.First(x => x.TrackId == decision.TrackId).Confidence, job.CreatedAt.AddSeconds(timestamp)), step.Token);
+                                if (write.SnapshotRequired)
+                                {
+                                    // Chụp frame gốc (chưa vẽ khung) làm nguồn snapshot; worker upload sẽ render + upload sau.
+                                    using var captured = await ai.SendAsync(new { op = "capture" }, step.Token);
+                                    var alertId = write.Alert.Id;
+                                    await File.WriteAllBytesAsync(files.PathFor($"{alertId:N}-source.jpg"), Convert.FromBase64String(captured.RootElement.GetProperty("jpeg").GetString()!), step.Token);
+                                    await File.WriteAllTextAsync(files.PathFor($"{alertId:N}-boxes.json"), System.Text.Json.JsonSerializer.Serialize(new[] { decision },
+                                        new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)), step.Token);
+                                    await db.Warnings.Where(x => x.Id == alertId).ExecuteUpdateAsync(set => set.SetProperty(x => x.SnapshotStatus, "PENDING"), step.Token);
+                                }
+                            }
                             stage = "PAINT";
                             using var painted = await ai.SendAsync(new { op = "paint", decisions }, step.Token);
                             if (DateTime.UtcNow - lastProgress > TimeSpan.FromSeconds(2))

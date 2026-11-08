@@ -57,7 +57,7 @@ public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, Monitoring
                     }
                     catch (Exception) when (!stoppingToken.IsCancellationRequested)
                     {
-                        await db.Warnings.Where(x => x.Id == id && x.ImageUrl == null)
+                        await db.Warnings.Where(x => x.Id == id && string.IsNullOrEmpty(x.ImageUrl))
                             .ExecuteUpdateAsync(set => set.SetProperty(x => x.SnapshotStatus, x => x.SnapshotAttempts >= 3 ? "FAILED" : "PENDING"), stoppingToken);
                         logger.LogWarning("Snapshot upload failed for alert {AlertId}. At most three attempts are permitted.", id);
                     }

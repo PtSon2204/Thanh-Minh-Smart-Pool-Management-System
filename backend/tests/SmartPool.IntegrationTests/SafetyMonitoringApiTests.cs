@@ -213,7 +213,7 @@ public sealed partial class SafetyMonitoringTests
             var command = Event("CRITICAL");
             id = (await Repo(db).RecordAsync(command, default)).Alert.Id;
             await Repo(db).HandleAsync(id, "ACKNOWLEDGED", userId, true, default);
-            Assert.Null((await db.Incidents.SingleAsync(x => x.WarningId == id)).ImageIncidents);
+            Assert.Equal("", (await db.Incidents.SingleAsync(x => x.WarningId == id)).ImageIncidents);
             var files = app.Services.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.MonitoringFiles>();
             File.Copy(Path.Combine(RepositoryRoot(), "frontend/thanh-minh-smart-pool/src/assets/anh-be-boi.jpg"), files.PathFor($"{id:N}-source.jpg"));
             await File.WriteAllTextAsync(files.PathFor($"{id:N}-boxes.json"), System.Text.Json.JsonSerializer.Serialize(new[] { command.Decision }, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
