@@ -38,6 +38,9 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         // so the migration test can exercise THIS migration's Down/Up without inventing legacy DDL.
         await db.Database.EnsureCreatedAsync();
         await db.Database.ExecuteSqlRawAsync("CREATE TABLE IF NOT EXISTS public.\"__EFMigrationsHistory\" (\"MigrationId\" varchar(150) PRIMARY KEY, \"ProductVersion\" varchar(32) NOT NULL)");
+        // Index onboarding được tạo bằng raw SQL (20261031054801_Up) nên không nằm trong model EF;
+        // tạo lại để giả định "đã áp dụng mọi migration" thành thật (Down của migration đó DROP index này).
+        await db.Database.ExecuteSqlRawAsync("CREATE UNIQUE INDEX IF NOT EXISTS users_normalized_email_onboarding_key ON smart_pool.users (lower(btrim(email))) WHERE email IS NOT NULL;");
         foreach (var migration in db.Database.GetMigrations())
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO public.\"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ({migration}, '8.0.11')");
         db.Users.Add(new() { Id = userId, Username = "monitoring-test", Status = "Active" });
