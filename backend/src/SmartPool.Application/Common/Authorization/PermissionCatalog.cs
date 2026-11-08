@@ -11,7 +11,7 @@ public static class PermissionCatalog
         ["swim_classes"] = ["read", "create", "update"],
         ["class_sessions"] = ["create", "update"],
         ["class_registrations"] = ["create", "read", "update"],
-        ["class_attendances"] = ["create", "read"],
+        ["class_attendances"] = ["create", "read", "update"],
         ["coach_applications"] = ["create", "read", "review"],
         ["attendance"] = ["read", "update"],
         ["ticket_lookup"] = ["read"],
