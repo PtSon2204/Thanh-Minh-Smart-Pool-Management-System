@@ -16,6 +16,7 @@ using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.StaffOnboarding;
 using SmartPool.Application.Common.Time;
+using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 
 namespace SmartPool.IntegrationTests;
 
@@ -93,11 +94,13 @@ public sealed class StaffOnboardingIntegrationTests
         var email = $"synthetic-prefill-{Guid.NewGuid():N}@example.test";
         var command = new OnboardingCommand { Action = OnboardingAction.Create, ActorId = fixture.AdminId, Email = email,
             TargetRole = "SALES", JoinDate = VietnamTimeBoundary.GetDate(fixture.Clock).AddDays(-1),
+            Contract = fixture.ContractFor(VietnamTimeBoundary.GetDate(fixture.Clock).AddDays(-1), VietnamTimeBoundary.GetDate(fixture.Clock).AddDays(-1)),
             FullName = " Synthetic Invite Name ", Phone = "+84901234567" };
         var failure = await Assert.ThrowsAsync<StaffOnboardingException>(() => fixture.Run(command));
         Assert.Equal("INVALID_JOIN_DATE", failure.Code);
         Assert.False(await fixture.Context.StaffInvitations.AnyAsync(item => item.Email == email));
         command.JoinDate = VietnamTimeBoundary.GetDate(fixture.Clock);
+        command.Contract = fixture.ContractFor(command.JoinDate.Value, command.JoinDate.Value);
         var workspace = await fixture.Run(command);
         var credentials = fixture.Credentials(workspace);
         fixture.Context.ChangeTracker.Clear();
@@ -125,14 +128,58 @@ public sealed class StaffOnboardingIntegrationTests
         {
             Action = OnboardingAction.Create, ActorId = fixture.AdminId,
             Email = $"synthetic-role-{Guid.NewGuid():N}@example.test", TargetRole = "COACH", JoinDate = VietnamTimeBoundary.GetDate(fixture.Clock),
+            Contract = fixture.ContractFor(VietnamTimeBoundary.GetDate(fixture.Clock), VietnamTimeBoundary.GetDate(fixture.Clock).AddDays(8)),
             FullName = "Synthetic staff", Phone = "0901234567"
         });
-        workspace = await fixture.Submit(workspace, fixture.Credentials(workspace));
+        var credentials = fixture.Credentials(workspace);
+        var inspected = await fixture.Run(new() { Action = OnboardingAction.Inspect, InvitationId = credentials.Id, Token = credentials.Token });
+        var visibleShift = Assert.Single(inspected.Invitation!.Shifts!);
+        Assert.Equal("Synthetic onboarding", visibleShift.Name);
+        Assert.Equal(new TimeOnly(6, 0), visibleShift.StartTime);
+        workspace = await fixture.Submit(workspace, credentials);
         workspace = await fixture.Approve(workspace);
         var user = await fixture.Context.Users.SingleAsync(item => item.Id == workspace.Invitation!.CompletedUserId);
         Assert.Equal("APPROVED", workspace.Revision!.State);
         Assert.Equal(role.Id, user.RoleId);
+        Assert.Equal(8, workspace.ScheduleResult!.CreatedCount);
+        var completedInvitation = workspace.Invitation!;
+        var completedEmployeeId = completedInvitation.CompletedUserId!.Value;
+        var assignments = await fixture.Context.EmployeeShifts.Where(item => item.EmployeeId == completedEmployeeId).OrderBy(item => item.WorkDate).ToListAsync();
+        Assert.Equal(8, assignments.Count);
+        Assert.Equal(completedInvitation.Contract!.StartDate.AddDays(1), assignments[0].WorkDate);
+        Assert.Equal(completedInvitation.Contract.EndDate, assignments[^1].WorkDate);
+        Assert.False(string.IsNullOrWhiteSpace(workspace.Revision.ReviewerName));
+        var employeeWorkspace = await fixture.Run(new() { Action = OnboardingAction.EmployeeDetail, ActorId = fixture.AdminId, EmployeeId = completedEmployeeId });
+        Assert.Equal(completedInvitation.Contract.EndDate, employeeWorkspace.Contract!.EndDate);
+        Assert.Equal(visibleShift.Id, Assert.Single(employeeWorkspace.Shifts!).Id);
+        var delivery = await fixture.Context.StaffScheduleDeliveries.SingleAsync(item => item.OperationId == completedInvitation.Id);
+        Assert.Equal("Pending", delivery.Status);
+        Assert.Equal(completedEmployeeId, delivery.RecipientId);
+        Assert.Contains("06:00-12:00", delivery.HtmlBody);
+        Assert.Single(await fixture.Context.Notifications.Where(item => item.UserId == delivery.RecipientId && item.Type == "StaffSchedule").ToListAsync());
         Assert.Equal("Coach", (await fixture.Context.Roles.SingleAsync(item => item.Id == role.Id)).Name);
+    }
+
+    [Fact]
+    public async Task LegacyInvitationWithoutContractCanBeApprovedWithoutScheduleGeneration()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var workspace = await fixture.InviteAsync();
+        var credentials = fixture.Credentials(workspace);
+        workspace = await fixture.Submit(workspace, credentials);
+        var invitation = await fixture.Context.StaffInvitations.SingleAsync(item => item.Id == credentials.Id);
+        invitation.ContractJson = null;
+        await fixture.Context.SaveChangesAsync();
+
+        var approved = await fixture.Approve(workspace);
+
+        Assert.Equal("APPROVED", approved.Revision!.State);
+        Assert.Equal("COMPLETED", approved.Invitation!.Status);
+        Assert.Equal("skipped_legacy_no_contract", approved.ScheduleResult!.Status);
+        Assert.Equal("legacy_contract_missing", Assert.Single(approved.ScheduleResult.Details).Code);
+        var employeeId = approved.Invitation.CompletedUserId!.Value;
+        Assert.False(await fixture.Context.StaffWorkPatterns.AnyAsync(item => item.EmployeeId == employeeId));
+        Assert.False(await fixture.Context.EmployeeShifts.AnyAsync(item => item.EmployeeId == employeeId));
     }
 
     [Fact]
@@ -336,6 +383,7 @@ public sealed class StaffOnboardingIntegrationTests
         public required StaffOnboardingServices Services { get; init; }
         public required Guid AdminId { get; init; }
         public required IMapper Mapper { get; init; }
+        public required Guid ShiftId { get; init; }
         public FakeStorage Storage { get; init; } = new();
         public FakeMail Mail { get; init; } = new();
         public Clock Clock { get; init; } = new();
@@ -344,16 +392,26 @@ public sealed class StaffOnboardingIntegrationTests
             var options = await IntegrationTestDatabase.CreateOptionsAsync();
             var context = new SmartPoolDbContext(options);
             var admin = await context.Users.FirstAsync(item => item.Role!.Name == "ADMIN");
+            var shiftId = Guid.NewGuid();
+            context.Shifts.Add(new Shift { Id = shiftId, Name = "Synthetic onboarding", StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(12, 0), IsActive = true });
+            await context.SaveChangesAsync();
             var mapper = new MapperConfiguration(config => config.AddProfile<StaffMappingProfile>(), NullLoggerFactory.Instance).CreateMapper();
             var storage = new FakeStorage(); var mail = new FakeMail(); var clock = new Clock();
             var cleanup = new StaffDocumentCleanup(context, storage, clock);
             var services = new StaffOnboardingServices(Options.Create(new StaffOnboardingOptions { EncryptionKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
                 IdentityKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)), FrontendOrigin = "https://example.test" }), new PasswordHasherService(), mail, storage, cleanup);
-            return new() { Context = context, DbOptions = options, Mapper = mapper, AdminId = admin.Id, Storage = storage, Mail = mail, Clock = clock, Cleanup = cleanup, Services = services,
+            return new() { Context = context, DbOptions = options, Mapper = mapper, AdminId = admin.Id, ShiftId = shiftId, Storage = storage, Mail = mail, Clock = clock, Cleanup = cleanup, Services = services,
                 Operations = new(context, mapper, clock, Options.Create(new StaffAttendanceQrSettings()), services) };
         }
         public Task<OnboardingWorkspace> Run(OnboardingCommand command) => Operations.ExecuteOnboardingAsync(command, default);
-        public Task<OnboardingWorkspace> InviteAsync() => Run(new() { Action = OnboardingAction.Create, ActorId = AdminId, Email = $"synthetic-{Guid.NewGuid():N}@example.test", TargetRole = "SALES", JoinDate = VietnamTimeBoundary.GetDate(Clock), FullName = "Synthetic staff", Phone = "0901234567" });
+        public ContractTerms ContractFor(DateOnly startDate, DateOnly endDate) => new("FULL_TIME", startDate, endDate,
+            Enumerable.Range(1, 7).Select(day => new WeeklyPatternDay(day, [ShiftId])).ToList());
+        public Task<OnboardingWorkspace> InviteAsync()
+        {
+            var startDate = VietnamTimeBoundary.GetDate(Clock);
+            return Run(new() { Action = OnboardingAction.Create, ActorId = AdminId, Email = $"synthetic-{Guid.NewGuid():N}@example.test", TargetRole = "SALES", JoinDate = startDate,
+                Contract = ContractFor(startDate, startDate), FullName = "Synthetic staff", Phone = "0901234567" });
+        }
         public (Guid Id, string Token) Credentials(OnboardingWorkspace workspace) => (workspace.Invitation!.Id, Regex.Match(WebUtility.HtmlDecode(Mail.Body), "token=([A-F0-9]{64})").Groups[1].Value);
         public Task<OnboardingWorkspace> Submit(OnboardingWorkspace workspace, (Guid Id, string Token) credentials) => Run(new() { Action = OnboardingAction.Submit, InvitationId = credentials.Id, Token = credentials.Token,
             ExpectedVersion = workspace.Revision!.Version, Password = "Synthetic123!", PasswordConfirmation = "Synthetic123!", Profile = new StaffLegalProfile {

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Alert, Button, DatePicker, Descriptions, Drawer, Pagination, Select, Spin, Table, Tabs, Tag } from 'antd'
 import dayjs from 'dayjs'
 import { useStaffSchedule } from '../hooks/useStaffs'
+import StaffWorkPatternPanel from './StaffWorkPatternPanel'
+import { StaffContractOverview } from './StaffContractSchedule'
 
 
 function formatDate(value) {
@@ -36,5 +38,5 @@ export default function StaffDetailsDrawer({ open, onClose, staff }) {
   const [tab, setTab] = useState('profile')
   if (!staff) return null
   const profile = <Descriptions bordered column={1} size="small"><Descriptions.Item label="Họ tên">{staff.fullName || '-'}</Descriptions.Item><Descriptions.Item label="Tên đăng nhập">{staff.username || '-'}</Descriptions.Item><Descriptions.Item label="Email">{staff.email || '-'}</Descriptions.Item><Descriptions.Item label="Điện thoại">{staff.phone || '-'}</Descriptions.Item><Descriptions.Item label="Vai trò">{staff.roleName || '-'}</Descriptions.Item><Descriptions.Item label="Ngày vào làm">{formatDate(staff.joinDate)}</Descriptions.Item><Descriptions.Item label="Trạng thái"><Tag color={staff.status === 'Working' ? 'success' : 'default'}>{staff.status || '-'}</Tag></Descriptions.Item></Descriptions>
-  return <Drawer rootClassName="staff-profiles-drawer" title={`Hồ sơ: ${staff.fullName || staff.username || ''}`} open={open} onClose={onClose} size="large"><Tabs activeKey={tab} onChange={setTab} items={[{ key: 'profile', label: 'Hồ sơ', children: profile }, { key: 'schedule', label: 'Lịch làm việc', children: tab === 'schedule' ? <ScheduleContent employeeId={staff.userId} attendance={false} /> : null }, { key: 'attendance', label: 'Chấm công', children: tab === 'attendance' ? <ScheduleContent employeeId={staff.userId} attendance /> : null }]} /></Drawer>
+   return <Drawer rootClassName="staff-profiles-drawer" title={`Hồ sơ: ${staff.fullName || staff.username || ''}`} open={open} onClose={onClose} size="large"><Tabs activeKey={tab} onChange={setTab} items={[{ key: 'profile', label: 'Hồ sơ', children: <div className="staff-contract-stack">{profile}{open && tab === 'profile' && <StaffContractOverview key={staff.userId} employeeId={staff.userId} />}</div> }, { key: 'schedule', label: 'Lịch', title: 'Lịch làm việc', children: tab === 'schedule' ? <ScheduleContent employeeId={staff.userId} attendance={false} /> : null }, { key: 'work-pattern', label: 'Hợp đồng', title: 'Hợp đồng và lịch tuần', children: tab === 'work-pattern' ? <StaffWorkPatternPanel key={staff.userId} employeeId={staff.userId} /> : null }, { key: 'attendance', label: 'Chấm công', children: tab === 'attendance' ? <ScheduleContent employeeId={staff.userId} attendance /> : null }]} /></Drawer>
 }

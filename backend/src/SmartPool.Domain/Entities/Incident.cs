@@ -16,7 +16,7 @@ public partial class Incident
     public Guid? ReportedBy { get; set; }
 
     public DateTime? IncidentTime { get; set; }
-    //sonpt th�m field image_incident - 10/10/2026
+    //sonpt th�m field image_incident - 10/10/2026
     public string? ImageIncidents { get; set; }
 
     public string? Status { get; set; }
@@ -25,6 +25,15 @@ public partial class Incident
 
     public DateTime? UpdatedAt { get; set; }
 
+    // Giám sát an toàn — liên kết với cảnh báo và camera sinh ra sự cố
+    public Guid? WarningId { get; set; }
+
+    public Guid? CameraId { get; set; }
+
+    public string? Location { get; set; }
+
     public virtual User? ReportedByNavigation { get; set; }
+    public virtual Equipment? Camera { get; set; }
+    public virtual Warning? Warning { get; set; }
 }
 

@@ -11,7 +11,7 @@ public sealed class PoolDutyScheduleConfiguration : IEntityTypeConfiguration<Poo
         entity.ToTable("pool_duty_schedules", "smart_pool", table =>
         {
             table.HasCheckConstraint("ck_pool_duty_schedules_status",
-                "status IN ('Scheduled', 'InProgress', 'Completed', 'Absent', 'Cancelled')");
+                "status IN ('Scheduled', 'InProgress', 'Completed', 'Absent', 'Cancelled', 'Unassigned')");
             table.HasCheckConstraint("ck_pool_duty_schedules_assignment_type",
                 "assignment_type IN ('Auto', 'Manual')");
         });
@@ -32,7 +32,7 @@ public sealed class PoolDutyScheduleConfiguration : IEntityTypeConfiguration<Poo
 
         entity.Property(e => e.AssignedEmployeeId)
             .HasColumnName("assigned_employee_id")
-            .IsRequired();
+            .IsRequired(false);
 
         entity.Property(e => e.Status)
             .HasColumnName("status")

@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Button, Checkbox, DatePicker, Drawer, Empty, Form, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
+import dayjs from 'dayjs'
 import { onboardingService } from '../services/onboardingService'
 import { formatOnboardingDate, invitationRoleOptions, normalizePhone, onboardingError, phonePattern, stateLabels, vietnamToday } from '../onboarding/onboardingUi'
 import OnboardingRevisionDetails from './OnboardingRevisionDetails'
 import OnboardingDocuments from './OnboardingDocuments'
+import ContractTermsFields from './ContractTermsFields'
+import StaffContractSchedule from './StaffContractSchedule'
+import ScheduleOperationResult from './ScheduleOperationResult'
+import { useActiveShifts } from '../hooks/useShifts'
 import '../styles/staffOnboarding.css'
 
 export default function StaffInvitationsPanel({ createOpen, onCloseCreate, employee, onCloseEmployee }) {
@@ -23,6 +28,7 @@ export default function StaffInvitationsPanel({ createOpen, onCloseCreate, emplo
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   const guard = useRef(false)
+  const shiftsQuery = useActiveShifts(createOpen)
   if (employee !== selectedEmployee) {
     setSelectedEmployee(employee)
     setWorkspace(null)
@@ -102,12 +108,14 @@ export default function StaffInvitationsPanel({ createOpen, onCloseCreate, emplo
       <div className="staff-invitation-content">
       <Alert type="info" title="Chỉ dành cho email chưa có tài khoản" description="Không chuyển khách hàng thành nhân viên. Lời mời chưa tạo tài khoản hoặc quyền làm việc." />
       {createError && <Alert type="error" title={createError} />}
-      <Form name="staff-invitation" form={form} layout="vertical" disabled={busy || uncertain} onFinish={(values) => mutate(() => onboardingService.create({ ...values, fullName: values.fullName.trim(), phone: normalizePhone(values.phone), email: values.email.trim().toLowerCase(), joinDate: values.joinDate.format('YYYY-MM-DD') }), () => { setWorkspace(null); form.resetFields(); onCloseCreate() }, setCreateError)}>
+      {shiftsQuery.isError && <Alert type="error" showIcon title="Không thể tải ca làm việc" description="Thử tải lại trước khi tạo lời mời." action={<Button size="small" onClick={() => shiftsQuery.refetch()}>Thử lại</Button>} />}
+      <Form name="staff-invitation" form={form} layout="vertical" className="staff-contract-stack" disabled={busy || uncertain || shiftsQuery.isLoading || shiftsQuery.isError} initialValues={{ joinDate: dayjs(vietnamToday()), contract: { employmentType: 'FULL_TIME', startDate: vietnamToday(), weeklyPattern: Array.from({ length: 7 }, (_, index) => ({ dayOfWeek: index + 1, shiftIds: [] })) } }} onValuesChange={(changed) => { if (changed.joinDate) form.setFieldValue(['contract', 'startDate'], changed.joinDate.format('YYYY-MM-DD')) }} onFinish={(values) => mutate(() => onboardingService.create({ ...values, fullName: values.fullName.trim(), phone: normalizePhone(values.phone), email: values.email.trim().toLowerCase(), joinDate: values.joinDate.format('YYYY-MM-DD'), contract: { ...values.contract, startDate: values.joinDate.format('YYYY-MM-DD') } }), () => { setWorkspace(null); form.resetFields(); onCloseCreate() }, setCreateError)}>
         <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email', message: 'Nhập email hợp lệ.' }, { max: 150 }]}><Input autoComplete="email" /></Form.Item>
         <Form.Item name="targetRole" label="Vai trò" rules={[{ required: true, message: 'Chọn vai trò.' }]}><Select options={invitationRoleOptions} /></Form.Item>
         <Form.Item name="joinDate" label="Ngày vào làm" rules={[{ required: true, message: 'Chọn ngày vào làm.' }, { validator: (_, value) => !value || value.format('YYYY-MM-DD') >= vietnamToday() ? Promise.resolve() : Promise.reject(new Error('Ngày vào làm phải từ hôm nay trở đi.')) }]}><DatePicker format="DD/MM/YYYY" disabledDate={(date) => date.format('YYYY-MM-DD') < vietnamToday()} className="service-full-width" /></Form.Item>
         <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true, whitespace: true, message: 'Nhập họ và tên.' }, { max: 255 }]}><Input maxLength={255} autoComplete="name" /></Form.Item>
         <Form.Item name="phone" label="Điện thoại" rules={[{ required: true, whitespace: true, message: 'Nhập số điện thoại.' }, { pattern: phonePattern, message: 'Nhập số di động Việt Nam, bắt đầu bằng 0 hoặc +84.' }]}><Input inputMode="tel" autoComplete="tel" /></Form.Item>
+        <ContractTermsFields form={form} shifts={shiftsQuery.data?.items || []} invitation />
         <Button type="primary" htmlType="submit" loading={busy}>Tạo và gửi lời mời</Button>
       </Form>
       </div>
@@ -118,7 +126,9 @@ export default function StaffInvitationsPanel({ createOpen, onCloseCreate, emplo
       {workspace && <>
         {workspace.invitation?.deliveryStatus === 'FAILED' && <Alert type="warning" title="Email chưa gửi thành công" description="Chỉ gửi lại khi bạn chủ động chọn. Liên kết cũ sẽ bị thay thế." />}
         <OnboardingRevisionDetails revision={workspace.revision || workspace.approvedRevision} />
+        <StaffContractSchedule contract={workspace.contract || workspace.invitation?.contract} shifts={workspace.shifts || workspace.invitation?.shifts || []} employeeId={employee?.userId || workspace.invitation?.completedUserId} />
         <OnboardingDocuments documents={(workspace.revision || workspace.approvedRevision)?.documents} onRead={onboardingService.readReviewDocument} />
+        {workspace.scheduleResult && <ScheduleOperationResult result={workspace.scheduleResult} />}
         {workspace.revision?.state === 'SUBMITTED' && <Space wrap className="onboarding-actions"><Button type="primary" disabled={busy || uncertain} onClick={() => choose('approve')}>Duyệt hồ sơ</Button><Button disabled={busy || uncertain} onClick={() => choose('request-changes')}>Yêu cầu bổ sung</Button><Button danger disabled={busy || uncertain} onClick={() => choose('reject')}>Từ chối</Button></Space>}
         {workspace.correctionRequest && <Alert type="info" title={stateLabels[workspace.correctionRequest.state] || workspace.correctionRequest.state} description={workspace.correctionRequest.reason} />}
         {employee && workspace.correctionRequest?.state === 'REQUESTED' && <Button disabled={busy || uncertain} onClick={() => choose('open-correction')}>Mở chỉnh sửa theo yêu cầu</Button>}

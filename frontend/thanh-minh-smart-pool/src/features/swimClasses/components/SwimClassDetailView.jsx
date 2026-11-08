@@ -75,6 +75,10 @@ export default function SwimClassDetailView() {
           userId={session.id} now={now} onRefresh={() => detail.refetch()} />}
         {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <SwimClassDraftActions swimClass={swimClass} now={now} />}
         <SwimClassSessionSchedule sessions={swimClass.sessions || []} now={now}
+          attendanceCoachUserId={session?.id}
+          onViewAttendance={role === 'COACH' ? item => navigate(
+            `/coach/classes/${swimClass.id}/sessions/${item.id}/attendances`,
+            { state: { startsAt: item.startsAt, endsAt: item.endsAt } }) : undefined}
           onEditSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined}
           onCancelSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setCancellingSession : undefined} />
         {isOwner && editingClass && <SwimClassEditModal swimClass={swimClass} open

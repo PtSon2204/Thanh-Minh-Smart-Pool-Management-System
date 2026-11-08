@@ -155,6 +155,15 @@ PublishScripts/
 *.jfm
 *.publishsettings
 MigrationBackup/
+# Runtime phuc vu test (Postgres portable, FFmpeg tools, video test)
+backend/.test-runtime/
+
+# Thu vien Python vendored + FFmpeg binary dung cho worker AI
+backend/ai/.deps/
+backend/ai/.tools/
+
+*.pyc
+__pycache__/
 ~$*
 *~
 *.tmp

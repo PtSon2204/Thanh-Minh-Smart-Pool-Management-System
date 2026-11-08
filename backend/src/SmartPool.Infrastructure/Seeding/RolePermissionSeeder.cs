@@ -80,6 +80,7 @@ public static class RolePermissionSeeder
                 ["swim_classes"]     = ["read", "create", "update"],
                 ["class_sessions"]   = ["create", "update"],
                 ["class_registrations"] = ["read", "update"],
+                ["class_attendances"] = ["read", "update"],
                 ["attendance"]       = ["read", "update"],
             },
 
@@ -89,6 +90,7 @@ public static class RolePermissionSeeder
                 ["swim_classes"]     = ["read"],
                 ["customer_tickets"] = ["read", "create", "update"],
                 ["class_registrations"] = ["create", "read"],
+                ["class_attendances"] = ["create", "read"],
                 ["coach_applications"] = ["create", "read"],
                 ["ticket_types"]     = ["read"],
                 ["vouchers"]         = ["read"],
@@ -157,6 +159,7 @@ public static class RolePermissionSeeder
                 changed = current.Remove("swim_classes") || changed;
                 changed = current.Remove("class_sessions") || changed;
                 changed = current.Remove("class_registrations") || changed;
+                changed = current.Remove("class_attendances") || changed;
             }
             if (roleName is "LIFEGUARD" or "SALES")
                 changed = current.Remove("shifts") || changed;

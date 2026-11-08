@@ -154,6 +154,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<StaffOnboarding.StaffDocumentCleanup>();
             services.AddScoped<StaffOnboarding.StaffOnboardingServices>();
             services.AddHostedService<StaffOnboarding.StaffDocumentCleanupWorker>();
+            services.AddHostedService<StaffOnboarding.StaffScheduleDeliveryWorker>();
 
             // Email — MailKit
             services.AddScoped<IEmailService, EmailService>();
@@ -202,6 +203,26 @@ namespace SmartPool.Infrastructure
             services.AddHostedService<ExpiredOnlineOrderWorker>();
             services.AddHostedService<ExpiredRentalPaymentWorker>();
             services.AddHostedService<InspectionSafetyReminderWorker>();
+
+            // Giám sát an toàn — camera AI, cảnh báo, upload video, snapshot.
+            // Options: MonitoringOptions (camera/worker ffmpeg/Python), RiskOptions (ngưỡng RiskDecisionEngine).
+            services.Configure<SmartPool.Infrastructure.SafetyMonitoring.MonitoringOptions>(configuration.GetSection("SafetyMonitoring"));
+            services.Configure<SmartPool.Application.Features.SafetyMonitoring.RiskOptions>(configuration.GetSection("SafetyMonitoring:Risk"));
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.MonitoringFiles>();
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
+            // State trong bộ nhớ chia sẻ giữa worker AI LIVE và nguồn WebRTC AI (phải là instance duy nhất).
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>();
+            services.AddSingleton<SmartPool.Application.Interfaces.Services.ICameraFrameSource, SmartPool.Infrastructure.SafetyMonitoring.CameraFrameSource>();
+            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.ICameraAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>());
+            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IMonitoringRepository, SmartPool.Infrastructure.Persistence.Repositories.MonitoringRepository>();
+            services.AddScoped<SmartPool.Application.Features.ManageEquipments.Queries.GetCameraList.ICameraListRepository, SmartPool.Infrastructure.Persistence.Repositories.Equipments.CameraListRepository>();
+            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoAnalysisService, SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisService>();
+            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoPlaybackTickets, SmartPool.Infrastructure.SafetyMonitoring.VideoPlaybackTickets>();
+            // BackgroundService: khi SafetyMonitoring:Enabled=false (mặc định) các worker chỉ chạy vòng lặp rảnh,
+            // không chạm DB hay khởi động Python/FFmpeg nên an toàn cho test tích hợp không cấu hình native.
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker>();
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisWorker>();
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.SnapshotUploadWorker>();
 
             return services;
         }

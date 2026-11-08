@@ -9,6 +9,8 @@ using SmartPool.API.Authorization;
 using SmartPool.API.Controllers;
 using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Authorization;
+using SmartPool.Application.Features.Notifications;
+using SmartPool.Application.Features.Notifications.Queries.GetNotifications;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Enums;
 using MediatR;
@@ -24,6 +26,10 @@ public sealed class ApiAuthorizationTests
         nameof(StaffsController.MyOnboarding), nameof(StaffsController.SaveMyOnboarding),
         nameof(StaffsController.SubmitMyOnboarding), nameof(StaffsController.RequestMyCorrection),
         nameof(StaffsController.UploadMyOnboarding), nameof(StaffsController.ReadOwnDocument)
+    ];
+    private static readonly string[] OwnNotificationActions =
+    [
+        nameof(NotificationsController.GetMine), nameof(NotificationsController.MarkMineAsRead)
     ];
 
     [Theory]
@@ -110,6 +116,8 @@ public sealed class ApiAuthorizationTests
         {
             if (action.Controller == typeof(StaffsController) && OwnOnboardingActions.Contains(action.Method.Name))
                 continue;
+            if (action.Controller == typeof(NotificationsController) && OwnNotificationActions.Contains(action.Method.Name))
+                continue;
             var policies = action.Method.GetCustomAttributes<AuthorizeAttribute>().Select(attribute => attribute.Policy);
             Assert.True(policies.Any(policy => policy?.StartsWith("permission:", StringComparison.Ordinal) == true ||
                 policy == AuthorizationPolicies.AdminOnly), $"{action.Controller.Name}.{action.Method.Name} must require an operational permission.");
@@ -178,6 +186,60 @@ public sealed class ApiAuthorizationTests
         await controller.ReadOwnDocument(Guid.NewGuid(), default);
         sender.Verify(item => item.Send(It.Is<ReadStaffDocumentQuery>(query => query.ActorId == actor && !query.IsAdmin && query.InvitationId == null),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task OwnNotificationEndpointsRequireAuthenticationAndDeriveOwnerFromClaims()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(Mock.Of<IRolePermissionReader>());
+        services.AddApiAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var policies = provider.GetRequiredService<IAuthorizationPolicyProvider>();
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+
+        foreach (var name in OwnNotificationActions)
+        {
+            var method = typeof(NotificationsController).GetMethod(name)!;
+            var attributes = method.GetCustomAttributes<AuthorizeAttribute>().ToArray();
+            Assert.NotEmpty(attributes);
+            Assert.Empty(method.GetCustomAttributes<AllowAnonymousAttribute>());
+            var policy = await AuthorizationPolicy.CombineAsync(policies, attributes);
+            Assert.NotNull(policy);
+            Assert.False((await authorization.AuthorizeAsync(new ClaimsPrincipal(new ClaimsIdentity()), null, policy)).Succeeded);
+            Assert.True((await authorization.AuthorizeAsync(CreatePrincipal(true, Guid.NewGuid().ToString(), "CUSTOMER"), null, policy)).Succeeded);
+        }
+
+        var actor = Guid.NewGuid();
+        GetMyNotificationsQuery? sentQuery = null;
+        MarkMyNotificationReadCommand? sentCommand = null;
+        var sender = new Mock<ISender>();
+        sender.Setup(item => item.Send(It.IsAny<GetMyNotificationsQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<GetNotificationsResult>, CancellationToken>((request, _) => sentQuery = (GetMyNotificationsQuery)request)
+            .ReturnsAsync(new GetNotificationsResult());
+        sender.Setup(item => item.Send(It.IsAny<MarkMyNotificationReadCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<bool>, CancellationToken>((request, _) => sentCommand = (MarkMyNotificationReadCommand)request)
+            .ReturnsAsync(true);
+        var controller = new NotificationsController(sender.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = CreatePrincipal(true, actor.ToString(), "CUSTOMER") }
+            }
+        };
+
+        await controller.GetMine(2, 10, default);
+        Assert.NotNull(sentQuery);
+        Assert.Equal(actor, sentQuery.UserId);
+        Assert.Equal(2, sentQuery.Page);
+        Assert.Equal(10, sentQuery.PageSize);
+
+        var notificationId = Guid.NewGuid();
+        await controller.MarkMineAsRead(notificationId, default);
+        Assert.NotNull(sentCommand);
+        Assert.Equal(actor, sentCommand.UserId);
+        Assert.Equal(notificationId, sentCommand.NotificationId);
     }
 
     [Fact]

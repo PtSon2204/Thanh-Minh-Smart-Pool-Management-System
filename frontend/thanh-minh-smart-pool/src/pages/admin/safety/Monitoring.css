@@ -1,0 +1,12 @@
+.monitoring-page { display: grid; gap: 20px; }
+.monitoring-filters .ant-input-affix-wrapper { width: 260px; }
+.monitoring-filters .ant-select { min-width: 180px; }
+.camera-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.camera-grid .ant-card { min-width: 0; }
+.monitor-video-placeholder { aspect-ratio: 16 / 9; background: #0f172a; color: white; display: grid; place-items: center; }
+.monitoring-page video { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #0f172a; }
+.analysis-reference { margin: 16px 0; overflow-wrap: anywhere; }
+.monitoring-highlight { outline: 3px solid #ef4444; outline-offset: 3px; }
+.monitoring-alert-critical td { background: #fef2f2 !important; }
+.monitoring-alert-warning td { background: #fff7ed !important; }
+@media (max-width: 1000px) { .camera-grid { grid-template-columns: minmax(0, 1fr); } }

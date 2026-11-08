@@ -11,6 +11,17 @@ export const swimClassService = {
   cancelMyRegistration: (classId) => apiClient.patch(`${BASE}/${classId}/registrations/me/cancel`).then(({ data }) => data),
   getClassRegistrations: (classId, params, signal) => apiClient.get(`${BASE}/${classId}/registrations`, { params, signal }).then(({ data }) => data),
   cancelClassRegistration: (classId, registrationId, payload) => apiClient.patch(`${BASE}/${classId}/registrations/${registrationId}/cancel`, payload).then(({ data }) => data),
+  getMyClassAttendances: (classId, params, signal) => apiClient.get(`${BASE}/${classId}/attendances/me`, { params, signal }).then(({ data }) => data),
+  submitClassAttendance: (classId, sessionId, image) => {
+    const body = new FormData()
+    body.append('image', image)
+    return apiClient.post(`${BASE}/${classId}/sessions/${sessionId}/attendances/me`, body,
+      { headers: { 'Content-Type': undefined } }).then(({ data }) => data)
+  },
+  getSessionAttendances: (classId, sessionId, params, signal) => apiClient.get(
+    `${BASE}/${classId}/sessions/${sessionId}/attendances`, { params, signal }).then(({ data }) => data),
+  reviewClassAttendance: (classId, sessionId, attendanceId, payload) => apiClient.patch(
+    `${BASE}/${classId}/sessions/${sessionId}/attendances/${attendanceId}/review`, payload).then(({ data }) => data),
   createClass: (payload) => apiClient.post(BASE, payload).then(({ data }) => data),
   updateClass: (classId, payload) => apiClient.put(`${BASE}/${classId}`, payload).then(({ data }) => data),
   createSessions: (classId, sessions) => apiClient.post(`${BASE}/${classId}/sessions`, { sessions }).then(({ data }) => data),
