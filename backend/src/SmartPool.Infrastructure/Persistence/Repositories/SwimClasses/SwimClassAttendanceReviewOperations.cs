@@ -72,22 +72,15 @@ public sealed partial class SwimClassOperations
             .SingleOrDefaultAsync(item => item.Id == request.SessionId &&
                 item.ClassId == request.ClassId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy buổi học của lớp.");
-        if (session.CoachUserId != coachUserId)
-            throw new UnauthorizedAccessException("Chỉ Coach phụ trách buổi được duyệt điểm danh.");
-
+        ClassAttendanceReviewPolicy.EnsureAssignedCoach(session.CoachUserId, coachUserId);
         var attendance = await context.ClassAttendances.Include(item => item.Registration)
             .SingleOrDefaultAsync(item => item.Id == request.AttendanceId &&
                 item.SessionId == request.SessionId &&
                 item.Registration.ClassId == request.ClassId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy điểm danh của buổi học.");
 
-        if (attendance.UpdatedAt != request.ExpectedUpdatedAt.UtcDateTime)
-            throw new SwimClassStateConflictException(
-                "Điểm danh đã được cập nhật. Vui lòng tải lại trước khi duyệt.");
-        if (attendance.Status != "PendingReview")
-            throw new SwimClassStateConflictException("Chỉ có thể duyệt điểm danh đang chờ xem xét.");
-        if (session.Status != "Scheduled")
-            throw new SwimClassStateConflictException("Không thể duyệt điểm danh của buổi đã hủy.");
+        ClassAttendanceReviewPolicy.EnsureReviewable(session.Status, attendance.Status, attendance.UpdatedAt,
+            request.ExpectedUpdatedAt);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var decision = string.Equals(request.Decision.Trim(), "Verified",
