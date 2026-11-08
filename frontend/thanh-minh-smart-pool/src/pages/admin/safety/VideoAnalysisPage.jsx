@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Alert, Button, Card, Collapse, Input, Progress, Slider, Space, Spin, Typography, Upload, message } from 'antd'
 import { monitoringService } from '../../../features/safety/services/monitoringService'
@@ -77,11 +78,13 @@ function ResultVideo({ jobId, seek }) {
 }
 
 export default function VideoAnalysisPage() {
+  const [searchParams] = useSearchParams()
   const [file, setFile] = useState(null)
-  const [jobId, setJobId] = useState(() => localStorage.getItem('safety-analysis-job') || '')
+  const [jobId, setJobId] = useState(() => searchParams.get('job') || localStorage.getItem('safety-analysis-job') || '')
+  const [seek, setSeek] = useState(() => searchParams.get('seek') != null
+    ? { timestamp: Number(searchParams.get('seek')) || 0, fromAlert: true } : null)
   const [resumeId, setResumeId] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [seek, setSeek] = useState(null)
   const status = useQuery({ queryKey: ['safety', 'configuration'], queryFn: ({ signal }) => monitoringService.status(signal) })
   const job = useQuery({ queryKey: ['safety', 'video-job', jobId], queryFn: ({ signal }) => monitoringService.job(jobId, signal),
     enabled: !!jobId, retry: false,

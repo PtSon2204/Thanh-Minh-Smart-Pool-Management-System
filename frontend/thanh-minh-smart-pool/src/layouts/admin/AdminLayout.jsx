@@ -46,6 +46,7 @@ import authService from "../../features/auth/services/authService";
 import { getSessionRoles } from "../../features/auth/utils/sessionRoles";
 import { useAlarmSound } from "../../features/safety/hooks/useAlarmSound";
 import { useSafetyAlertSignalR } from "../../features/safety/hooks/useSafetyAlertSignalR";
+import GlobalSafetyAlertsHost from "../../features/safety/components/GlobalSafetyAlertsHost";
 import logoImg from "../../assets/logo-be-boi-thanh-minh.png";
 import "./AdminLayout.css";
 
@@ -341,6 +342,14 @@ export default function AdminLayout() {
               key: "/admin/safety/list-camera",
               label: <Link to="/admin/safety/list-camera">Danh sách camera</Link>,
             },
+            isAdmin && {
+              key: "/admin/safety/video-analysis",
+              label: <Link to="/admin/safety/video-analysis">Phân tích video</Link>,
+            },
+            {
+              key: "/admin/safety/alerts",
+              label: <Link to="/admin/safety/alerts">Cảnh báo camera</Link>,
+            },
             {
               key: "/admin/safety/activate-alerts",
               label: (
@@ -552,6 +561,7 @@ export default function AdminLayout() {
   return (
     <>
       {notifContextHolder}
+      <GlobalSafetyAlertsHost />
       <Layout
         className="admin-layout"
         style={{ minHeight: "100vh", background: "#e2e8f0" }}

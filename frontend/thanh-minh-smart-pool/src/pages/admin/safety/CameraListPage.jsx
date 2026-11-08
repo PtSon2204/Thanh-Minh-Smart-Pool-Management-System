@@ -1,30 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { Alert, Button, Card, Empty, Input, Modal, Pagination, Segmented, Select, Space, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Empty, Input, Pagination, Segmented, Select, Space, Spin, Tag, Typography } from 'antd'
 import AlertList from '../../../features/safety/components/AlertList'
+import EnlargedCameraModal from '../../../features/safety/components/EnlargedCameraModal'
 import { useMonitoringEvents } from '../../../features/safety/hooks/useMonitoringEvents'
 import { useCameraList } from '../../../features/safety/hooks/useCameraList'
+import { useCameraRisks } from '../../../features/safety/hooks/useCameraRisks'
 import { monitoringService } from '../../../features/safety/services/monitoringService'
 import { CameraVideoPlayer } from '../../../features/equipments/components/CameraViewModal'
 import '../../../features/equipments/styles/equipmentManagement.css'
 import './Monitoring.css'
-
 function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
   const element = useRef(null)
   const [visible, setVisible] = useState(false)
   const [mode, setMode] = useState('live')
-  const [now, setNow] = useState(Date.now)
-  const ai = useQuery({ queryKey: ['safety', 'camera-analysis', camera.id], queryFn: async ({ signal }) => ({
-    ...await monitoringService.analysis(camera.id, signal), receivedAt: Date.now(),
-  }), enabled: visible && camera.source === 'RTSP', refetchInterval: 2000, retry: false })
-  const aiFresh = !ai.isError && ai.data?.state === 'Connected' && now - ai.data.receivedAt +
-    Date.parse(ai.data.serverTime) - Date.parse(ai.data.observedAt) < 6000
-  useEffect(() => {
-    if (!visible) return
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [visible])
+  const { ai, fresh, risks } = useCameraRisks(camera.id, visible && camera.source === 'RTSP')
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.1 })
     observer.observe(element.current)
@@ -32,17 +23,17 @@ function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
   }, [])
   return <Card ref={element} id={`camera-${camera.id}`} title={camera.name}
     style={highlighted ? { outline: `3px solid ${highlighted === 'CRITICAL' ? '#EF4444' : '#F97316'}` } : undefined}
-    extra={<Button disabled={camera.status !== 'Active' || camera.source !== 'RTSP'} onClick={() => onEnlarge({ ...camera, analysis: mode === 'ai' })}>Phóng to</Button>}>
+    extra={<Button disabled={camera.status !== 'Active' || camera.source !== 'RTSP'} onClick={() => onEnlarge(camera)}>Phóng to</Button>}>
     <Space wrap><span>{camera.location || 'Chưa có vị trí'}</span><Tag>{camera.status}</Tag>
       <Tag color={camera.connectionStatus === 'Connected' ? 'green' : 'default'}>{camera.connectionStatus}</Tag>
-      <Tag color={aiFresh ? 'processing' : 'default'}>{aiFresh ? 'AI đang giám sát' : ai.data?.state === 'NotConfigured' ? 'AI chưa cấu hình' : 'AI chưa có dữ liệu'}</Tag>
-      {aiFresh && (ai.data.risks.some(x => x.severity === 'CRITICAL') ? <Tag color="#EF4444">Khẩn cấp</Tag> : ai.data.risks.length > 0 && <Tag color="#F97316">Chú ý</Tag>)}
+      <Tag color={fresh ? 'processing' : 'default'}>{fresh ? 'AI đang giám sát' : ai.data?.state === 'NotConfigured' ? 'AI chưa cấu hình' : 'AI chưa có dữ liệu'}</Tag>
+      {fresh && (risks.some(x => x.severity === 'CRITICAL') ? <Tag color="#EF4444">Khẩn cấp</Tag> : risks.length > 0 && <Tag color="#F97316">Chú ý</Tag>)}
       <Segmented value={mode} onChange={setMode} options={[{ label: 'Video trực tiếp', value: 'live' }, { label: 'Video AI', value: 'ai' }]} /></Space>
     {camera.source === 'Browser' ? <Alert type="info" title="Camera trình duyệt chỉ xem được tại máy đã đăng ký." /> :
       camera.status !== 'Active' ? <Alert type="warning" title="Camera hiện không khả dụng" /> :
         camera.connectionStatus !== 'Connected' ? <Alert type="warning" title="Camera hiện không khả dụng" action={<Button onClick={onRetry}>Thử lại</Button>} /> :
-          mode === 'ai' && !aiFresh ? <Alert type="warning" title="AI hiện không khả dụng" action={<Button onClick={() => ai.refetch()}>Thử lại</Button>} /> :
-            visible && !enlarged ? <CameraVideoPlayer equipment={camera} analysis={mode === 'ai'} /> : <div className="monitor-video-placeholder">Video tạm dừng</div>}
+          mode === 'ai' && !fresh ? <Alert type="warning" title="AI hiện không khả dụng" action={<Button onClick={() => ai.refetch()}>Thử lại</Button>} /> :
+            visible && !enlarged ? <CameraVideoPlayer equipment={camera} risks={mode === 'ai' ? risks : []} /> : <div className="monitor-video-placeholder">Video tạm dừng</div>}
   </Card>
 }
 
@@ -86,8 +77,6 @@ export default function CameraListPage() {
     <Card title="Cảnh báo camera LIVE"><AlertList onDetail={row => {
       setSearch(''); setFilters({ page: 1, pageSize: 4, cameraId: row.cameraId }); setHighlight(row)
     }} /></Card>
-    <Modal open={!!enlarged} destroyOnHidden width={1100} title={enlarged?.name} footer={null} onCancel={() => setEnlarged(null)}>
-      {enlarged && enlarged.status === 'Active' && enlarged.source === 'RTSP' && <CameraVideoPlayer equipment={enlarged} analysis={enlarged.analysis} />}
-    </Modal>
+    <EnlargedCameraModal camera={enlarged} onClose={() => setEnlarged(null)} />
   </div>
 }
