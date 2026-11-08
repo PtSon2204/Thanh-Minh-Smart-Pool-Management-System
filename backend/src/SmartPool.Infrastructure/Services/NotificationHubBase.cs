@@ -13,6 +13,10 @@ namespace SmartPool.Infrastructure.Services
             if (!string.IsNullOrEmpty(userId))
                 await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
 
+            // Nhóm vận hành an toàn: chỉ ADMIN và LIFEGUARD nhận sự kiện cảnh báo AI.
+            if (Context.User?.IsInRole("ADMIN") == true || Context.User?.IsInRole("LIFEGUARD") == true)
+                await Groups.AddToGroupAsync(Context.ConnectionId, "safety-operators");
+
             await base.OnConnectedAsync();
         }
 

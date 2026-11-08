@@ -1,0 +1,6 @@
+onnxruntime==1.29.0
+ultralytics==8.4.153
+opencv-python==5.0.0.93
+numpy==2.3.5
+Pillow==12.3.0
+lap==0.5.12

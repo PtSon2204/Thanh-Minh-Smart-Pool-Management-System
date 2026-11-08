@@ -15,6 +15,12 @@ public static class AuthorizationExtensions
             options.AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context => context.User.TryGetUserId(out _) && context.User.HasRole(RoleEnum.ADMIN)));
+
+            // Giám sát an toàn — ADMIN và LIFEGUARD được xem/xử lý cảnh báo.
+            options.AddPolicy(AuthorizationPolicies.SafetyOperators, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context => context.User.TryGetUserId(out _) &&
+                    (context.User.HasRole(RoleEnum.ADMIN) || context.User.HasRole(RoleEnum.LIFEGUARD))));
             foreach (var (module, actions) in PermissionCatalog.All)
                 foreach (var action in actions)
                     options.AddPolicy(PermissionCatalog.Policy(module, action), policy => policy
