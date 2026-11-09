@@ -347,6 +347,10 @@ export default function AdminLayout() {
               label: <Link to="/admin/safety/video-analysis">Phân tích video</Link>,
             },
             {
+              key: "/admin/safety/thresholds",
+              label: <Link to="/admin/safety/thresholds">Ngưỡng cảnh báo AI</Link>,
+            },
+            {
               key: "/admin/safety/alerts",
               label: <Link to="/admin/safety/alerts">Cảnh báo camera</Link>,
             },

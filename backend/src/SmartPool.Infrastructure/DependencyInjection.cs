@@ -218,6 +218,9 @@ namespace SmartPool.Infrastructure
             services.AddScoped<SmartPool.Application.Features.ManageEquipments.Queries.GetCameraList.ICameraListRepository, SmartPool.Infrastructure.Persistence.Repositories.Equipments.CameraListRepository>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoAnalysisService, SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisService>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoPlaybackTickets, SmartPool.Infrastructure.SafetyMonitoring.VideoPlaybackTickets>();
+            // Ngưỡng cảnh báo AI có thể chỉnh từ giao diện (bảng single-row), áp nóng lên instance RiskOptions dùng chung.
+            services.AddSingleton<SmartPool.Application.Features.SafetyMonitoring.IRiskThresholds, SmartPool.Infrastructure.SafetyMonitoring.RiskThresholds>();
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.SafetyThresholdsBootstrap>();
             // BackgroundService: khi SafetyMonitoring:Enabled=false (mặc định) các worker chỉ chạy vòng lặp rảnh,
             // không chạm DB hay khởi động Python/FFmpeg nên an toàn cho test tích hợp không cấu hình native.
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker>();

@@ -47,6 +47,7 @@ import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
 import CameraListPage from "../pages/admin/safety/CameraListPage";
 import MonitoringAlertsPage from "../pages/admin/safety/MonitoringAlertsPage";
 import VideoAnalysisPage from "../pages/admin/safety/VideoAnalysisPage";
+import ThresholdsPage from "../pages/admin/safety/ThresholdsPage";
 import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
 import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
@@ -216,6 +217,7 @@ const router = createBrowserRouter([
                 element: <ActivateAlertPage />,
               },
               { path: "safety/alerts", element: <MonitoringAlertsPage /> },
+              { path: "safety/thresholds", element: <ThresholdsPage /> },
               { path: "safety/incidents", element: <IncidentHistoryPage /> },
               {
                 element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
