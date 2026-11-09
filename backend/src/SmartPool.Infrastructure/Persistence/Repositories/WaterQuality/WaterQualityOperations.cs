@@ -255,7 +255,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
                 EmployeeId = u.Id,
                 FullName = u.UserProfile != null && !string.IsNullOrEmpty(u.UserProfile.FullName)
                     ? u.UserProfile.FullName
-                    : u.Username,
+                    : (u.Username ?? "Nhân viên"),
                 Email = u.Email,
                 RoleName = u.Role != null ? u.Role.Name : "STAFF"
             })
@@ -284,10 +284,10 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
                     FromDate = query.FromDate.Value,
                     ToDate = query.ToDate.Value,
                     OverwriteExisting = false,
-                    DefaultNotes = " Đo pH Clo tự do đầu ca và kiểm tra vệ sinh mặt nước bể bơi\
- }, cancellationToken);
- }
- }
+                    DefaultNotes = "Đo pH, Clo tự do đầu ca và kiểm tra vệ sinh mặt nước bể bơi"
+                }, cancellationToken);
+            }
+        }
 
  var (page, pageSize) = Normalize(query.PageIndex, query.PageSize);
         var dbQuery = _context.PoolDutySchedules.AsNoTracking()

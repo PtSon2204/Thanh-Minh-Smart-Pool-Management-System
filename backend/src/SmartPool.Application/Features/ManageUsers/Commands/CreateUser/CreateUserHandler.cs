@@ -244,14 +244,14 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
         var response = new CreateUserResponse
         {
             Id = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            Phone = user.Phone,
+            Username = user.Username ?? string.Empty,
+            Email = user.Email ?? string.Empty,
+            Phone = user.Phone ?? string.Empty,
             FullName = profile.FullName,
             DateOfBirth = profile.DateOfBirth,
             Address = profile.Address,
             Role = roleName,
-            Status = user.Status,
+            Status = user.Status ?? string.Empty,
             CreatedAt = user.CreatedAt ?? DateTime.UtcNow
         };
 

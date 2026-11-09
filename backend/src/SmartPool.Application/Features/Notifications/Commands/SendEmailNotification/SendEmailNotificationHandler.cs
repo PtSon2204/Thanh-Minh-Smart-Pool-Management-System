@@ -88,7 +88,7 @@ public sealed class SendEmailNotificationHandler : IRequestHandler<SendEmailNoti
 
             recipients = users
                 .Where(u => !string.IsNullOrWhiteSpace(u.Email))
-                .Select(u => (Email: u.Email!.Trim(), Name: u.UserProfile?.FullName ?? u.Username))
+                .Select(u => (Email: u.Email!.Trim(), Name: u.UserProfile?.FullName ?? u.Username ?? "Quý khách"))
                 .DistinctBy(x => x.Email, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
