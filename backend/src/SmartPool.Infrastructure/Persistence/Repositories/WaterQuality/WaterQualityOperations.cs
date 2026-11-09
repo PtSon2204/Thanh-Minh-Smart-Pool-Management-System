@@ -289,7 +289,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             }
         }
 
- var (page, pageSize) = Normalize(query.PageIndex, query.PageSize);
+        var (page, pageSize) = Normalize(query.PageIndex, query.PageSize);
         var dbQuery = _context.PoolDutySchedules.AsNoTracking()
             .Include(p => p.Shift)
             .Include(p => p.AssignedEmployee)
