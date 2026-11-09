@@ -485,17 +485,13 @@ export default function AdminLayout() {
               key: "/admin/statistics/ticket-revenue",
               label: (
                 <Link to="/admin/statistics/ticket-revenue">
-                  Thống kê doanh thu
+                  Thống kê bán vé
                 </Link>
               ),
             },
             {
-              key: "/admin/statistics/monthly-tickets",
-              label: (
-                <Link to="/admin/statistics/monthly-tickets">
-                  Thống kê vé tháng
-                </Link>
-              ),
+              key: "/admin/rentals",
+              label: <Link to="/admin/rentals">Thống kê thuê đồ</Link>,
             },
             {
               key: "/admin/statistics/user-count",
