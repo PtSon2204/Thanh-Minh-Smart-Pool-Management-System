@@ -57,6 +57,7 @@ import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPag
 import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
 import CoachListPage from "../pages/admin/coaches/CoachListPage";
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
+import NotificationPage from "../pages/admin/notifications/NotificationPage";
 
 const router = createBrowserRouter([
   { path: "/staff/onboarding", element: <StaffOnboardingPage /> },
@@ -170,10 +171,7 @@ const router = createBrowserRouter([
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              {
-                path: "notifications",
-                element: <Navigate to="/admin" replace />,
-              },
+              { path: "notifications", element: <NotificationPage /> },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,

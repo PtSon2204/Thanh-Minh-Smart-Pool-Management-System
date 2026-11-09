@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.AutoAssignPoolDuty;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.UpdatePoolDutySchedule;
@@ -272,7 +272,24 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
     {
         await EnsurePoolDutyTableAsync(cancellationToken);
 
-        var (page, pageSize) = Normalize(query.PageIndex, query.PageSize);
+        // Tự động phân công lịch trực bể nếu khoảng thời gian này chưa có lịch nào
+        if (query.FromDate.HasValue && query.ToDate.HasValue && !query.EmployeeId.HasValue && string.IsNullOrWhiteSpace(query.Status))
+        {
+            var hasAny = await _context.PoolDutySchedules
+                .AnyAsync(p => p.DutyDate >= query.FromDate.Value && p.DutyDate <= query.ToDate.Value, cancellationToken);
+            if (!hasAny)
+            {
+                await AutoAssignPoolDutySchedulesAsync(new AutoAssignPoolDutyCommand
+                {
+                    FromDate = query.FromDate.Value,
+                    ToDate = query.ToDate.Value,
+                    OverwriteExisting = false,
+                    DefaultNotes = " Đo pH Clo tự do đầu ca và kiểm tra vệ sinh mặt nước bể bơi\
+ }, cancellationToken);
+ }
+ }
+
+ var (page, pageSize) = Normalize(query.PageIndex, query.PageSize);
         var dbQuery = _context.PoolDutySchedules.AsNoTracking()
             .Include(p => p.Shift)
             .Include(p => p.AssignedEmployee)
