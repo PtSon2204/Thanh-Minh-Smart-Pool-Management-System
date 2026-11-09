@@ -80,6 +80,21 @@ export function useCancelSchedule() {
   })
 }
 
+export function useReplaceSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ assignmentId, data }) => staffService.confirmScheduleReplacement(assignmentId, data),
+    retry: false,
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-work-pattern'] }),
+    ]),
+  })
+}
+
 function useAttendanceMutation(mutationFn) {
   const queryClient = useQueryClient()
   return useMutation({

@@ -8,6 +8,7 @@ import { useAssignShiftBatch, useCancelSchedule, useScheduleEmployees, useStaffS
 import { useActiveShifts } from "../../../features/staff/hooks/useShifts"
 import AssignmentModal from "../../../features/staff/schedule/AssignmentModal"
 import ScheduleBoard from "../../../features/staff/schedule/ScheduleBoard"
+import StaffShiftReplacementModal from "../../../features/staff/schedule/StaffShiftReplacementModal"
 import EmployeeWeekSchedule from "../../../features/staff/schedule/EmployeeWeekSchedule"
 import { assignmentDateError, assignmentKey, conflictFor, formatDate, mondayFor, vietnamToday, weekDates } from "../../../features/staff/schedule/scheduleUtils"
 import { ServiceListHeader } from "../../../features/services/components/ServiceListChrome"
@@ -26,6 +27,9 @@ export default function StaffSchedulePage() {
   const [search, setSearch] = useState('')
   const [drafts, setDrafts] = useState([])
   const [modalContext, setModalContext] = useState(null)
+  const [replacementAssignment, setReplacementAssignment] = useState(null)
+  const [replacementBusy, setReplacementBusy] = useState(false)
+  const [replacementUncertain, setReplacementUncertain] = useState(false)
   const [saveState, setSaveState] = useState('ready')
   const [saveErrors, setSaveErrors] = useState([])
   const isSaving = saveState === 'saving'
@@ -45,26 +49,30 @@ export default function StaffSchedulePage() {
     return shift ? { ...draft, shiftName: shift.name, startTime: shift.startTime, endTime: shift.endTime } : draft
   })
   const draftsDirty = drafts.length > 0
-  const actionsDisabled = isSaving || cancellation.isPending
+  const actionsDisabled = isSaving || cancellation.isPending || replacementBusy || replacementUncertain || Boolean(replacementAssignment)
   const draftsLocked = saveState === 'partial' || saveState === 'unavailable'
   const resourcesReady = roster.isSuccess && shifts.isSuccess && schedule.isSuccess && !schedule.isError
   const firstAssignableDate = week.find((date) => date > vietnamToday())
   const canAssign = isAdmin && resourcesReady && !draftsLocked
-  const blocker = useBlocker(() => isSaving || draftsDirty)
+  const blocker = useBlocker(() => isSaving || draftsDirty || replacementBusy || replacementUncertain || Boolean(replacementAssignment))
 
   useBeforeUnload((event) => {
-    if (isSaving || draftsDirty) event.preventDefault()
+    if (isSaving || draftsDirty || replacementBusy || replacementUncertain || replacementAssignment) event.preventDefault()
   })
 
   useEffect(() => {
     if (blocker.state !== 'blocked') return
-    if (isSaving) {
-      message.warning('Đang lưu phân công. Không thể rời trang.')
+    if (isSaving || replacementBusy || replacementUncertain) {
+      message.warning('Thao tác lịch đang chạy hoặc chưa xác định. Hãy kiểm tra kết quả trước khi rời trang.')
       blocker.reset()
       return
     }
+    if (replacementAssignment) {
+      Modal.confirm({ title: 'Đóng thao tác thay ca?', content: 'Bản xem trước chưa lưu. Rời trang sẽ đóng thao tác này.', okText: 'Đóng thao tác', cancelText: 'Ở lại', autoFocusButton: 'cancel', onOk: () => { setReplacementAssignment(null); blocker.proceed() }, onCancel: blocker.reset })
+      return
+    }
     Modal.confirm({ title: 'Bỏ thay đổi chưa lưu?', content: 'Các phân công đang chờ sẽ bị xóa.', okText: 'Bỏ thay đổi', cancelText: 'Ở lại', autoFocusButton: 'cancel', onOk: () => { setDrafts([]); blocker.proceed() }, onCancel: blocker.reset })
-  }, [blocker, isSaving])
+  }, [blocker, isSaving, replacementAssignment, replacementBusy, replacementUncertain])
 
   const requestChange = (apply) => {
     if (isSaving) return
@@ -186,19 +194,37 @@ export default function StaffSchedulePage() {
     })
   }
 
+  const completeReplacement = async (result) => {
+    setReplacementAssignment(null)
+    message.success(`Đã thay ca cho ${result.replacementEmployeeName}.`)
+    try {
+      await Promise.all([schedule.refetch(), roster.refetch()])
+    } catch {
+      message.warning('Đã thay ca. Không thể làm mới lịch; hãy tải lại để xem thay đổi.')
+    }
+  }
+
+  const openReplacement = (assignment) => {
+    if (draftsDirty) {
+      message.warning('Hãy lưu hoặc hủy các bản nháp trước khi thay ca đã lưu.')
+      return
+    }
+    setReplacementAssignment(assignment)
+  }
+
   if (!canRead) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên và nhân viên mới có thể xem lịch làm việc." /></div>
 
   return <div className="service-list-page staff-schedule-page staff-schedule-page--wide">
     <ServiceListHeader title={<>Lịch làm việc <span className="staff-schedule-count">{schedule.isLoading ? 'Đang tải…' : `${visibleItems.length} lịch trong tuần`}</span></>} action={isAdmin ? <div className="staff-schedule-header-actions"><Button type="primary" onClick={() => setModalContext({ workDate: firstAssignableDate })} disabled={actionsDisabled || !canAssign || !firstAssignableDate}>Phân ca</Button></div> : null} />
     <section className="service-list-toolbar staff-schedule-toolbar" aria-label="Điều khiển lịch làm việc">
       <div className="service-list-filters staff-schedule-filters">
-        <Button aria-label="Tuần trước" icon={<LeftOutlined />} onClick={() => changeWeek(dayjs(monday).subtract(7, 'day').format('YYYY-MM-DD'))} disabled={isSaving} />
-        <label className="service-filter-control"><span>Tuần chứa ngày</span><DatePicker value={dayjs(monday)} format="DD/MM/YYYY" onChange={(value) => value && changeWeek(mondayFor(value.format('YYYY-MM-DD')))} disabled={isSaving} /></label>
-        <Button aria-label="Tuần sau" icon={<RightOutlined />} onClick={() => changeWeek(dayjs(monday).add(7, 'day').format('YYYY-MM-DD'))} disabled={isSaving} />
-        {isAdmin && view === 'Theo nhân viên' && <label className="service-search-control"><span>Tìm nhân viên</span><Input allowClear prefix={<SearchOutlined />} placeholder="Nhập tên nhân viên" value={search} onChange={(event) => setSearch(event.target.value)} /></label>}
-        <Button icon={<ReloadOutlined />} onClick={() => { schedule.refetch(); if (isAdmin) { shifts.refetch(); roster.refetch() } }} disabled={isSaving}>Làm mới</Button>
+        <Button aria-label="Tuần trước" icon={<LeftOutlined />} onClick={() => changeWeek(dayjs(monday).subtract(7, 'day').format('YYYY-MM-DD'))} disabled={actionsDisabled} />
+        <label className="service-filter-control"><span>Tuần chứa ngày</span><DatePicker value={dayjs(monday)} format="DD/MM/YYYY" onChange={(value) => value && changeWeek(mondayFor(value.format('YYYY-MM-DD')))} disabled={actionsDisabled} /></label>
+        <Button aria-label="Tuần sau" icon={<RightOutlined />} onClick={() => changeWeek(dayjs(monday).add(7, 'day').format('YYYY-MM-DD'))} disabled={actionsDisabled} />
+        {isAdmin && view === 'Theo nhân viên' && <label className="service-search-control"><span>Tìm nhân viên</span><Input allowClear prefix={<SearchOutlined />} placeholder="Nhập tên nhân viên" value={search} onChange={(event) => setSearch(event.target.value)} disabled={actionsDisabled} /></label>}
+        <Button icon={<ReloadOutlined />} onClick={() => { schedule.refetch(); if (isAdmin) { shifts.refetch(); roster.refetch() } }} disabled={actionsDisabled}>Làm mới</Button>
       </div>
-      {isAdmin && <div className="staff-schedule-view-control"><span>Chế độ xem</span><Segmented className="staff-schedule-view-switch" aria-label="Chế độ xem lịch" value={view} options={['Theo nhân viên', 'Theo ca']} onChange={setView} disabled={isSaving} /></div>}
+      {isAdmin && <div className="staff-schedule-view-control"><span>Chế độ xem</span><Segmented className="staff-schedule-view-switch" aria-label="Chế độ xem lịch" value={view} options={['Theo nhân viên', 'Theo ca']} onChange={setView} disabled={actionsDisabled} /></div>}
     </section>
     {draftsDirty && isAdmin && <section className="staff-draft-controls"><span>{drafts.length} phân công chưa lưu{saveState === 'partial' ? ' · một phần đã tồn tại' : ''}</span><Button onClick={() => requestChange(() => setDrafts([]))} disabled={isSaving}>Hủy thay đổi</Button><Button type="primary" onClick={save} loading={isSaving} disabled={draftsLocked || !resourcesReady || cancellation.isPending}>Lưu phân ca</Button></section>}
     {draftsDirty && saveErrors.length > 0 && <Alert className="staff-schedule-feedback" type="error" showIcon title="Chưa lưu phân công. Bản nháp được giữ lại." description={<ul className="staff-schedule-error-list">{saveErrors.map((error, index) => {
@@ -210,10 +236,13 @@ export default function StaffSchedulePage() {
       {schedule.isLoading && <div className="admin-management-state"><Spin size="large" /></div>}
       {schedule.isError && <Empty description="Không thể tải lịch làm việc."><Button onClick={() => schedule.refetch()}>Thử lại</Button></Empty>}
       {!schedule.isLoading && !schedule.isError && isAdmin && view === 'Theo nhân viên' && <EmployeeWeekSchedule monday={monday} employees={roster.data || []} assignments={visibleItems} drafts={displayDrafts} search={search} onAdd={setModalContext} onRemove={removeDraft} onCancel={confirmCancellation} cancelId={cancellation.isPending ? cancellation.variables : null} actionsDisabled={actionsDisabled} draftsLocked={draftsLocked} canAssign={canAssign} />}
-      {!schedule.isLoading && !schedule.isError && (view === 'Theo ca' || (!isAdmin && view === 'Theo nhân viên')) && <ScheduleBoard monday={monday} assignments={visibleItems} drafts={displayDrafts} isAdmin={isAdmin} employees={roster.data || []} onAdd={setModalContext} onRemove={removeDraft} onAttendance={openAttendance} onCancel={confirmCancellation} cancelId={cancellation.isPending ? cancellation.variables : null} actionsDisabled={actionsDisabled} draftsLocked={draftsLocked} canAssign={canAssign} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />}
+      {!schedule.isLoading && !schedule.isError && (view === 'Theo ca' || (!isAdmin && view === 'Theo nhân viên')) && <ScheduleBoard monday={monday} assignments={visibleItems} drafts={displayDrafts} isAdmin={isAdmin} employees={roster.data || []} onAdd={setModalContext} onRemove={removeDraft} onAttendance={openAttendance} onCancel={confirmCancellation} onReplace={openReplacement} cancelId={cancellation.isPending ? cancellation.variables : null} replaceId={replacementBusy ? replacementAssignment?.id : null} actionsDisabled={actionsDisabled} draftsLocked={draftsLocked} canAssign={canAssign} activeShiftIds={activeShiftIds} activeShiftsStatus={activeShiftsStatus} />}
     </section>
     {roster.isError && <Alert className="staff-schedule-alert" type="error" showIcon message="Không thể tải danh sách nhân viên đủ điều kiện." />}
     {shifts.isError && <Alert className="staff-schedule-alert" type="error" showIcon message="Không thể tải ca đang hoạt động." />}
     {isAdmin && modalContext && <AssignmentModal key={monday} open context={modalContext} monday={monday} employees={roster.data || []} shifts={activeShifts} assignments={savedItems} drafts={displayDrafts} loading={!resourcesReady || actionsDisabled} onWeekChange={changeWeek} onClose={() => setModalContext(null)} onConfirm={addDrafts} />}
+    {isAdmin && replacementAssignment && <StaffShiftReplacementModal assignment={replacementAssignment} employees={roster.data || []}
+      onClose={() => { setReplacementAssignment(null); setReplacementBusy(false); setReplacementUncertain(false) }}
+      onBusyChange={setReplacementBusy} onUncertainChange={setReplacementUncertain} onCompleted={completeReplacement} />}
   </div>
 }

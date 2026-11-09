@@ -32,6 +32,8 @@ import {
   AlertOutlined,
   // BookOutlined,
   ExperimentOutlined,
+  PlusCircleOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/store/authStore";
@@ -50,8 +52,6 @@ import "./AdminLayout.css";
 const { Header, Sider, Content } = Layout;
 
 function openKeysForPath(pathname) {
-  if (pathname === "/admin/coaches" || pathname === "/admin/coach-applications")
-    return ["coaches"];
   if (pathname.startsWith("/admin/tickets/")) return ["/admin/tickets"];
   if (pathname === "/admin/staff/attendance/scan") return ["staff"];
   if (pathname.startsWith("/admin/staff/attendance"))
@@ -251,7 +251,7 @@ export default function AdminLayout() {
     {
       type: "group",
       key: "grp-users-classes",
-      label: "Người dùng & HLV",
+      label: "Đào tạo & Người dùng",
       children: [
         isAdmin && {
           key: "/admin/users",
@@ -264,19 +264,23 @@ export default function AdminLayout() {
           label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
         },
         isAdmin && {
-          key: "coaches",
+          key: "/admin/coach-applications",
           icon: <AuditOutlined />,
-          label: "Quản lý HLV",
-          children: [
-            {
-              key: "/admin/coaches",
-              label: <Link to="/admin/coaches">Danh sách HLV</Link>,
-            },
-            {
-              key: "/admin/coach-applications",
-              label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
-            },
-          ],
+          label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
+        },
+        isAdmin && {
+          key: "/admin/classes/create",
+          icon: <PlusCircleOutlined />,
+          label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
+        },
+        (isAdmin || isCoach) && {
+          key: "/admin/classes",
+          icon: <UnorderedListOutlined />,
+          label: (
+            <Link to="/admin/classes">
+              {isAdmin ? "Danh sách lớp dạy bơi" : "Lớp được phân công"}
+            </Link>
+          ),
         },
       ].filter(Boolean),
     },
@@ -288,7 +292,7 @@ export default function AdminLayout() {
         {
           key: "staff",
           icon: <TeamOutlined />,
-          label: "Quản lý nhân viên",
+          label: isAdmin ? "Quản lý nhân viên" : "Lịch làm việc và chấm công",
           children: [
             isAdmin && {
               key: "staff-attendance",
@@ -606,7 +610,7 @@ export default function AdminLayout() {
                   <img src={logoImg} alt="Logo" className="admin-logo-img" />
                   <div className="admin-logo-text-group">
                     <span className="admin-logo-text">Bể bơi Thanh Minh</span>
-                  </div>
+                    </div>
                 </div>
               )}
             </div>

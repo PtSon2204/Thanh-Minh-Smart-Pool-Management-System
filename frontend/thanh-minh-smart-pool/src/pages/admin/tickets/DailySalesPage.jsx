@@ -95,7 +95,6 @@ export default function DailySalesPage() {
     <header className="daily-sales-header">
       <div>
         <h1>Vé bán trong ngày</h1>
-        <p>Số lượng vé và đơn bán vé theo ngày. Múi giờ Việt Nam (UTC+7).</p>
       </div>
       <div className="daily-sales-controls">
         <label className="daily-sales-date" htmlFor="daily-sales-date">

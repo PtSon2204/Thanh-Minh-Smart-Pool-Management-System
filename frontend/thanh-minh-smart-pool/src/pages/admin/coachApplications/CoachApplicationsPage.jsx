@@ -77,7 +77,6 @@ export default function CoachApplicationsPage() {
     </header>
 
     <Card className="coach-app-card">
-      <div className="coach-app-next-step" role="status"><div><strong>Việc cần làm: kiểm tra yêu cầu đang chờ</strong><span>Mở từng yêu cầu để xem ảnh chứng chỉ trước khi quyết định. Danh sách mặc định chỉ hiện yêu cầu cần xử lý.</span></div></div>
       <div className="coach-app-toolbar">
         <div><h2>{status === 'Pending' ? 'Yêu cầu cần duyệt' : 'Danh sách yêu cầu'}</h2><Text type="secondary">{list.data?.totalCount ?? 0} yêu cầu phù hợp</Text></div>
         <Space wrap>

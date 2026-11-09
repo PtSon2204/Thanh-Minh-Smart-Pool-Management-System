@@ -4,6 +4,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SmartPool.Application.Features.ManageStaffs.Onboarding;
+using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.StaffOnboarding;
 
@@ -21,6 +22,7 @@ public sealed partial class StaffOperations
     {
         if (request.Action == OnboardingAction.Upload) return await UploadOnboardingDocumentAsync(request, cancellationToken);
         string? tokenToSend = null;
+        ScheduleResult? scheduleResult = null;
         OnboardingWorkspace result;
         await using (var transaction = await context.Database.BeginTransactionAsync(cancellationToken))
         {
@@ -43,12 +45,14 @@ public sealed partial class StaffOperations
                     request.TargetRole is not ("SALES" or "LIFEGUARD" or "COACH") || request.JoinDate is null)
                     throw new StaffOnboardingException("INVALID_INVITATION", 400);
                 StaffOnboardingValidation.ValidateJoinDate(request.JoinDate, timeProvider);
+                await ValidateContractAsync(request.Contract, request.JoinDate, cancellationToken);
                 await CheckAccountIdentityAsync(emailAddress, cancellationToken);
                 if (await context.StaffInvitations.AnyAsync(item => item.Email == emailAddress &&
                     (item.Status == "PENDING" || item.Status == "EXPIRED"), cancellationToken))
                     throw new StaffOnboardingException("INVITATION_EXISTS");
                 invitation = new StaffInvitation { Email = emailAddress, TargetRole = request.TargetRole,
-                    JoinDate = request.JoinDate.Value, CreatedBy = request.ActorId, CreatedAtUtc = OnboardingNow };
+                    JoinDate = request.JoinDate.Value, ContractJson = ScheduleSerialize(request.Contract),
+                    CreatedBy = request.ActorId, CreatedAtUtc = OnboardingNow };
                 tokenToSend = RotateInvitation(invitation);
                 Onboarding.InvitationLink(invitation.Id, tokenToSend);
                 var profile = StaffOnboardingValidation.Normalize(new StaffLegalProfile { FullName = request.FullName ?? "", Phone = request.Phone ?? "" });
@@ -111,6 +115,10 @@ public sealed partial class StaffOperations
                     case OnboardingAction.RequestChanges:
                     case OnboardingAction.Reject:
                         code = await ReviewOnboardingAsync(request, invitation, revision!, employeeId, cancellationToken);
+                        if (request.Action == OnboardingAction.Approve && invitation is not null && code == "APPROVED")
+                            scheduleResult = invitation.ContractJson is null
+                                ? LegacyInvitationScheduleResult(invitation.JoinDate)
+                                : await GenerateApprovedInvitationScheduleAsync(invitation, request.ActorId, cancellationToken);
                         break;
                     case OnboardingAction.RequestCorrection:
                         await RequestCorrectionAsync(request, employeeId!.Value, cancellationToken);
@@ -127,13 +135,14 @@ public sealed partial class StaffOperations
             catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: "23505" })
             { throw new StaffOnboardingException("IDENTITY_CONFLICT"); }
             result = await WorkspaceAsync(code, invitation, revision, employeeId ?? invitation?.CompletedUserId, cancellationToken);
+            if (scheduleResult is not null) result = result with { ScheduleResult = scheduleResult };
             await transaction.CommitAsync(cancellationToken);
         }
         if (tokenToSend is not null)
         {
             await DeliverInvitationAsync(result.Invitation!, tokenToSend, cancellationToken);
             var refreshed = await context.StaffInvitations.AsNoTracking().SingleAsync(item => item.Id == result.Invitation!.Id, cancellationToken);
-            result = result with { Invitation = InvitationView(refreshed) };
+            result = result with { Invitation = InvitationView(refreshed) with { Shifts = result.Invitation!.Shifts } };
         }
         if (request.Action is OnboardingAction.Approve or OnboardingAction.Reject or OnboardingAction.Cancel)
         {

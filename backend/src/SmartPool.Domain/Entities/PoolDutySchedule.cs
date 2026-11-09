@@ -8,7 +8,7 @@ public class PoolDutySchedule
 
     public Guid ShiftId { get; set; }
 
-    public Guid AssignedEmployeeId { get; set; }
+    public Guid? AssignedEmployeeId { get; set; }
 
     // Scheduled, InProgress, Completed, Absent, Cancelled
     public string Status { get; set; } = "Scheduled";

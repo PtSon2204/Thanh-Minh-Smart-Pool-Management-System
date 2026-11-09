@@ -210,6 +210,9 @@ public sealed class EquipmentApiTests
             await db.Equipments.Where(x => x.Category == category || x.Category == newCategory).ExecuteDeleteAsync();
             var guardIds = cameraGuards.Select(x => x.Id).ToArray();
             await db.Equipments.Where(x => guardIds.Contains(x.Id)).ExecuteDeleteAsync();
+            var userIds = new[] { admin.Id, sales.Id };
+            await db.StaffScheduleDeliveries.Where(x => userIds.Contains(x.RecipientId)).ExecuteDeleteAsync();
+            await db.Notifications.Where(x => userIds.Contains(x.UserId)).ExecuteDeleteAsync();
             db.Users.RemoveRange(admin, sales);
             db.Roles.RemoveRange(addedRoles);
             await db.SaveChangesAsync();
