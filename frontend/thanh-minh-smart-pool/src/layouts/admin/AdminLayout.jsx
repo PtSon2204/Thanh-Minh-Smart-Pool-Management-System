@@ -485,7 +485,7 @@ export default function AdminLayout() {
               key: "/admin/statistics/ticket-revenue",
               label: (
                 <Link to="/admin/statistics/ticket-revenue">
-                  Thống kê số tiền vé
+                  Thống kê doanh thu
                 </Link>
               ),
             },
