@@ -59,6 +59,8 @@
 .swim-class-form-card { overflow: hidden; }
 .swim-class-form-card > .ant-card-body { padding: 27px 30px; }
 .swim-class-card-intro { color: var(--swim-muted); line-height: 1.6; margin: 0 0 22px; }
+.swim-class-form-section + .swim-class-form-section { border-top: 1px solid var(--swim-border); margin-top: 4px; padding-top: 22px; }
+.swim-class-form-section h3 { color: #173c55; font-size: 15px; font-weight: 700; margin: 0 0 18px; }
 .swim-class-form-alert { margin-bottom: 22px; }
 .swim-class-form-grid { display: grid; gap: 0 22px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .swim-class-span-full { grid-column: 1 / -1; }

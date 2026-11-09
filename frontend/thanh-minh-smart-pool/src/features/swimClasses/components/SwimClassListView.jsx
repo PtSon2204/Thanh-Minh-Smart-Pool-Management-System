@@ -49,12 +49,11 @@ export default function SwimClassListView() {
         {role === 'CUSTOMER' && <Button icon={<ScheduleOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Lớp học của tôi</Button>}
       </header>
 
-      <SwimClassListFilters search={search} status={params.status} showStatus={role === 'COACH'}
-        onSearchChange={setSearch}
-        onStatusChange={status => setParams(previous => ({ ...previous, status, pageIndex: 1 }))}
-        onReset={resetFilters} />
-
       <section className="swim-class-list-panel" aria-label="Danh sách lớp dạy bơi" aria-busy={list.isFetching}>
+        <SwimClassListFilters search={search} status={params.status} showStatus={role === 'COACH'}
+          onSearchChange={setSearch}
+          onStatusChange={status => setParams(previous => ({ ...previous, status, pageIndex: 1 }))}
+          onReset={resetFilters} />
         <div className="swim-class-list-panel-heading">
           <h2>Danh sách lớp {list.data && !list.isError && <span className="swim-class-list-count">{list.data.totalCount.toLocaleString('vi-VN')}</span>}</h2>
           <Button type="text" icon={<ReloadOutlined spin={list.isFetching} />} disabled={list.isFetching} onClick={() => list.refetch()}>Làm mới</Button>
