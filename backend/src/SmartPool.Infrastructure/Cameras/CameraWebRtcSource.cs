@@ -93,7 +93,7 @@ internal sealed class CameraWebRtcSource : IAsyncDisposable
             if (encoder != null)
             {
                 try { if (!encoder.HasExited) encoder.Kill(true); } catch (InvalidOperationException) { }
-                try { await encoder.WaitForExitAsync(); await Task.WhenAll(output, errors); } catch (Exception) { }
+                try { await encoder.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3)); await Task.WhenAll(output, errors).WaitAsync(TimeSpan.FromSeconds(2)); } catch (Exception) { }
                 encoder.Dispose();
             }
         }

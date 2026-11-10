@@ -68,7 +68,8 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
             var peer = new RTCPeerConnection(new RTCConfiguration
             {
                 X_BindAddress = string.IsNullOrWhiteSpace(settings.BindAddress) ? null : IPAddress.Parse(settings.BindAddress),
-                X_ICEIncludeAllInterfaceAddresses = true, X_GatherTimeoutMs = 8000,
+                // Include all interfaces even when BindAddress is set so Linux loopback ICE candidates are discovered.
+                X_ICEIncludeAllInterfaceAddresses = true, X_GatherTimeoutMs = 10000,
                 iceServers = settings.IceServers.Select(x => new RTCIceServer { urls = x.Urls, username = x.Username, credential = x.Credential }).ToList()
             }, portRange: ports);
             try
@@ -172,11 +173,18 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         await base.StopAsync(cancellationToken);
+        using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        shutdown.CancelAfter(TimeSpan.FromSeconds(5));
         KeyValuePair<Guid, Viewer>[] active;
-        await gate.WaitAsync();
+        try { await gate.WaitAsync(shutdown.Token); }
+        catch (OperationCanceledException) { return; }
         try { active = viewers.ToArray(); }
         finally { gate.Release(); }
-        foreach (var pair in active) await CloseAsync(pair.Value.EquipmentId, pair.Key, pair.Value.Owner);
+        foreach (var pair in active)
+        {
+            try { await CloseAsync(pair.Value.EquipmentId, pair.Key, pair.Value.Owner).WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception) { }
+        }
     }
 
     private static CameraConnectionException Unavailable() => new("StreamUnavailable", "Camera hiện không khả dụng");

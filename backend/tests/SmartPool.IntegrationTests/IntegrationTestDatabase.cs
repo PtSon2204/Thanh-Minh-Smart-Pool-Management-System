@@ -143,3 +143,8 @@ internal static class IntegrationTestDatabase
         }
     }
 }
+
+internal sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => instant;
+}
