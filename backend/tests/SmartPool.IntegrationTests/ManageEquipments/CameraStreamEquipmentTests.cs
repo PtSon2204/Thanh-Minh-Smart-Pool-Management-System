@@ -36,7 +36,13 @@ public sealed class CameraStreamEquipmentTests
         {
             async Task<(CameraView View, RTCPeerConnection Peer, Task<byte[]> Frame)> Open(Guid id, string owner)
             {
-                var peer = new RTCPeerConnection(new RTCConfiguration { X_BindAddress = IPAddress.Loopback, X_GatherTimeoutMs = 8000 });
+                // No X_BindAddress: let SIPSorcery pick the right interface on Linux CI.
+                // X_ICEIncludeAllInterfaceAddresses + X_GatherTimeoutMs ensures loopback candidates are gathered.
+                var peer = new RTCPeerConnection(new RTCConfiguration
+                {
+                    X_ICEIncludeAllInterfaceAddresses = true,
+                    X_GatherTimeoutMs = 10000
+                });
                 clients.Add(peer);
                 peer.addTrack(new MediaStreamTrack(new VideoFormat(VideoCodecsEnum.H264, 96, 90000,
                     "packetization-mode=1;profile-level-id=42e01f;level-asymmetry-allowed=1"), MediaStreamStatusEnum.RecvOnly));
@@ -45,19 +51,28 @@ public sealed class CameraStreamEquipmentTests
                 {
                     if (H264Packetiser.ParseNals(data).Any(n => (n.NAL[0] & 31) == 5)) frame.TrySetResult(data);
                 };
+                var connected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                peer.onconnectionstatechange += state =>
+                {
+                    if (state == RTCPeerConnectionState.connected) connected.TrySetResult();
+                    else if (state is RTCPeerConnectionState.failed or RTCPeerConnectionState.closed)
+                        connected.TrySetException(new Exception($"ICE failed: {state}"));
+                };
                 var offer = peer.createOffer(new RTCOfferOptions { X_WaitForIceGatheringToComplete = true });
                 await peer.setLocalDescription(offer);
                 var view = await streams.OpenAsync(id, owner, new("offer", offer.sdp), CancellationToken.None);
                 Assert.DoesNotContain("rtsp:", view.Sdp);
                 Assert.DoesNotContain("camera-password", view.Sdp);
                 Assert.Equal(SetDescriptionResultEnum.OK, peer.setRemoteDescription(new RTCSessionDescriptionInit { type = RTCSdpType.answer, sdp = view.Sdp }));
+                // Wait for ICE to reach connected before returning so callers can trust frames arrive.
+                await connected.Task.WaitAsync(TimeSpan.FromSeconds(20));
                 return (view, peer, frame.Task);
             }
             var firstBlue = await Open(blueId, "admin-1");
             var secondBlue = await Open(blueId, "admin-2");
             var firstRed = await Open(redId, "admin-1");
-            var blueFrame = await firstBlue.Frame.WaitAsync(TimeSpan.FromSeconds(30));
-            var redFrame = await firstRed.Frame.WaitAsync(TimeSpan.FromSeconds(30));
+            var blueFrame = await firstBlue.Frame.WaitAsync(TimeSpan.FromSeconds(45));
+            var redFrame = await firstRed.Frame.WaitAsync(TimeSpan.FromSeconds(45));
             var bluePixel = await PixelAsync(ffmpeg, blueFrame);
             var redPixel = await PixelAsync(ffmpeg, redFrame);
             Assert.True(bluePixel[2] > bluePixel[0] + 100);

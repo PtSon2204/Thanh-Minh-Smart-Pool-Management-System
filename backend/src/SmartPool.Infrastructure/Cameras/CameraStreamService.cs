@@ -68,7 +68,8 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
             var peer = new RTCPeerConnection(new RTCConfiguration
             {
                 X_BindAddress = string.IsNullOrWhiteSpace(settings.BindAddress) ? null : IPAddress.Parse(settings.BindAddress),
-                X_ICEIncludeAllInterfaceAddresses = string.IsNullOrWhiteSpace(settings.BindAddress), X_GatherTimeoutMs = 8000,
+                // Include all interfaces even when BindAddress is set so Linux loopback ICE candidates are discovered.
+                X_ICEIncludeAllInterfaceAddresses = true, X_GatherTimeoutMs = 10000,
                 iceServers = settings.IceServers.Select(x => new RTCIceServer { urls = x.Urls, username = x.Username, credential = x.Credential }).ToList()
             }, portRange: ports);
             try
