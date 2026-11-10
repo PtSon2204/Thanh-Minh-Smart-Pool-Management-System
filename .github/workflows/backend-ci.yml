@@ -61,14 +61,13 @@ jobs:
       - name: Build
         run: dotnet build SmartPoolManagementSystem.sln --no-restore
 
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          command -v ffmpeg
-          ffmpeg -version
+      - name: Install FFmpeg (cached)
+        uses: federicocarboni/setup-ffmpeg@v3
+        id: setup-ffmpeg
+        with:
+          ffmpeg-version: release
 
       - name: Test
         env:
-          SMARTPOOL_CAMERA_TEST_FFMPEG: /usr/bin/ffmpeg
+          SMARTPOOL_CAMERA_TEST_FFMPEG: ${{ steps.setup-ffmpeg.outputs.ffmpeg-path }}
         run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal --blame-hang-timeout 90s --blame-hang-dump-type none -- RunConfiguration.MaxCpuCount=1
