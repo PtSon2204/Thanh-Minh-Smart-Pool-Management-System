@@ -69,5 +69,5 @@ jobs:
 
       - name: Test
         env:
-          SMARTPOOL_CAMERA_TEST_FFMPEG: ${{ steps.setup-ffmpeg.outputs.ffmpeg-path }}
+          SMARTPOOL_CAMERA_TEST_FFMPEG: ${{ steps.setup-ffmpeg.outputs.ffmpeg-path }}/ffmpeg
         run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal --blame-hang-timeout 90s --blame-hang-dump-type none -- RunConfiguration.MaxCpuCount=1
