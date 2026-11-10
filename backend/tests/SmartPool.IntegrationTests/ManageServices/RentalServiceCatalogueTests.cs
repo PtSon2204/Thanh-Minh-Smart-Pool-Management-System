@@ -16,7 +16,7 @@ using SmartPool.Infrastructure.Persistence;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageServices;
 
 public sealed class RentalServiceCatalogueTests
 {

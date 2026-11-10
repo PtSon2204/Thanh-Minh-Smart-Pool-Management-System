@@ -1,7 +1,7 @@
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
 using SmartPool.Application.Features.ManageStaffs.Onboarding;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffEmploymentIntegrationTests
 {

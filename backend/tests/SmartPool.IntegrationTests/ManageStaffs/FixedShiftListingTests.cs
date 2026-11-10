@@ -9,7 +9,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 [CollectionDefinition(nameof(ShiftListingIsolation), DisableParallelization = true)]
 public sealed class ShiftListingIsolation { }

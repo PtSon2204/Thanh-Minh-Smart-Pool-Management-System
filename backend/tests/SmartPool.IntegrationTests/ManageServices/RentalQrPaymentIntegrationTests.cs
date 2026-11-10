@@ -9,7 +9,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories.Services;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageServices;
 
 public sealed class RentalQrPaymentIntegrationTests
 {

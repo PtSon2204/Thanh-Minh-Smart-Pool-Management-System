@@ -4,7 +4,7 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 using Xunit;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageEquipments;
 
 [Collection("Database")]
 public class EquipmentListTests

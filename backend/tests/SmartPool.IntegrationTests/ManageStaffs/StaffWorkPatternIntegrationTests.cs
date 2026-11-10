@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffWorkPatternIntegrationTests
 {

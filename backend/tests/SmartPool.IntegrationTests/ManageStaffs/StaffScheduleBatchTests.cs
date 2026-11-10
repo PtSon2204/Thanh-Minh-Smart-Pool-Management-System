@@ -5,7 +5,7 @@ using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed partial class StaffScheduleBatchTests
 {

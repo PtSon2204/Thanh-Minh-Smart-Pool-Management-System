@@ -6,7 +6,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.StaffOnboarding;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffScheduleDeliveryWorkerIntegrationTests
 {
@@ -75,6 +75,7 @@ public sealed class StaffScheduleDeliveryWorkerIntegrationTests
             }
             finally
             {
+                await fixture.Context.StaffScheduleDeliveries.Where(item => item.OperationId == operationId).ExecuteDeleteAsync();
                 await services.DisposeAsync();
             }
         }

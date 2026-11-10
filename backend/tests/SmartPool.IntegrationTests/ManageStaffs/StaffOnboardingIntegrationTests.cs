@@ -18,7 +18,7 @@ using SmartPool.Infrastructure.StaffOnboarding;
 using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffOnboardingIntegrationTests
 {
@@ -121,43 +121,68 @@ public sealed class StaffOnboardingIntegrationTests
     public async Task ApprovalUsesExistingRoleRegardlessOfCasing()
     {
         await using var fixture = await Fixture.CreateAsync();
+        var existingCoachRoles = await fixture.Context.Roles
+            .Where(item => EF.Functions.ILike(item.Name, "COACH") && item.IsDeleted != true)
+            .Select(item => new { item.Id, item.Name })
+            .ToListAsync();
+        var canonicalCoachRoleId = existingCoachRoles.FirstOrDefault(item => item.Name == "COACH")?.Id;
+        if (existingCoachRoles.Count > 0)
+        {
+            var existingIds = existingCoachRoles.Select(item => item.Id).ToList();
+            await fixture.Context.Roles.Where(item => existingIds.Contains(item.Id))
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsDeleted, true));
+        }
+
         var role = new Role { Id = Guid.NewGuid(), Name = "Coach", IsDeleted = false };
         fixture.Context.Roles.Add(role);
         await fixture.Context.SaveChangesAsync();
-        var workspace = await fixture.Run(new()
+        try
         {
-            Action = OnboardingAction.Create, ActorId = fixture.AdminId,
-            Email = $"synthetic-role-{Guid.NewGuid():N}@example.test", TargetRole = "COACH", JoinDate = VietnamTimeBoundary.GetDate(fixture.Clock),
-            Contract = fixture.ContractFor(VietnamTimeBoundary.GetDate(fixture.Clock), VietnamTimeBoundary.GetDate(fixture.Clock).AddDays(8)),
-            FullName = "Synthetic staff", Phone = "0901234567"
-        });
-        var credentials = fixture.Credentials(workspace);
-        var inspected = await fixture.Run(new() { Action = OnboardingAction.Inspect, InvitationId = credentials.Id, Token = credentials.Token });
-        var visibleShift = Assert.Single(inspected.Invitation!.Shifts!);
-        Assert.Equal("Synthetic onboarding", visibleShift.Name);
-        Assert.Equal(new TimeOnly(6, 0), visibleShift.StartTime);
-        workspace = await fixture.Submit(workspace, credentials);
-        workspace = await fixture.Approve(workspace);
-        var user = await fixture.Context.Users.SingleAsync(item => item.Id == workspace.Invitation!.CompletedUserId);
-        Assert.Equal("APPROVED", workspace.Revision!.State);
-        Assert.Equal(role.Id, user.RoleId);
-        Assert.Equal(8, workspace.ScheduleResult!.CreatedCount);
-        var completedInvitation = workspace.Invitation!;
-        var completedEmployeeId = completedInvitation.CompletedUserId!.Value;
-        var assignments = await fixture.Context.EmployeeShifts.Where(item => item.EmployeeId == completedEmployeeId).OrderBy(item => item.WorkDate).ToListAsync();
-        Assert.Equal(8, assignments.Count);
-        Assert.Equal(completedInvitation.Contract!.StartDate.AddDays(1), assignments[0].WorkDate);
-        Assert.Equal(completedInvitation.Contract.EndDate, assignments[^1].WorkDate);
-        Assert.False(string.IsNullOrWhiteSpace(workspace.Revision.ReviewerName));
-        var employeeWorkspace = await fixture.Run(new() { Action = OnboardingAction.EmployeeDetail, ActorId = fixture.AdminId, EmployeeId = completedEmployeeId });
-        Assert.Equal(completedInvitation.Contract.EndDate, employeeWorkspace.Contract!.EndDate);
-        Assert.Equal(visibleShift.Id, Assert.Single(employeeWorkspace.Shifts!).Id);
-        var delivery = await fixture.Context.StaffScheduleDeliveries.SingleAsync(item => item.OperationId == completedInvitation.Id);
-        Assert.Equal("Pending", delivery.Status);
-        Assert.Equal(completedEmployeeId, delivery.RecipientId);
-        Assert.Contains("06:00-12:00", delivery.HtmlBody);
-        Assert.Single(await fixture.Context.Notifications.Where(item => item.UserId == delivery.RecipientId && item.Type == "StaffSchedule").ToListAsync());
-        Assert.Equal("Coach", (await fixture.Context.Roles.SingleAsync(item => item.Id == role.Id)).Name);
+            var workspace = await fixture.Run(new()
+            {
+                Action = OnboardingAction.Create, ActorId = fixture.AdminId,
+                Email = $"synthetic-role-{Guid.NewGuid():N}@example.test", TargetRole = "COACH", JoinDate = VietnamTimeBoundary.GetDate(fixture.Clock),
+                Contract = fixture.ContractFor(VietnamTimeBoundary.GetDate(fixture.Clock), VietnamTimeBoundary.GetDate(fixture.Clock).AddDays(8)),
+                FullName = "Synthetic staff", Phone = "0901234567"
+            });
+            var credentials = fixture.Credentials(workspace);
+            var inspected = await fixture.Run(new() { Action = OnboardingAction.Inspect, InvitationId = credentials.Id, Token = credentials.Token });
+            var visibleShift = Assert.Single(inspected.Invitation!.Shifts!);
+            Assert.Equal("Synthetic onboarding", visibleShift.Name);
+            Assert.Equal(new TimeOnly(6, 0), visibleShift.StartTime);
+            workspace = await fixture.Submit(workspace, credentials);
+            workspace = await fixture.Approve(workspace);
+            var user = await fixture.Context.Users.SingleAsync(item => item.Id == workspace.Invitation!.CompletedUserId);
+            Assert.Equal("APPROVED", workspace.Revision!.State);
+            Assert.Equal(role.Id, user.RoleId);
+            Assert.Equal(8, workspace.ScheduleResult!.CreatedCount);
+            var completedInvitation = workspace.Invitation!;
+            var completedEmployeeId = completedInvitation.CompletedUserId!.Value;
+            var assignments = await fixture.Context.EmployeeShifts.Where(item => item.EmployeeId == completedEmployeeId).OrderBy(item => item.WorkDate).ToListAsync();
+            Assert.Equal(8, assignments.Count);
+            Assert.Equal(completedInvitation.Contract!.StartDate.AddDays(1), assignments[0].WorkDate);
+            Assert.Equal(completedInvitation.Contract.EndDate, assignments[^1].WorkDate);
+            Assert.False(string.IsNullOrWhiteSpace(workspace.Revision.ReviewerName));
+            var employeeWorkspace = await fixture.Run(new() { Action = OnboardingAction.EmployeeDetail, ActorId = fixture.AdminId, EmployeeId = completedEmployeeId });
+            Assert.Equal(completedInvitation.Contract.EndDate, employeeWorkspace.Contract!.EndDate);
+            Assert.Equal(visibleShift.Id, Assert.Single(employeeWorkspace.Shifts!).Id);
+            var delivery = await fixture.Context.StaffScheduleDeliveries.SingleAsync(item => item.OperationId == completedInvitation.Id);
+            Assert.Equal("Pending", delivery.Status);
+            Assert.Equal(completedEmployeeId, delivery.RecipientId);
+            Assert.Contains("06:00-12:00", delivery.HtmlBody);
+            Assert.Single(await fixture.Context.Notifications.Where(item => item.UserId == delivery.RecipientId && item.Type == "StaffSchedule").ToListAsync());
+            Assert.Equal("Coach", (await fixture.Context.Roles.SingleAsync(item => item.Id == role.Id)).Name);
+        }
+        finally
+        {
+            await fixture.Context.Roles.Where(item => item.Id == role.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsDeleted, true));
+            if (canonicalCoachRoleId is Guid restoredRoleId)
+            {
+                await fixture.Context.Roles.Where(item => item.Id == restoredRoleId)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsDeleted, false));
+            }
+        }
     }
 
     [Fact]
@@ -391,7 +416,7 @@ public sealed class StaffOnboardingIntegrationTests
         {
             var options = await IntegrationTestDatabase.CreateOptionsAsync();
             var context = new SmartPoolDbContext(options);
-            var admin = await context.Users.FirstAsync(item => item.Role!.Name == "ADMIN");
+            var admin = await context.Users.OrderBy(item => item.CreatedAt).ThenBy(item => item.Id).FirstAsync(item => item.Role!.Name == "ADMIN");
             var shiftId = Guid.NewGuid();
             context.Shifts.Add(new Shift { Id = shiftId, Name = "Synthetic onboarding", StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(12, 0), IsActive = true });
             await context.SaveChangesAsync();

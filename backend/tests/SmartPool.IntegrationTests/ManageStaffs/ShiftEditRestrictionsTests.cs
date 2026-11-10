@@ -5,7 +5,7 @@ using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class ShiftEditRestrictionsTests
 {

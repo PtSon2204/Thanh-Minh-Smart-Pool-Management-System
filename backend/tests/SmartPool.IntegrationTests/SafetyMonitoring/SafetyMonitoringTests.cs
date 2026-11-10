@@ -13,7 +13,7 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.SafetyMonitoring;
 
 public sealed partial class SafetyMonitoringTests : IAsyncLifetime
 {

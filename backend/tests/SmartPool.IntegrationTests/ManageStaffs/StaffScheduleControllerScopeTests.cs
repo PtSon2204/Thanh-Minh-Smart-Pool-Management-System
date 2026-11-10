@@ -7,7 +7,7 @@ using SmartPool.API.Controllers;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffScheduleControllerScopeTests
 {

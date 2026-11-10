@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageEquipments;
 
 // A loopback RTSP server emitting genuine H.264/H.265 RTP packets. No application success responses are mocked.
 internal sealed class LocalRtspCamera : IAsyncDisposable
@@ -55,7 +55,8 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
             foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", $"color=c={color}:s=64x64:r=1", "-frames:v", "1", "-c:v", hevc ? "libx265" : "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-f", hevc ? "hevc" : "h264", file }) start.ArgumentList.Add(arg);
             using var process = Process.Start(start)!;
             var error = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)); }
+            catch { try { if (!process.HasExited) process.Kill(true); } catch { } throw; }
             if (process.ExitCode != 0) throw new InvalidOperationException("Unable to generate H.264 test fixture: " + await error);
             return new LocalRtspCamera(SplitNals(await File.ReadAllBytesAsync(file)), hevc);
         }
@@ -152,7 +153,7 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
                 await stream.WriteAsync(packet, stop.Token);
             }
             timestamp += 90000;
-            await Task.Delay(500, stop.Token);
+            await Task.Delay(200, stop.Token);
         }
     }
 
@@ -193,6 +194,6 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         stop.Cancel(); listener.Stop(); DisconnectClients();
-        await accepting;
+        try { await accepting.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception) { }
     }
 }

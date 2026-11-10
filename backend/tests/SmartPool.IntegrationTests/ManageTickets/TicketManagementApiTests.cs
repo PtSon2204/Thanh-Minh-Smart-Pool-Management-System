@@ -407,14 +407,15 @@ public sealed class TicketManagementApiTests
             (await fixture.Client.PutAsync($"/api/ticket-types/{typeId}/toggle-lock", null)).StatusCode);
         fixture.Use("CUSTOMER");
 
+        var customerId = fixture.UserId("CUSTOMER");
         await using var db = fixture.CreateContext();
-        var ordersBefore = await db.Orders.CountAsync();
+        var ordersBefore = await db.Orders.CountAsync(order => order.UserId == customerId);
         var response = await fixture.Client.PostAsJsonAsync("/api/tickets/checkout", new
         {
             items = new[] { new { ticketTypeId = typeId, quantity = 1 } }
         });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(ordersBefore, await db.Orders.CountAsync());
+        Assert.Equal(ordersBefore, await db.Orders.CountAsync(order => order.UserId == customerId));
     }
 
     private sealed class Fixture : IAsyncDisposable

@@ -4,7 +4,7 @@ using SmartPool.Application.Features.ManageStaffs.Mapping;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffScheduleMappingTests
 {

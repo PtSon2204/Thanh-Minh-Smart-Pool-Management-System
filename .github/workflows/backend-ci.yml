@@ -15,6 +15,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16
@@ -70,4 +71,4 @@ jobs:
       - name: Test
         env:
           SMARTPOOL_CAMERA_TEST_FFMPEG: /usr/bin/ffmpeg
-        run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal
+        run: dotnet test SmartPoolManagementSystem.sln --no-build --verbosity normal --blame-hang-timeout 90s --blame-hang-dump-type none -- RunConfiguration.MaxCpuCount=1

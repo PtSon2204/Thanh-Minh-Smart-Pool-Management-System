@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffNotificationOwnershipIntegrationTests
 {

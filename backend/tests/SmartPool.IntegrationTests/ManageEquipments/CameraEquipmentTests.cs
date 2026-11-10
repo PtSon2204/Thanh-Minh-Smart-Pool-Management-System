@@ -13,7 +13,7 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageEquipments;
 
 public sealed class CameraEquipmentTests
 {

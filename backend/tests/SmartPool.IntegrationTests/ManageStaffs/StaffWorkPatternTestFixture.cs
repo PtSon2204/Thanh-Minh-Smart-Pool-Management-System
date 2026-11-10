@@ -13,7 +13,7 @@ using SmartPool.Infrastructure.Persistence.Repositories.Staff;
 using SmartPool.Infrastructure.Services;
 using SmartPool.Infrastructure.StaffOnboarding;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 internal sealed class StaffWorkPatternTestFixture : IAsyncDisposable
 {
@@ -46,6 +46,7 @@ internal sealed class StaffWorkPatternTestFixture : IAsyncDisposable
         var options = await IntegrationTestDatabase.CreateOptionsAsync();
         var context = new SmartPoolDbContext(options);
         var adminId = await context.Users.Where(item => item.Role != null && item.Role.Name == "ADMIN")
+            .OrderBy(item => item.CreatedAt).ThenBy(item => item.Id)
             .Select(item => item.Id).FirstAsync();
         var salesRoleId = await context.Roles.Where(item => item.Name == "SALES" && item.IsDeleted != true)
             .Select(item => item.Id).FirstAsync();

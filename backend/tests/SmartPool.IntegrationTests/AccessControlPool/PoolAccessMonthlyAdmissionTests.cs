@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.AccessControlPool;
 
 public sealed class PoolAccessMonthlyAdmissionTests
 {

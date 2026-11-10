@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageServices.Commands.SetServiceStatus;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageServices;
 
 public sealed class ServiceStatusIntegrationTests
 {

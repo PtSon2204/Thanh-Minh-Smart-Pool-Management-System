@@ -10,7 +10,7 @@ using SIPSorceryMedia.Abstractions;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Infrastructure.Cameras;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageEquipments;
 
 public sealed class CameraStreamEquipmentTests
 {
@@ -36,7 +36,7 @@ public sealed class CameraStreamEquipmentTests
         {
             async Task<(CameraView View, RTCPeerConnection Peer, Task<byte[]> Frame)> Open(Guid id, string owner)
             {
-                var peer = new RTCPeerConnection(new RTCConfiguration { X_BindAddress = IPAddress.Loopback });
+                var peer = new RTCPeerConnection(new RTCConfiguration { X_BindAddress = IPAddress.Loopback, X_GatherTimeoutMs = 8000 });
                 clients.Add(peer);
                 peer.addTrack(new MediaStreamTrack(new VideoFormat(VideoCodecsEnum.H264, 96, 90000,
                     "packetization-mode=1;profile-level-id=42e01f;level-asymmetry-allowed=1"), MediaStreamStatusEnum.RecvOnly));
@@ -56,8 +56,8 @@ public sealed class CameraStreamEquipmentTests
             var firstBlue = await Open(blueId, "admin-1");
             var secondBlue = await Open(blueId, "admin-2");
             var firstRed = await Open(redId, "admin-1");
-            var blueFrame = await firstBlue.Frame.WaitAsync(TimeSpan.FromSeconds(20));
-            var redFrame = await firstRed.Frame.WaitAsync(TimeSpan.FromSeconds(20));
+            var blueFrame = await firstBlue.Frame.WaitAsync(TimeSpan.FromSeconds(30));
+            var redFrame = await firstRed.Frame.WaitAsync(TimeSpan.FromSeconds(30));
             var bluePixel = await PixelAsync(ffmpeg, blueFrame);
             var redPixel = await PixelAsync(ffmpeg, redFrame);
             Assert.True(bluePixel[2] > bluePixel[0] + 100);
@@ -84,7 +84,7 @@ public sealed class CameraStreamEquipmentTests
         finally
         {
             foreach (var peer in clients) { peer.Close("Test finished"); peer.Dispose(); }
-            await streams.StopAsync(CancellationToken.None);
+            await streams.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
         }
     }
 

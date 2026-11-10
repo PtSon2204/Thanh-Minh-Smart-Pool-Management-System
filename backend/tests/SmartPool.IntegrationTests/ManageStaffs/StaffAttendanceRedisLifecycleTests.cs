@@ -5,7 +5,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.AttendanceQr;
 using StackExchange.Redis;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffAttendanceRedisLifecycleTests
 {

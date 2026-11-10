@@ -7,7 +7,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.AccessControlPool;
 
 internal sealed class AdmissionFixture : IAsyncDisposable
 {
@@ -196,9 +196,4 @@ internal sealed class AdmissionFixture : IAsyncDisposable
         IsDeleted = false
     };
 
-}
-
-internal sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider
-{
-    public override DateTimeOffset GetUtcNow() => instant;
 }

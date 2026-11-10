@@ -21,7 +21,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageEquipments;
 
 public sealed class EquipmentApiTests
 {

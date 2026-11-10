@@ -4,7 +4,7 @@ using SmartPool.Application.Features.ManageStaffs.Onboarding;
 using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 using SmartPool.Domain.Entities;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffShiftReplacementIntegrationTests
 {
@@ -307,37 +307,51 @@ public sealed class StaffShiftReplacementIntegrationTests
         var preview = await Preview(previewFixture, Replacement(source.Id, replacementEmployeeId));
         var confirm = ConfirmRequest(confirmFixture, source.Id, replacementEmployeeId, preview.PreviewToken!, Guid.NewGuid());
 
-        await using var rowLock = await lockFixture.Context.Database.BeginTransactionAsync();
-        await lockFixture.Context.Database.ExecuteSqlInterpolatedAsync($"""
-            SELECT id FROM smart_pool.employee_shifts WHERE id = {source.Id} FOR UPDATE
-            """);
-        var confirmationTask = confirmFixture.Operations.ReplaceStaffShiftAsync(confirm, default);
-
-        await using (var observer = new NpgsqlConnection(fixture.Context.Database.GetConnectionString()))
+        using var lockTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Task<StaffShiftReplacementResult> confirmationTask;
+        DateTime checkInAt;
+        await using (var rowLock = await lockFixture.Context.Database.BeginTransactionAsync())
         {
-            await observer.OpenAsync();
-            var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
-            var replacementIsWaitingForSource = false;
-            while (!replacementIsWaitingForSource && DateTimeOffset.UtcNow < deadline)
+            await lockFixture.Context.Database.ExecuteSqlInterpolatedAsync($"""
+                SELECT id FROM smart_pool.employee_shifts WHERE id = {source.Id} FOR UPDATE
+                """);
+            confirmationTask = confirmFixture.Operations.ReplaceStaffShiftAsync(confirm, lockTimeout.Token);
+            try
             {
-                await using var command = new NpgsqlCommand("""
-                    SELECT count(*) FROM pg_stat_activity
-                    WHERE datname = current_database() AND wait_event_type = 'Lock'
-                        AND query LIKE '%employee_shifts%FOR UPDATE%'
-                    """, observer);
-                replacementIsWaitingForSource = Convert.ToInt64(await command.ExecuteScalarAsync()) > 0;
-                if (!replacementIsWaitingForSource) await Task.Delay(25);
-            }
-            Assert.True(replacementIsWaitingForSource, "Replacement confirmation did not wait on the held assignment row.");
-        }
+                await using (var observer = new NpgsqlConnection(IntegrationTestDatabase.GetConnectionString()))
+                {
+                    await observer.OpenAsync();
+                    var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+                    var replacementIsWaitingForSource = false;
+                    while (!replacementIsWaitingForSource && DateTimeOffset.UtcNow < deadline)
+                    {
+                        await using var command = new NpgsqlCommand("""
+                            SELECT count(*) FROM pg_stat_activity
+                            WHERE datname = current_database() AND wait_event_type = 'Lock'
+                                AND query LIKE '%employee_shifts%FOR UPDATE%'
+                            """, observer);
+                        replacementIsWaitingForSource = Convert.ToInt64(await command.ExecuteScalarAsync()) > 0;
+                        if (!replacementIsWaitingForSource) await Task.Delay(25);
+                    }
+                    Assert.True(replacementIsWaitingForSource, "Replacement confirmation did not wait on the held assignment row.");
+                }
 
-        var checkInAt = utcNow.AddMinutes(5).UtcDateTime;
-        await lockFixture.Context.Database.ExecuteSqlInterpolatedAsync($"""
-            UPDATE smart_pool.employee_shifts
-            SET status = 'Present', check_in_time = {checkInAt}, check_in_method = 'Manual', updated_at = {checkInAt}
-            WHERE id = {source.Id}
-            """);
-        await rowLock.CommitAsync();
+                checkInAt = utcNow.AddMinutes(5).UtcDateTime;
+                await lockFixture.Context.Database.ExecuteSqlInterpolatedAsync($"""
+                    UPDATE smart_pool.employee_shifts
+                    SET status = 'Present', check_in_time = {checkInAt}, check_in_method = 'Manual', updated_at = {checkInAt}
+                    WHERE id = {source.Id}
+                    """);
+                await rowLock.CommitAsync();
+            }
+            catch
+            {
+                lockTimeout.Cancel();
+                await rowLock.RollbackAsync();
+                try { await confirmationTask; } catch { }
+                throw;
+            }
+        }
 
         var error = await Assert.ThrowsAsync<StaffOnboardingException>(() => confirmationTask);
         var persisted = await confirmFixture.Context.EmployeeShifts.AsNoTracking().SingleAsync(item => item.Id == source.Id);

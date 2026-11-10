@@ -11,7 +11,7 @@ using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 
-namespace SmartPool.IntegrationTests;
+namespace SmartPool.IntegrationTests.ManageStaffs;
 
 internal sealed class StaffEmploymentFixture : IAsyncDisposable
 {
@@ -170,6 +170,7 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
         if (cleaned) return;
 
         await using var cleanupContext = CreateContext();
+        await cleanupContext.Notifications.Where(item => userIds.Contains(item.UserId)).ExecuteDeleteAsync();
         var employees = await cleanupContext.Employees.Where(employee => userIds.Contains(employee.UserId)).ExecuteDeleteAsync();
         var profiles = await cleanupContext.UserProfiles.Where(profile => userIds.Contains(profile.UserId)).ExecuteDeleteAsync();
         var users = await cleanupContext.Users.Where(user => userIds.Contains(user.Id)).ExecuteDeleteAsync();
