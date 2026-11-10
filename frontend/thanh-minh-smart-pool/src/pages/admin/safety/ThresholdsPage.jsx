@@ -7,6 +7,7 @@ import { ReloadOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useAuthStore } from '../../../features/auth/store/authStore'
 import { monitoringService } from '../../../features/safety/services/monitoringService'
+import './Monitoring.css'
 
 const { Title, Text } = Typography
 
@@ -95,7 +96,7 @@ export default function ThresholdsPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div className="monitoring-page safety-thresholds">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>Ngưỡng cảnh báo AI</Title>
@@ -129,7 +130,7 @@ export default function ThresholdsPage() {
           <Form form={form} layout="vertical" disabled={!isAdmin}>
             <Row gutter={[16, 16]}>
               {FIELDS.map(f => (
-                <Col key={f.name} span={8}>
+                <Col key={f.name} xs={24} sm={12} xl={8}>
                   <Form.Item
                     name={f.name}
                     label={f.label}
@@ -149,7 +150,7 @@ export default function ThresholdsPage() {
             </Row>
           </Form>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <div className="safety-form-actions">
             <Button icon={<ReloadOutlined />} onClick={handleReset} disabled={!isAdmin}>
               Reset
             </Button>

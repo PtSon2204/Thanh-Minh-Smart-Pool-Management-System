@@ -18,9 +18,9 @@ export default function AlertList({ sourceType = 'LIVE', jobId, onDetail }) {
     onError: error => { message.error(error.response?.data?.message || 'Không xử lý được cảnh báo.'); client.invalidateQueries({ queryKey: ['safety'] }) } })
   return <>
     {alerts.isError && <Alert type="error" title="Không tải được cảnh báo" action={<Button onClick={() => alerts.refetch()}>Thử lại</Button>} />}
-    <Table rowKey="id" size="small" loading={alerts.isPending} dataSource={alerts.data?.items || []}
+    <Table className="safety-alert-table" rowKey="id" size="small" loading={alerts.isPending} dataSource={alerts.data?.items || []}
       rowClassName={row => row.id === selectedId ? row.severity === 'CRITICAL' ? 'monitoring-alert-critical' : 'monitoring-alert-warning' : ''}
-      scroll={{ x: 750 }} pagination={{ current: page, pageSize: 10, total: alerts.data?.totalCount || 0, onChange: setPage }} columns={[
+      scroll={{ x: 750 }} pagination={{ responsive: true, current: page, pageSize: 10, total: alerts.data?.totalCount || 0, onChange: setPage }} columns={[
         { title: 'Nguồn', render: (_, row) => <Space><Tag>{row.sourceType}</Tag>{row.cameraName || 'Video tải lên'}</Space> },
         { title: 'Mức độ', render: (_, row) => <Tag color={['CRITICAL', 'EMERGENCY'].includes(row.severity) ? '#EF4444' : '#F97316'}>{['CRITICAL', 'EMERGENCY'].includes(row.severity) ? 'Khẩn cấp' : row.severity === 'WARNING' ? 'Chú ý' : row.severity}</Tag> },
         { title: 'Thời gian', render: (_, row) => row.sourceType === 'UPLOAD' ? `${row.videoTimestamp?.toFixed(1)}s` : new Date(row.createdAt).toLocaleString('vi-VN') },
@@ -34,7 +34,7 @@ export default function AlertList({ sourceType = 'LIVE', jobId, onDetail }) {
           </>}
         </Space> },
       ]} />
-    <Modal open={!!detailId} title="Chi tiết cảnh báo" footer={null} onCancel={() => setDetailId(null)}>
+    <Modal className="safety-modal" open={!!detailId} title="Chi tiết cảnh báo" footer={null} onCancel={() => setDetailId(null)}>
       {detailQuery.isError && <Alert type="error" title="Không tải được chi tiết cảnh báo" action={<Button onClick={() => detailQuery.refetch()}>Thử lại</Button>} />}
       {detail && <Space orientation="vertical">
         <span>{detail.cameraName || 'Video tải lên'} · {detail.location} · Track {detail.trackId}</span>

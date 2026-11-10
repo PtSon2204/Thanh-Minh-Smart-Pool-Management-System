@@ -27,7 +27,11 @@ export const monitoringService = {
   frameAnalysis: (id, seconds, signal) => apiClient.get(`/api/video-analyses/${id}/frame-analysis`, {
     params: { seconds }, signal,
   }).then(r => r.data),
-  playback: (id, signal) => apiClient.get(`/api/video-analyses/${id}/playback`, {
+  frameWindow: (id, from, signal) => apiClient.get(`/api/video-analyses/${id}/frame-analysis/window`, {
+    params: { from, duration: 4 }, signal,
+  }).then(r => r.data),
+  playback: (id, signal, { original = false } = {}) => apiClient.get(`/api/video-analyses/${id}/playback`, {
+    params: { original },
     baseURL: import.meta.env.DEV ? '' : apiClient.defaults.baseURL, signal,
   }).then(({ data }) => ({
     ...data,

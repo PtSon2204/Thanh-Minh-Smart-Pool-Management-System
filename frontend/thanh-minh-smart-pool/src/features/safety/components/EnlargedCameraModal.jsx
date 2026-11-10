@@ -1,15 +1,13 @@
 import { Alert, Button, Modal, Tag } from 'antd'
-import { CameraVideoPlayer } from '../../equipments/components/CameraViewModal'
 import { useCameraRisks } from '../hooks/useCameraRisks'
-import PairedCameraPlayer from './PairedCameraPlayer'
+import { CameraVideoPlayer } from '../../equipments/components/CameraViewModal'
 
-// Modal phóng to một camera; risks lấy từ query cache chia sẻ với card cùng cameraId
-// (không phát video/đọc AI song song), tự refresh khi có cảnh báo mới.
+// Phóng to cùng luồng Camera AI đang hiển thị trên danh sách.
 export default function EnlargedCameraModal({ camera, onClose }) {
   const { risks } = useCameraRisks(camera?.id, !!camera?.id)
-  return <Modal open={!!camera} destroyOnHidden width={1100} title={camera?.name} footer={null} onCancel={onClose}>
+  return <Modal className="safety-modal" open={!!camera} destroyOnHidden width={1100} title={camera ? `Camera AI · ${camera.name}` : 'Camera AI'} footer={null} onCancel={onClose}>
     {camera && camera.status === 'Active' && camera.source === 'RTSP'
-      ? camera.analysisMode === 'ai' ? <PairedCameraPlayer key={camera.id} camera={camera} /> : <CameraVideoPlayer equipment={camera} />
+      ? <CameraVideoPlayer key={camera.id} equipment={camera} risks={risks} />
       : <Alert type="info" title="Camera không khả dụng để phóng to." action={<Button onClick={onClose}>Đóng</Button>} />}
     {camera?.source === 'RTSP' && risks.some(r => r.severity === 'CRITICAL') &&
       <Tag color="#EF4444">Đang có cảnh báo khẩn cấp</Tag>}

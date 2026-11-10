@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { Alert, Button, Card, Empty, Input, Pagination, Segmented, Select, Space, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Empty, Input, Pagination, Select, Space, Spin, Tag, Typography } from 'antd'
 import AlertList from '../../../features/safety/components/AlertList'
 import EnlargedCameraModal from '../../../features/safety/components/EnlargedCameraModal'
-import PairedCameraPlayer from '../../../features/safety/components/PairedCameraPlayer'
+import { CameraVideoPlayer } from '../../../features/equipments/components/CameraViewModal'
 import { useMonitoringEvents } from '../../../features/safety/hooks/useMonitoringEvents'
 import { useCameraList } from '../../../features/safety/hooks/useCameraList'
 import { useCameraRisks } from '../../../features/safety/hooks/useCameraRisks'
 import { monitoringService } from '../../../features/safety/services/monitoringService'
-import { CameraVideoPlayer } from '../../../features/equipments/components/CameraViewModal'
 import '../../../features/equipments/styles/equipmentManagement.css'
 import './Monitoring.css'
 function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
   const element = useRef(null)
   const [visible, setVisible] = useState(false)
-  const [mode, setMode] = useState('live')
   const { ai, fresh, risks } = useCameraRisks(camera.id, visible && camera.source === 'RTSP')
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.1 })
@@ -24,17 +22,16 @@ function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
   }, [])
   return <Card ref={element} id={`camera-${camera.id}`} title={camera.name}
     style={highlighted ? { outline: `3px solid ${highlighted === 'CRITICAL' ? '#EF4444' : '#F97316'}` } : undefined}
-    extra={<Button disabled={camera.status !== 'Active' || camera.source !== 'RTSP'} onClick={() => onEnlarge({ ...camera, analysisMode: mode })}>Phóng to</Button>}>
+    extra={<Button disabled={camera.status !== 'Active' || camera.source !== 'RTSP'} onClick={() => onEnlarge(camera)}>Phóng to</Button>}>
     <Space wrap><span>{camera.location || 'Chưa có vị trí'}</span><Tag>{camera.status}</Tag>
       <Tag color={camera.connectionStatus === 'Connected' ? 'green' : 'default'}>{camera.connectionStatus}</Tag>
-      <Tag color={fresh ? 'processing' : 'default'}>{fresh ? 'AI đang giám sát' : ai.data?.state === 'NotConfigured' ? 'AI chưa cấu hình' : 'AI chưa có dữ liệu'}</Tag>
+      <Tag color={fresh ? 'processing' : 'default'}>{fresh ? 'Camera AI đang giám sát' : ai.data?.state === 'NotConfigured' ? 'AI chưa cấu hình' : 'Camera AI đang chờ dữ liệu'}</Tag>
       {fresh && (risks.some(x => x.severity === 'CRITICAL') ? <Tag color="#EF4444">Khẩn cấp</Tag> : risks.length > 0 && <Tag color="#F97316">Chú ý</Tag>)}
-      <Segmented value={mode} onChange={setMode} options={[{ label: 'Video trực tiếp', value: 'live' }, { label: 'Video AI', value: 'ai' }]} /></Space>
+    </Space>
     {camera.source === 'Browser' ? <Alert type="info" title="Camera trình duyệt chỉ xem được tại máy đã đăng ký." /> :
       camera.status !== 'Active' ? <Alert type="warning" title="Camera hiện không khả dụng" /> :
         camera.connectionStatus !== 'Connected' ? <Alert type="warning" title="Camera hiện không khả dụng" action={<Button onClick={onRetry}>Thử lại</Button>} /> :
-          mode === 'ai' && !fresh ? <Alert type="warning" title="AI hiện không khả dụng" action={<Button onClick={() => ai.refetch()}>Thử lại</Button>} /> :
-            visible && !enlarged ? mode === 'ai' ? <PairedCameraPlayer camera={camera} /> : <CameraVideoPlayer equipment={camera} /> : <div className="monitor-video-placeholder">Video tạm dừng</div>}
+          visible && !enlarged ? <CameraVideoPlayer equipment={camera} risks={risks} /> : <div className="monitor-video-placeholder">Camera AI tạm dừng</div>}
   </Card>
 }
 

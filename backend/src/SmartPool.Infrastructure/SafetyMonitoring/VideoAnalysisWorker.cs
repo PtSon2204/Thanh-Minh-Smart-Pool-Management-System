@@ -56,6 +56,7 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                         // Snapshot (ảnh minh họa cảnh báo) tách sang PHASE 3 (SNAPSHOT) — offline,
                         // không còn chặn realtime.
                         var frameIndex = 0;
+                        var recorded = new HashSet<(string Track, string Episode, string Severity)>();
                         var snapshotQueue = new List<(Guid AlertId, SmartPool.Application.Features.SafetyMonitoring.RiskDecision Decision, int FrameIndex)>();
                         analysisState.Prepare(job.Id, info.Fps, info.FrameCount ?? 0);
                         using var opened = await ai.SendAsync(new { op = "open", input, output = (string)null, fps = info.Fps, frames = info.FrameCount }, startup.Token);
@@ -75,6 +76,9 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                             stage = "SAVE_ALERT";
                             foreach (var decision in decisions)
                             {
+                                // UPLOAD cannot re-arm a handled episode. Persist each severity transition
+                                // once instead of waiting on a DB transaction for every video frame.
+                                if (!recorded.Add((decision.TrackId, decision.Episode, decision.Severity))) continue;
                                 var write = await scope.ServiceProvider.GetRequiredService<ISender>().Send(new RecordRiskCommand("UPLOAD", job.Id, decision,
                                     detections.First(x => x.TrackId == decision.TrackId).Confidence, job.CreatedAt.AddSeconds(timestamp)), step.Token);
                                 // Chỉ ghi nhớ cảnh báo cần snapshot (hàng đã tạo với SnapshotStatus=CAPTURING).
@@ -90,6 +94,8 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                                 job.UpdatedAt = DateTime.UtcNow; await db.SaveChangesAsync(ct); lastProgress = DateTime.UtcNow;
                             }
                         }
+                        stage = "SAVE_RESULT";
+                        await analysisState.CompleteAsync(job.Id, ct);
                         // PHASE 2 — render offline: mở lại video, vẽ khung từ decisions đã lưu (đúng 1:1
                         // với cảnh báo phase 1), encode video kết quả. Không chặn realtime nữa.
                         stage = "PAINT";

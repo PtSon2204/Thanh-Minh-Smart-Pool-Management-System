@@ -274,7 +274,7 @@ export default function IncidentHistoryPage() {
 
       {/* ── Thẻ thống kê nhanh ── */}
       <Row gutter={[16, 16]} className="incident-stats-row">
-        <Col xs={12} sm={6}>
+        <Col xs={12} xl={6}>
           <Card className="stat-card stat-card-total" bordered={false}>
             <div className="stat-card-inner">
               <div className="stat-icon-box stat-icon-total">
@@ -287,7 +287,7 @@ export default function IncidentHistoryPage() {
             </div>
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} xl={6}>
           <Card className="stat-card stat-card-emergency" bordered={false}>
             <div className="stat-card-inner">
               <div className="stat-icon-box stat-icon-emergency">
@@ -300,7 +300,7 @@ export default function IncidentHistoryPage() {
             </div>
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} xl={6}>
           <Card className="stat-card stat-card-camera" bordered={false}>
             <div className="stat-card-inner">
               <div className="stat-icon-box stat-icon-camera">
@@ -313,7 +313,7 @@ export default function IncidentHistoryPage() {
             </div>
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} xl={6}>
           <Card className="stat-card stat-card-lifeguard" bordered={false}>
             <div className="stat-card-inner">
               <div className="stat-icon-box stat-icon-lifeguard">
@@ -331,7 +331,7 @@ export default function IncidentHistoryPage() {
       {/* ── Bộ lọc tìm kiếm ── */}
       <Card className="incident-filter-card" bordered={false}>
         <Row gutter={[12, 12]} align="middle">
-          <Col xs={24} sm={12} md={7}>
+          <Col xs={24} sm={12} xl={7}>
             <Input
               placeholder="Tìm theo mã sự cố, nội dung, người báo..."
               prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
@@ -341,7 +341,7 @@ export default function IncidentHistoryPage() {
               allowClear
             />
           </Col>
-          <Col xs={12} sm={6} md={4}>
+          <Col xs={12} sm={6} xl={4}>
             <Select
               value={selectedZone}
               onChange={value => { setSelectedZone(value); setPage(1) }}
@@ -349,7 +349,7 @@ export default function IncidentHistoryPage() {
               style={{ width: '100%' }}
             />
           </Col>
-          <Col xs={12} sm={6} md={4}>
+          <Col xs={12} sm={6} xl={4}>
             <Select
               value={selectedSeverity}
               onChange={value => { setSelectedSeverity(value); setPage(1) }}
@@ -357,7 +357,7 @@ export default function IncidentHistoryPage() {
               style={{ width: '100%' }}
             />
           </Col>
-          <Col xs={12} sm={6} md={4}>
+          <Col xs={12} sm={6} xl={4}>
             <Select
               value={selectedSource}
               onChange={value => { setSelectedSource(value); setPage(1) }}
@@ -365,7 +365,7 @@ export default function IncidentHistoryPage() {
               style={{ width: '100%' }}
             />
           </Col>
-          <Col xs={24} sm={12} md={5}>
+          <Col xs={24} sm={12} xl={5}>
             <RangePicker
               value={dateRange}
               onChange={value => { setDateRange(value); setPage(1) }}
@@ -386,6 +386,7 @@ export default function IncidentHistoryPage() {
           rowKey={(r) => r.id}
           loading={loading}
           pagination={{
+            responsive: true,
             current: page,
             pageSize,
             total: totalCount,
@@ -404,8 +405,9 @@ export default function IncidentHistoryPage() {
 
       {/* ── Modal Xem Chi Tiết Sự Cố ── */}
       <Modal
+        className="safety-modal"
         title={
-          <Space>
+          <Space wrap>
             <HistoryOutlined style={{ color: '#0077b6' }} />
             <span>Chi tiết sự cố & Cảnh báo cứu hộ</span>
             {selectedIncident?.incidentCode && (
@@ -427,7 +429,7 @@ export default function IncidentHistoryPage() {
       >
         {selectedIncident && (
           <div className="incident-detail-body">
-            <Descriptions bordered column={2} size="small">
+            <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
               <Descriptions.Item label="Mã sự cố" span={1}>
                 <Text strong copyable>
                   {selectedIncident.incidentCode || 'INC-N/A'}
@@ -482,7 +484,7 @@ export default function IncidentHistoryPage() {
                 </Space>
               </Descriptions.Item>
 
-              <Descriptions.Item label="Trạng thái" span={2}>
+              <Descriptions.Item label="Trạng thái" span={{ xs: 1, sm: 2 }}>
                 <Tag color={selectedIncident.status === 'Resolved' ? 'success' : 'warning'}>
                   {STATUS_LABELS[selectedIncident.status] || selectedIncident.status}
                 </Tag>

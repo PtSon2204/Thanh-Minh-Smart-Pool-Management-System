@@ -224,6 +224,13 @@ public sealed partial class SafetyMonitoringTests
         while (DateTime.UtcNow < deadline && job.Status is not ("COMPLETED" or "FAILED"))
         { await Task.Delay(500); job = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{job.Id}"))!; }
         Assert.True(job.Status == "COMPLETED", job.Error ?? job.Status);
+        var window = (await client.GetFromJsonAsync<VideoFrameAnalysisWindowDto>($"/api/video-analyses/{job.Id}/frame-analysis/window?from=0&duration=1"))!;
+        Assert.True(window.Complete);
+        Assert.False(window.Legacy);
+        Assert.True(window.Fps > 0);
+        Assert.NotEmpty(window.Frames);
+        Assert.True(File.Exists(Path.Combine(root, $"{job.Id:N}-timeline.json")));
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"/api/video-analyses/{job.Id}/frame-analysis/window?duration=99")).StatusCode);
         // Legacy role names use title case. An admin must also be able to review another uploader's result.
         await using (var ownership = new SmartPoolDbContext(options))
             await ownership.VideoAnalysisJobs.Where(x => x.Id == job.Id).ExecuteUpdateAsync(set => set.SetProperty(x => x.UploadedBy, userId));
@@ -237,6 +244,15 @@ public sealed partial class SafetyMonitoringTests
         Assert.True((await entireVideo.Content.ReadAsByteArrayAsync()).Length > 128);
         var playback = (await client.GetFromJsonAsync<VideoPlaybackDto>($"/api/video-analyses/{job.Id}/playback"))!;
         using var mediaClient = new HttpClient { BaseAddress = client.BaseAddress };
+        var originalPlayback = (await client.GetFromJsonAsync<VideoPlaybackDto>($"/api/video-analyses/{job.Id}/playback?original=true"))!;
+        Assert.Contains("original=true", originalPlayback.StreamPath);
+        using (var originalRequest = new HttpRequestMessage(HttpMethod.Get, originalPlayback.StreamPath))
+        {
+            originalRequest.Headers.Range = new RangeHeaderValue(0, 127);
+            var originalResponse = await mediaClient.SendAsync(originalRequest);
+            Assert.Equal(HttpStatusCode.PartialContent, originalResponse.StatusCode);
+            Assert.Equal((await File.ReadAllBytesAsync(input))[..128], await originalResponse.Content.ReadAsByteArrayAsync());
+        }
         Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync($"/api/video-analyses/{job.Id}/playback")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync($"/api/video-analyses/{job.Id}/stream")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync(playback.StreamPath.Replace(job.Id.ToString(), Guid.NewGuid().ToString()))).StatusCode);
@@ -258,7 +274,7 @@ public sealed partial class SafetyMonitoringTests
             using var process = Process.Start(browser)!;
             var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
             await process.StandardInput.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(new { apiBase = app.Urls.Single(),
-                token = client.DefaultRequestHeaders.Authorization!.Parameter, userId = apiUserIds["Admin"], jobId = job.Id, root = RepositoryRoot() }));
+                token = client.DefaultRequestHeaders.Authorization!.Parameter, userId = apiUserIds["Admin"], jobId = job.Id, root = RepositoryRoot(), input }));
             process.StandardInput.Close();
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(90));
             Assert.True(process.ExitCode == 0, (await stdout) + (await stderr));

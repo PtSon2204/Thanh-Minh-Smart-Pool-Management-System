@@ -9,8 +9,8 @@ public sealed record GetVideoJobQuery(Guid Id) : IRequest<VideoJobDto>;
 public sealed record GetVideoFileQuery(Guid Id) : IRequest<string>;
 public sealed record VideoPlaybackDto(string StreamPath, DateTimeOffset ExpiresAt);
 public sealed record VideoPlaybackTicket(string Value, DateTimeOffset ExpiresAt);
-public sealed record GetVideoPlaybackQuery(Guid Id) : IRequest<VideoPlaybackDto>;
-public sealed record GetVideoStreamQuery(Guid Id, string Ticket) : IRequest<string>;
+public sealed record GetVideoPlaybackQuery(Guid Id, bool Original = false) : IRequest<VideoPlaybackDto>;
+public sealed record GetVideoStreamQuery(Guid Id, string Ticket, bool Original = false) : IRequest<string>;
 public interface IVideoPlaybackTickets
 {
     VideoPlaybackTicket Create(Guid jobId);
@@ -24,6 +24,7 @@ public sealed record CameraAnalysisDto(string State, string? FrameId, DateTimeOf
 {
     public DateTimeOffset ServerTime { get; init; } = DateTimeOffset.UtcNow;
     public Guid? CameraId { get; init; }
+    public double? InferenceMilliseconds { get; init; }
 }
 
 public interface IVideoAnalysisService
@@ -33,6 +34,7 @@ public interface IVideoAnalysisService
     Task<string> FileAsync(Guid id, Guid userId, bool admin, CancellationToken ct);
     // Phát song song với phân tích: đang QUEUED/PROCESSING/RENDERING thì trả video gốc, COMPLETED thì trả video đã vẽ khung.
     Task<string> LiveFileAsync(Guid id, Guid userId, bool admin, CancellationToken ct);
+    Task<string> OriginalFileAsync(Guid id, Guid userId, bool admin, CancellationToken ct);
     object Status();
 }
 public interface ICameraAnalysisReader
@@ -44,9 +46,26 @@ public interface ICameraAnalysisReader
 // khi phát song song, khớp 1:1 với video đã vẽ khung khi hoàn tất.
 public sealed record VideoFrameAnalysisDto(double? AnalyzedAt, IReadOnlyList<RiskDecision> Risks);
 public sealed record GetVideoFrameAnalysisQuery(Guid JobId, double Seconds) : IRequest<VideoFrameAnalysisDto>;
+public sealed record VideoFrameAnalysisWindowDto(double Fps, int StartFrame, int ReadyFrames, bool Complete,
+    IReadOnlyList<RiskDecision[]> Frames, bool Legacy = false);
+public sealed record GetVideoFrameAnalysisWindowQuery(Guid JobId, double From, double Duration = 4) : IRequest<VideoFrameAnalysisWindowDto>;
 public interface IVideoFrameAnalysisReader
 {
     Task<VideoFrameAnalysisDto> Query(Guid jobId, double seconds, CancellationToken ct);
+    Task<VideoFrameAnalysisWindowDto> WindowAsync(Guid jobId, double from, double duration, CancellationToken ct);
+}
+public sealed class GetVideoFrameAnalysisWindowHandler(IVideoFrameAnalysisReader reader, IVideoAnalysisService service, ICurrentUser user)
+    : IRequestHandler<GetVideoFrameAnalysisWindowQuery, VideoFrameAnalysisWindowDto>
+{
+    public async Task<VideoFrameAnalysisWindowDto> Handle(GetVideoFrameAnalysisWindowQuery request, CancellationToken ct)
+    {
+        if (!double.IsFinite(request.From) || request.From is < 0 or > 86400 ||
+            !double.IsFinite(request.Duration) || request.Duration is <= 0 or > 5)
+            throw new ArgumentException("Khoảng phân tích video không hợp lệ.");
+        var job = await service.GetAsync(request.JobId, user.UserId ?? throw new UnauthorizedAccessException(), user.IsInRole("ADMIN"), ct);
+        var window = await reader.WindowAsync(request.JobId, request.From, request.Duration, ct);
+        return window with { Legacy = window.Fps == 0 && job.Status == "COMPLETED" };
+    }
 }
 public sealed class GetVideoFrameAnalysisHandler(IVideoFrameAnalysisReader reader, IVideoAnalysisService service, ICurrentUser user)
     : IRequestHandler<GetVideoFrameAnalysisQuery, VideoFrameAnalysisDto>
@@ -80,9 +99,12 @@ public sealed class GetVideoPlaybackHandler(IVideoAnalysisService service, ICurr
     public async Task<VideoPlaybackDto> Handle(GetVideoPlaybackQuery request, CancellationToken ct)
     {
         // Cho phát từ khi video gốc đã tải xong (QUEUED trở đi) — không phải chờ kết quả vẽ khung.
-        await service.LiveFileAsync(request.Id, user.UserId ?? throw new UnauthorizedAccessException(), user.IsInRole("ADMIN"), ct);
+        if (request.Original)
+            await service.OriginalFileAsync(request.Id, user.UserId ?? throw new UnauthorizedAccessException(), user.IsInRole("ADMIN"), ct);
+        else
+            await service.LiveFileAsync(request.Id, user.UserId ?? throw new UnauthorizedAccessException(), user.IsInRole("ADMIN"), ct);
         var ticket = tickets.Create(request.Id);
-        return new($"/api/video-analyses/{request.Id}/stream?ticket={Uri.EscapeDataString(ticket.Value)}", ticket.ExpiresAt);
+        return new($"/api/video-analyses/{request.Id}/stream?ticket={Uri.EscapeDataString(ticket.Value)}{(request.Original ? "&original=true" : "")}", ticket.ExpiresAt);
     }
 }
 public sealed class GetVideoStreamHandler(IVideoAnalysisService service, IVideoPlaybackTickets tickets)
@@ -93,7 +115,7 @@ public sealed class GetVideoStreamHandler(IVideoAnalysisService service, IVideoP
         if (!tickets.Validate(request.Id, request.Ticket)) throw new UnauthorizedAccessException();
         // Ticket chỉ phát hành sau khi đã kiểm tra quyền; trong lúc phân tích đang chạy thì stream video gốc,
         // khi kết quả vẽ khung sẵn sàng thì stream kết quả.
-        return service.LiveFileAsync(request.Id, Guid.Empty, true, ct);
+        return request.Original ? service.OriginalFileAsync(request.Id, Guid.Empty, true, ct) : service.LiveFileAsync(request.Id, Guid.Empty, true, ct);
     }
 }
 public sealed class GetMonitoringStatusHandler(IVideoAnalysisService service) : IRequestHandler<GetMonitoringStatusQuery, object>

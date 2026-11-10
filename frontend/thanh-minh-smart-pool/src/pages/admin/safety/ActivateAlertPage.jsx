@@ -319,6 +319,7 @@ export default function ActivateAlertPage() {
 
       {/* ── Confirmation modal ── */}
       <Modal
+        className="safety-modal"
         open={confirmOpen}
         onCancel={() => setConfirmOpen(false)}
         onOk={handleConfirmActivate}

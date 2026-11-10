@@ -11,9 +11,11 @@ public sealed class CameraAnalysisState(ICameraService cameras, IOptions<Monitor
     private readonly ConcurrentDictionary<Guid, Entry> entries = new();
     private readonly ConcurrentDictionary<(Guid CameraId, string FrameId), Entry> frames = new();
     public event Action<Guid, DateTimeOffset, byte[]>? FrameReady;
-    public void Set(Guid id, string frameId, DateTimeOffset observed, IReadOnlyList<RiskDecision> risks, byte[] jpeg, IReadOnlyList<TrackedDetection>? detections = null)
+    public void Set(Guid id, string frameId, DateTimeOffset observed, IReadOnlyList<RiskDecision> risks, byte[] jpeg, IReadOnlyList<TrackedDetection>? detections = null,
+        double? inferenceMilliseconds = null)
     {
-        entries[id] = new(new CameraAnalysisDto("Connected", frameId, observed, DateTimeOffset.UtcNow, risks, Detections: detections) { CameraId = id }, jpeg);
+        entries[id] = new(new CameraAnalysisDto("Connected", frameId, observed, DateTimeOffset.UtcNow, risks, Detections: detections)
+            { CameraId = id, InferenceMilliseconds = inferenceMilliseconds }, jpeg);
         frames[(id, frameId)] = entries[id];
         // Giữ một số frame gần nhất để GET metadata rồi GET JPEG không đua với suy luận kế tiếp.
         foreach (var old in frames.Where(x => x.Key.CameraId == id).OrderByDescending(x => x.Value.Metadata.ObservedAt).Skip(8))

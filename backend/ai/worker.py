@@ -39,8 +39,8 @@ class Detector:
         if not path.is_file() or path.suffix.lower() != ".onnx":
             raise ValueError("A local ONNX model is required")
         opts = ort.SessionOptions()
-        # Backend set OMP_NUM_THREADS: LIVE=1 (chia sẻ CPU với luồng live), UPLOAD=4 (worker riêng,
-        # chạy nhanh hơn real-time). Mặc định 1 nếu môi trường không đặt.
+        # Backend sets the CPU fallback thread budget; LIVE is configurable. GPU is
+        # preferred where available, and upload still runs in a separate process.
         threads = max(1, int(os.environ.get("OMP_NUM_THREADS", "1")))
         opts.intra_op_num_threads = threads
         opts.inter_op_num_threads = 1
@@ -49,6 +49,9 @@ class Detector:
         preferred = os.environ.get("SAFETY_ORT_PROVIDER", "DmlExecutionProvider,CPUExecutionProvider").split(",")
         available = set(ort.get_available_providers())
         providers = [p for p in preferred if p in available] or ["CPUExecutionProvider"]
+        if "DmlExecutionProvider" in providers:
+            opts.enable_mem_pattern = False
+            opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
         self.session = ort.InferenceSession(str(path), sess_options=opts, providers=providers)
         metadata = self.session.get_modelmeta().custom_metadata_map
         self.names = {int(k): str(v).lower() for k, v in ast.literal_eval(metadata["names"]).items()}
@@ -99,8 +102,7 @@ class Detector:
 
 
 def main():
-    # LIVE (OMP=1): cv2 1 thread, không tranh CPU với luồng live. UPLOAD (OMP=4): cv2 chạy resize/NMS
-    # nhiều thread — worker riêng nên được phép dùng CPU hết mức hợp lý.
+    # Respect the process-specific thread budget for preprocessing as well as ORT.
     cv2.setNumThreads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
     detector = Detector(sys.argv[1])
     font = sys.argv[2] if len(sys.argv) > 2 else None

@@ -57,7 +57,7 @@ export default function GlobalAlertPopup({ alert, isCritical, onDismiss }) {
             {alert.sourceType === 'UPLOAD' && alert.videoTimestamp != null && <span>· {Number(alert.videoTimestamp).toFixed(1)}s</span>}
           </Space>
           {alert.imageUrl
-            ? <Image src={alert.imageUrl} width={420} alt="Ảnh sự cố" style={{ borderRadius: 8 }} preview={false} />
+            ? <Image src={alert.imageUrl} width="100%" alt="Ảnh sự cố" style={{ borderRadius: 8, maxHeight: '35dvh', objectFit: 'contain' }} preview={false} />
             : <Tag>Ảnh sự cố đang được xử lý</Tag>}
           <Space wrap>
             {isAdmin && <Button type="primary" size="small" onClick={detail}>Xem chi tiết</Button>}

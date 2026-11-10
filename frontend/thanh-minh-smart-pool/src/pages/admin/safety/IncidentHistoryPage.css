@@ -1,3 +1,5 @@
+@import '../../../features/safety/styles/safetyResponsive.css';
+
 /* ================================================================
    IncidentHistoryPage.css — Smart Pool Ocean Theme
    ================================================================ */
@@ -332,4 +334,21 @@
   font-size: 13px;
   color: #475569;
   line-height: 1.5;
+}
+
+.incident-page-header { gap: 16px; flex-wrap: wrap; }
+.incident-page-header .header-left { min-width: 0; }
+.incident-history-page .stat-label { white-space: normal; line-height: 1.4; }
+.incident-section-header,
+.incident-image-caption { flex-wrap: wrap; gap: 8px; }
+.incident-detail-desc-box { overflow-wrap: anywhere; }
+
+@media (max-width: 767px) {
+  .incident-page-header { padding: 16px; }
+  .incident-page-header > .ant-btn { width: 100%; min-height: 40px; }
+  .incident-history-page .stat-card .ant-card-body { padding: 12px !important; }
+  .incident-history-page .stat-card-inner { gap: 8px; flex-wrap: wrap; }
+  .incident-table-card .ant-card-body { padding: 12px; }
+  .incident-history-page .ant-btn { min-height: 40px; }
+  .incident-image-section { padding: 12px; }
 }

@@ -14,7 +14,7 @@ public sealed class VideoAnalysisService(SmartPoolDbContext db, MonitoringFiles 
     public object Status() => new { aiConfigured = options.Value.Configured,
         uploadConfigured = options.Value.Configured && File.Exists(options.Value.FfprobePath) && File.Exists(cameras.Value.FfmpegPath),
         maxVideoMegabytes = options.Value.MaxVideoMegabytes, maxVideoSeconds = options.Value.MaxVideoSeconds,
-        synchronization = "PAIRED_FRAME", liveSampling = "shared-camera-keyframes", maxLiveCameras = options.Value.MaxLiveCameras };
+        synchronization = "PAIRED_FRAME", liveSampling = "shared-camera-continuous-decoder", maxLiveCameras = options.Value.MaxLiveCameras };
 
     public async Task<VideoJobDto> UploadAsync(UploadVideoCommand command, Guid userId, CancellationToken ct)
     {
@@ -78,6 +78,15 @@ public sealed class VideoAnalysisService(SmartPoolDbContext db, MonitoringFiles 
         var job = await Find(id, userId, admin, ct) ?? throw new KeyNotFoundException();
         if (job.Status != "COMPLETED" || job.OutputFile == null) throw new MonitoringConflictException("Video kết quả chưa sẵn sàng.");
         var path = files.PathFor(job.OutputFile);
+        if (!File.Exists(path)) throw new KeyNotFoundException();
+        return path;
+    }
+    public async Task<string> OriginalFileAsync(Guid id, Guid userId, bool admin, CancellationToken ct)
+    {
+        var job = await Find(id, userId, admin, ct) ?? throw new KeyNotFoundException();
+        if (job.Status is not ("QUEUED" or "PROCESSING" or "RENDERING" or "COMPLETED"))
+            throw new MonitoringConflictException("Video chưa sẵn sàng để phát.");
+        var path = files.PathFor(job.InputFile);
         if (!File.Exists(path)) throw new KeyNotFoundException();
         return path;
     }

@@ -1,4 +1,6 @@
-.monitoring-page { display: grid; gap: 20px; }
+@import '../../../features/safety/styles/safetyResponsive.css';
+
+.monitoring-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .monitoring-filters .ant-input-affix-wrapper { width: 260px; }
 .monitoring-filters .ant-select { min-width: 180px; }
 .camera-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -10,3 +12,4 @@
 .monitoring-alert-critical td { background: #fef2f2 !important; }
 .monitoring-alert-warning td { background: #fff7ed !important; }
 @media (max-width: 1000px) { .camera-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 767px) { .monitoring-page { gap: 16px; } }

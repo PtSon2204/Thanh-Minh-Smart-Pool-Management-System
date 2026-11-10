@@ -4,6 +4,7 @@ import { useAlarmSound } from '../hooks/useAlarmSound'
 import { useGlobalSafetyAlerts } from '../hooks/useGlobalSafetyAlerts'
 import { useSafetyTts } from '../hooks/useSafetyTts'
 import GlobalAlertPopup from './GlobalAlertPopup'
+import '../styles/safetyResponsive.css'
 
 /**
  * Khung gắn popup + còi + giọng nói cảnh báo an toàn toàn cục. Mount trong
@@ -27,7 +28,7 @@ export default function GlobalSafetyAlertsHost() {
   }, [enabled, top?.id, critical, startAlarm, stopAlarm])
 
   if (!enabled || !top) return null
-  return <div style={{ position: 'fixed', insetInline: 0, top: 64, zIndex: 1050, display: 'flex', justifyContent: 'center', padding: '0 16px' }} role="alertdialog" aria-label="Cảnh báo an toàn">
+  return <div className="safety-global-popup" role="alertdialog" aria-label="Cảnh báo an toàn">
     <div style={{ width: 'min(560px, 100%)' }}>
       <GlobalAlertPopup alert={top} isCritical={isCritical} onDismiss={dismiss} />
     </div>
