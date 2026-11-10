@@ -179,6 +179,7 @@ docs/
 .claude/
 plans/
 Ticket Management/
+Payment Management/
 
 # Bỏ qua tất cả file Markdown
 *.md
