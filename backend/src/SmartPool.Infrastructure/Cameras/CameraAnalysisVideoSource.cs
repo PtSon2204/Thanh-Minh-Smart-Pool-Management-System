@@ -75,7 +75,7 @@ internal sealed class CameraAnalysisVideoSource : IWebRtcVideoSource
             if (process != null)
             {
                 try { if (!process.HasExited) process.Kill(true); } catch (InvalidOperationException) { }
-                try { await process.WaitForExitAsync(); await Task.WhenAll(reading, errors); } catch (Exception) { }
+                try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3)); await Task.WhenAll(reading, errors).WaitAsync(TimeSpan.FromSeconds(2)); } catch (Exception) { }
                 process.Dispose();
             }
         }
