@@ -210,6 +210,7 @@ namespace SmartPool.Infrastructure
             services.Configure<SmartPool.Application.Features.SafetyMonitoring.RiskOptions>(configuration.GetSection("SafetyMonitoring:Risk"));
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.MonitoringFiles>();
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisQueue>();
             // State trong bộ nhớ chia sẻ giữa worker AI LIVE và nguồn WebRTC AI (phải là instance duy nhất).
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>();
             // Decisions (box) từng frame trong lúc video đang phân tích — cho phát song song overlay đúng 1:1.

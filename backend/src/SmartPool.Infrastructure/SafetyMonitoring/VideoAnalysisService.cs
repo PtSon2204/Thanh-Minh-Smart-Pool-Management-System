@@ -9,9 +9,10 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 namespace SmartPool.Infrastructure.SafetyMonitoring;
 
 public sealed class VideoAnalysisService(SmartPoolDbContext db, MonitoringFiles files, VideoProbe probe,
-    IOptions<MonitoringOptions> options, IOptions<CameraOptions> cameras) : IVideoAnalysisService
+    IOptions<MonitoringOptions> options, IOptions<CameraOptions> cameras, VideoAnalysisQueue queue) : IVideoAnalysisService
 {
     public object Status() => new { aiConfigured = options.Value.Configured,
+        uploadWorkerReady = queue.WorkerReady,
         uploadConfigured = options.Value.Configured && File.Exists(options.Value.FfprobePath) && File.Exists(cameras.Value.FfmpegPath),
         maxVideoMegabytes = options.Value.MaxVideoMegabytes, maxVideoSeconds = options.Value.MaxVideoSeconds,
         synchronization = "PAIRED_FRAME", liveSampling = "shared-camera-continuous-decoder", maxLiveCameras = options.Value.MaxLiveCameras };
@@ -56,6 +57,7 @@ public sealed class VideoAnalysisService(SmartPoolDbContext db, MonitoringFiles 
             await probe.InspectAsync(path, false, timeout.Token); // Only metadata in HTTP; decoding and timeline checks run in the job.
             await db.VideoAnalysisJobs.Where(x => x.Id == id).ExecuteUpdateAsync(set => set.SetProperty(x => x.Status, "QUEUED")
                 .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), ct);
+            queue.Notify();
             return await GetAsync(id, userId, true, ct);
         }
         catch

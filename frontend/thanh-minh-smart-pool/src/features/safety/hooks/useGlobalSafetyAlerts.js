@@ -5,6 +5,7 @@ import {
 import { useAuthStore } from '../../auth/store/authStore'
 import { monitoringService } from '../services/monitoringService'
 import { reconcilePendingAlerts, sortAlerts } from '../utils/alertState'
+import { ALERT_POPUP_LIFETIME_MS } from '../utils/popupLifetime'
 
 // Cảnh báo cứu hộ toàn cục chỉ nhận nguồn LIVE. Mỗi danh tính có phiên popup riêng.
 const AI_EVENTS = ['alert_created', 'alert_escalated', 'alert_updated', 'incident_created']
@@ -19,13 +20,24 @@ export function useGlobalSafetyAlerts(enabled) {
     let revision = 0
     let active = []
     const dismissed = new Set()
+    const expiryTimers = new Map()
     const abort = new AbortController()
     const publish = () => { if (!disposed) setSnapshot({ identity, alerts: sortAlerts(active) }) }
     const dismiss = id => {
+      clearTimeout(expiryTimers.get(id))
+      expiryTimers.delete(id)
       dismissed.add(id)
       active = active.filter(a => a.id !== id)
       revision++
       publish()
+    }
+    const scheduleExpiry = () => {
+      for (const alert of active) {
+        if (!expiryTimers.has(alert.id)) expiryTimers.set(alert.id, setTimeout(() => dismiss(alert.id), ALERT_POPUP_LIFETIME_MS))
+      }
+      for (const [id, timer] of expiryTimers) {
+        if (!active.some(alert => alert.id === id)) { clearTimeout(timer); expiryTimers.delete(id) }
+      }
     }
     dismissal.current = { identity, dismiss }
     const resync = async () => {
@@ -46,6 +58,7 @@ export function useGlobalSafetyAlerts(enabled) {
         // Event nhận sau khi bắt đầu HTTP mới hơn snapshot đang tải.
         if (!disposed && before === revision) {
           active = reconcilePendingAlerts(active, pending, dismissed, Date.now())
+          scheduleExpiry()
           publish()
         }
       } catch {
@@ -58,6 +71,7 @@ export function useGlobalSafetyAlerts(enabled) {
       revision++
       active = active.filter(a => a.id !== alert.id)
       if (alert.status?.toUpperCase() === 'PENDING' && !dismissed.has(alert.id)) active.push(alert)
+      scheduleExpiry()
       publish()
     }
     AI_EVENTS.forEach(event => connection.on(event, handle))
@@ -69,6 +83,7 @@ export function useGlobalSafetyAlerts(enabled) {
       disposed = true
       abort.abort()
       clearInterval(timer)
+      expiryTimers.forEach(timer => clearTimeout(timer))
       AI_EVENTS.forEach(event => connection.off(event, handle))
       offState()
     }

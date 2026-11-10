@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { monitoringService } from '../services/monitoringService'
 import { VideoFrameBuffer, videoWarningKey } from '../utils/videoFrameBuffer'
 import { drawVideoRisks } from '../utils/drawVideoRisks'
+import { ALERT_POPUP_LIFETIME_MS } from '../utils/popupLifetime'
 
 // Fetch ahead in media time; painting never waits for a network round trip.
 export function useVideoFrameAnalysis(jobId, videoRef, canvasRef, enabled, autoPlay) {
   const controls = useRef(null)
-  const [view, setView] = useState({ position: 0, buffering: true, error: '', warning: null, legacy: false })
+  const [view, setView] = useState({ position: 0, buffering: true, error: '', warnings: [], legacy: false })
   useEffect(() => {
     if (!enabled || !jobId || !videoRef.current) return undefined
     const video = videoRef.current
@@ -21,25 +22,24 @@ export function useVideoFrameAnalysis(jobId, videoRef, canvasRef, enabled, autoP
     let ownPauses = 0
     let legacy = false
     let error = ''
-    let warning = null
+    let warnings = []
     let frameHandle
     let animationHandle
 
     const publish = () => {
-      const snapshot = { position: video.currentTime, buffering: holding, error, warning, legacy }
+      const snapshot = { position: video.currentTime, buffering: holding, error, warnings, legacy }
       if (!disposed) setView(old => Math.abs(old.position - snapshot.position) < 0.1
-        && old.buffering === snapshot.buffering && old.error === error && old.warning === warning && old.legacy === legacy ? old : snapshot)
+        && old.buffering === snapshot.buffering && old.error === error && old.warnings === warnings && old.legacy === legacy ? old : snapshot)
     }
     const paint = seconds => {
       const sample = buffer.sample(seconds)
       const risks = (sample?.risks || []).filter(r => r.severity === 'WARNING' || r.severity === 'CRITICAL')
       drawVideoRisks(canvasRef.current, video, risks)
-      if (warning && !risks.some(risk => videoWarningKey(risk) === videoWarningKey(warning))) warning = null
-      const dominant = [...risks].sort((a, b) => (b.severity === 'CRITICAL') - (a.severity === 'CRITICAL'))[0]
-      if (!dominant) warning = null
-      else if (!shown.has(videoWarningKey(dominant))) {
-        shown.add(videoWarningKey(dominant))
-        warning = { ...dominant, videoTimestamp: seconds }
+      for (const risk of risks) {
+        const popupId = videoWarningKey(risk)
+        if (shown.has(popupId)) continue
+        shown.add(popupId)
+        warnings = [{ ...risk, popupId, videoTimestamp: seconds, expiresAt: Date.now() + ALERT_POPUP_LIFETIME_MS }, ...warnings]
       }
       publish()
     }
@@ -57,11 +57,11 @@ export function useVideoFrameAnalysis(jobId, videoRef, canvasRef, enabled, autoP
         if (window.legacy) {
           legacy = true
           holding = false
-          warning = null
+          warnings = []
           drawVideoRisks(canvasRef.current, video, [])
         } else buffer.merge(window, video.currentTime)
         error = ''
-        nextFetch = Date.now() + (buffer.ahead(video.currentTime) > 1 ? 300 : 120)
+        nextFetch = Date.now() + (buffer.ahead(video.currentTime) > 1 ? 250 : 40)
       } catch (failure) {
         if (!disposed) {
           error = failure.response?.data?.message || 'Không tải được dữ liệu cảnh báo đồng bộ. Đang thử lại…'
@@ -70,13 +70,18 @@ export function useVideoFrameAnalysis(jobId, videoRef, canvasRef, enabled, autoP
       } finally { pending = false; publish() }
     }
     const tick = () => {
+      if (warnings.some(warning => warning.expiresAt <= Date.now())) {
+        warnings = warnings.filter(warning => warning.expiresAt > Date.now())
+        publish()
+      }
       if (disposed || legacy) return
       if (video.seeking) { holding = true; publish(); return }
       const position = video.currentTime
       const ahead = buffer.ahead(position)
       if (ahead < 1.5) void fetchAhead()
       if (!buffer.sample(position) || (wanted && ahead < 0.08)) hold()
-      if (holding && ahead >= 0.35 && video.readyState >= 2) {
+      const startBuffer = Math.max(0.08, 2 / (buffer.fps || 25))
+      if (holding && ahead >= startBuffer && video.readyState >= 2) {
         holding = false
         if (wanted && video.paused && !video.ended) {
           void video.play().catch(() => { wanted = false; publish() })
@@ -92,13 +97,13 @@ export function useVideoFrameAnalysis(jobId, videoRef, canvasRef, enabled, autoP
       publish()
     }
     const onEnded = () => {
-      wanted = false; holding = false; warning = null
+      wanted = false; holding = false
       drawVideoRisks(canvasRef.current, video, [])
       publish()
     }
     const onSeeking = () => {
       shown.clear()
-      warning = null
+      warnings = []
       nextFetch = 0
       drawVideoRisks(canvasRef.current, video, [])
       tick()
@@ -117,12 +122,12 @@ export function useVideoFrameAnalysis(jobId, videoRef, canvasRef, enabled, autoP
       const render = () => { if (!disposed) { if (!legacy) paint(video.currentTime); animationHandle = requestAnimationFrame(render) } }
       animationHandle = requestAnimationFrame(render)
     }
-    controls.current = { dismiss: () => { warning = null; publish() } }
+    controls.current = { dismiss: popupId => { warnings = warnings.filter(warning => warning.popupId !== popupId); publish() } }
     const events = { play: onPlay, pause: onPause, ended: onEnded, seeking: onSeeking, seeked: tick, loadeddata: tick, timeupdate: onTime }
     Object.entries(events).forEach(([event, handler]) => video.addEventListener(event, handler))
     const resize = new ResizeObserver(() => { if (!legacy) paint(video.currentTime) })
     resize.observe(video)
-    const timer = setInterval(tick, 50)
+    const timer = setInterval(tick, 25)
     void fetchAhead()
     return () => {
       disposed = true
@@ -136,6 +141,6 @@ export function useVideoFrameAnalysis(jobId, videoRef, canvasRef, enabled, autoP
       controls.current = null
     }
   }, [jobId, enabled, autoPlay, videoRef, canvasRef])
-  const dismissWarning = useCallback(() => controls.current?.dismiss(), [])
+  const dismissWarning = useCallback(popupId => controls.current?.dismiss(popupId), [])
   return { ...view, dismissWarning }
 }

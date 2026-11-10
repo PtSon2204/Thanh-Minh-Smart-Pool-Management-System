@@ -84,12 +84,12 @@ export default function VideoAnalysisPlayer({ jobId, seek, status, autoPlay = fa
     {alerts.isError && <Alert type="warning" title="Không tải được timeline cảnh báo" action={<Button onClick={() => alerts.refetch()}>Thử lại</Button>} />}
     {alerts.data?.totalCount > 100 && <Typography.Text>Timeline hiển thị 100 cảnh báo mới nhất; danh sách bên dưới có đầy đủ theo trang.</Typography.Text>}
     {status === 'COMPLETED' && <Button loading={downloading} onClick={downloadResult}>Tải video kết quả</Button>}
-    {sync.warning && <div className="safety-video-popup" role="alertdialog" aria-label="Cảnh báo trong video">
-      <Alert type={sync.warning.severity === 'CRITICAL' ? 'error' : 'warning'} showIcon closable onClose={sync.dismissWarning}
+    {sync.warnings.length > 0 && <div className="safety-video-popup" role="alertdialog" aria-label="Cảnh báo trong video">
+      {sync.warnings.map(warning => <Alert key={warning.popupId} type={warning.severity === 'CRITICAL' ? 'error' : 'warning'} showIcon closable onClose={() => sync.dismissWarning(warning.popupId)}
         title="Cảnh báo trong video" description={<Space orientation="vertical">
-          <strong>{sync.warning.severity === 'CRITICAL' ? 'Nguy cơ khẩn cấp' : 'Phát hiện dấu hiệu nguy cơ'}</strong>
-          <span>Thời điểm: {sync.warning.videoTimestamp.toFixed(2)} giây · Đối tượng {sync.warning.trackId}</span>
-        </Space>} />
+          <strong>{warning.severity === 'CRITICAL' ? 'Nguy cơ khẩn cấp' : 'Phát hiện dấu hiệu nguy cơ'}</strong>
+          <span>Thời điểm: {warning.videoTimestamp.toFixed(2)} giây · Đối tượng {warning.trackId}</span>
+        </Space>} />)}
     </div>}
   </Space>
 }

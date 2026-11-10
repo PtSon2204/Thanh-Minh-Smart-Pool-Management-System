@@ -24,6 +24,19 @@ try {
       expiresAtUtc: new Date(Date.now() + 300000).toISOString(),
     } }, version: 0 }))
     window.__draws = []
+    window.__mediaEvents = []
+    for (const name of ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'pause', 'waiting']) {
+      document.addEventListener(name, event => {
+        if (event.target instanceof HTMLVideoElement && window.__startupClickAt)
+          window.__mediaEvents.push({ name, at: performance.now() - window.__startupClickAt, time: event.target.currentTime })
+      }, true)
+    }
+    document.addEventListener('playing', event => {
+      const video = event.target
+      if (video instanceof HTMLVideoElement && window.__startupClickAt && !window.__firstPresentedAt) {
+        video.requestVideoFrameCallback(() => { window.__firstPresentedAt ??= performance.now() })
+      }
+    }, true)
     const original = CanvasRenderingContext2D.prototype.strokeRect
     CanvasRenderingContext2D.prototype.strokeRect = function (...args) {
       const video = document.querySelector('video[aria-label="Video phân tích đồng bộ cảnh báo"]')
@@ -34,6 +47,33 @@ try {
   const page = await context.newPage()
   const errors = []
   page.on('pageerror', failure => errors.push(failure.message))
+  const startupNetwork = []
+  let measuringStartup = true
+  page.on('response', async response => {
+    if (!measuringStartup || !response.url().includes('/api/video-analyses')) return
+    try {
+      const at = await page.evaluate(() => window.__startupClickAt ? performance.now() - window.__startupClickAt : null)
+      if (at == null) return
+      const data = response.url().includes('/window') ? await response.json() : null
+      startupNetwork.push({ at, path: new URL(response.url()).pathname, status: response.status(), readyFrames: data?.readyFrames })
+    } catch { /* Navigation can dispose a pending response. */ }
+  })
+  // First measure real inference-to-playback startup without intercepting metadata.
+  await page.goto(new URL('/admin/safety/video-analysis', vite.resolvedUrls.local[0]).href)
+  await page.locator('input[type=file]').setInputFiles(settings.input)
+  const begin = page.getByRole('button', { name: 'Bắt đầu phân tích', exact: true })
+  await begin.waitFor()
+  await page.waitForFunction(() => ![...document.querySelectorAll('button')].find(b => b.textContent === 'Bắt đầu phân tích')?.disabled)
+  await page.evaluate(() => { window.__startupClickAt = performance.now() })
+  await begin.click()
+  await page.waitForFunction(() => window.__firstPresentedAt != null)
+  const realStartupMs = await page.evaluate(() => window.__firstPresentedAt - window.__startupClickAt)
+  const realMediaEvents = await page.evaluate(() => window.__mediaEvents)
+  measuringStartup = false
+  const realJobId = await page.evaluate(() => localStorage.getItem('safety-analysis-job'))
+  // Wait for the measured upload to finish before starting the timing fixture below.
+  await page.getByText('Trạng thái: Đã hoàn tất', { exact: true }).waitFor({ timeout: 60000 })
+  assert.ok(realStartupMs > 0)
   let allowAll = false
   // Deterministic WARNING/CRITICAL frames validate browser timing independently of
   // the ML classes found in the fixture; upload, playback, job and auth use the real API.
@@ -86,7 +126,9 @@ try {
   assert.equal(await page.locator('video').evaluate(video => video.currentSrc), originalSource)
   await page.screenshot({ path: path.join(settings.root, 'backend/.test-runtime/video-sync-ui.png'), fullPage: true })
   assert.deepEqual(errors, [])
-  const report = { passed: true, warningFirstPaintSeconds: warning.time, criticalFirstPaintSeconds: critical.time,
+  const report = { passed: true, realStartupMs, realJobId, startupNetwork, realMediaEvents,
+    startupMeasurement: 'click to first presented video frame; real ONNX and HTTP, warm model; no metadata interception',
+    warningFirstPaintSeconds: warning.time, criticalFirstPaintSeconds: critical.time,
     checks: ['auto-start', 'buffer-if-ai-behind', 'frame-aligned-box', 'popup-at-playhead', 'seek-clears-old-box', 'stable-source-on-completion'] }
   await writeFile(path.join(settings.root, 'backend/.test-runtime/video-sync-results.json'), JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
