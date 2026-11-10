@@ -212,8 +212,11 @@ namespace SmartPool.Infrastructure
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
             // State trong bộ nhớ chia sẻ giữa worker AI LIVE và nguồn WebRTC AI (phải là instance duy nhất).
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>();
+            // Decisions (box) từng frame trong lúc video đang phân tích — cho phát song song overlay đúng 1:1.
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisState>();
             services.AddSingleton<SmartPool.Application.Interfaces.Services.ICameraFrameSource, SmartPool.Infrastructure.SafetyMonitoring.CameraFrameSource>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.ICameraAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>());
+            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoFrameAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisState>());
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IMonitoringRepository, SmartPool.Infrastructure.Persistence.Repositories.MonitoringRepository>();
             services.AddScoped<SmartPool.Application.Features.ManageEquipments.Queries.GetCameraList.ICameraListRepository, SmartPool.Infrastructure.Persistence.Repositories.Equipments.CameraListRepository>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoAnalysisService, SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisService>();

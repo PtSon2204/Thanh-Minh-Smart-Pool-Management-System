@@ -23,6 +23,10 @@ export const monitoringService = {
   upload: (file, onUploadProgress) => { const body = new FormData(); body.append('file', file); return apiClient.post('/api/video-analyses', body,
     { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress, timeout: 120000 }).then(r => r.data) },
   job: (id, signal) => apiClient.get(`/api/video-analyses/${id}`, { signal }).then(r => r.data),
+  // Decisions (box cảnh báo) của frame gần nhất tại `seconds` trong lúc job đang phân tích.
+  frameAnalysis: (id, seconds, signal) => apiClient.get(`/api/video-analyses/${id}/frame-analysis`, {
+    params: { seconds }, signal,
+  }).then(r => r.data),
   playback: (id, signal) => apiClient.get(`/api/video-analyses/${id}/playback`, {
     baseURL: import.meta.env.DEV ? '' : apiClient.defaults.baseURL, signal,
   }).then(({ data }) => ({

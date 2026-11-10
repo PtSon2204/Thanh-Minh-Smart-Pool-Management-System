@@ -81,4 +81,21 @@ public sealed class VideoAnalysisService(SmartPoolDbContext db, MonitoringFiles 
         if (!File.Exists(path)) throw new KeyNotFoundException();
         return path;
     }
+    // Phát song song với phân tích: khi job đang chạy thì trả file video gốc (đã tải xong từ QUEUED),
+    // khi COMPLETED thì trả video kết quả đã vẽ khung. Video gốc vẫn tồn tại xuyên suốt vòng đời job.
+    public async Task<string> LiveFileAsync(Guid id, Guid userId, bool admin, CancellationToken ct)
+    {
+        var job = await Find(id, userId, admin, ct) ?? throw new KeyNotFoundException();
+        var reference = job.Status switch
+        {
+            "COMPLETED" when job.OutputFile != null => job.OutputFile,
+            "QUEUED" or "PROCESSING" or "RENDERING" => job.InputFile,
+            _ => throw new MonitoringConflictException(job.Status == "UPLOADING"
+                ? "Video vẫn đang tải lên, chưa phát được."
+                : "Video chưa sẵn sàng để phát.")
+        };
+        var path = files.PathFor(reference);
+        if (!File.Exists(path)) throw new KeyNotFoundException();
+        return path;
+    }
 }

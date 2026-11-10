@@ -6,7 +6,8 @@ namespace SmartPool.Application.Features.SafetyMonitoring;
 
 public sealed record AlertDto(Guid Id, string SourceType, Guid? CameraId, Guid? VideoJobId, string? CameraName,
     string? Location, string? TrackId, string? RiskEpisode, string Severity, string Status, double? VideoTimestamp,
-    string? ImageUrl, string SnapshotStatus, Guid? IncidentId, Guid? HandledBy, DateTime? HandledAt, DateTime CreatedAt);
+    string? ImageUrl, string SnapshotStatus, Guid? IncidentId, Guid? HandledBy, DateTime? HandledAt, DateTime CreatedAt,
+    double[]? Box = null);
 public sealed record GetAlertsQuery(string? SourceType = null, Guid? CameraId = null, Guid? JobId = null,
     string? Status = null, int Page = 1, int PageSize = 20) : IRequest<PagedResponse<AlertDto>>;
 public sealed record GetAlertQuery(Guid Id) : IRequest<AlertDto>;

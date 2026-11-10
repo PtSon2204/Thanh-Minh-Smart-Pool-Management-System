@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Alert, Button, Card, Collapse, Input, Progress, Slider, Space, Spin, Typography, Upload, message } from 'antd'
 import { monitoringService } from '../../../features/safety/services/monitoringService'
+import { useVideoFrameAnalysis } from '../../../features/safety/hooks/useVideoFrameAnalysis'
 import AlertList from '../../../features/safety/components/AlertList'
 import './Monitoring.css'
 
@@ -29,7 +30,8 @@ function resultVideoErrorDetails(error) {
   return [status ? `HTTP ${status}` : null, error.code || error.name, error.message].filter(Boolean).join(' · ')
 }
 
-function ResultVideo({ jobId, seek }) {
+function ResultVideo({ jobId, seek, status }) {
+  const live = status !== 'COMPLETED'
   const video = useRef(null)
   const [source, setSource] = useState('')
   const [duration, setDuration] = useState(0)
@@ -38,13 +40,21 @@ function ResultVideo({ jobId, seek }) {
   const [errorDetails, setErrorDetails] = useState('')
   const [attempt, setAttempt] = useState(0)
   const alerts = useQuery({ queryKey: ['safety', 'video-timeline', jobId],
-    queryFn: ({ signal }) => monitoringService.alerts({ sourceType: 'UPLOAD', jobId, pageSize: 100 }, signal) })
+    queryFn: ({ signal }) => monitoringService.alerts({ sourceType: 'UPLOAD', jobId, pageSize: 100 }, signal),
+    // Đang phân tích thì kéo cảnh báo theo bước (AI tạo cảnh báo ở timestamp nào, marker hiện lên ở đó).
+    refetchInterval: live ? 3000 : false })
+  // Box cảnh báo theo từng frame (mặc định từ engine) — overlay lên video gốc khi phân tích song song,
+  // khớp đúng các khung đã vẽ trong video kết quả.
+  const { risks: frameRisks } = useVideoFrameAnalysis(jobId, position, live)
   const marks = {}
   for (const alert of alerts.data?.items || []) {
     if (alert.videoTimestamp != null && alert.videoTimestamp <= duration) marks[alert.videoTimestamp] = {
       label: <span title={`${alert.severity} · ${alert.videoTimestamp.toFixed(1)}s`} style={{ color: alert.severity === 'CRITICAL' ? '#EF4444' : '#F97316' }}>●</span>,
     }
   }
+  // Bounding box chuẩn hóa (0..1) của frame hiện tại khi phân tích song song — lấy từ backend
+  // (RAM worker) nên khớp 1:1 với các khung đã vẽ trong video kết quả, không bị thiếu.
+  const frameAlerts = frameRisks.filter(r => r.severity === 'WARNING' || r.severity === 'CRITICAL')
   useEffect(() => {
     const abort = new AbortController()
     monitoringService.playback(jobId, abort.signal).then(playback => {
@@ -61,19 +71,33 @@ function ResultVideo({ jobId, seek }) {
   return <Space orientation="vertical" style={{ width: '100%' }}>
     {error ? <Alert type="error" title={error} description={errorDetails ? <Typography.Text type="secondary">Chi tiết lỗi: {errorDetails}</Typography.Text> : undefined}
       action={<Button onClick={() => { setError(''); setErrorDetails(''); setAttempt(x => x + 1) }}>Thử lại</Button>} /> :
-      source ? <><video ref={video} src={source} controls playsInline preload="metadata" onTimeUpdate={() => setPosition(video.current.currentTime)}
+      source ? <>{live && <Alert type="info" title="Đang phát video gốc, song song với AI phân tích. Bounding box hiện trực tiếp trên video khi AI phát hiện; cảnh báo vào timeline cùng lúc." style={{ marginBottom: 8 }} />}
+        <div style={{ position: 'relative', maxWidth: 800, margin: 0, background: '#000' }}>
+        <video ref={video} style={{ display: 'block', maxWidth: '100%' }} src={source} controls playsInline preload="metadata" onTimeUpdate={() => setPosition(video.current.currentTime)}
         onError={event => {
           const code = event.currentTarget.error?.code
-          setError(code === 3 || code === 4 ? 'Trình duyệt không đọc được định dạng video kết quả.' : 'Không phát được video. Bấm “Thử lại” để tạo lại liên kết phát.')
+          setError(code === 3 || code === 4 ? 'Trình duyệt không đọc được định dạng video.' : 'Không phát được video. Bấm “Thử lại” để tạo lại liên kết phát.')
           setErrorDetails(code ? `MEDIA_ERR_${code}` : 'Không tải được luồng video')
         }}
         onLoadedMetadata={() => { setDuration(video.current.duration); if (seek) video.current.currentTime = seek.timestamp }} />
-        <Typography.Text>Timeline cảnh báo · Cam: Chú ý · Đỏ: Khẩn cấp</Typography.Text>
+        {/* Overlay bounding box cảnh báo khi đang phát song song: box lấy từ backend theo frame
+            (RAM worker), khớp 1:1 với các khung đã vẽ trong video kết quả. */}
+        {live && frameAlerts.map((r, i) => {
+          const [x1, y1, x2, y2] = r.box
+          const color = r.severity === 'CRITICAL' ? '#EF4444' : '#F97316'
+          return <div key={`${r.trackId}-${i}`} style={{ position: 'absolute', left: `${x1 * 100}%`, top: `${y1 * 100}%`, width: `${(x2 - x1) * 100}%`,
+            height: `${(y2 - y1) * 100}%`, border: `3px solid ${color}`, boxShadow: `0 0 0 2px rgba(0,0,0,.4) inset`, pointerEvents: 'none' }}>
+            <span style={{ position: 'absolute', left: 0, top: '-1.4em', background: color, color: '#fff', fontSize: 11, padding: '1px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>
+              {r.severity === 'CRITICAL' ? 'NGUY HIỂM' : 'CHÚ Ý'}</span>
+          </div>
+        })}
+        </div>
+        <Typography.Text>Timeline cảnh báo · Cam: Chú ý · Đỏ: Khẩn cấp{live ? ' · cập nhật khi AI phân tích' : ''}</Typography.Text>
         <Slider aria-label="Timeline cảnh báo video" min={0} max={duration || 1} step={0.1} value={position} marks={marks}
           onChange={timestamp => { video.current.currentTime = timestamp; setPosition(timestamp) }} />
         {alerts.isError && <Alert type="warning" title="Không tải được timeline cảnh báo" action={<Button onClick={() => alerts.refetch()}>Thử lại</Button>} />}
         {alerts.data?.totalCount > 100 && <Typography.Text>Timeline hiển thị 100 cảnh báo mới nhất. Danh sách bên dưới có đầy đủ theo trang.</Typography.Text>}
-        <a href={`${source}&download=true`} download={`analysis-${jobId}.mp4`}>Tải video kết quả</a></> : <Spin />}
+        {!live && <a href={`${source}&download=true`} download={`analysis-${jobId}.mp4`}>Tải video kết quả</a>}</> : <Spin />}
   </Space>
 }
 
@@ -130,7 +154,8 @@ export default function VideoAnalysisPage() {
       {job.data.status === 'FAILED' && <p>Chọn lại video ở phần tải lên rồi bấm “Bắt đầu phân tích” để thử lại.</p>}
       <div className="analysis-reference"><Typography.Text type="secondary">Mã lần phân tích: </Typography.Text>
         <Typography.Text copyable={{ tooltips: ['Sao chép mã để xem lại', 'Đã sao chép'] }}>{jobId}</Typography.Text></div>
-      {job.data.status === 'COMPLETED' && <ResultVideo key={jobId} jobId={jobId} seek={seek} />}
+      {['QUEUED', 'PROCESSING', 'RENDERING', 'COMPLETED'].includes(job.data.status)
+        && <ResultVideo key={`${jobId}-${job.data.status}`} jobId={jobId} seek={seek} status={job.data.status} />}
     </Card>}
     {job.data && <Card title="Cảnh báo trong video"><AlertList key={jobId} sourceType="UPLOAD" jobId={jobId}
       onDetail={alert => setSeek({ timestamp: alert.videoTimestamp || 0, id: alert.id })} /></Card>}

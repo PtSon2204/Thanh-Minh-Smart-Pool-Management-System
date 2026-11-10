@@ -19,7 +19,7 @@ public sealed class MonitoringRepository(SmartPoolDbContext db, INotificationSer
     private static readonly System.Linq.Expressions.Expression<Func<Warning, AlertDto>> Projection = x => new AlertDto(
         x.Id, x.SourceType, x.CamId, x.VideoJobId, x.Cam == null ? null : x.Cam.Name, x.Cam == null ? null : x.Cam.Location,
         x.TrackId, x.RiskEpisode, x.SeverityLevel.ToUpper(), x.Status.ToUpper(), x.VideoTimestamp, x.ImageUrl, x.SnapshotStatus,
-        x.IncidentId, x.VerifiedBy, x.VerifiedAt, x.CreatedAt);
+        x.IncidentId, x.VerifiedBy, x.VerifiedAt, x.CreatedAt, x.Box);
 
     public async Task<PagedResponse<AlertDto>> ListAsync(GetAlertsQuery request, Guid userId, bool admin, CancellationToken ct)
     {
@@ -96,6 +96,7 @@ public sealed class MonitoringRepository(SmartPoolDbContext db, INotificationSer
                 VideoJobId = command.SourceType == "UPLOAD" ? command.SourceId : null, TrackId = d.TrackId, RiskEpisode = prefix + Guid.NewGuid().ToString("N"),
                 WarningTime = command.ObservedAt, VideoTimestamp = command.SourceType == "UPLOAD" ? d.Timestamp : null,
                 SeverityLevel = d.Severity, Status = "PENDING", Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1),
+                Box = d.Box,
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
             // Mọi cảnh báo (LIVE/UPLOAD, WARNING/CRITICAL) đều chờ chụp ảnh snapshot; worker đánh dấu PENDING khi đã đủ source.
             warning.SnapshotStatus = "CAPTURING";
@@ -103,11 +104,13 @@ public sealed class MonitoringRepository(SmartPoolDbContext db, INotificationSer
         }
         else if (escalate) { warning!.SeverityLevel = "CRITICAL"; warning.UpdatedAt = DateTime.UtcNow; warning.WarningTime = command.ObservedAt;
             warning.Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1);
+            warning.Box = d.Box;
             if (command.SourceType == "UPLOAD") warning.VideoTimestamp = d.Timestamp;
             warning.SnapshotStatus = "CAPTURING"; }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         var dto = await GetAsync(warning!.Id, Guid.Empty, true, ct);
-        if (command.SourceType == "LIVE" && (created || escalate)) await PublishAsync(created ? "alert_created" : "alert_escalated", dto);
+        // UPLOAD broadcast tới nhóm vận hành an toàn giống LIVE (popup/còi/TTS realtime trên mọi trang).
+        if (created || escalate) await PublishAsync(created ? "alert_created" : "alert_escalated", dto);
         return new(dto, created || escalate);
     }
 

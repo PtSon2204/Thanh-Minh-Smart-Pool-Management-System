@@ -36,7 +36,17 @@ export function useGlobalSafetyAlerts(enabled) {
   const resync = useCallback(async () => {
     try {
       const data = await monitoringService.alerts({ status: 'PENDING' })
-      setActive((data?.items || []).filter(a => !dismissed.current.has(a.id)))
+      const now = Date.now()
+      // Chỉ nhận cảnh báo PENDING mới (2 phút) — tránh mỗi lần đăng nhập/kết nối lại
+      // kéo lê cả đống cảnh báo cũ trong DB vào popup. Cảnh báo cũ vẫn xem được trong
+      // bảng "Cảnh báo trong video"/lịch sử, không cần reo lại. Cảnh báo đang chạy
+      // (đã lên qua sự kiện realtime) không bị gỡ khi resync.
+      const fresh = (data?.items || []).filter(a => {
+        if (dismissed.current.has(a.id)) return false
+        const created = Date.parse(a.createdAt)
+        return Number.isFinite(created) && now - created <= 2 * 60 * 1000
+      })
+      setActive(list => [...fresh, ...list.filter(a => !fresh.some(f => f.id === a.id))])
     } catch {
       // Trạng thái offline: giữ popup hiện có, sự kiện tiếp theo sẽ cập nhật.
     }

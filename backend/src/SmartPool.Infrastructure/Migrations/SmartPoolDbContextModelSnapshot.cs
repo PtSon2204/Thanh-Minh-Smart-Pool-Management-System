@@ -2929,6 +2929,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
+                    b.Property<double[]>("Box")
+                        .HasColumnType("double precision[]")
+                        .HasColumnName("box");
+
                     b.Property<Guid?>("CamId")
                         .HasColumnType("uuid")
                         .HasColumnName("cam_id");
