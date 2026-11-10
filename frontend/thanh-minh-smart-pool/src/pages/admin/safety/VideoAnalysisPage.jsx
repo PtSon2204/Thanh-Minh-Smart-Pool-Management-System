@@ -33,6 +33,7 @@ function resultVideoErrorDetails(error) {
 function ResultVideo({ jobId, seek, status }) {
   const live = status !== 'COMPLETED'
   const video = useRef(null)
+  const restore = useRef(null)
   const [source, setSource] = useState('')
   const [duration, setDuration] = useState(0)
   const [position, setPosition] = useState(0)
@@ -59,6 +60,7 @@ function ResultVideo({ jobId, seek, status }) {
     const abort = new AbortController()
     monitoringService.playback(jobId, abort.signal).then(playback => {
       if (abort.signal.aborted) return
+      if (video.current) restore.current = { time: video.current.currentTime, playing: !video.current.paused }
       setSource(playback.url); setError(''); setErrorDetails('')
     }).catch(error => {
       if (!abort.signal.aborted) {
@@ -66,20 +68,26 @@ function ResultVideo({ jobId, seek, status }) {
       }
     })
     return () => abort.abort()
-  }, [jobId, attempt])
+  }, [jobId, live, attempt])
   useEffect(() => { if (video.current && seek) video.current.currentTime = seek.timestamp }, [seek])
   return <Space orientation="vertical" style={{ width: '100%' }}>
     {error ? <Alert type="error" title={error} description={errorDetails ? <Typography.Text type="secondary">Chi tiết lỗi: {errorDetails}</Typography.Text> : undefined}
       action={<Button onClick={() => { setError(''); setErrorDetails(''); setAttempt(x => x + 1) }}>Thử lại</Button>} /> :
       source ? <>{live && <Alert type="info" title="Đang phát video gốc, song song với AI phân tích. Bounding box hiện trực tiếp trên video khi AI phát hiện; cảnh báo vào timeline cùng lúc." style={{ marginBottom: 8 }} />}
         <div style={{ position: 'relative', maxWidth: 800, margin: 0, background: '#000' }}>
-        <video ref={video} style={{ display: 'block', maxWidth: '100%' }} src={source} controls playsInline preload="metadata" onTimeUpdate={() => setPosition(video.current.currentTime)}
+        <video ref={video} style={{ display: 'block', width: '100%' }} src={source} controls playsInline preload="metadata" onTimeUpdate={() => setPosition(video.current.currentTime)}
+        onSeeking={() => setPosition(video.current.currentTime)}
         onError={event => {
           const code = event.currentTarget.error?.code
           setError(code === 3 || code === 4 ? 'Trình duyệt không đọc được định dạng video.' : 'Không phát được video. Bấm “Thử lại” để tạo lại liên kết phát.')
           setErrorDetails(code ? `MEDIA_ERR_${code}` : 'Không tải được luồng video')
         }}
-        onLoadedMetadata={() => { setDuration(video.current.duration); if (seek) video.current.currentTime = seek.timestamp }} />
+        onLoadedMetadata={() => {
+          setDuration(video.current.duration)
+          video.current.currentTime = restore.current?.time ?? seek?.timestamp ?? 0
+          if (restore.current?.playing) void video.current.play().catch(() => {})
+          restore.current = null
+        }} />
         {/* Overlay bounding box cảnh báo khi đang phát song song: box lấy từ backend theo frame
             (RAM worker), khớp 1:1 với các khung đã vẽ trong video kết quả. */}
         {live && frameAlerts.map((r, i) => {
@@ -155,7 +163,7 @@ export default function VideoAnalysisPage() {
       <div className="analysis-reference"><Typography.Text type="secondary">Mã lần phân tích: </Typography.Text>
         <Typography.Text copyable={{ tooltips: ['Sao chép mã để xem lại', 'Đã sao chép'] }}>{jobId}</Typography.Text></div>
       {['QUEUED', 'PROCESSING', 'RENDERING', 'COMPLETED'].includes(job.data.status)
-        && <ResultVideo key={`${jobId}-${job.data.status}`} jobId={jobId} seek={seek} status={job.data.status} />}
+        && <ResultVideo key={jobId} jobId={jobId} seek={seek} status={job.data.status} />}
     </Card>}
     {job.data && <Card title="Cảnh báo trong video"><AlertList key={jobId} sourceType="UPLOAD" jobId={jobId}
       onDetail={alert => setSeek({ timestamp: alert.videoTimestamp || 0, id: alert.id })} /></Card>}

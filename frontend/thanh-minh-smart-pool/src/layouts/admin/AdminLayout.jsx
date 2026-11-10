@@ -182,7 +182,7 @@ export default function AdminLayout() {
     [startAlarm, stopAlarm, notifApi],
   );
 
-  useSafetyAlertSignalR({ onAlert: handleGlobalAlert, enabled: true });
+  useSafetyAlertSignalR({ onAlert: handleGlobalAlert, enabled: location.pathname !== '/admin/safety/activate-alerts' });
 
   useEffect(() => {
     return () => {

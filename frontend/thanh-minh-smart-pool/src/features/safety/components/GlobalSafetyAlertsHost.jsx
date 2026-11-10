@@ -19,14 +19,12 @@ export default function GlobalSafetyAlertsHost() {
   const { startAlarm, stopAlarm } = useAlarmSound()
   useSafetyTts(enabled, top, isCritical)
 
-  // Chỉ re-run khi id cảnh báo đầu đổi (khác object mới mỗi lần resync): giữ còi
-  // không bị cắt/giữa chừng khi dữ liệu alert cập nhật nội bộ.
+  const critical = isCritical(top)
   useEffect(() => {
-    if (!top) return undefined
-    startAlarm(isCritical(top) ? 'EMERGENCY' : 'WARNING')
+    if (!enabled || !top?.id) return undefined
+    startAlarm(critical ? 'EMERGENCY' : 'WARNING')
     return () => stopAlarm()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [top?.id])
+  }, [enabled, top?.id, critical, startAlarm, stopAlarm])
 
   if (!enabled || !top) return null
   return <div style={{ position: 'fixed', insetInline: 0, top: 64, zIndex: 1050, display: 'flex', justifyContent: 'center', padding: '0 16px' }} role="alertdialog" aria-label="Cảnh báo an toàn">

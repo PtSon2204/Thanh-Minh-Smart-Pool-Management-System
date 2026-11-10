@@ -1,35 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { monitoringService } from '../services/monitoringService'
+import { currentVideoRisks } from '../utils/videoFrameState'
 
-/**
- * Kéo decisions (box cảnh báo) của frame gần nhất theo vị trí phát hiện tại, dùng để
- * overlay bounding box lên video GÓC khi AI đang phân tích song song — khớp 1:1 với
- * video kết quả (vẽ khung sẵn) khi hoàn tất. Backend (RAM worker) trả decisions của
- * frame đã phân tích <= vị trí playhead, nên box "theo kịp" video mà không chờ hết video.
- * Poll ~500ms (nhanh hơn interval cảnh báo 3s) để box mượt khi video chạy.
- */
+// Không giữ box của job/vị trí trước khi seek hoặc khi request mới thất bại.
 export function useVideoFrameAnalysis(jobId, position, enabled) {
-  const [data, setData] = useState(null)
-  const timer = useRef(null)
-
+  const [sample, setSample] = useState(null)
   useEffect(() => {
-    if (!enabled) return undefined
+    if (!enabled || !jobId) return undefined
     let cancelled = false
+    let timer
+    const abort = new AbortController()
     const tick = async () => {
       try {
-        const result = await monitoringService.frameAnalysis(jobId, position)
-        if (!cancelled) setData(result)
+        const result = await monitoringService.frameAnalysis(jobId, position, abort.signal)
+        if (!cancelled) setSample({ jobId, position, result })
       } catch {
-        // 403 (không quyền job) hoặc backend chưa có endpoint: giữ khung trống, tick tiếp.
+        if (!cancelled) setSample(null)
       }
-      if (!cancelled) timer.current = setTimeout(tick, 500)
+      if (!cancelled) timer = setTimeout(tick, 500)
     }
-    tick()
-    return () => { cancelled = true; if (timer.current) clearTimeout(timer.current) }
+    void tick()
+    return () => { cancelled = true; abort.abort(); clearTimeout(timer) }
   }, [jobId, position, enabled])
-
-  // risks: box cảnh báo của frame gần nhất (khớp đúng các khung đã vẽ trong video kết quả).
-  // ready: backend đã trả dữ liệu (dù rỗng = frame này không có cảnh báo — khác lỗi mạng).
-  const risks = data?.risks || []
-  return { risks, ready: data != null }
+  const current = enabled && sample?.jobId === jobId && sample?.position === position ? sample.result : null
+  return { risks: currentVideoRisks(current, position), ready: current != null }
 }

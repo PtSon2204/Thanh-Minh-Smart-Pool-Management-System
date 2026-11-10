@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
+  Alert,
+  message,
   Table,
   Card,
   Row,
@@ -18,7 +20,6 @@ import {
 } from 'antd'
 import {
   AlertOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
   EyeOutlined,
   ReloadOutlined,
@@ -30,7 +31,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import safetyAlertService from '../../../features/safety/services/safetyAlertService'
-import { useSafetyAlertSignalR } from '../../../features/safety/hooks/useSafetyAlertSignalR'
+import { useIncidentEvents } from '../../../features/safety/hooks/useIncidentEvents'
 import './IncidentHistoryPage.css'
 
 const { Title, Text } = Typography
@@ -48,6 +49,8 @@ const SEVERITIES = [
   { value: 'WARNING', label: 'Cảnh báo' },
 ]
 
+const STATUS_LABELS = { Pending: 'Chờ xử lý', 'In Progress': 'Đang xử lý', Resolved: 'Đã xử lý' }
+
 const SOURCES = [
   { value: 'Tất cả', label: 'Tất cả nguồn' },
   { value: 'camera', label: 'Camera AI' },
@@ -57,6 +60,9 @@ const SOURCES = [
 export default function IncidentHistoryPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [resolutionNote, setResolutionNote] = useState('')
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -91,6 +97,7 @@ export default function IncidentHistoryPage() {
 
     const fetchData = async () => {
       setLoading(true)
+      setError('')
       try {
         const params = {
           pageNumber: page,
@@ -98,6 +105,7 @@ export default function IncidentHistoryPage() {
           search: searchText.trim() || undefined,
           zone: selectedZone !== 'Tất cả' ? selectedZone : undefined,
           severityLevel: selectedSeverity !== 'Tất cả' ? selectedSeverity : undefined,
+          sourceType: selectedSource !== 'Tất cả' ? selectedSource : undefined,
           fromDate: dateRange?.[0] ? dateRange[0].startOf('day').toISOString() : undefined,
           toDate: dateRange?.[1] ? dateRange[1].endOf('day').toISOString() : undefined,
         }
@@ -107,10 +115,10 @@ export default function IncidentHistoryPage() {
           const items = res.items || []
           const cameraCount =
             res.cameraCount ??
-            items.filter((x) => x.imageIncidents || x.sourceType?.toLowerCase().includes('camera')).length
+            items.filter((x) => x.sourceType === 'Camera AI giám sát').length
           const emergencyCount =
             res.emergencyCount ?? items.filter((x) => x.severityLevel === 'EMERGENCY').length
-          const total = res.totalIncidents || res.totalCount || items.length
+          const total = res.totalIncidents ?? res.totalCount ?? items.length
           const lifeguardCount = res.lifeguardCount ?? Math.max(0, total - cameraCount)
 
           setData(items)
@@ -123,90 +131,11 @@ export default function IncidentHistoryPage() {
           })
         }
       } catch (err) {
-        console.warn('[IncidentHistoryPage] fetch error:', err)
         if (!ignore) {
-          const demoItems = [
-            {
-              id: 'demo-1',
-              incidentCode: 'INC-2026-001',
-              title: 'Cảnh báo cứu hộ: Bể lớn',
-              zone: 'Bể lớn',
-              severityLevel: 'EMERGENCY',
-              status: 'Resolved',
-              description:
-                'Camera AI phát hiện vị trí khách có dấu hiệu đuối nước tại độ sâu 1.8m làn số 3',
-              incidentTime: dayjs().subtract(10, 'minute').toISOString(),
-              reportedByName: 'Hệ thống AI Camera',
-              imageIncidents:
-                'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?q=80&w=800&auto=format&fit=crop',
-              sourceType: 'Camera AI giám sát',
-            },
-            {
-              id: 'demo-2',
-              incidentCode: 'INC-2026-002',
-              title: 'Cảnh báo cứu hộ: Bể trẻ em',
-              zone: 'Bể trẻ em',
-              severityLevel: 'EMERGENCY',
-              status: 'Resolved',
-              description:
-                'Cứu hộ viên phát hiện trẻ nhỏ trượt ngã sát mép nước, đã tiếp cận sơ cứu tại chỗ',
-              incidentTime: dayjs().subtract(1, 'hour').toISOString(),
-              reportedByName: 'Cứu hộ viên Nguyễn Văn An',
-              imageIncidents: null,
-              sourceType: 'Cứu hộ viên phát hiện thực tế',
-            },
-            {
-              id: 'demo-3',
-              incidentCode: 'INC-2026-003',
-              title: 'Cảnh báo an toàn: Bể lớn',
-              zone: 'Bể lớn',
-              severityLevel: 'WARNING',
-              status: 'Resolved',
-              description:
-                'Camera AI giám sát phát hiện người bơi vi phạm ranh giới phao ngăn làn số 2',
-              incidentTime: dayjs().subtract(3, 'hour').toISOString(),
-              reportedByName: 'Hệ thống AI Camera',
-              imageIncidents:
-                'https://images.unsplash.com/photo-1519315901367-f34ff9154487?q=80&w=800&auto=format&fit=crop',
-              sourceType: 'Camera AI giám sát',
-            },
-            {
-              id: 'demo-4',
-              incidentCode: 'INC-2026-004',
-              title: 'Cảnh báo an toàn: Bể trẻ em',
-              zone: 'Bể trẻ em',
-              severityLevel: 'WARNING',
-              status: 'Resolved',
-              description:
-                'Khách đông đùa nghịch quá giới hạn tại chân cầu trượt, cứu hộ viên đã thổi còi nhắc nhở',
-              incidentTime: dayjs().subtract(6, 'hour').toISOString(),
-              reportedByName: 'Giám sát viên Lê Thị Thảo',
-              imageIncidents: null,
-              sourceType: 'Cứu hộ viên phát hiện thực tế',
-            },
-            {
-              id: 'demo-5',
-              incidentCode: 'INC-2026-005',
-              title: 'Cảnh báo cứu hộ: Bể lớn',
-              zone: 'Bể lớn',
-              severityLevel: 'EMERGENCY',
-              status: 'Resolved',
-              description:
-                'Cứu hộ viên phát hiện khách bơi có triệu chứng chuột rút giữa lòng bể, đã hỗ trợ phao vào bờ',
-              incidentTime: dayjs().subtract(1, 'day').toISOString(),
-              reportedByName: 'Cứu hộ viên Trần Đình Trọng',
-              imageIncidents: null,
-              sourceType: 'Cứu hộ viên phát hiện thực tế',
-            },
-          ]
-          setData(demoItems)
-          setTotalCount(demoItems.length)
-          setStats({
-            total: demoItems.length,
-            emergency: 3,
-            cameraCount: 2,
-            lifeguardCount: 3,
-          })
+          setError(err.response?.data?.message || 'Không tải được lịch sử sự cố. Vui lòng thử lại.')
+          setData([])
+          setTotalCount(0)
+          setStats({ total: 0, emergency: 0, cameraCount: 0, lifeguardCount: 0 })
         }
       } finally {
         if (!ignore) {
@@ -220,36 +149,28 @@ export default function IncidentHistoryPage() {
     return () => {
       ignore = true
     }
-  }, [page, pageSize, searchText, selectedZone, selectedSeverity, dateRange, refreshKey])
+  }, [page, pageSize, searchText, selectedZone, selectedSeverity, selectedSource, dateRange, refreshKey])
 
-  // Lắng nghe SignalR khi có sự cố mới để tự động làm mới
-  useSafetyAlertSignalR({
-    onAlert: () => {
-      triggerRefresh()
-    },
-    enabled: true,
-  })
+  useIncidentEvents(triggerRefresh)
 
   // Mở modal xem chi tiết
   const handleOpenDetail = useCallback((record) => {
     setSelectedIncident(record)
+    setResolutionNote('')
     setDetailModalOpen(true)
   }, [])
 
-  // Lọc theo Nguồn phát hiện (Camera AI vs Cứu hộ viên)
-  const displayedData = useMemo(() => {
-    if (selectedSource === 'camera') {
-      return data.filter(
-        (x) => !!x.imageIncidents || x.sourceType?.toLowerCase().includes('camera'),
-      )
-    }
-    if (selectedSource === 'lifeguard') {
-      return data.filter(
-        (x) => !x.imageIncidents && !x.sourceType?.toLowerCase().includes('camera'),
-      )
-    }
-    return data
-  }, [data, selectedSource])
+  const updateIncident = async status => {
+    setSaving(true)
+    try {
+      await safetyAlertService.confirmIncident(selectedIncident.id, { status, resolutionNote: resolutionNote.trim() || null })
+      message.success('Đã cập nhật sự cố')
+      setDetailModalOpen(false)
+      triggerRefresh()
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không cập nhật được sự cố')
+    } finally { setSaving(false) }
+  }
 
   // Cấu hình các cột hiển thị trên bảng danh sách (chỉ giữ các trường đại diện)
   const columns = useMemo(
@@ -280,7 +201,7 @@ export default function IncidentHistoryPage() {
         width: 150,
         render: (zone) => (
           <Tag color="cyan" icon={<EnvironmentOutlined />}>
-            {zone || 'Bể lớn'}
+            {zone || 'Chưa xác định'}
           </Tag>
         ),
       },
@@ -297,6 +218,11 @@ export default function IncidentHistoryPage() {
             </Tag>
           )
         },
+      },
+      {
+        title: 'Trạng thái',
+        dataIndex: 'status',
+        render: status => <Tag color={status === 'Resolved' ? 'success' : 'warning'}>{STATUS_LABELS[status] || status}</Tag>,
       },
       {
         title: 'Thao tác',
@@ -410,7 +336,7 @@ export default function IncidentHistoryPage() {
               placeholder="Tìm theo mã sự cố, nội dung, người báo..."
               prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => { setSearchText(e.target.value); setPage(1) }}
               onPressEnter={triggerRefresh}
               allowClear
             />
@@ -418,7 +344,7 @@ export default function IncidentHistoryPage() {
           <Col xs={12} sm={6} md={4}>
             <Select
               value={selectedZone}
-              onChange={setSelectedZone}
+              onChange={value => { setSelectedZone(value); setPage(1) }}
               options={ZONES}
               style={{ width: '100%' }}
             />
@@ -426,7 +352,7 @@ export default function IncidentHistoryPage() {
           <Col xs={12} sm={6} md={4}>
             <Select
               value={selectedSeverity}
-              onChange={setSelectedSeverity}
+              onChange={value => { setSelectedSeverity(value); setPage(1) }}
               options={SEVERITIES}
               style={{ width: '100%' }}
             />
@@ -434,7 +360,7 @@ export default function IncidentHistoryPage() {
           <Col xs={12} sm={6} md={4}>
             <Select
               value={selectedSource}
-              onChange={setSelectedSource}
+              onChange={value => { setSelectedSource(value); setPage(1) }}
               options={SOURCES}
               style={{ width: '100%' }}
             />
@@ -442,7 +368,7 @@ export default function IncidentHistoryPage() {
           <Col xs={24} sm={12} md={5}>
             <RangePicker
               value={dateRange}
-              onChange={setDateRange}
+              onChange={value => { setDateRange(value); setPage(1) }}
               format="DD/MM/YYYY"
               placeholder={['Từ ngày', 'Đến ngày']}
               style={{ width: '100%' }}
@@ -451,11 +377,12 @@ export default function IncidentHistoryPage() {
         </Row>
       </Card>
 
+      {error && <Alert type="error" title={error} action={<Button onClick={triggerRefresh}>Thử lại</Button>} />}
       {/* ── Bảng danh sách lịch sử ── */}
       <Card className="incident-table-card" bordered={false}>
         <Table
           columns={columns}
-          dataSource={displayedData}
+          dataSource={data}
           rowKey={(r) => r.id}
           loading={loading}
           pagination={{
@@ -489,6 +416,8 @@ export default function IncidentHistoryPage() {
         open={detailModalOpen}
         onCancel={() => setDetailModalOpen(false)}
         footer={[
+          selectedIncident?.status === 'Pending' && <Button key="start" loading={saving} onClick={() => updateIncident('In Progress')}>Bắt đầu xử lý</Button>,
+          selectedIncident?.status !== 'Resolved' && <Button key="resolve" type="primary" loading={saving} onClick={() => updateIncident('Resolved')}>Xác nhận đã xử lý</Button>,
           <Button key="close" type="primary" onClick={() => setDetailModalOpen(false)}>
             Đóng
           </Button>,
@@ -506,7 +435,7 @@ export default function IncidentHistoryPage() {
               </Descriptions.Item>
               <Descriptions.Item label="Khu vực" span={1}>
                 <Tag color="cyan" icon={<EnvironmentOutlined />}>
-                  {selectedIncident.zone || 'Bể lớn'}
+                  {selectedIncident.zone || 'Chưa xác định'}
                 </Tag>
               </Descriptions.Item>
 
@@ -529,8 +458,7 @@ export default function IncidentHistoryPage() {
               </Descriptions.Item>
 
               <Descriptions.Item label="Nguồn phát hiện" span={1}>
-                {selectedIncident.imageIncidents ||
-                selectedIncident.sourceType?.toLowerCase().includes('camera') ? (
+                {selectedIncident.sourceType === 'Camera AI giám sát' ? (
                   <Tag color="purple" icon={<VideoCameraOutlined />}>
                     Camera AI giám sát
                   </Tag>
@@ -542,26 +470,26 @@ export default function IncidentHistoryPage() {
               </Descriptions.Item>
               <Descriptions.Item label="Người / Thiết bị báo" span={1}>
                 <Space size={4}>
-                  {selectedIncident.imageIncidents ||
-                  selectedIncident.sourceType?.toLowerCase().includes('camera') ? (
+                  {selectedIncident.sourceType === 'Camera AI giám sát' ? (
                     <VideoCameraOutlined style={{ color: '#7c3aed' }} />
                   ) : (
                     <UserOutlined style={{ color: '#0284c7' }} />
                   )}
                   <span>
                     {selectedIncident.reportedByName ||
-                      (selectedIncident.imageIncidents ? 'Hệ thống AI Camera' : 'Cứu hộ viên')}
+                      (selectedIncident.sourceType === 'Camera AI giám sát' ? 'Hệ thống AI Camera' : 'Cứu hộ viên')}
                   </span>
                 </Space>
               </Descriptions.Item>
 
               <Descriptions.Item label="Trạng thái" span={2}>
-                <Tag color="success" icon={<CheckCircleOutlined />}>
-                  Đã ghi nhận sự cố
+                <Tag color={selectedIncident.status === 'Resolved' ? 'success' : 'warning'}>
+                  {STATUS_LABELS[selectedIncident.status] || selectedIncident.status}
                 </Tag>
               </Descriptions.Item>
             </Descriptions>
 
+            {selectedIncident.status !== 'Resolved' && <Input.TextArea aria-label="Ghi chú xử lý" placeholder="Ghi chú xử lý sự cố" value={resolutionNote} onChange={e => setResolutionNote(e.target.value)} style={{ marginTop: 16 }} />}
             <Divider style={{ margin: '16px 0' }} />
 
             <div>
@@ -582,7 +510,7 @@ export default function IncidentHistoryPage() {
                   <Space>
                     <VideoCameraOutlined style={{ color: '#7c3aed', fontSize: 16 }} />
                     <Text strong style={{ color: '#1e293b' }}>
-                      Hình ảnh trích xuất từ Camera AI:
+                      {selectedIncident.sourceType === 'Camera AI giám sát' ? 'Hình ảnh trích xuất từ Camera AI:' : 'Hình ảnh sự cố do nhân viên cung cấp:'}
                     </Text>
                   </Space>
                   <Tag color="purple">Ảnh chụp snapshot</Tag>
@@ -590,7 +518,7 @@ export default function IncidentHistoryPage() {
                 <div className="incident-image-container">
                   <Image
                     src={selectedIncident.imageIncidents}
-                    alt="Ảnh chụp sự cố từ Camera AI"
+                    alt="Ảnh chụp sự cố"
                     className="incident-camera-img"
                     style={{
                       maxHeight: 340,
@@ -617,10 +545,10 @@ export default function IncidentHistoryPage() {
                   </div>
                   <div>
                     <div className="manual-source-title">
-                      Sự cố do cứu hộ viên phát hiện thực tế tại bể
+                      {selectedIncident.sourceType === 'Camera AI giám sát' ? 'Sự cố do Camera AI phát hiện' : 'Sự cố do cứu hộ viên phát hiện thực tế tại bể'}
                     </div>
                     <div className="manual-source-desc">
-                      Cảnh báo được nhân viên cứu hộ trực tiếp phát hiện và kích hoạt chuông cứu hộ tại bể. Không có hình ảnh trích xuất từ Camera AI.
+                      {selectedIncident.sourceType === 'Camera AI giám sát' ? 'Ảnh cảnh báo chưa sẵn sàng.' : 'Cảnh báo được nhân viên cứu hộ trực tiếp phát hiện. Chưa có hình ảnh kèm theo.'}
                     </div>
                   </div>
                 </Space>

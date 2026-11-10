@@ -109,8 +109,9 @@ public sealed class MonitoringRepository(SmartPoolDbContext db, INotificationSer
             warning.SnapshotStatus = "CAPTURING"; }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         var dto = await GetAsync(warning!.Id, Guid.Empty, true, ct);
-        // UPLOAD broadcast tới nhóm vận hành an toàn giống LIVE (popup/còi/TTS realtime trên mọi trang).
-        if (created || escalate) await PublishAsync(created ? "alert_created" : "alert_escalated", dto);
+        // Video tải lên là phân tích ngoại tuyến, không phát còi/popup cứu hộ hoặc lộ job cho người khác.
+        if (command.SourceType == "LIVE" && (created || escalate))
+            await PublishAsync(created ? "alert_created" : "alert_escalated", dto);
         return new(dto, created || escalate);
     }
 
@@ -122,7 +123,8 @@ public sealed class MonitoringRepository(SmartPoolDbContext db, INotificationSer
         if (warning.IncidentId is Guid incidentId)
             await db.Incidents.Where(x => x.Id == incidentId).ExecuteUpdateAsync(set => set.SetProperty(x => x.ImageIncidents, url), ct);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
-        await PublishAsync("alert_updated", await GetAsync(id, Guid.Empty, true, ct));
+        if (warning.SourceType == "LIVE")
+            await PublishAsync("alert_updated", await GetAsync(id, Guid.Empty, true, ct));
     }
 
     private async Task PublishAsync(string name, AlertDto dto)

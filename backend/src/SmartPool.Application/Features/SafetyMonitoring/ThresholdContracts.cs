@@ -56,7 +56,7 @@ public interface IRiskThresholds
     /// <summary>Áp bảng DB (nếu có) lên <see cref="Current"/> khi khởi động; DB lỗi thì giữ giá trị appsettings.</summary>
     Task InitializeAsync(CancellationToken ct);
 
-    /// <summary>Giá trị hiệu lực hiện tại: bảng DB (Origin=DATABASE) hoặc appsettings (Origin=APPSSETTINGS).</summary>
+    /// <summary>Giá trị hiệu lực hiện tại: bảng DB (Origin=DATABASE) hoặc appsettings (Origin=APPSETTINGS).</summary>
     Task<SafetyThresholdsDto> GetEffectiveAsync(CancellationToken ct);
 
     /// <summary>Upsert bảng single-row, tăng dồn version và áp lên <see cref="Current"/> (nóng, không reset state engine).</summary>

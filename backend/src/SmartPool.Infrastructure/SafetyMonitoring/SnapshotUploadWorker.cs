@@ -23,7 +23,12 @@ public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, Monitoring
                 using var scope = scopes.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
                 var stale = DateTime.UtcNow.AddMinutes(-2);
-                var interrupted = await db.Warnings.AsNoTracking().Where(x => x.SnapshotStatus == "CAPTURING" && x.UpdatedAt < stale).Select(x => x.Id).ToListAsync(stoppingToken);
+                var activeSince = DateTime.UtcNow.AddHours(-2);
+                var interrupted = await db.Warnings.AsNoTracking().Where(x => x.SnapshotStatus == "CAPTURING" && x.UpdatedAt < stale)
+                    // Video đang phân tích/render chưa tới frame snapshot không phải tác vụ chụp bị gián đoạn.
+                    .Where(x => x.SourceType != "UPLOAD" || !db.VideoAnalysisJobs.Any(j => j.Id == x.VideoJobId &&
+                        (j.Status == "PROCESSING" || j.Status == "RENDERING" || j.Status == "QUEUED") && j.UpdatedAt >= activeSince))
+                    .Select(x => x.Id).ToListAsync(stoppingToken);
                 foreach (var id in interrupted)
                 {
                     var available = File.Exists(files.PathFor($"{id:N}-source.jpg")) && File.Exists(files.PathFor($"{id:N}-boxes.json"));

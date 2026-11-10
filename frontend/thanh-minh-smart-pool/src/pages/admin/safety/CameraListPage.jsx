@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Empty, Input, Pagination, Segmented, Select, Space, Spin, Tag, Typography } from 'antd'
 import AlertList from '../../../features/safety/components/AlertList'
 import EnlargedCameraModal from '../../../features/safety/components/EnlargedCameraModal'
+import PairedCameraPlayer from '../../../features/safety/components/PairedCameraPlayer'
 import { useMonitoringEvents } from '../../../features/safety/hooks/useMonitoringEvents'
 import { useCameraList } from '../../../features/safety/hooks/useCameraList'
 import { useCameraRisks } from '../../../features/safety/hooks/useCameraRisks'
@@ -23,7 +24,7 @@ function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
   }, [])
   return <Card ref={element} id={`camera-${camera.id}`} title={camera.name}
     style={highlighted ? { outline: `3px solid ${highlighted === 'CRITICAL' ? '#EF4444' : '#F97316'}` } : undefined}
-    extra={<Button disabled={camera.status !== 'Active' || camera.source !== 'RTSP'} onClick={() => onEnlarge(camera)}>Phóng to</Button>}>
+    extra={<Button disabled={camera.status !== 'Active' || camera.source !== 'RTSP'} onClick={() => onEnlarge({ ...camera, analysisMode: mode })}>Phóng to</Button>}>
     <Space wrap><span>{camera.location || 'Chưa có vị trí'}</span><Tag>{camera.status}</Tag>
       <Tag color={camera.connectionStatus === 'Connected' ? 'green' : 'default'}>{camera.connectionStatus}</Tag>
       <Tag color={fresh ? 'processing' : 'default'}>{fresh ? 'AI đang giám sát' : ai.data?.state === 'NotConfigured' ? 'AI chưa cấu hình' : 'AI chưa có dữ liệu'}</Tag>
@@ -33,7 +34,7 @@ function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
       camera.status !== 'Active' ? <Alert type="warning" title="Camera hiện không khả dụng" /> :
         camera.connectionStatus !== 'Connected' ? <Alert type="warning" title="Camera hiện không khả dụng" action={<Button onClick={onRetry}>Thử lại</Button>} /> :
           mode === 'ai' && !fresh ? <Alert type="warning" title="AI hiện không khả dụng" action={<Button onClick={() => ai.refetch()}>Thử lại</Button>} /> :
-            visible && !enlarged ? <CameraVideoPlayer equipment={camera} risks={mode === 'ai' ? risks : []} /> : <div className="monitor-video-placeholder">Video tạm dừng</div>}
+            visible && !enlarged ? mode === 'ai' ? <PairedCameraPlayer camera={camera} /> : <CameraVideoPlayer equipment={camera} /> : <div className="monitor-video-placeholder">Video tạm dừng</div>}
   </Card>
 }
 

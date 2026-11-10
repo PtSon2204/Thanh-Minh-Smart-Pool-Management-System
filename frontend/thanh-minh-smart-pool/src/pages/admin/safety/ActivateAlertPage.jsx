@@ -58,7 +58,7 @@ export default function ActivateAlertPage() {
   // Nhận cảnh báo từ SignalR (từ thiết bị khác gửi tới)
   const handleIncomingAlert = useCallback(
     (payload) => {
-      if (payload?.alertId && payload.alertId === lastLocalAlertIdRef.current) {
+      if (payload?.clientRequestId && payload.clientRequestId === lastLocalAlertIdRef.current) {
         return
       }
       setActiveAlert(payload)
@@ -106,11 +106,12 @@ export default function ActivateAlertPage() {
     setConfirmOpen(false)
     setLoading(true)
 
-    const localId = `alert-${Date.now()}`
+    const localId = crypto.randomUUID()
     lastLocalAlertIdRef.current = localId
 
     const localPayload = {
       alertId: localId,
+      clientRequestId: localId,
       zone,
       level,
       description: description.trim() || null,
@@ -133,6 +134,7 @@ export default function ActivateAlertPage() {
     // 2. GỬI LÊN MÁY CHỦ ĐỂ PHÁT TỚI CÁC THIẾT BỊ KHÁC
     try {
       await safetyAlertService.activate({
+        clientRequestId: localId,
         zone,
         level,
         description: description.trim() || null,

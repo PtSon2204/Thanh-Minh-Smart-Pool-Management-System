@@ -31,12 +31,16 @@ public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyA
         ActivateSafetyAlertCommand request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Zone) || request.Zone.Trim().Length > 200 ||
+            request.Level is not ("WARNING" or "EMERGENCY"))
+            throw new ArgumentException("Khu vực hoặc mức độ cảnh báo không hợp lệ.");
         var alertId = Guid.NewGuid();
         var triggeredAt = DateTime.UtcNow;
 
         var result = new ActivateSafetyAlertResult
         {
             AlertId = alertId,
+            ClientRequestId = request.ClientRequestId,
             Zone = request.Zone,
             Level = request.Level,
             Description = request.Description,
@@ -45,29 +49,23 @@ public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyA
         };
 
         // 1. Lưu bản ghi sự cố vào DB
-        try
+        var incident = new Incident
         {
-            var incident = new Incident
-            {
-                Id = alertId,
-                Title = $"Cảnh báo cứu hộ: {request.Zone}",
-                Description = request.Description,
-                SeverityLevel = request.Level,
-                IncidentTime = triggeredAt,
-                ReportedBy = Guid.TryParse(request.TriggeredByUserId, out var uid) ? uid : null,
-                ImageIncidents = request.ImageIncidents,
-                Status = "Resolved",
-                CreatedAt = triggeredAt,
-                UpdatedAt = triggeredAt,
-            };
+            Id = alertId,
+            Title = $"Cảnh báo cứu hộ: {request.Zone}",
+            Location = request.Zone.Trim(),
+            Description = request.Description,
+            SeverityLevel = request.Level,
+            IncidentTime = triggeredAt,
+            ReportedBy = Guid.TryParse(request.TriggeredByUserId, out var uid) ? uid : null,
+            ImageIncidents = request.ImageIncidents,
+            Status = "Pending",
+            CreatedAt = triggeredAt,
+            UpdatedAt = triggeredAt,
+        };
 
-            await _incidentRepo.AddAsync(incident, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ActivateSafetyAlertHandler] Warning saving incident to DB: {ex.Message}");
-        }
+        await _incidentRepo.AddAsync(incident, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // 2. Broadcast tới tất cả clients kết nối SignalR
         await _notificationService.SendToAllAsync(

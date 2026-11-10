@@ -28,25 +28,25 @@ public sealed class ConfirmSafetyIncidentHandler : IRequestHandler<ConfirmSafety
         ConfirmSafetyIncidentCommand request,
         CancellationToken cancellationToken)
     {
+        if (request.Status is not ("Pending" or "In Progress" or "Resolved"))
+            throw new ArgumentException("Trạng thái sự cố không hợp lệ.");
         var incident = await _incidentRepo.GetByIdAsync(request.IncidentId, cancellationToken);
+        if (incident is null) throw new KeyNotFoundException("Không tìm thấy sự cố.");
         var now = DateTime.UtcNow;
 
-        if (incident is not null)
+        incident.Status = request.Status;
+        incident.UpdatedAt = now;
+
+        if (!string.IsNullOrWhiteSpace(request.ResolutionNote))
         {
-            incident.Status = request.Status;
-            incident.UpdatedAt = now;
-
-            if (!string.IsNullOrWhiteSpace(request.ResolutionNote))
-            {
-                var noteText = $"[Xử lý bởi {request.ConfirmedByName} lúc {now:HH:mm dd/MM/yyyy}]: {request.ResolutionNote}";
-                incident.Description = string.IsNullOrWhiteSpace(incident.Description)
-                    ? noteText
-                    : $"{incident.Description}\n{noteText}";
-            }
-
-            _incidentRepo.Update(incident);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var noteText = $"[Xử lý bởi {request.ConfirmedByName} lúc {now:HH:mm dd/MM/yyyy}]: {request.ResolutionNote}";
+            incident.Description = string.IsNullOrWhiteSpace(incident.Description)
+                ? noteText
+                : $"{incident.Description}\n{noteText}";
         }
+
+        _incidentRepo.Update(incident);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var result = new ConfirmSafetyIncidentResult
         {

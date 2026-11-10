@@ -4,70 +4,79 @@ import {
 } from '../../../services/signalrClient'
 import { useAuthStore } from '../../auth/store/authStore'
 import { monitoringService } from '../services/monitoringService'
+import { reconcilePendingAlerts, sortAlerts } from '../utils/alertState'
 
+// Cảnh báo cứu hộ toàn cục chỉ nhận nguồn LIVE. Mỗi danh tính có phiên popup riêng.
 const AI_EVENTS = ['alert_created', 'alert_escalated', 'alert_updated', 'incident_created']
-
-function priority(a) {
-  const critical = a.severity === 'CRITICAL' || a.severity === 'EMERGENCY'
-  return (critical ? 0 : 1) * 100000 + (100000 - (Date.parse(a.createdAt) % 100000))
-}
-
-/**
- * Danh sách cảnh báo PENDING mà người dùng này có quyền thấy (LIVE + video UPLOAD của
- * chính họ), được cập nhật realtime qua SignalR và tự đồng bộ lại khi kết nối (lại).
- * Người dùng đóng popup của một cảnh báo sẽ không hiện lại cảnh báo đó trong phiên.
- */
 export function useGlobalSafetyAlerts(enabled) {
   const identity = useAuthStore(state => signalRIdentity(state.session))
-  const [active, setActive] = useState([])
-  const dismissed = useRef(new Set())
-
-  const drop = useCallback(id => setActive(list => list.filter(a => a.id !== id)), [])
-  const upsert = useCallback(alert => {
-    if (!alert?.id) return
-    const isPending = (alert.status || '').toUpperCase() === 'PENDING'
-    setActive(list => {
-      const rest = list.filter(a => a.id !== alert.id)
-      // Cảnh báo không còn PENDING (đã xác nhận/hủy/ảnh xong) thì xoá khỏi popup.
-      return isPending && !dismissed.current.has(alert.id) ? [alert, ...rest] : rest
-    })
-  }, [])
-
-  const resync = useCallback(async () => {
-    try {
-      const data = await monitoringService.alerts({ status: 'PENDING' })
-      const now = Date.now()
-      // Chỉ nhận cảnh báo PENDING mới (2 phút) — tránh mỗi lần đăng nhập/kết nối lại
-      // kéo lê cả đống cảnh báo cũ trong DB vào popup. Cảnh báo cũ vẫn xem được trong
-      // bảng "Cảnh báo trong video"/lịch sử, không cần reo lại. Cảnh báo đang chạy
-      // (đã lên qua sự kiện realtime) không bị gỡ khi resync.
-      const fresh = (data?.items || []).filter(a => {
-        if (dismissed.current.has(a.id)) return false
-        const created = Date.parse(a.createdAt)
-        return Number.isFinite(created) && now - created <= 2 * 60 * 1000
-      })
-      setActive(list => [...fresh, ...list.filter(a => !fresh.some(f => f.id === a.id))])
-    } catch {
-      // Trạng thái offline: giữ popup hiện có, sự kiện tiếp theo sẽ cập nhật.
-    }
-  }, [])
-
-  const dismiss = useCallback(id => {
-    dismissed.current.add(id)
-    drop(id)
-  }, [drop])
-
+  const [snapshot, setSnapshot] = useState({ identity: null, alerts: [] })
+  const dismissal = useRef(null)
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) return undefined
+    let disposed = false
+    let syncing = false
+    let revision = 0
+    let active = []
+    const dismissed = new Set()
+    const abort = new AbortController()
+    const publish = () => { if (!disposed) setSnapshot({ identity, alerts: sortAlerts(active) }) }
+    const dismiss = id => {
+      dismissed.add(id)
+      active = active.filter(a => a.id !== id)
+      revision++
+      publish()
+    }
+    dismissal.current = { identity, dismiss }
+    const resync = async () => {
+      if (syncing || disposed) return
+      syncing = true
+      const before = revision
+      try {
+        const pending = []
+        let page = 1
+        let total
+        do {
+          const data = await monitoringService.alerts({ sourceType: 'LIVE', status: 'PENDING', page, pageSize: 100 }, abort.signal)
+          pending.push(...(data.items || []))
+          total = data.totalCount || 0
+          page++
+          if (!data.items?.length) break
+        } while (pending.length < total && !disposed)
+        // Event nhận sau khi bắt đầu HTTP mới hơn snapshot đang tải.
+        if (!disposed && before === revision) {
+          active = reconcilePendingAlerts(active, pending, dismissed, Date.now())
+          publish()
+        }
+      } catch {
+        // Mất mạng: giữ cảnh báo đang hiện, thử lại ở lần đồng bộ sau.
+      } finally { syncing = false }
+    }
     const connection = getSignalRConnection()
-    const handle = (payload) => { upsert(payload); if (payload?.status && (payload.status || '').toUpperCase() !== 'PENDING') drop(payload.id) }
-    AI_EVENTS.forEach(evt => connection.on(evt, handle))
-    const offState = onSignalRStateChange(next => { if (next === 'connected') { void resync(); void startSignalRConnection() } })
+    const handle = alert => {
+      if (!alert?.id || alert.sourceType !== 'LIVE') return
+      revision++
+      active = active.filter(a => a.id !== alert.id)
+      if (alert.status?.toUpperCase() === 'PENDING' && !dismissed.has(alert.id)) active.push(alert)
+      publish()
+    }
+    AI_EVENTS.forEach(event => connection.on(event, handle))
+    const offState = onSignalRStateChange(next => { if (next === 'connected') void resync() })
     void startSignalRConnection()
     void resync()
-    return () => { AI_EVENTS.forEach(evt => connection.off(evt, handle)); offState() }
-  }, [enabled, identity, upsert, drop, resync])
-
-  const sorted = [...active].sort((a, b) => priority(a) - priority(b))
-  return { alerts: sorted, top: sorted[0] || null, dismiss, isCritical: (a) => a?.severity === 'CRITICAL' || a?.severity === 'EMERGENCY' }
+    const timer = setInterval(() => void resync(), 15000)
+    return () => {
+      disposed = true
+      abort.abort()
+      clearInterval(timer)
+      AI_EVENTS.forEach(event => connection.off(event, handle))
+      offState()
+    }
+  }, [enabled, identity])
+  const dismiss = useCallback(id => {
+    if (enabled && dismissal.current?.identity === identity) dismissal.current.dismiss(id)
+  }, [enabled, identity])
+  const alerts = enabled && snapshot.identity === identity ? snapshot.alerts : []
+  return { alerts, top: alerts[0] || null, dismiss,
+    isCritical: a => a?.severity === 'CRITICAL' || a?.severity === 'EMERGENCY' }
 }
