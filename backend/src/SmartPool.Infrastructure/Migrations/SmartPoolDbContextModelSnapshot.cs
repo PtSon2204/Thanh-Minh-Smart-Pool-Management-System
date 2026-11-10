@@ -343,6 +343,19 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("registered_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_user_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -360,6 +373,9 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasIndex("CancelledByUserId");
 
+                    b.HasIndex("ReviewedByUserId")
+                        .HasDatabaseName("ix_class_registrations_reviewed_by_user_id");
+
                     b.HasIndex("ClassId", "CustomerUserId")
                         .IsUnique()
                         .HasDatabaseName("ux_class_registrations_class_customer");
@@ -376,7 +392,15 @@ namespace SmartPool.Infrastructure.Migrations
 
                             t.HasCheckConstraint("ck_class_registrations_confirmed_after_registered", "confirmed_at IS NULL OR confirmed_at >= registered_at");
 
-                            t.HasCheckConstraint("ck_class_registrations_status", "status IN ('Confirmed', 'Cancelled')");
+                            t.HasCheckConstraint("ck_class_registrations_pending_fields", "status <> 'PendingApproval' OR (confirmed_at IS NULL AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL AND review_note IS NULL)");
+
+                            t.HasCheckConstraint("ck_class_registrations_rejected_fields", "status <> 'Rejected' OR (confirmed_at IS NULL AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL AND review_note IS NOT NULL AND btrim(review_note) <> '')");
+
+                            t.HasCheckConstraint("ck_class_registrations_review_fields_pair", "(reviewed_by_user_id IS NULL) = (reviewed_at IS NULL)");
+
+                            t.HasCheckConstraint("ck_class_registrations_reviewed_after_registered", "reviewed_at IS NULL OR reviewed_at >= registered_at");
+
+                            t.HasCheckConstraint("ck_class_registrations_status", "status IN ('PendingApproval', 'Confirmed', 'Rejected', 'Cancelled')");
                         });
                 });
 
@@ -3151,6 +3175,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("class_registrations_customer_user_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("class_registrations_reviewed_by_user_id_fkey");
 
                     b.Navigation("Class");
 
