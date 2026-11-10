@@ -39,9 +39,20 @@ class Detector:
         if not path.is_file() or path.suffix.lower() != ".onnx":
             raise ValueError("A local ONNX model is required")
         opts = ort.SessionOptions()
-        opts.intra_op_num_threads = 1
+        # Backend sets the CPU fallback thread budget; LIVE is configurable. GPU is
+        # preferred where available, and upload still runs in a separate process.
+        threads = max(1, int(os.environ.get("OMP_NUM_THREADS", "1")))
+        opts.intra_op_num_threads = threads
         opts.inter_op_num_threads = 1
-        self.session = ort.InferenceSession(str(path), sess_options=opts, providers=["CPUExecutionProvider"])
+        # Ưu tiên GPU (DirectML) nếu build onnxruntime-directml được cài; không thì tự chạy CPU.
+        # DmlExecutionProvider (onnxruntime-directml), không phải "DirectMLExecutionProvider".
+        preferred = os.environ.get("SAFETY_ORT_PROVIDER", "DmlExecutionProvider,CPUExecutionProvider").split(",")
+        available = set(ort.get_available_providers())
+        providers = [p for p in preferred if p in available] or ["CPUExecutionProvider"]
+        if "DmlExecutionProvider" in providers:
+            opts.enable_mem_pattern = False
+            opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        self.session = ort.InferenceSession(str(path), sess_options=opts, providers=providers)
         metadata = self.session.get_modelmeta().custom_metadata_map
         self.names = {int(k): str(v).lower() for k, v in ast.literal_eval(metadata["names"]).items()}
         if set(self.names.values()) != {"normal", "drowning"}:
@@ -91,7 +102,8 @@ class Detector:
 
 
 def main():
-    cv2.setNumThreads(1)
+    # Respect the process-specific thread budget for preprocessing as well as ORT.
+    cv2.setNumThreads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
     detector = Detector(sys.argv[1])
     font = sys.argv[2] if len(sys.argv) > 2 else None
     image = None
@@ -108,6 +120,8 @@ def main():
                 raise ValueError("Invalid JPEG")
             result = {"detections": detector.infer(image, request["key"])}
         elif op == "open":
+            # Phase 1 (analyze): output = null → chỉ mở capture, KHÔNG mở writer.
+            # Bỏ encode/paint ở phase này để AI chạy nhanh hơn real-time (lead với video).
             capture = cv2.VideoCapture(request["input"])
             if not capture.isOpened():
                 raise ValueError("Video decoder unavailable")
@@ -118,22 +132,44 @@ def main():
             total = int(verified_frames if verified_frames is not None else capture.get(cv2.CAP_PROP_FRAME_COUNT))
             frame_index = 0
             width, height = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            writer = cv2.VideoWriter(request["output"], cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
-            if not writer.isOpened():
-                raise ValueError("Video encoder unavailable")
+            output = request.get("output")
+            if output:
+                writer = cv2.VideoWriter(output, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+                if not writer.isOpened():
+                    raise ValueError("Video encoder unavailable")
+            else:
+                writer = None
             result = {"opened": True}
         elif op == "next":
             ok, image = capture.read()
             if not ok:
                 if frame_index != total:
                     raise ValueError("Video decoding ended before the final frame")
-                writer.release()
+                if writer:
+                    writer.release()
                 capture.release()
                 result = {"done": True}
             else:
                 result = {"timestamp": frame_index / fps, "progress": frame_index / max(total, 1),
                           "detections": detector.infer(image, "upload")}
                 frame_index += 1
+        elif op == "reopen_render":
+            # Phase 2 (render offline): mở lại capture + writer để vẽ khung từ decisions đã
+            # lưu (backend gửi qua "paint"). Chạy sau khi phân tích xong — không ảnh hưởng realtime.
+            if writer:
+                writer.release()
+            capture = cv2.VideoCapture(request["input"])
+            if not capture.isOpened():
+                raise ValueError("Video decoder unavailable")
+            fps = float(request["fps"])
+            verified_frames = request.get("frames")
+            total = int(verified_frames if verified_frames is not None else capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            frame_index = 0
+            width, height = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            writer = cv2.VideoWriter(request["output"], cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+            if not writer.isOpened():
+                raise ValueError("Video encoder unavailable")
+            result = {"opened": True}
         elif op == "capture":
             # Frame gốc chưa vẽ khung, dùng làm ảnh nền cho snapshot của cảnh báo.
             if image is None:
@@ -142,8 +178,25 @@ def main():
             if not ok:
                 raise ValueError("Snapshot encoding failed")
             result = {"jpeg": base64.b64encode(encoded).decode("ascii")}
+        elif op == "step":
+            # Phase 2 (render): chỉ đọc frame kế tiếp, KHÔNG infer (decisions đã có sẵn
+            # từ phase 1 do backend gửi theo "paint").
+            ok, image = capture.read()
+            if not ok:
+                if frame_index != total:
+                    raise ValueError("Video decoding ended before the final frame")
+                if writer:
+                    writer.release()
+                capture.release()
+                result = {"done": True}
+            else:
+                result = {"timestamp": frame_index / fps, "progress": frame_index / max(total, 1)}
+                frame_index += 1
         elif op in ("render", "paint"):
-            annotated = draw(image, request["decisions"], font)
+            # Chỉ vẽ khi có cảnh báo (WARNING/CRITICAL) trong khung; khung thường thì ghi thẳng
+            # frame gốc — tránh tốn PIL/cvtColor mỗi frame (pipeline realtime).
+            annotated = draw(image, request["decisions"], font) if any(
+                d.get("severity") in ("WARNING", "CRITICAL") for d in request["decisions"]) else image
             if op == "paint":
                 writer.write(annotated)
                 result = {"painted": True}

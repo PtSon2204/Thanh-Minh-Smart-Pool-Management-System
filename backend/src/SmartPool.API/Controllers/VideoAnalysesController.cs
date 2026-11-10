@@ -57,20 +57,20 @@ public sealed class VideoAnalysesController(ISender sender) : ControllerBase
     }
     [HttpGet("{jobId:guid}/playback")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public async Task<IActionResult> Playback(Guid jobId, CancellationToken ct)
+    public async Task<IActionResult> Playback(Guid jobId, CancellationToken ct, [FromQuery] bool original = false)
     {
-        try { return Ok(await sender.Send(new GetVideoPlaybackQuery(jobId), ct)); }
+        try { return Ok(await sender.Send(new GetVideoPlaybackQuery(jobId, original), ct)); }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (MonitoringConflictException ex) { return Conflict(new { message = ex.Message }); }
     }
     [AllowAnonymous]
     [HttpGet("{jobId:guid}/stream")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public async Task<IActionResult> Stream(Guid jobId, [FromQuery] string ticket = "", [FromQuery] bool download = false, CancellationToken ct = default)
+    public async Task<IActionResult> Stream(Guid jobId, [FromQuery] string ticket = "", [FromQuery] bool download = false, CancellationToken ct = default, [FromQuery] bool original = false)
     {
         try
         {
-            var path = await sender.Send(new GetVideoStreamQuery(jobId, ticket), ct);
+            var path = await sender.Send(new GetVideoStreamQuery(jobId, ticket, original), ct);
             return PhysicalFile(path, "video/mp4", fileDownloadName: download ? $"analysis-{jobId}.mp4" : null, enableRangeProcessing: true);
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }

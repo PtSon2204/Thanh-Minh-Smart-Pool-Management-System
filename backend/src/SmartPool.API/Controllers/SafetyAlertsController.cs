@@ -47,6 +47,7 @@ public sealed class SafetyAlertsController : ControllerBase
             var command = new ActivateSafetyAlertCommand
             {
                 Zone = request.Zone,
+                ClientRequestId = request.ClientRequestId,
                 Level = request.Level,
                 Description = request.Description,
                 ImageIncidents = request.ImageIncidents,
@@ -57,7 +58,7 @@ public sealed class SafetyAlertsController : ControllerBase
             var result = await _sender.Send(command, cancellationToken);
             return Ok(result);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
@@ -74,6 +75,7 @@ public sealed class SafetyAlertsController : ControllerBase
         [FromQuery] string? zone,
         [FromQuery] string? severityLevel,
         [FromQuery] string? status,
+        [FromQuery] string? sourceType,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         [FromQuery] int pageNumber = 1,
@@ -86,14 +88,15 @@ public sealed class SafetyAlertsController : ControllerBase
             Zone = zone,
             SeverityLevel = severityLevel,
             Status = status,
+            SourceType = sourceType,
             FromDate = fromDate,
             ToDate = toDate,
             PageNumber = pageNumber,
             PageSize = pageSize,
         };
 
-        var result = await _sender.Send(query, cancellationToken);
-        return Ok(result);
+        try { return Ok(await _sender.Send(query, cancellationToken)); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     /// <summary>
@@ -121,8 +124,9 @@ public sealed class SafetyAlertsController : ControllerBase
             ConfirmedByName = userName,
         };
 
-        var result = await _sender.Send(command, cancellationToken);
-        return Ok(result);
+        try { return Ok(await _sender.Send(command, cancellationToken)); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Không tìm thấy sự cố." }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
     }
 }
 
@@ -131,7 +135,8 @@ public sealed record ActivateAlertRequest(
     string Zone,
     string Level = "EMERGENCY",
     string? Description = null,
-    string? ImageIncidents = null
+    string? ImageIncidents = null,
+    Guid? ClientRequestId = null
 );
 
 /// <summary>Request body cho xác nhận xử lý sự cố.</summary>

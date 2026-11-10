@@ -1,4 +1,5 @@
 using MediatR;
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -51,11 +52,27 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
                         if (!engines.TryGetValue(id, out var engine)) engines[id] = engine = new RiskDecisionEngine(risk.Value);
                         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                         timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
+                        var inferenceStart = Stopwatch.GetTimestamp();
                         using var result = await ai.SendAsync(new { op = "infer", key = id.ToString(), jpeg = Convert.ToBase64String(captured.Jpeg) }, timeout.Token);
+                        var inferenceMs = Stopwatch.GetElapsedTime(inferenceStart).TotalMilliseconds;
                         var detections = AiWorkerClient.Detections(result);
                         // Ignore stale inference rather than painting old boxes or claiming current safety.
                         if (DateTimeOffset.UtcNow - timestamp > TimeSpan.FromSeconds(6)) { state.Remove(id); continue; }
                         var decisions = engine.Observe(timestamp.ToUnixTimeMilliseconds() / 1000.0, detections);
+                        using var rendered = await ai.SendAsync(new { op = "render", decisions }, timeout.Token);
+                        var annotated = Convert.FromBase64String(rendered.RootElement.GetProperty("jpeg").GetString()!);
+                        state.Set(id, captured.FrameId, timestamp, decisions, annotated, detections, inferenceMs);
+                        // Deliver even an empty risks array immediately: it clears old boxes.
+                        // Do not wait for PostgreSQL / snapshot IO before updating live viewers.
+                        try
+                        {
+                            await scope.ServiceProvider.GetRequiredService<INotificationService>().SendToGroupAsync(
+                                $"camera-analysis_{id:N}", "camera_analysis", state.Get(id), stoppingToken);
+                        }
+                        catch (Exception) when (!stoppingToken.IsCancellationRequested)
+                        {
+                            logger.LogDebug("Camera analysis push unavailable for {CameraId}; clients recover through polling.", id);
+                        }
                         foreach (var decision in decisions)
                         {
                             var write = await scope.ServiceProvider.GetRequiredService<ISender>().Send(new RecordRiskCommand("LIVE", id, decision,
@@ -70,10 +87,6 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
                                 await db.Warnings.Where(x => x.Id == alertId).ExecuteUpdateAsync(set => set.SetProperty(x => x.SnapshotStatus, "PENDING"), stoppingToken);
                             }
                         }
-                        // Frame and boxes are rendered together. These pixels never overlay an unrelated WebRTC frame.
-                        using var rendered = await ai.SendAsync(new { op = "render", decisions }, timeout.Token);
-                        var annotated = Convert.FromBase64String(rendered.RootElement.GetProperty("jpeg").GetString()!);
-                        state.Set(id, captured.FrameId, timestamp, decisions, annotated, detections);
                     }
                     // Inference reads the newest decoded frame; do not add a quarter-second pause per cycle.
                     await Task.Delay(10, stoppingToken);

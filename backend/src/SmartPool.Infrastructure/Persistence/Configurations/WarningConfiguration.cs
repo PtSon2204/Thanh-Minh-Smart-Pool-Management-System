@@ -31,6 +31,7 @@ public sealed class WarningConfiguration : IEntityTypeConfiguration<Warning>
         entity.Property(e => e.VideoTimestamp).HasColumnName("video_timestamp");
         entity.Property(e => e.SnapshotStatus).HasColumnName("snapshot_status").HasMaxLength(20).HasDefaultValue("NONE");
         entity.Property(e => e.SnapshotAttempts).HasColumnName("snapshot_attempts");
+        entity.Property(e => e.Box).HasColumnName("box").HasColumnType("double precision[]");
         // Indexes
         entity.HasIndex(e => e.CamId).HasDatabaseName("idx_warnings_cam_id");
         entity.HasIndex(e => e.Status).HasDatabaseName("idx_warnings_status");

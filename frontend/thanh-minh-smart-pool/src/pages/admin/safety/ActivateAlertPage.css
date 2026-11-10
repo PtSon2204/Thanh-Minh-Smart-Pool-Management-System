@@ -1,3 +1,5 @@
+@import '../../../features/safety/styles/safetyResponsive.css';
+
 /* ================================================================
    ActivateAlertPage.css — Smart Pool Ocean Theme
    Primary: #005f8e / #0077b6 / #00b4d8
@@ -553,4 +555,34 @@
   padding: 8px 12px;
   border-radius: 8px;
   text-align: center;
+}
+
+.alert-main-layout { grid-template-columns: minmax(260px, 3fr) minmax(0, 7fr); }
+.alert-main-layout > * { min-width: 0; }
+.alert-header > div:last-child { min-width: 0; }
+.alert-history-item { gap: 12px; }
+.alert-page .history-item-left,
+.alert-page .history-item-right { min-width: 0; overflow-wrap: anywhere; }
+.confirm-row { gap: 12px; overflow-wrap: anywhere; }
+.confirm-row .confirm-label { flex-shrink: 0; }
+.alert-active-overlay { overflow-y: auto; padding: 16px; }
+.alert-active-inner { max-height: 100%; overflow-y: auto; overflow-wrap: anywhere; }
+.alert-active-meta { flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 992px) {
+  .alert-main-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 767px) {
+  .alert-header { padding: 16px; gap: 12px; }
+  .alert-header-title { font-size: 18px; }
+  .alert-header-icon { width: 44px; height: 44px; font-size: 26px; }
+  .alert-form-panel { padding: 16px; }
+  .alert-button-side { padding: 24px 16px; }
+  .alert-circle-wrap { width: min(260px, 100%); height: auto; aspect-ratio: 1; }
+  .alert-circle-btn { width: 90%; height: auto; aspect-ratio: 1; }
+  .alert-history-item { flex-direction: column; align-items: stretch; }
+  .history-item-right { flex-wrap: wrap; gap: 8px; }
+  .alert-active-inner { padding: 16px 8px; }
+  .alert-active-level { font-size: 26px; letter-spacing: 2px; }
 }
