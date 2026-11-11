@@ -6,23 +6,20 @@ namespace SmartPool.Application.Features.Notifications.Commands.MarkNotification
 
 public sealed class MarkNotificationAsReadHandler : IRequestHandler<MarkNotificationAsReadCommand, bool>
 {
-    private readonly IRepository<Notification> _repo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationOperations _notificationOperations;
 
-    public MarkNotificationAsReadHandler(IRepository<Notification> repo, IUnitOfWork unitOfWork)
+    public MarkNotificationAsReadHandler(INotificationOperations notificationOperations)
     {
-        _repo = repo;
-        _unitOfWork = unitOfWork;
+        _notificationOperations = notificationOperations;
     }
 
     public async Task<bool> Handle(MarkNotificationAsReadCommand request, CancellationToken cancellationToken)
     {
-        var notification = await _repo.GetByIdAsync(request.NotificationId, cancellationToken)
+        var notification = await _notificationOperations.GetByIdAsync(request.NotificationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Không tìm thấy thông báo với Id: {request.NotificationId}");
 
         notification.IsRead = true;
-        _repo.Update(notification);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _notificationOperations.UpdateAsync(notification, cancellationToken);
 
         return true;
     }

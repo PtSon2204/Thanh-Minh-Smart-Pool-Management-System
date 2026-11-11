@@ -37,7 +37,7 @@ public sealed class RentalServiceCatalogueTests
             }, default);
             var operatorId = await context.Users.Select(user => user.Id).FirstAsync();
             var operations = new ServiceOperations(context, mapper, TimeProvider.System, Options.Create(new SePayOptions()));
-            var listed = await new GetServicesHandler(new Repository<Product>(context), mapper, new GetServicesValidator())
+            var listed = await new GetServicesHandler(operations, new GetServicesValidator())
                 .Handle(new GetServicesQuery { SearchTerm = name, IsActive = true }, default);
 
             Assert.Equal(name, Assert.Single(listed.Items).Name);
@@ -109,5 +109,5 @@ public sealed class RentalServiceCatalogueTests
         configuration.AddProfile<ServiceMappingProfile>(), NullLoggerFactory.Instance).CreateMapper();
 
     private static CreateServiceHandler CreateHandler(SmartPoolDbContext context, IMapper mapper) => new(
-        new Repository<Product>(context), new UnitOfWork(context), mapper, new CreateServiceValidator());
+        new ServiceOperations(context, mapper, TimeProvider.System, Options.Create(new SePayOptions())), new CreateServiceValidator());
 }

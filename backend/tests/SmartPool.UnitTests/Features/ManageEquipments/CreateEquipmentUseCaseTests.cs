@@ -17,16 +17,14 @@ public sealed class CreateEquipmentUseCaseTests
     [Fact(DisplayName = "UTCID01 (N) - Dữ liệu hợp lệ -> Chuẩn hóa field, đặt mặc định và lưu thiết bị")]
     public async Task UTCID01_ValidRequest_CreatesEquipmentWithDefaults()
     {
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
         Equipment? saved = null;
         using var cts = new CancellationTokenSource();
-        repo.Setup(r => r.AddAsync(It.IsAny<Equipment>(), cts.Token))
+        operations.Setup(r => r.AddAsync(It.IsAny<Equipment>(), cts.Token))
             .Callback<Equipment, CancellationToken>((entity, _) => saved = entity).Returns(Task.CompletedTask);
-        uow.Setup(x => x.SaveChangesAsync(cts.Token)).ReturnsAsync(1);
         var time = new FixedTime();
 
-        var result = await Handler(repo, uow, time).Handle(new CreateEquipmentCommand
+        var result = await Handler(operations, time).Handle(new CreateEquipmentCommand
         {
             Name = "  Máy bơm  ", Category = "  Pump  ", Location = "  Khu A  "
         }, cts.Token);
@@ -46,40 +44,34 @@ public sealed class CreateEquipmentUseCaseTests
         Assert.Equal(saved.Category, result.Category);
         Assert.Equal(saved.Location, result.Location);
         Assert.Equal("Active", result.Status);
-        repo.Verify(r => r.AddAsync(saved, cts.Token), Times.Once);
-        uow.Verify(x => x.SaveChangesAsync(cts.Token), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.AddAsync(saved, cts.Token), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID02 (A) - Name rỗng -> ValidationException, không thêm thiết bị")]
     public async Task UTCID02_EmptyName_FailsBeforeRepositoryCalls()
     {
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
 
-        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(repo, uow, TimeProvider.System)
+        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(operations, TimeProvider.System)
             .Handle(new CreateEquipmentCommand { Name = " ", Category = "Pump" }, CancellationToken.None));
 
         Assert.Contains(error.Errors, e => e.PropertyName == nameof(CreateEquipmentCommand.Name)
             && e.ErrorMessage == "Tên thiết bị không được để trống.");
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID03 (A) - Category rỗng -> ValidationException, không thêm thiết bị")]
     public async Task UTCID03_EmptyCategory_FailsBeforeRepositoryCalls()
     {
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
 
-        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(repo, uow, TimeProvider.System)
+        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(operations, TimeProvider.System)
             .Handle(new CreateEquipmentCommand { Name = "Pump", Category = " " }, CancellationToken.None));
 
         Assert.Contains(error.Errors, e => e.PropertyName == nameof(CreateEquipmentCommand.Category)
             && e.ErrorMessage == "Nhóm thiết bị không được để trống.");
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID04 (B) - Name dài 255 và Category dài 50 sau trim -> Validator chấp nhận")]
@@ -146,39 +138,33 @@ public sealed class CreateEquipmentUseCaseTests
     [Fact(DisplayName = "UTCID09 (N) - Metadata là JSON hợp lệ -> Lưu metadata dạng raw JSON")]
     public async Task UTCID09_ValidMetadata_IsStoredAsRawJson()
     {
-        var repo = new Mock<IRepository<Equipment>>();
-        var uow = new Mock<IUnitOfWork>();
+        var operations = new Mock<IEquipmentOperations>();
         Equipment? saved = null;
-        repo.Setup(r => r.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()))
+        operations.Setup(r => r.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()))
             .Callback<Equipment, CancellationToken>((entity, _) => saved = entity).Returns(Task.CompletedTask);
-        uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         using var document = JsonDocument.Parse("{\"power\":\"2kW\",\"sensors\":[1,2]}");
 
-        var result = await Handler(repo, uow, TimeProvider.System).Handle(new CreateEquipmentCommand
+        var result = await Handler(operations, TimeProvider.System).Handle(new CreateEquipmentCommand
         {
             Name = "Pump", Category = "Pump", Metadata = document.RootElement.Clone()
         }, CancellationToken.None);
 
         Assert.Equal("{\"power\":\"2kW\",\"sensors\":[1,2]}", saved!.Metadata);
         Assert.Equal(saved.Id, result.Id);
-        repo.Verify(r => r.AddAsync(saved, It.IsAny<CancellationToken>()), Times.Once);
-        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        operations.Verify(r => r.AddAsync(saved, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(DisplayName = "UTCID10 (A) - SaveChangesAsync lỗi -> Handler truyền exception, không trả kết quả thành công")]
+    [Fact(DisplayName = "UTCID10 (A) - AddAsync lỗi -> Handler truyền exception, không trả kết quả thành công")]
     public async Task UTCID10_SaveFailure_IsPropagated()
     {
-        var repo = new Mock<IRepository<Equipment>>();
-        var uow = new Mock<IUnitOfWork>();
-        repo.Setup(r => r.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var operations = new Mock<IEquipmentOperations>();
         var failure = new InvalidOperationException("storage unavailable");
-        uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+        operations.Setup(r => r.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>())).ThrowsAsync(failure);
 
-        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() => Handler(repo, uow, TimeProvider.System)
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() => Handler(operations, TimeProvider.System)
             .Handle(new CreateEquipmentCommand { Name = "Pump", Category = "Pump" }, CancellationToken.None));
 
         Assert.Same(failure, actual);
-        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID11 (A) - Sender ném exception hệ thống -> Controller trả HTTP 500, không lộ chi tiết lưu trữ")]
@@ -201,9 +187,8 @@ public sealed class CreateEquipmentUseCaseTests
         sender.VerifyNoOtherCalls();
     }
 
-    private static CreateEquipmentHandler Handler(Mock<IRepository<Equipment>> repo,
-        Mock<IUnitOfWork> unitOfWork, TimeProvider timeProvider) =>
-        new(repo.Object, unitOfWork.Object, new CreateEquipmentValidator(), timeProvider);
+    private static CreateEquipmentHandler Handler(Mock<IEquipmentOperations> operations, TimeProvider timeProvider) =>
+        new(operations.Object, new CreateEquipmentValidator(), timeProvider);
 
     private sealed class FixedTime : TimeProvider
     {

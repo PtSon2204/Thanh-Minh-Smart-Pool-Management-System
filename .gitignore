@@ -175,7 +175,10 @@ codebase.md
 ARCHITECTURE.md
 
 #bỏ folder docs
-/docs/
+/docs/*
+!/docs/diagrams/
+/docs/diagrams/*
+!/docs/diagrams/SmartPool_Database_Design.drawio
 /.claude/
 /plans/
 /Ticket Management/

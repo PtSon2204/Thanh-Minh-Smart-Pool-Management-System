@@ -14,17 +14,14 @@ namespace SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSaf
 public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyAlertCommand, ActivateSafetyAlertResult>
 {
     private readonly INotificationService _notificationService;
-    private readonly IRepository<Incident> _incidentRepo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ISafetyAlertOperations _operations;
 
     public ActivateSafetyAlertHandler(
         INotificationService notificationService,
-        IRepository<Incident> incidentRepo,
-        IUnitOfWork unitOfWork)
+        ISafetyAlertOperations operations)
     {
         _notificationService = notificationService;
-        _incidentRepo = incidentRepo;
-        _unitOfWork = unitOfWork;
+        _operations = operations;
     }
 
     public async Task<ActivateSafetyAlertResult> Handle(
@@ -58,21 +55,16 @@ public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyA
             SeverityLevel = request.Level,
             IncidentTime = triggeredAt,
             ReportedBy = Guid.TryParse(request.TriggeredByUserId, out var uid) ? uid : null,
-            ImageIncidents = request.ImageIncidents,
             Status = "Pending",
-            CreatedAt = triggeredAt,
-            UpdatedAt = triggeredAt,
         };
 
-        await _incidentRepo.AddAsync(incident, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _operations.AddIncidentAsync(incident, cancellationToken);
 
-        // 2. Broadcast tới tất cả clients kết nối SignalR
+        // 2. Broadcast realtime qua SignalR Hub tới tất cả Lifeguards/Staff đang mở trang giám sát
         await _notificationService.SendToAllAsync(
-            eventName: "safety_alert",
-            payload: result,
-            cancellationToken: cancellationToken
-        );
+            "safety_alert",
+            result,
+            cancellationToken);
 
         return result;
     }

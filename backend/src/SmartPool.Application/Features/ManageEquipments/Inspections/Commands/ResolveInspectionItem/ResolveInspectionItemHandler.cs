@@ -14,10 +14,9 @@ using SmartPool.Domain.Enums;
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.ResolveInspectionItem;
 
 public sealed class ResolveInspectionItemHandler(
-    IRepository<DailyInspection> inspectionRepository,
-    IRepository<Equipment> equipmentRepository,
-    IRepository<User> userRepository,
-    IUnitOfWork unitOfWork,
+    IDailyInspectionOperations inspectionOperations,
+    IEquipmentOperations equipmentOperations,
+    IUserOperations userOperations,
     IValidator<ResolveInspectionItemCommand> validator,
     TimeProvider timeProvider)
     : IRequestHandler<ResolveInspectionItemCommand, DailyInspectionDto>
@@ -33,7 +32,7 @@ public sealed class ResolveInspectionItemHandler(
     {
         await validator.ValidateAndThrowAsync(command, cancellationToken);
 
-        var inspection = await inspectionRepository.GetByIdAsync(command.InspectionId, cancellationToken)
+        var inspection = await inspectionOperations.GetByIdAsync(command.InspectionId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy biên bản kiểm tra thiết bị.");
 
         var items = string.IsNullOrWhiteSpace(inspection.ItemsJson)
@@ -48,7 +47,7 @@ public sealed class ResolveInspectionItemHandler(
             throw new ValidationException("Thiết bị này hoạt động bình thường, không có sự cố cần xử lý.");
         }
 
-        var admin = await userRepository.GetByIdAsync(command.AdminId, cancellationToken);
+        var admin = await userOperations.GetByIdAsync(command.AdminId, cancellationToken);
         var adminName = admin?.UserProfile?.FullName ?? admin?.Username ?? "Quản trị viên";
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
 
@@ -66,17 +65,18 @@ public sealed class ResolveInspectionItemHandler(
         inspection.UpdatedAt = nowUtc;
 
         // 3. Hoàn trả trạng thái thiết bị trong bảng Equipment về Hoạt động (Active)
-        var equipment = await equipmentRepository.GetByIdAsync(command.EquipmentId, cancellationToken);
+        var equipment = await equipmentOperations.GetByIdAsync(command.EquipmentId, cancellationToken);
         if (equipment != null)
         {
             equipment.Status = EquipmentStatuses.Active;
             equipment.UpdatedAt = nowUtc;
+            await equipmentOperations.UpdateAsync(equipment, cancellationToken);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await inspectionOperations.UpdateAsync(inspection, cancellationToken);
 
         var shiftDef = inspection.ShiftId.HasValue ? FixedShifts.FindById(inspection.ShiftId.Value) : null;
-        var inspector = await userRepository.GetByIdAsync(inspection.InspectorId, cancellationToken);
+        var inspector = await userOperations.GetByIdAsync(inspection.InspectorId, cancellationToken);
         var inspectorName = inspector?.UserProfile?.FullName ?? inspector?.Username ?? "Nhân viên";
 
         var sortedItems = items

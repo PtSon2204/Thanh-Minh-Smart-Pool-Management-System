@@ -5,24 +5,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using SmartPool.Application.Interfaces.Repositories;
-using SmartPool.Domain.Entities;
 
 namespace SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidents;
 
 public sealed class GetSafetyIncidentsHandler : IRequestHandler<GetSafetyIncidentsQuery, GetSafetyIncidentsResult>
 {
-    private readonly IRepository<Incident> _incidentRepo;
-    private readonly IRepository<User> _userRepo;
-    private readonly IRepository<UserProfile> _profileRepo;
+    private readonly ISafetyAlertOperations _operations;
 
-    public GetSafetyIncidentsHandler(
-        IRepository<Incident> incidentRepo,
-        IRepository<User> userRepo,
-        IRepository<UserProfile> profileRepo)
+    public GetSafetyIncidentsHandler(ISafetyAlertOperations operations)
     {
-        _incidentRepo = incidentRepo;
-        _userRepo = userRepo;
-        _profileRepo = profileRepo;
+        _operations = operations;
     }
 
     public async Task<GetSafetyIncidentsResult> Handle(
@@ -32,9 +24,9 @@ public sealed class GetSafetyIncidentsHandler : IRequestHandler<GetSafetyInciden
         if (request.PageNumber is < 1 or > 100000 || request.PageSize is < 1 or > 100 ||
             request.SourceType is not (null or "camera" or "lifeguard") || request.FromDate > request.ToDate)
             throw new ArgumentException("Bộ lọc lịch sử sự cố không hợp lệ.");
-        var allIncidents = (await _incidentRepo.GetAllAsync(cancellationToken)).ToList();
-        var allUsers = (await _userRepo.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
-        var allProfiles = (await _profileRepo.GetAllAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
+        var allIncidents = await _operations.GetAllIncidentsAsync(cancellationToken);
+        var allUsers = (await _operations.GetAllUsersAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
+        var allProfiles = (await _operations.GetAllProfilesAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
 
         var dtos = allIncidents.Select(i => SafetyIncidentMapper.ToDto(
             i,
@@ -116,5 +108,4 @@ public sealed class GetSafetyIncidentsHandler : IRequestHandler<GetSafetyInciden
             LifeguardCount = lifeguardCount,
         };
     }
-
 }

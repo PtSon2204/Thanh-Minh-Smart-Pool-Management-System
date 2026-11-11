@@ -12,18 +12,11 @@ namespace SmartPool.Application.Features.ManageReports.Queries.GetIncidentStatis
 public sealed class GetIncidentStatisticsHandler
     : IRequestHandler<GetIncidentStatisticsQuery, IncidentStatisticsResponse>
 {
-    private readonly IRepository<Incident> _incidentRepo;
-    private readonly IRepository<User> _userRepo;
-    private readonly IRepository<UserProfile> _profileRepo;
+    private readonly IReportOperations _reportOps;
 
-    public GetIncidentStatisticsHandler(
-        IRepository<Incident> incidentRepo,
-        IRepository<User> userRepo,
-        IRepository<UserProfile> profileRepo)
+    public GetIncidentStatisticsHandler(IReportOperations reportOps)
     {
-        _incidentRepo = incidentRepo;
-        _userRepo = userRepo;
-        _profileRepo = profileRepo;
+        _reportOps = reportOps;
     }
 
     public async Task<IncidentStatisticsResponse> Handle(
@@ -31,9 +24,9 @@ public sealed class GetIncidentStatisticsHandler
     {
         var now = DateTime.UtcNow;
 
-        var allIncidents = (await _incidentRepo.GetAllAsync(cancellationToken)).ToList();
-        var allUsers = (await _userRepo.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
-        var allProfiles = (await _profileRepo.GetAllAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
+        var allIncidents = await _reportOps.GetIncidentsAsync(cancellationToken);
+        var allUsers = (await _reportOps.GetUsersAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
+        var allProfiles = (await _reportOps.GetUserProfilesAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
 
         // Fallback demo response nếu DB chưa có sự cố
         if (!allIncidents.Any())
