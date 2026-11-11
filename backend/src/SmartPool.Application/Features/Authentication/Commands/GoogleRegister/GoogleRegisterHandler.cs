@@ -16,30 +16,20 @@ namespace SmartPool.Application.Features.Authentication.Commands.GoogleRegister;
 public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterCommand, IActionResult>
 {
     private readonly IGoogleIdTokenVerifier _verifier;
-    private readonly IRepository<User> _users;
-    private readonly IRepository<UserProfile> _profiles;
-    private readonly IRepository<Role> _roles;
-    private readonly IRepository<Notification> _notifications;
+    private readonly IUserOperations _userOperations;
     private readonly INotificationService _notificationService;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IAccessTokenService _accessTokens;
     private readonly IRefreshTokenService _refreshTokens;
     private readonly IValidator<GoogleRegisterCommand> _validator;
 
-    public GoogleRegisterHandler(IGoogleIdTokenVerifier verifier, IRepository<User> users,
-        IRepository<UserProfile> profiles, IRepository<Role> roles,
-        IRepository<Notification> notifications, INotificationService notificationService,
-        IUnitOfWork unitOfWork,
+    public GoogleRegisterHandler(IGoogleIdTokenVerifier verifier, IUserOperations userOperations,
+        INotificationService notificationService,
         IAccessTokenService accessTokens, IRefreshTokenService refreshTokens,
         IValidator<GoogleRegisterCommand> validator)
     {
         _verifier = verifier;
-        _users = users;
-        _profiles = profiles;
-        _roles = roles;
-        _notifications = notifications;
+        _userOperations = userOperations;
         _notificationService = notificationService;
-        _unitOfWork = unitOfWork;
         _accessTokens = accessTokens;
         _refreshTokens = refreshTokens;
         _validator = validator;
@@ -81,13 +71,13 @@ public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterComman
         var inputPhone = request.Phone.Trim();
         var phone = inputPhone.StartsWith("+84", StringComparison.Ordinal)
             ? "0" + inputPhone[3..] : inputPhone;
-        var conflict = await RegisterHandler.FindConflictAsync(_users, username,
+        var conflict = await RegisterHandler.FindConflictAsync(_userOperations, username,
             email, phone, cancellationToken);
         if (conflict is not null)
             return RegisterHandler.CreateConflictResult(conflict);
 
-        var role = await _roles.FirstOrDefaultAsync(candidate =>
-            candidate.Name.ToUpper() == nameof(RoleEnum.CUSTOMER) && candidate.IsDeleted != true,
+        var role = await _userOperations.GetRoleByNameAsync(
+            nameof(RoleEnum.CUSTOMER),
             cancellationToken);
         if (role is null)
             return Problem(StatusCodes.Status503ServiceUnavailable, "CUSTOMER_ROLE_NOT_CONFIGURED",
@@ -106,10 +96,7 @@ public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterComman
 
         try
         {
-            await _users.AddAsync(user, cancellationToken);
-            await _profiles.AddAsync(profile, cancellationToken);
-
-            var adminUser = await _users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == "admin", cancellationToken);
+            var adminUser = await _userOperations.GetUserByUsernameAsync("admin", cancellationToken);
             var notification = new Notification
             {
                 Id = Guid.NewGuid(),
@@ -120,9 +107,8 @@ public sealed class GoogleRegisterHandler : IRequestHandler<GoogleRegisterComman
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             };
-            await _notifications.AddAsync(notification, cancellationToken);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userOperations.CreateUserWithProfileAsync(user, profile, notification, cancellationToken);
 
             try
             {

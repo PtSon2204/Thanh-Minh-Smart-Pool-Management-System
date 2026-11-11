@@ -13,13 +13,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SmartPool.API.Controllers;
 using SmartPool.API.Extensions;
-using SmartPool.Application;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;
 using SmartPool.Infrastructure.Persistence.DbContext;
+using SmartPool.Application.Interfaces;
 
 namespace SmartPool.IntegrationTests.ManageEquipments;
 

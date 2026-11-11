@@ -6,17 +6,14 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.UpdateTic
 
 public class UpdateTicketCodeHandler : IRequestHandler<UpdateTicketCodeCommand, UpdateTicketCodeResponse>
 {
-    private readonly IRepository<Domain.Entities.Ticket> _ticketRepo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ITicketOrderOperations _ticketOrderOperations;
     private readonly IValidator<UpdateTicketCodeCommand>? _validator;
 
     public UpdateTicketCodeHandler(
-        IRepository<Domain.Entities.Ticket> ticketRepo,
-        IUnitOfWork unitOfWork,
+        ITicketOrderOperations ticketOrderOperations,
         IValidator<UpdateTicketCodeCommand>? validator = null)
     {
-        _ticketRepo = ticketRepo;
-        _unitOfWork = unitOfWork;
+        _ticketOrderOperations = ticketOrderOperations;
         _validator = validator;
     }
 
@@ -30,7 +27,7 @@ public class UpdateTicketCodeHandler : IRequestHandler<UpdateTicketCodeCommand, 
         }
 
         // 1. Tìm vé theo ID
-        var ticket = await _ticketRepo.GetByIdAsync(request.TicketId, cancellationToken);
+        var ticket = await _ticketOrderOperations.GetTicketByIdAsync(request.TicketId, cancellationToken);
         if (ticket == null)
             return Fail("Không tìm thấy vé.");
 
@@ -43,18 +40,19 @@ public class UpdateTicketCodeHandler : IRequestHandler<UpdateTicketCodeCommand, 
             return Fail("Chỉ có thể chỉnh sửa mã khi vé đang ở trạng thái ACTIVE.");
 
         // 4. Kiểm tra mã mới có trùng với vé khác không
-        var duplicate = await _ticketRepo.FirstOrDefaultAsync(
-            t => t.QrCode == request.Code && t.Id != request.TicketId,
+        var duplicate = await _ticketOrderOperations.TicketCodeExistsAsync(
+            request.Code,
+            request.TicketId,
             cancellationToken);
 
-        if (duplicate != null)
+        if (duplicate)
             return Fail("Mã này đã được dùng bởi vé khác. Vui lòng chọn mã khác.");
 
         // 5. Cập nhật mã
         ticket.QrCode = request.Code;
         ticket.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _ticketOrderOperations.UpdateTicketAsync(ticket, cancellationToken);
 
         return new UpdateTicketCodeResponse
         {

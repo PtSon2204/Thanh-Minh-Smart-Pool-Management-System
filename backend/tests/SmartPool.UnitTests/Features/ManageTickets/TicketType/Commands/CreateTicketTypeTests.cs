@@ -9,17 +9,15 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
 {
     public class CreateTicketTypeTests
     {
-        private readonly Mock<IRepository<TicketTypeEntity>> _mockRepo;
-        private readonly Mock<IUnitOfWork> _mockUow;
+        private readonly Mock<ITicketTypeOperations> _mockOperations;
         private readonly Mock<IMapper> _mockMapper;
         private readonly CreateTicketTypeHandler _handler;
 
         public CreateTicketTypeTests()
         {
-            _mockRepo = new Mock<IRepository<TicketTypeEntity>>();
-            _mockUow = new Mock<IUnitOfWork>();
+            _mockOperations = new Mock<ITicketTypeOperations>();
             _mockMapper = new Mock<IMapper>();
-            _handler = new CreateTicketTypeHandler(_mockRepo.Object, _mockUow.Object, _mockMapper.Object);
+            _handler = new CreateTicketTypeHandler(_mockOperations.Object, _mockMapper.Object);
         }
 
         [Fact(DisplayName = "UTCID01 (N) - Tạo vé hợp lệ -> Lưu loại vé và trả về thông tin vé")]
@@ -34,15 +32,11 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
                 DurationDays = 30
             };
 
-            // Giả lập Repository.AddAsync không làm gì cả hoặc lưu lại đối tượng được truyền vào
+            // Giả lập Operations.AddAsync lưu lại đối tượng được truyền vào
             TicketTypeEntity? addedEntity = null;
-            _mockRepo.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
-                     .Callback<TicketTypeEntity, CancellationToken>((entity, ct) => addedEntity = entity)
-                     .Returns(Task.CompletedTask);
-
-            // Giả lập UoW.SaveChangesAsync thành công
-            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(1); 
+            _mockOperations.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
+                           .Callback<TicketTypeEntity, CancellationToken>((entity, ct) => addedEntity = entity)
+                           .Returns(Task.CompletedTask);
 
             // Giả lập Mapper trả về DTO
             var expectedResponse = new CreateTicketTypeResponse
@@ -59,8 +53,7 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
             var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            _mockRepo.Verify(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockOperations.Verify(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()), Times.Once);
 
             Assert.NotNull(addedEntity);
             Assert.Equal("Vé tháng VIP", addedEntity.Name);
@@ -87,14 +80,13 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
                 Price = 500000
             };
 
-            // Giả lập Repository ném ra lỗi (ví dụ: đứt kết nối mạng / lỗi DB)
-            _mockRepo.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
-                     .ThrowsAsync(new Exception("Database connection failed"));
+            // Giả lập Operations ném ra lỗi (ví dụ: đứt kết nối mạng / lỗi DB)
+            _mockOperations.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
+                           .ThrowsAsync(new Exception("Database connection failed"));
 
             // Act & Assert
             var exception = await Assert.ThrowsAsync<Exception>(() => _handler.Handle(command, CancellationToken.None));
             Assert.Equal("Database connection failed", exception.Message);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact(DisplayName = "UTCID03 (N) - Tên tiếng Việt có dấu và số -> Hợp lệ")]
@@ -391,15 +383,15 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
         [InlineData(TicketCategoryEnum.VE_LUOT, 30, 1)]
         public async Task Handle_DerivesDurationFromCategory(TicketCategoryEnum category, int? suppliedDays, int expectedDays)
         {
-            var repo = new Mock<IRepository<TicketTypeEntity>>();
+            var ops = new Mock<ITicketTypeOperations>();
             TicketTypeEntity? saved = null;
-            repo.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
+            ops.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
                 .Callback<TicketTypeEntity, CancellationToken>((entity, _) => saved = entity)
                 .Returns(Task.CompletedTask);
             var command = ValidCommand();
             command.TicketCategory = category;
             command.DurationDays = suppliedDays;
-            var result = await new CreateTicketTypeHandler(repo.Object, _mockUow.Object, TicketTypeTestSupport.Mapper())
+            var result = await new CreateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper())
                 .Handle(command, CancellationToken.None);
             Assert.Equal(expectedDays, saved!.DurationDays);
             Assert.Equal(expectedDays, result.DurationDays);

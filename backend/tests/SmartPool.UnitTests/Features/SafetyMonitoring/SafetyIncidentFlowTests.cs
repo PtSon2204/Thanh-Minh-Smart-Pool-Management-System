@@ -10,18 +10,15 @@ namespace SmartPool.UnitTests.Features.SafetyMonitoring;
 
 public sealed class SafetyIncidentFlowTests
 {
-    private readonly Mock<IRepository<Incident>> incidents = new();
-    private readonly Mock<IUnitOfWork> unit = new();
+    private readonly Mock<ISafetyAlertOperations> operations = new();
     private readonly Mock<INotificationService> notifications = new();
 
     private GetSafetyIncidentsHandler History(params Incident[] rows)
     {
-        incidents.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rows);
-        var users = new Mock<IRepository<User>>();
-        var profiles = new Mock<IRepository<UserProfile>>();
-        users.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<User>());
-        profiles.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<UserProfile>());
-        return new(incidents.Object, users.Object, profiles.Object);
+        operations.Setup(x => x.GetAllIncidentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rows.ToList());
+        operations.Setup(x => x.GetAllUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        operations.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        return new(operations.Object);
     }
 
     [Fact]
@@ -66,13 +63,16 @@ public sealed class SafetyIncidentFlowTests
     {
         Incident? saved = null;
         var committed = false;
-        incidents.Setup(x => x.AddAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()))
-            .Callback<Incident, CancellationToken>((row, _) => saved = row).Returns(Task.CompletedTask);
-        unit.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).Callback(() => committed = true).ReturnsAsync(1);
+        operations.Setup(x => x.AddIncidentAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()))
+            .Callback<Incident, CancellationToken>((row, _) =>
+            {
+                saved = row;
+                committed = true;
+            }).Returns(Task.CompletedTask);
         notifications.Setup(x => x.SendToAllAsync("safety_alert", It.IsAny<object>(), It.IsAny<CancellationToken>()))
             .Callback(() => Assert.True(committed)).Returns(Task.CompletedTask);
         var correlation = Guid.NewGuid();
-        var result = await new ActivateSafetyAlertHandler(notifications.Object, incidents.Object, unit.Object)
+        var result = await new ActivateSafetyAlertHandler(notifications.Object, operations.Object)
             .Handle(new() { Zone = "Bể trẻ em", ClientRequestId = correlation }, default);
         Assert.Equal(correlation, result.ClientRequestId);
         Assert.NotNull(saved);
@@ -84,9 +84,9 @@ public sealed class SafetyIncidentFlowTests
     [Fact]
     public async Task FailedSave_DoesNotReportSuccessfulActivationOrBroadcast()
     {
-        unit.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("DB failed"));
+        operations.Setup(x => x.AddIncidentAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("DB failed"));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new ActivateSafetyAlertHandler(notifications.Object, incidents.Object, unit.Object).Handle(new() { Zone = "Bể lớn" }, default));
+            new ActivateSafetyAlertHandler(notifications.Object, operations.Object).Handle(new() { Zone = "Bể lớn" }, default));
         notifications.Verify(x => x.SendToAllAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -94,8 +94,8 @@ public sealed class SafetyIncidentFlowTests
     public async Task ConfirmMissingIncident_DoesNotReportSuccessOrBroadcast()
     {
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            new ConfirmSafetyIncidentHandler(incidents.Object, unit.Object, notifications.Object).Handle(new() { IncidentId = Guid.NewGuid() }, default));
-        unit.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+            new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() { IncidentId = Guid.NewGuid() }, default));
+        operations.Verify(x => x.UpdateIncidentAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()), Times.Never);
         notifications.Verify(x => x.SendToAllAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -103,6 +103,6 @@ public sealed class SafetyIncidentFlowTests
     public async Task ConfirmInvalidStatus_IsRejected()
     {
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            new ConfirmSafetyIncidentHandler(incidents.Object, unit.Object, notifications.Object).Handle(new() { Status = "arbitrary" }, default));
+            new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() { Status = "arbitrary" }, default));
     }
 }

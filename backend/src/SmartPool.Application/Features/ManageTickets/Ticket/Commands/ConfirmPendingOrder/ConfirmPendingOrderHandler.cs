@@ -10,39 +10,30 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 {
     public class ConfirmPendingOrderHandler : IRequestHandler<ConfirmPendingOrderCommand, ConfirmPendingOrderResponse>
     {
-        private readonly IRepository<Domain.Entities.TicketType> _ticketTypeRepo;
+        private readonly ITicketTypeOperations _ticketTypeOperations;
+        private readonly ITicketOrderOperations _ticketOrderOperations;
         private readonly IOrderPaymentOperations _orderPayments;
-        private readonly IRepository<Domain.Entities.OrderDetail> _orderDetailRepo;
-        private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
-        private readonly IRepository<Domain.Entities.Ticket> _ticketRepo;
-        private readonly IUnitOfWork _unitOfWork;
         private readonly IMemoryCache _memoryCache;
         private readonly TimeProvider _timeProvider;
 
         public ConfirmPendingOrderHandler(
-            IRepository<Domain.Entities.TicketType> ticketTypeRepo,
+            ITicketTypeOperations ticketTypeOperations,
+            ITicketOrderOperations ticketOrderOperations,
             IOrderPaymentOperations orderPayments,
-            IRepository<Domain.Entities.OrderDetail> orderDetailRepo,
-            IRepository<Domain.Entities.Payment> paymentRepo,
-            IRepository<Domain.Entities.Ticket> ticketRepo,
-            IUnitOfWork unitOfWork,
             IMemoryCache memoryCache,
             TimeProvider timeProvider)
         {
-            _ticketTypeRepo = ticketTypeRepo;
+            _ticketTypeOperations = ticketTypeOperations;
+            _ticketOrderOperations = ticketOrderOperations;
             _orderPayments = orderPayments;
-            _orderDetailRepo = orderDetailRepo;
-            _paymentRepo = paymentRepo;
-            _ticketRepo = ticketRepo;
-            _unitOfWork = unitOfWork;
             _memoryCache = memoryCache;
             _timeProvider = timeProvider;
         }
 
         public async Task<ConfirmPendingOrderResponse> Handle(ConfirmPendingOrderCommand request, CancellationToken cancellationToken)
         {
-            var pendingPayment = await _paymentRepo.FirstOrDefaultAsync(
-                p => p.TransactionRef == request.TransactionRef,
+            var pendingPayment = await _ticketOrderOperations.GetPaymentByTransactionRefAsync(
+                request.TransactionRef,
                 cancellationToken);
 
             if (pendingPayment == null)
@@ -63,8 +54,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             }
 
             // Re-read after acquiring the lock; expiry or another webhook may have run in between.
-            var pendingPayment = await _paymentRepo.FirstOrDefaultAsync(
-                p => p.OrderId == order.Id && p.TransactionRef == request.TransactionRef, cancellationToken);
+            var pendingPayment = await _ticketOrderOperations.GetPaymentByOrderAndRefAsync(
+                order.Id, request.TransactionRef, cancellationToken);
             if (pendingPayment == null)
                 return new ConfirmPendingOrderResponse { Success = false, Message = "TransactionRef not found." };
             if (request.ActualAmount < 0 || (request.ActualAmount == 0 && order.FinalAmount > 0))
@@ -75,13 +66,13 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             if (expired) _orderPayments.UpdatePayment(pendingPayment);
             if (!string.IsNullOrEmpty(request.BankReferenceCode))
             {
-                var duplicate = await _paymentRepo.FirstOrDefaultAsync(
-                    p => p.TransactionRef == request.BankReferenceCode,
+                var duplicate = await _ticketOrderOperations.GetPaymentByTransactionRefAsync(
+                    request.BankReferenceCode,
                     cancellationToken);
 
                 if (duplicate != null)
                 {
-                    if (expired) await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    if (expired) await _ticketOrderOperations.SaveChangesAsync(cancellationToken);
                     return new ConfirmPendingOrderResponse
                     {
                         Success = true,
@@ -91,9 +82,10 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 }
             }
 
+            Payment? bankPayment = null;
             if (request.ActualAmount > 0)
             {
-                await _paymentRepo.AddAsync(new Domain.Entities.Payment
+                bankPayment = new Payment
                 {
                     Id = Guid.NewGuid(),
                     OrderId = order.Id,
@@ -103,13 +95,13 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                     Status = PaymentStatusEnum.COMPLETED.ToString(),
                     PaymentTime = now,
                     CreatedAt = now
-                }, cancellationToken);
+                };
             }
 
             if (order.Status is "CANCELLED" or "COMPLETED")
             {
                 // Persist additional/late receipts for reconciliation, without issuing tickets again.
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _ticketOrderOperations.SaveIncomingPaymentAsync(bankPayment, cancellationToken);
                 return new ConfirmPendingOrderResponse
                 {
                     Success = true,
@@ -120,10 +112,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 };
             }
 
-            var completedPayments = await _paymentRepo.FindAsync(
-                p => p.OrderId == order.Id && p.Id != pendingPayment.Id
-                    && p.Status == PaymentStatusEnum.COMPLETED.ToString(),
-                cancellationToken);
+            var completedPayments = await _ticketOrderOperations.GetCompletedPaymentsByOrderIdAsync(
+                order.Id, pendingPayment.Id, cancellationToken);
 
             decimal totalPaid = completedPayments.Sum(p => p.Amount) + request.ActualAmount;
 
@@ -131,7 +121,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             {
                 order.Status = "PARTIAL";
                 order.UpdatedAt = now;
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _ticketOrderOperations.UpdateOrderWithPaymentAsync(order, bankPayment, cancellationToken);
 
                 return new ConfirmPendingOrderResponse
                 {
@@ -143,7 +133,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
 
             pendingPayment.Status = PaymentStatusEnum.COMPLETED.ToString();
             pendingPayment.PaymentTime = now;
-            _orderPayments.UpdatePayment(pendingPayment);
 
             order.Status = OrderStatusEnum.COMPLETED.ToString();
             order.UpdatedAt = now;
@@ -155,13 +144,14 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 Message = "Confirmed and tickets generated."
             };
 
-            var orderDetails = await _orderDetailRepo.FindAsync(od => od.OrderId == order.Id, cancellationToken);
+            var orderDetails = await _ticketOrderOperations.GetOrderDetailsByOrderIdAsync(order.Id, cancellationToken);
 
             DateTime issueDate = _timeProvider.GetUtcNow().UtcDateTime;
+            var tickets = new List<Domain.Entities.Ticket>();
 
             foreach (var detail in orderDetails)
             {
-                var ticketType = await _ticketTypeRepo.GetByIdAsync(detail.ItemId, cancellationToken);
+                var ticketType = await _ticketTypeOperations.GetByIdAsync(detail.ItemId, cancellationToken);
                 if (ticketType == null) continue;
 
                 for (int i = 0; i < detail.Quantity; i++)
@@ -186,7 +176,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                         CreatedAt = now
                     };
 
-                    await _ticketRepo.AddAsync(ticket, cancellationToken);
+                    tickets.Add(ticket);
 
                     response.Tickets.Add(new TicketInfo
                     {
@@ -199,7 +189,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 }
             }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _ticketOrderOperations.ConfirmOrderAndAddTicketsAsync(order, pendingPayment, bankPayment, tickets, cancellationToken);
 
             _memoryCache.Set($"OrderTickets_{order.Id}", response.Tickets, TimeSpan.FromMinutes(10));
 
@@ -212,8 +202,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
             for (int attempt = 0; attempt < 10; attempt++)
             {
                 var code = TicketCodeGenerator.Generate();
-                var exists = await _ticketRepo.FirstOrDefaultAsync(t => t.QrCode == code, cancellationToken);
-                if (exists == null)
+                var exists = await _ticketOrderOperations.TicketCodeExistsAsync(code, null, cancellationToken);
+                if (!exists)
                     return code;
             }
             throw new InvalidOperationException("Không thể sinh mã vé duy nhất sau 10 lần thử. Vui lòng thử lại.");

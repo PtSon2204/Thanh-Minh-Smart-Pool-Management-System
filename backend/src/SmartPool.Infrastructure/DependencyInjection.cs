@@ -182,11 +182,9 @@ namespace SmartPool.Infrastructure
             services.AddScoped<ICacheService, RedisCacheService>();
             services.AddScoped<IStaffAttendanceSessionStore, RedisStaffAttendanceSessionStore>();
 
-            // Repository & Unit of Work
-            services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            // Operations
             services.AddScoped<IUserOperations, UserOperations>();
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ServiceOperations>();
             services.AddScoped<IServiceOperations>(provider => provider.GetRequiredService<ServiceOperations>());
             services.Configure<SePayOptions>(configuration.GetSection(SePayOptions.SectionName));
@@ -197,9 +195,14 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();
+            services.AddScoped<ITicketOrderOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketOrderOperations>();
             services.AddScoped<IPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.PaymentOperations>();
             services.AddScoped<IOrderPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.OrderPaymentOperations>();
             services.AddScoped<SmartPool.Application.Interfaces.Repositories.IWaterQualityOperations, SmartPool.Infrastructure.Persistence.Repositories.WaterQuality.WaterQualityOperations>();
+            services.AddScoped<IReportOperations, SmartPool.Infrastructure.Persistence.Repositories.Reports.ReportOperations>();
+            services.AddScoped<ISafetyAlertOperations, SmartPool.Infrastructure.Persistence.Repositories.SafetyMonitoring.SafetyAlertOperations>();
+            services.AddScoped<IDailyInspectionOperations, SmartPool.Infrastructure.Persistence.Repositories.Equipments.DailyInspectionOperations>();
+            services.AddScoped<INotificationOperations, SmartPool.Infrastructure.Persistence.Repositories.Notifications.NotificationOperations>();
             services.AddHostedService<ExpiredOnlineOrderWorker>();
             services.AddHostedService<ExpiredRentalPaymentWorker>();
             services.AddHostedService<InspectionSafetyReminderWorker>();

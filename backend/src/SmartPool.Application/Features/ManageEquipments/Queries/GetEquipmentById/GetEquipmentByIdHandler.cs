@@ -9,13 +9,13 @@ using SmartPool.Domain.Enums;
 namespace SmartPool.Application.Features.ManageEquipments.Queries.GetEquipmentById;
 
 public sealed class GetEquipmentByIdHandler(
-    IRepository<Equipment> equipmentRepository,
+    IEquipmentOperations equipmentOperations,
     ICameraService? cameras = null)
     : IRequestHandler<GetEquipmentByIdQuery, EquipmentListItem?>
 {
     public async Task<EquipmentListItem?> Handle(GetEquipmentByIdQuery request, CancellationToken cancellationToken)
     {
-        var equipment = await equipmentRepository.GetByIdAsync(request.Id, cancellationToken);
+        var equipment = await equipmentOperations.GetByIdAsync(request.Id, cancellationToken);
         if (equipment is null || equipment.IsDeleted == true)
             return null;
 

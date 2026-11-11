@@ -1,8 +1,6 @@
-using System.Linq.Expressions;
 using Moq;
 using SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyTickets;
 using SmartPool.Application.Interfaces.Repositories;
-using SmartPool.Domain.Entities;
 using TicketEntity = SmartPool.Domain.Entities.Ticket;
 using TicketTypeEntity = SmartPool.Domain.Entities.TicketType;
 using UserEntity = SmartPool.Domain.Entities.User;
@@ -17,27 +15,24 @@ public sealed class GetMyTicketsHandlerTests
         var userId = Guid.NewGuid();
         var oldTicket = Ticket(userId, "QR-OLD", createdAt: new DateTime(2026, 1, 1));
         var newTicket = Ticket(userId, "QR-NEW", createdAt: new DateTime(2026, 2, 1));
-        var deletedTicket = Ticket(userId, "QR-DELETED", createdAt: new DateTime(2026, 3, 1), isDeleted: true);
-        var otherUserTicket = Ticket(Guid.NewGuid(), "QR-OTHER", createdAt: new DateTime(2026, 4, 1));
-        var tickets = new[] { oldTicket, otherUserTicket, deletedTicket, newTicket };
-        var ticketRepo = new Mock<IRepository<TicketEntity>>();
-        Expression<Func<TicketEntity, bool>>? predicate = null;
-        ticketRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), It.IsAny<CancellationToken>()))
-            .Callback<Expression<Func<TicketEntity, bool>>, CancellationToken>((filter, _) => predicate = filter)
-            .Returns((Expression<Func<TicketEntity, bool>> filter, CancellationToken _) =>
-                Task.FromResult<IEnumerable<TicketEntity>>(tickets.Where(filter.Compile()).ToList()));
-        var typeRepo = new Mock<IRepository<TicketTypeEntity>>();
-        typeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[]
+        var userTickets = new List<TicketEntity> { oldTicket, newTicket };
+
+        var ticketOrderOperations = new Mock<ITicketOrderOperations>();
+        ticketOrderOperations.Setup(r => r.GetTicketsByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userTickets);
+
+        var typeRepo = new Mock<ITicketTypeOperations>();
+        typeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketTypeEntity>
         {
             new TicketTypeEntity { Id = oldTicket.TicketTypeId, Name = "Vé lượt", TicketCategory = "VE_LUOT" },
             new TicketTypeEntity { Id = newTicket.TicketTypeId, Name = "Vé tháng", TicketCategory = "VE_THANG" },
         });
         var user = new UserEntity { Id = userId, Username = "customer_user" };
-        var userRepo = new Mock<IRepository<UserEntity>>();
+        var userRepo = new Mock<IUserOperations>();
         userRepo.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         using var cts = new CancellationTokenSource();
-        var result = await Handler(ticketRepo, typeRepo, userRepo)
+        var result = await Handler(ticketOrderOperations, typeRepo, userRepo)
             .Handle(new GetMyTicketsQuery { UserId = userId }, cts.Token);
 
         Assert.Equal(new[] { "QR-NEW", "QR-OLD" }, result.Select(x => x.QrCode));
@@ -49,11 +44,7 @@ public sealed class GetMyTicketsHandlerTests
         Assert.Equal(newTicket.ExpiryDate, result[0].ExpiryDate);
         Assert.Equal("ACTIVE", result[0].Status);
         Assert.Equal("Vé lượt", result[1].TicketName);
-        Assert.NotNull(predicate);
-        Assert.True(predicate!.Compile()(oldTicket));
-        Assert.False(predicate.Compile()(deletedTicket));
-        Assert.False(predicate.Compile()(otherUserTicket));
-        ticketRepo.Verify(r => r.FindAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), cts.Token), Times.Once);
+        ticketOrderOperations.Verify(r => r.GetTicketsByUserIdAsync(userId, cts.Token), Times.Once);
         userRepo.Verify(r => r.GetByIdAsync(userId, cts.Token), Times.Once);
         typeRepo.Verify(r => r.GetAllAsync(cts.Token), Times.Once);
     }
@@ -62,7 +53,7 @@ public sealed class GetMyTicketsHandlerTests
     public async Task UTCID02_NoMatchingTickets_ReturnsEmptyList()
     {
         var userId = Guid.NewGuid();
-        var (ticketRepo, typeRepo, userRepo) = Repositories(userId, Array.Empty<TicketEntity>(), Array.Empty<TicketTypeEntity>(), null);
+        var (ticketRepo, typeRepo, userRepo) = Repositories(userId, new List<TicketEntity>(), new List<TicketTypeEntity>(), null);
 
         var result = await Handler(ticketRepo, typeRepo, userRepo)
             .Handle(new GetMyTicketsQuery { UserId = userId }, CancellationToken.None);
@@ -75,7 +66,7 @@ public sealed class GetMyTicketsHandlerTests
     {
         var userId = Guid.NewGuid();
         var ticket = Ticket(userId, "QR-1");
-        var (ticketRepo, typeRepo, userRepo) = Repositories(userId, [ticket], Array.Empty<TicketTypeEntity>(), new UserEntity { Id = userId, Username = "customer" });
+        var (ticketRepo, typeRepo, userRepo) = Repositories(userId, [ticket], new List<TicketTypeEntity>(), new UserEntity { Id = userId, Username = "customer" });
 
         var result = await Handler(ticketRepo, typeRepo, userRepo)
             .Handle(new GetMyTicketsQuery { UserId = userId }, CancellationToken.None);
@@ -122,34 +113,33 @@ public sealed class GetMyTicketsHandlerTests
     public async Task UTCID06_TicketRepositoryFailure_IsPropagated()
     {
         var userId = Guid.NewGuid();
-        var ticketRepo = new Mock<IRepository<TicketEntity>>();
+        var ticketRepo = new Mock<ITicketOrderOperations>();
         var failure = new InvalidOperationException("Ticket read failed");
-        ticketRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), It.IsAny<CancellationToken>()))
+        ticketRepo.Setup(r => r.GetTicketsByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(failure);
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler(ticketRepo, new Mock<IRepository<TicketTypeEntity>>(), new Mock<IRepository<UserEntity>>())
+            Handler(ticketRepo, new Mock<ITicketTypeOperations>(), new Mock<IUserOperations>())
                 .Handle(new GetMyTicketsQuery { UserId = userId }, CancellationToken.None));
 
         Assert.Same(failure, actual);
-        ticketRepo.Verify(r => r.FindAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
+        ticketRepo.Verify(r => r.GetTicketsByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private static GetMyTicketsHandler Handler(
-        Mock<IRepository<TicketEntity>> tickets,
-        Mock<IRepository<TicketTypeEntity>> ticketTypes,
-        Mock<IRepository<UserEntity>> users) => new(tickets.Object, ticketTypes.Object, users.Object);
+        Mock<ITicketOrderOperations> tickets,
+        Mock<ITicketTypeOperations> ticketTypes,
+        Mock<IUserOperations> users) => new(tickets.Object, ticketTypes.Object, users.Object);
 
-    private static (Mock<IRepository<TicketEntity>>, Mock<IRepository<TicketTypeEntity>>, Mock<IRepository<UserEntity>>) Repositories(
-        Guid userId, IEnumerable<TicketEntity> tickets, IEnumerable<TicketTypeEntity> ticketTypes, UserEntity? user)
+    private static (Mock<ITicketOrderOperations>, Mock<ITicketTypeOperations>, Mock<IUserOperations>) Repositories(
+        Guid userId, List<TicketEntity> tickets, List<TicketTypeEntity> ticketTypes, UserEntity? user)
     {
-        var ticketRepo = new Mock<IRepository<TicketEntity>>();
-        ticketRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<TicketEntity, bool>> filter, CancellationToken _) =>
-                Task.FromResult<IEnumerable<TicketEntity>>(tickets.Where(filter.Compile()).ToList()));
-        var typeRepo = new Mock<IRepository<TicketTypeEntity>>();
+        var ticketRepo = new Mock<ITicketOrderOperations>();
+        ticketRepo.Setup(r => r.GetTicketsByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tickets);
+        var typeRepo = new Mock<ITicketTypeOperations>();
         typeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(ticketTypes);
-        var userRepo = new Mock<IRepository<UserEntity>>();
+        var userRepo = new Mock<IUserOperations>();
         userRepo.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         return (ticketRepo, typeRepo, userRepo);
     }

@@ -38,7 +38,7 @@ public sealed class CameraEquipmentTests
         var protection = new EphemeralDataProtectionProvider();
         await using var cameras = new CameraService(new CameraAddressPolicy(options), new CameraFrameDecoder(options), protection, options, TimeProvider.System, NullLogger<CameraService>.Instance);
         var operations = new EquipmentOperations(db);
-        var handler = new CreateEquipmentHandler(new Repository<Equipment>(db), new UnitOfWork(db), new CreateEquipmentValidator(), TimeProvider.System, cameras, operations);
+        var handler = new CreateEquipmentHandler(operations, new CreateEquipmentValidator(), TimeProvider.System, cameras);
         var request = new CreateEquipmentCommand
         {
             Name = "Camera integration " + Guid.NewGuid(), Category = "Camera",

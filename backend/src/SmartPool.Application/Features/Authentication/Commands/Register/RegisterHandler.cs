@@ -18,8 +18,7 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
 {
     internal const string OtpEmailSubject = "[Thanh Minh Smart Pool] Mã xác minh đăng ký";
 
-    private readonly IRepository<User> _users;
-    private readonly IRepository<Role> _roles;
+    private readonly IUserOperations _userOperations;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IRegistrationOtpStore _otpStore;
     private readonly RegistrationOtpCodeService _otpCodes;
@@ -30,8 +29,7 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
     private readonly IValidator<RegisterCommand> _validator;
 
     public RegisterHandler(
-        IRepository<User> users,
-        IRepository<Role> roles,
+        IUserOperations userOperations,
         IPasswordHasher passwordHasher,
         IRegistrationOtpStore otpStore,
         RegistrationOtpCodeService otpCodes,
@@ -40,8 +38,7 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
         IValidator<RegisterCommand> validator,
         ILogger<RegisterHandler> logger)
     {
-        _users = users;
-        _roles = roles;
+        _userOperations = userOperations;
         _passwordHasher = passwordHasher;
         _otpStore = otpStore;
         _otpCodes = otpCodes;
@@ -134,13 +131,13 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
                 "Không thể khởi tạo đăng ký.", "Bộ lưu trữ mã xác minh chưa sẵn sàng.",
                 "OTP_STORE_UNAVAILABLE");
 
-        var conflict = await FindConflictAsync(_users, null, email, phone, cancellationToken);
+        var conflict = await FindConflictAsync(_userOperations, null, email, phone, cancellationToken);
         if (conflict is not null) throw new UniqueFieldConflictException(conflict);
 
-        var customerRole = await _roles.FirstOrDefaultAsync(
-            role => role.Name.ToUpper() == nameof(RoleEnum.CUSTOMER) && role.IsDeleted != true,
+        var customerRole = await _userOperations.GetRoleByNameAsync(
+            nameof(RoleEnum.CUSTOMER),
             cancellationToken);
-        if (customerRole is null)
+        if (customerRole is null || customerRole.IsDeleted == true)
             throw new CustomerRoleNotConfiguredException();
 
         var registrationId = Guid.NewGuid();
@@ -241,18 +238,15 @@ public sealed class RegisterHandler : IRequestHandler<RegisterCommand, IActionRe
     }
 
     // SQL unique indexes also cover soft-deleted users. Reused before OTP issue and DB creation.
-    internal static async Task<string?> FindConflictAsync(IRepository<User> users, string? username,
+    internal static async Task<string?> FindConflictAsync(IUserOperations userOperations, string? username,
         string email, string phone, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(username) && await users.ExistsAsync(
-                user => user.Username != null && user.Username.ToLower() == username, cancellationToken))
+        if (!string.IsNullOrEmpty(username) && await userOperations.ExistsByUsernameAsync(username, cancellationToken))
             return "username";
-        if (await users.ExistsAsync(
-                user => user.Email != null && user.Email.ToLower() == email, cancellationToken))
+        if (await userOperations.ExistsByEmailAsync(email, cancellationToken))
             return "email";
         var internationalPhone = "+84" + phone[1..];
-        if (await users.ExistsAsync(
-                user => user.Phone == phone || user.Phone == internationalPhone, cancellationToken))
+        if (await userOperations.ExistsByPhoneAsync(phone, internationalPhone, cancellationToken))
             return "phone";
         return null;
     }

@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SmartPool.API.Controllers;
 using SmartPool.API.Extensions;
-using SmartPool.Application;
+using SmartPool.Application.Interfaces;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;

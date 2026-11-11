@@ -14,8 +14,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
 {
     private static readonly Regex PhonePattern = new(@"^(?:0|\+84)[35789][0-9]{8}$", RegexOptions.Compiled);
 
-    private readonly IRepository<User> _users;
-    private readonly IRepository<Role> _roles;
+    private readonly IUserOperations _userOperations;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAccessTokenService _accessTokenService;
     private readonly IRefreshTokenService _refreshTokenService;
@@ -23,16 +22,14 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
     private readonly IValidator<LoginCommand> _validator;
 
     public LoginHandler(
-        IRepository<User> users,
-        IRepository<Role> roles,
+        IUserOperations userOperations,
         IPasswordHasher passwordHasher,
         IAccessTokenService accessTokenService,
         IRefreshTokenService refreshTokenService,
         IValidator<LoginCommand> validator,
         IUserRoleMembershipService? membership = null)
     {
-        _users = users;
-        _roles = roles;
+        _userOperations = userOperations;
         _passwordHasher = passwordHasher;
         _accessTokenService = accessTokenService;
         _refreshTokenService = refreshTokenService;
@@ -52,33 +49,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         }
 
         var identifier = request.Identifier.Trim().ToLowerInvariant();
-        IEnumerable<User> candidates;
-        if (identifier.Contains('@'))
-        {
-            var user = await _users.FirstOrDefaultAsync(
-                candidate => candidate.Email != null && candidate.Email.ToLower() == identifier,
-                cancellationToken);
-            candidates = user is null ? [] : [user];
-        }
-        else if (PhonePattern.IsMatch(identifier))
-        {
-            var localPhone = identifier.StartsWith("+84", StringComparison.Ordinal)
-                ? "0" + identifier[3..]
-                : identifier;
-            var internationalPhone = "+84" + localPhone[1..];
-            // A registered username may also look like a phone number. Check both accounts.
-            candidates = await _users.FindAsync(
-                candidate => candidate.Phone == localPhone || candidate.Phone == internationalPhone ||
-                    (candidate.Username != null && candidate.Username.ToLower() == identifier),
-                cancellationToken);
-        }
-        else
-        {
-            var user = await _users.FirstOrDefaultAsync(
-                candidate => candidate.Username != null && candidate.Username.ToLower() == identifier,
-                cancellationToken);
-            candidates = user is null ? [] : [user];
-        }
+        var candidates = await _userOperations.FindUsersByIdentifierAsync(identifier, cancellationToken);
 
         var matches = candidates.Where(candidate => IsEligible(candidate) &&
             _passwordHasher.VerifyPassword(candidate, candidate.PasswordHash!, request.Password)).ToList();
@@ -89,7 +60,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         if (authenticatedUser.RoleId is null)
             return InvalidCredentials();
 
-        var role = await _roles.GetByIdAsync(authenticatedUser.RoleId.Value, cancellationToken);
+        var role = await _userOperations.GetRoleByIdAsync(authenticatedUser.RoleId.Value, cancellationToken);
         if (role is null || role.IsDeleted == true)
             return InvalidCredentials();
 

@@ -64,9 +64,6 @@ public sealed class CameraEquipmentTests
     [InlineData(true)]
     public async Task CameraCreate_PublishesOnlyAfterStorageAndDisposesUncommittedRegistration(bool storageFails)
     {
-        var repository = new Mock<IRepository<Equipment>>();
-        repository.Setup(x => x.ExistsAsync(It.IsAny<Expression<Func<Equipment, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        var work = new Mock<IUnitOfWork>(MockBehavior.Strict);
         var operations = new Mock<IEquipmentOperations>();
         var cameras = new Mock<ICameraService>();
         var registration = new Mock<ICameraRegistration>();
@@ -85,7 +82,7 @@ public sealed class CameraEquipmentTests
                 publish();
                 return Task.CompletedTask;
             });
-        var handler = new CreateEquipmentHandler(repository.Object, work.Object, new CreateEquipmentValidator(), TimeProvider.System, cameras.Object, operations.Object);
+        var handler = new CreateEquipmentHandler(operations.Object, new CreateEquipmentValidator(), TimeProvider.System, cameras.Object);
         var command = new CreateEquipmentCommand
         {
             Name = "Camera", Category = "Camera", CameraConnection = new() { StreamUrl = "rtsp://127.0.0.1:554/live", Username = "test", Password = "secret" }
@@ -107,7 +104,5 @@ public sealed class CameraEquipmentTests
             registration.Verify(x => x.Confirm(), Times.Once);
         }
         registration.Verify(x => x.DisposeAsync(), Times.Once);
-        repository.Verify(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()), Times.Never);
-        work.VerifyNoOtherCalls();
     }
 }
