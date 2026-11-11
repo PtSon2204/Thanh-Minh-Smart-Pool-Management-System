@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using SmartPool.Application.Interfaces.Repositories;
 
@@ -7,17 +8,27 @@ public class UpdateTicketCodeHandler : IRequestHandler<UpdateTicketCodeCommand, 
 {
     private readonly IRepository<Domain.Entities.Ticket> _ticketRepo;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IValidator<UpdateTicketCodeCommand>? _validator;
 
     public UpdateTicketCodeHandler(
         IRepository<Domain.Entities.Ticket> ticketRepo,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IValidator<UpdateTicketCodeCommand>? validator = null)
     {
         _ticketRepo = ticketRepo;
         _unitOfWork = unitOfWork;
+        _validator = validator;
     }
 
     public async Task<UpdateTicketCodeResponse> Handle(UpdateTicketCodeCommand request, CancellationToken cancellationToken)
     {
+        if (_validator is not null)
+        {
+            var validation = await _validator.ValidateAsync(request, cancellationToken);
+            if (!validation.IsValid)
+                return Fail(validation.Errors.First().ErrorMessage);
+        }
+
         // 1. Tìm vé theo ID
         var ticket = await _ticketRepo.GetByIdAsync(request.TicketId, cancellationToken);
         if (ticket == null)

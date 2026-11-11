@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSafetyAlert;
 using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ConfirmSafetyIncident;
+using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidentById;
 using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidents;
 
 namespace SmartPool.API.Controllers;
@@ -97,6 +98,21 @@ public sealed class SafetyAlertsController : ControllerBase
 
         try { return Ok(await _sender.Send(query, cancellationToken)); }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    /// <summary>
+    /// Lấy chi tiết một sự cố trong lịch sử.
+    /// </summary>
+    [HttpGet("incidents/{id:guid}")]
+    [Authorize(Roles = "ADMIN,LIFEGUARD")]
+    [ProducesResponseType(typeof(SafetyIncidentDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIncidentById(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        try { return Ok(await _sender.Send(new GetSafetyIncidentByIdQuery(id), cancellationToken)); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Không tìm thấy sự cố." }); }
     }
 
     /// <summary>

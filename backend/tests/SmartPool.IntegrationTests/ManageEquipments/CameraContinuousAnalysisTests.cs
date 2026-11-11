@@ -8,10 +8,10 @@ namespace SmartPool.IntegrationTests.ManageEquipments;
 
 public sealed class CameraContinuousAnalysisTests
 {
-    [Fact]
+    [CameraFact]
     public async Task AnalysisCapture_ReceivesContinuousFramesFromSharedRtsp_WithoutTwoSecondSampling()
     {
-        var ffmpeg = Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")!;
+        var ffmpeg = CameraTestEnvironment.GetRequiredFfmpeg();
         await using var rtsp = await LocalRtspCamera.StartAsync(ffmpeg);
         var options = Options.Create(new CameraOptions { FfmpegPath = ffmpeg,
             AllowedEndpoints = [new() { Host = "127.0.0.1", Port = rtsp.Port }] });

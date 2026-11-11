@@ -14,10 +14,10 @@ namespace SmartPool.IntegrationTests.ManageEquipments;
 
 public sealed class CameraStreamEquipmentTests
 {
-    [Fact]
+    [CameraFact]
     public async Task WebRtc_UsesCorrectCameraSharesSourceEnforcesOwnershipAndReleasesOnlyViewer()
     {
-        var ffmpeg = Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")!;
+        var ffmpeg = CameraTestEnvironment.GetRequiredFfmpeg();
         await using var blue = await LocalRtspCamera.StartAsync(ffmpeg, hevc: true);
         await using var red = await LocalRtspCamera.StartAsync(ffmpeg, color: "red");
         var options = Options.Create(new CameraOptions

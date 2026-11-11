@@ -17,6 +17,7 @@ import {
   Descriptions,
   Divider,
   Image,
+  Spin,
 } from 'antd'
 import {
   AlertOutlined,
@@ -86,6 +87,7 @@ export default function IncidentHistoryPage() {
   // Modal Chi tiết sự cố
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1)
@@ -154,10 +156,19 @@ export default function IncidentHistoryPage() {
   useIncidentEvents(triggerRefresh)
 
   // Mở modal xem chi tiết
-  const handleOpenDetail = useCallback((record) => {
-    setSelectedIncident(record)
+  const handleOpenDetail = useCallback(async (record) => {
+    setSelectedIncident(null)
     setResolutionNote('')
     setDetailModalOpen(true)
+    setDetailLoading(true)
+    try {
+      setSelectedIncident(await safetyAlertService.getIncidentById(record.id))
+    } catch (err) {
+      setDetailModalOpen(false)
+      message.error(err.response?.data?.message || 'Không tải được chi tiết sự cố')
+    } finally {
+      setDetailLoading(false)
+    }
   }, [])
 
   const updateIncident = async status => {
@@ -427,7 +438,7 @@ export default function IncidentHistoryPage() {
         width={680}
         centered
       >
-        {selectedIncident && (
+        {detailLoading ? <Spin tip="Đang tải chi tiết sự cố..." /> : selectedIncident && (
           <div className="incident-detail-body">
             <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
               <Descriptions.Item label="Mã sự cố" span={1}>
