@@ -175,13 +175,14 @@ codebase.md
 ARCHITECTURE.md
 
 #bỏ folder docs
-docs/
-.claude/
-plans/
-Ticket Management/
-Payment Management/
-Equipment Management/
-ManageSafetyAlerts/
+/docs/
+/.claude/
+/plans/
+/Ticket Management/
+/Payment Management/
+/Equipment Management/
+/ManageSafetyAlerts/
+/Profile Management/
 
 # Bỏ qua tất cả file Markdown
 *.md
