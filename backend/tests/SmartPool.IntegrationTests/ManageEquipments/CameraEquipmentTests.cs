@@ -17,10 +17,9 @@ namespace SmartPool.IntegrationTests.ManageEquipments;
 
 public sealed class CameraEquipmentTests
 {
-    private static string Ffmpeg => Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")
-        ?? throw new InvalidOperationException("Set SMARTPOOL_CAMERA_TEST_FFMPEG to an FFmpeg executable to run camera integration tests.");
+    private static string Ffmpeg => CameraTestEnvironment.GetRequiredFfmpeg();
 
-    [Theory]
+    [CameraTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RealRtsp_ValidatesDecodedFramePersistsEncryptedConfigurationRejectsDuplicateAndReportsDisconnect(bool hevc)
@@ -104,7 +103,7 @@ public sealed class CameraEquipmentTests
         Assert.Equal(new byte[] { 0xff, 0xd9 }, jpeg[^2..]);
     }
 
-    [Theory]
+    [CameraTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RealRtsp_StoredConfigurationRestoresOneSharedConnection(bool hevc)
@@ -155,7 +154,7 @@ public sealed class CameraEquipmentTests
         Assert.NotNull(retry);
     }
 
-    [Theory]
+    [CameraTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RealRtsp_BadCredentialsAndInvalidVideoDoNotProduceSuccessfulRegistration(bool hevc)

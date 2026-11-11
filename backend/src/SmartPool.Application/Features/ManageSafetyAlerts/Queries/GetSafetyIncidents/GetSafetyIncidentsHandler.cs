@@ -36,39 +36,11 @@ public sealed class GetSafetyIncidentsHandler : IRequestHandler<GetSafetyInciden
         var allUsers = (await _userRepo.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
         var allProfiles = (await _profileRepo.GetAllAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
 
-        // Chuyển sang DTO
-        var dtos = allIncidents.Select(i =>
-        {
-            string reportedName = "Nhân viên";
-            if (i.ReportedBy.HasValue && allUsers.TryGetValue(i.ReportedBy.Value, out var u))
-            {
-                if (allProfiles.TryGetValue(u.Id, out var prof) && !string.IsNullOrWhiteSpace(prof.FullName))
-                    reportedName = prof.FullName;
-                else if (!string.IsNullOrWhiteSpace(u.Username))
-                    reportedName = u.Username;
-            }
-
-            string zone = !string.IsNullOrWhiteSpace(i.Location) ? i.Location : ResolveZone(i.Title, i.Description);
-            bool isFromCamera = i.WarningId.HasValue || i.CameraId.HasValue;
-            string sourceType = isFromCamera ? "Camera AI giám sát" : "Cứu hộ viên phát hiện thực tế";
-
-            return new SafetyIncidentDto
-            {
-                Id = i.Id,
-                IncidentCode = $"INC-{i.Id.ToString()[..8].ToUpperInvariant()}",
-                Title = i.Title,
-                Zone = zone,
-                SeverityLevel = i.SeverityLevel ?? "EMERGENCY",
-                Status = NormalizeStatus(i.Status),
-                Description = i.Description,
-                IncidentTime = i.IncidentTime ?? i.CreatedAt ?? DateTime.UtcNow,
-                ReportedByName = isFromCamera ? "Hệ thống AI Camera" : reportedName,
-                ReportedByUserId = i.ReportedBy,
-                ImageIncidents = i.ImageIncidents,
-                SourceType = sourceType,
-                UpdatedAt = i.UpdatedAt,
-            };
-        }).OrderByDescending(x => x.IncidentTime).ToList();
+        var dtos = allIncidents.Select(i => SafetyIncidentMapper.ToDto(
+            i,
+            i.ReportedBy.HasValue && allUsers.TryGetValue(i.ReportedBy.Value, out var user) ? user : null,
+            i.ReportedBy.HasValue && allProfiles.TryGetValue(i.ReportedBy.Value, out var profile) ? profile : null))
+            .OrderByDescending(x => x.IncidentTime).ToList();
 
         // Lọc theo điều kiện tìm kiếm
         var queryable = dtos.AsEnumerable();
@@ -145,27 +117,4 @@ public sealed class GetSafetyIncidentsHandler : IRequestHandler<GetSafetyInciden
         };
     }
 
-    private static string ResolveZone(string? title, string? desc)
-    {
-        var text = $"{title} {desc}".ToLowerInvariant();
-        if (text.Contains("trẻ em") || text.Contains("be tre em"))
-            return "Bể trẻ em";
-        if (text.Contains("bể lớn") || text.Contains("be lon"))
-            return "Bể lớn";
-        if (text.Contains("bể chính") || text.Contains("be chinh") || text.Contains("bể bơi chính"))
-            return "Bể lớn";
-        return "Chưa xác định";
-    }
-
-    private static string NormalizeStatus(string? status)
-    {
-        if (string.IsNullOrWhiteSpace(status)) return "Pending";
-        var s = status.Trim().ToLowerInvariant();
-        if (s is "pending" or "chờ xử lý" or "đang chờ") return "Pending";
-        if (s is "resolved" or "đã giải quyết" or "đã xử lý" or "completed" or "đã ghi nhận")
-            return "Resolved";
-        if (s is "in_progress" or "in progress" or "đang xử lý" or "processing")
-            return "In Progress";
-        return status;
-    }
 }

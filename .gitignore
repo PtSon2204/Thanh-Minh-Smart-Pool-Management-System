@@ -180,6 +180,8 @@ docs/
 plans/
 Ticket Management/
 Payment Management/
+Equipment Management/
+ManageSafetyAlerts/
 
 # Bỏ qua tất cả file Markdown
 *.md
