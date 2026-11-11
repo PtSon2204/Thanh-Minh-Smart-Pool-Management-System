@@ -217,9 +217,33 @@ public sealed partial class SafetyMonitoringTests
         }
         using var body = new MultipartFormDataContent();
         var content = new ByteArrayContent(await File.ReadAllBytesAsync(input)); content.Headers.ContentType = new("video/mp4"); body.Add(content, "file", "pool.mp4");
+        var startupRuns = new List<object>();
+        async Task<object> MeasureStartup(Guid id, Stopwatch clock, double acceptedMs)
+        {
+            double? firstFramesMs = null;
+            VideoFrameAnalysisWindowDto sample;
+            var measurementDeadline = DateTime.UtcNow.AddMinutes(3);
+            do
+            {
+                sample = (await client.GetFromJsonAsync<VideoFrameAnalysisWindowDto>($"/api/video-analyses/{id}/frame-analysis/window?from=0&duration=1"))!;
+                if (sample.ReadyFrames >= 2) firstFramesMs ??= clock.Elapsed.TotalMilliseconds;
+                if (sample.Complete) break;
+                var currentJob = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{id}"))!;
+                Assert.NotEqual("FAILED", currentJob.Status);
+                await Task.Delay(25);
+            } while (DateTime.UtcNow < measurementDeadline);
+            Assert.True(sample.Complete);
+            Assert.NotNull(firstFramesMs);
+            var analysisMs = clock.Elapsed.TotalMilliseconds - acceptedMs;
+            return new { uploadAndValidationMs = acceptedMs, firstSynchronizedFramesAfterAcceptedMs = firstFramesMs - acceptedMs,
+                analysisCompleteAfterAcceptedMs = analysisMs, frames = sample.ReadyFrames, fps = sample.Fps,
+                speedIncludingProbeAndDb = sample.ReadyFrames / sample.Fps / (analysisMs / 1000) };
+        }
+        var startupClock = Stopwatch.StartNew();
         var response = await client.PostAsync("/api/video-analyses", body);
         Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
         var job = (await response.Content.ReadFromJsonAsync<VideoJobDto>())!;
+        startupRuns.Add(await MeasureStartup(job.Id, startupClock, startupClock.Elapsed.TotalMilliseconds));
         var deadline = DateTime.UtcNow.AddMinutes(5);
         while (DateTime.UtcNow < deadline && job.Status is not ("COMPLETED" or "FAILED"))
         { await Task.Delay(500); job = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{job.Id}"))!; }
@@ -285,6 +309,29 @@ public sealed partial class SafetyMonitoringTests
         foreach (var arg in new[] { "-v", "error", "-show_entries", "stream=codec_name,codec_type:format=duration", "-of", "json", generated }) probe.ArgumentList.Add(arg);
         using (var check = Process.Start(probe)!)
         { var output = await check.StandardOutput.ReadToEndAsync(); await check.WaitForExitAsync(); Assert.Contains("h264", output); Assert.Contains("aac", output); }
+        // A second native upload exercises the retained model and reset tracker/decoder.
+        using var secondBody = new MultipartFormDataContent();
+        secondBody.Add(new ByteArrayContent(await File.ReadAllBytesAsync(input)), "file", "second.mp4");
+        startupClock.Restart();
+        var secondResponse = await client.PostAsync("/api/video-analyses", secondBody);
+        Assert.Equal(HttpStatusCode.Accepted, secondResponse.StatusCode);
+        var secondJob = (await secondResponse.Content.ReadFromJsonAsync<VideoJobDto>())!;
+        startupRuns.Add(await MeasureStartup(secondJob.Id, startupClock, startupClock.Elapsed.TotalMilliseconds));
+        var report = JsonSerializer.Serialize(new { fixture = "native ONNX, 640x360, 10 FPS, 2 seconds; HTTP and timeline included", runs = startupRuns }, new JsonSerializerOptions { WriteIndented = true });
+        await File.WriteAllTextAsync(Path.Combine(RepositoryRoot(), "backend", ".test-runtime", "video-startup-results.json"), report);
+        while (DateTime.UtcNow < deadline && secondJob.Status is not ("COMPLETED" or "FAILED"))
+        { await Task.Delay(100); secondJob = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{secondJob.Id}"))!; }
+        Assert.Equal("COMPLETED", secondJob.Status);
+        var vfrFile = Path.Combine(root, "variable-rate.mp4");
+        var variableRate = new ProcessStartInfo(Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")!)
+        { CreateNoWindow = true, UseShellExecute = false, RedirectStandardError = true };
+        foreach (var arg in new[] { "-v", "error", "-y", "-i", input, "-vf", "setpts=if(lt(N\\,5)\\,N/(10*TB)\\,(N+2)/(10*TB))", "-fps_mode", "vfr", "-an", vfrFile }) variableRate.ArgumentList.Add(arg);
+        using (var variable = Process.Start(variableRate)!)
+        { var error = variable.StandardError.ReadToEndAsync(); await variable.WaitForExitAsync(); Assert.True(variable.ExitCode == 0, await error); }
+        var videoProbe = app.Services.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
+        var vfrInfo = await videoProbe.InspectAsync(vfrFile, false, default);
+        await using (var timeline = videoProbe.OpenTimeline(vfrFile, vfrInfo))
+            await Assert.ThrowsAsync<ArgumentException>(async () => { while (await timeline.ReadAsync(default)) { } });
         await app.StopAsync();
     }
 

@@ -12,9 +12,9 @@ test('resync removes handled alerts, preserves active older alerts and excludes 
   assert.deepEqual(reconcilePendingAlerts([old, alert('handled')], pending, new Set(['dismissed']), now).map(a => a.id), ['old', 'fresh'])
 })
 
-test('priority compares full timestamps across minute boundaries and puts critical first', () => {
-  const rows = [alert('early', { createdAt: new Date(now - 101000).toISOString() }), alert('later'), alert('critical', { severity: 'CRITICAL' })]
-  assert.deepEqual(sortAlerts(rows).map(a => a.id), ['critical', 'later', 'early'])
+test('newest popup comes first even when an older popup is critical', () => {
+  const rows = [alert('early', { createdAt: new Date(now - 101000).toISOString() }), alert('later'), alert('critical', { severity: 'CRITICAL', createdAt: new Date(now - 5000).toISOString() })]
+  assert.deepEqual(sortAlerts(rows).map(a => a.id), ['later', 'critical', 'early'])
 })
 
 test('video overlays reject missing, future and stale analysis after seeking ahead', () => {

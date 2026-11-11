@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Card, Collapse, Input, Progress, Space, Spin, Typography, Upload, message } from 'antd'
 import { monitoringService } from '../../../features/safety/services/monitoringService'
 import VideoAnalysisPlayer from '../../../features/safety/components/VideoAnalysisPlayer'
@@ -18,6 +18,7 @@ function uploadError(error) {
 }
 
 export default function VideoAnalysisPage() {
+  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const [file, setFile] = useState(null)
   const [jobId, setJobId] = useState(() => searchParams.get('job') || localStorage.getItem('safety-analysis-job') || '')
@@ -26,13 +27,17 @@ export default function VideoAnalysisPage() {
   const [resumeId, setResumeId] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [autoPlay, setAutoPlay] = useState(false)
-  const status = useQuery({ queryKey: ['safety', 'configuration'], queryFn: ({ signal }) => monitoringService.status(signal) })
+  const status = useQuery({ queryKey: ['safety', 'configuration'], queryFn: ({ signal }) => monitoringService.status(signal),
+    refetchInterval: query => query.state.data?.uploadConfigured && query.state.data.uploadWorkerReady === false ? 500 : 10000 })
   const job = useQuery({ queryKey: ['safety', 'video-job', jobId], queryFn: ({ signal }) => monitoringService.job(jobId, signal),
     enabled: !!jobId, retry: false,
     refetchInterval: query => query.state.error || ['COMPLETED', 'FAILED'].includes(query.state.data?.status) ? false : 2000 })
   const upload = useMutation({ mutationFn: () => monitoringService.upload(file, progress => setUploadProgress(Math.round((progress.progress || 0) * 100))),
     onMutate: () => setUploadProgress(0),
-    onSuccess: data => { setAutoPlay(true); setJobId(data.id); localStorage.setItem('safety-analysis-job', data.id); setFile(null); setSeek(null) },
+    onSuccess: data => {
+      queryClient.setQueryData(['safety', 'video-job', data.id], data)
+      setAutoPlay(true); setJobId(data.id); localStorage.setItem('safety-analysis-job', data.id); setFile(null); setSeek(null)
+    },
     onError: error => message.error(uploadError(error)) })
   function openPrevious() {
     const id = resumeId.trim()
@@ -46,6 +51,7 @@ export default function VideoAnalysisPage() {
     <Alert type="info" title="Video tự phát cùng box AI và popup theo thời điểm đang xem. Cảnh báo từ video tải lên được lưu riêng." />
     {status.isError && <Alert type="error" title="Không kiểm tra được dịch vụ AI" action={<Button onClick={() => status.refetch()}>Thử lại</Button>} />}
     {status.data && !status.data.uploadConfigured && <Alert type="warning" title="Dịch vụ phân tích video chưa sẵn sàng" />}
+    {status.data?.uploadConfigured && status.data.uploadWorkerReady === false && <Alert type="info" showIcon title="AI đang chuẩn bị cho lần phân tích đầu tiên. Bạn có thể chọn video trong lúc chờ." />}
     <Card title="Tải video lên">
       <Upload.Dragger accept=".mp4,.mov,.avi,.mkv" maxCount={1} fileList={file ? [file] : []} disabled={upload.isPending}
         beforeUpload={selected => {
@@ -59,7 +65,7 @@ export default function VideoAnalysisPage() {
       {file && <p>{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</p>}
       {upload.isPending && <Progress percent={uploadProgress} />}
       {upload.isError && <Alert type="error" showIcon title={uploadError(upload.error)} />}
-      <Button type="primary" disabled={!file || !status.data?.uploadConfigured} loading={upload.isPending} onClick={() => upload.mutate()}>Bắt đầu phân tích</Button>
+      <Button type="primary" disabled={!file || !status.data?.uploadConfigured || status.data.uploadWorkerReady === false} loading={upload.isPending} onClick={() => upload.mutate()}>Bắt đầu phân tích</Button>
     </Card>
     {jobId && job.isPending && <Spin tip="Đang tải kết quả phân tích..." />}
     {job.isError && <Alert type="error" title="Không tìm thấy lần phân tích này hoặc bạn không có quyền truy cập" action={<Button onClick={() => job.refetch()}>Thử lại</Button>} />}

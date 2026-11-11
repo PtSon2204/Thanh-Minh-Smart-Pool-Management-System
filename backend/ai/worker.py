@@ -105,11 +105,15 @@ def main():
     # Respect the process-specific thread budget for preprocessing as well as ORT.
     cv2.setNumThreads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
     detector = Detector(sys.argv[1])
+    # Pay graph/provider initialization once before advertising readiness.
+    detector.session.run(None, {detector.session.get_inputs()[0].name:
+                               np.zeros((1, 3, detector.size, detector.size), dtype=np.float32)})
     font = sys.argv[2] if len(sys.argv) > 2 else None
     image = None
     capture = writer = None
     frame_index = 0
     fps = total = 0
+    expected_frames = None
     print(json.dumps({"ready": True, "classes": detector.names}), flush=True)
     for line in sys.stdin:
         request = json.loads(line)
@@ -120,6 +124,7 @@ def main():
                 raise ValueError("Invalid JPEG")
             result = {"detections": detector.infer(image, request["key"])}
         elif op == "open":
+            detector.trackers.pop("upload", None)
             # Phase 1 (analyze): output = null → chỉ mở capture, KHÔNG mở writer.
             # Bỏ encode/paint ở phase này để AI chạy nhanh hơn real-time (lead với video).
             capture = cv2.VideoCapture(request["input"])
@@ -127,8 +132,9 @@ def main():
                 raise ValueError("Video decoder unavailable")
             fps = float(request["fps"])
             # Container duration * FPS can overstate frames (e.g. MP4 edit lists).
-            # The backend has already decoded/verified the timeline with ffprobe.
+            # The backend checks each decoded timestamp before publishing its result.
             verified_frames = request.get("frames")
+            expected_frames = verified_frames
             total = int(verified_frames if verified_frames is not None else capture.get(cv2.CAP_PROP_FRAME_COUNT))
             frame_index = 0
             width, height = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -140,10 +146,18 @@ def main():
             else:
                 writer = None
             result = {"opened": True}
+        elif op == "close":
+            if writer:
+                writer.release()
+            if capture:
+                capture.release()
+            writer = capture = image = None
+            detector.trackers.pop("upload", None)
+            result = {"closed": True}
         elif op == "next":
             ok, image = capture.read()
             if not ok:
-                if frame_index != total:
+                if expected_frames is not None and frame_index != expected_frames:
                     raise ValueError("Video decoding ended before the final frame")
                 if writer:
                     writer.release()

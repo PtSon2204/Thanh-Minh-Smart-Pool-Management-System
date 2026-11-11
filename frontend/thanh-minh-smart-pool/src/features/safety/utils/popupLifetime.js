@@ -1,0 +1,1 @@
+export const ALERT_POPUP_LIFETIME_MS = 30000

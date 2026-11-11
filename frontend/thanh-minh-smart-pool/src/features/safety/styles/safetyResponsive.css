@@ -25,6 +25,10 @@
 .incident-history-page .ant-pagination { flex-wrap: wrap; row-gap: 8px; }
 .safety-form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .safety-video-stage { position: relative; width: 100%; max-width: 800px; background: #000; }
+.safety-popup-stack,
+.safety-video-popup { display: flex; flex-direction: column; gap: 12px; }
+.safety-popup-stack > *,
+.safety-video-popup > * { flex-shrink: 0; }
 .safety-global-popup { position: fixed; inset-inline: 0; top: max(64px, env(safe-area-inset-top)); z-index: 1050; display: flex; justify-content: center; padding-inline: 16px; }
 .safety-global-popup > div,
 .safety-video-popup { max-height: calc(100dvh - 88px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }

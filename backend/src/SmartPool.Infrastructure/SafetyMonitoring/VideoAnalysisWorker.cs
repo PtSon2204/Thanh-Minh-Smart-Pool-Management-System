@@ -13,9 +13,16 @@ namespace SmartPool.Infrastructure.SafetyMonitoring;
 
 public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringFiles files, VideoProbe probe,
     IOptions<MonitoringOptions> options, IOptions<CameraOptions> cameras, IOptions<RiskOptions> risk,
-    VideoAnalysisState analysisState, ILogger<VideoAnalysisWorker> logger) : BackgroundService
+    VideoAnalysisState analysisState, VideoAnalysisQueue queue, ILogger<VideoAnalysisWorker> logger) : BackgroundService
 {
+    private AiWorkerClient? ai;
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        try { await RunAsync(stoppingToken); }
+        finally { queue.SetWorkerReady(false); if (ai != null) await ai.DisposeAsync(); }
+    }
+
+    private async Task RunAsync(CancellationToken stoppingToken)
     {
         // One low-priority CPU worker. Never shares a Python inference session with live monitoring.
         while (!stoppingToken.IsCancellationRequested)
@@ -23,6 +30,16 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
             try
             {
                 if (!options.Value.Configured) { await Task.Delay(5000, stoppingToken); continue; }
+                // Load/warm the model once at service startup, independently of LIVE.
+                // Sequential jobs reuse this session; failures discard it before retry.
+                if (ai == null)
+                {
+                    ai = new AiWorkerClient(options.Value, true);
+                    using var startup = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                    startup.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
+                    await ai.ReadyAsync(startup.Token);
+                    queue.SetWorkerReady(true);
+                }
                 using var scope = scopes.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
                 var stale = DateTime.UtcNow.AddHours(-2);
@@ -31,7 +48,7 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                 await using var tx = await db.Database.BeginTransactionAsync(stoppingToken);
                 var job = await db.VideoAnalysisJobs.FromSqlRaw("SELECT * FROM smart_pool.video_analysis_jobs WHERE status = 'QUEUED' ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED")
                     .SingleOrDefaultAsync(stoppingToken);
-                if (job == null) { await tx.CommitAsync(stoppingToken); await Task.Delay(2000, stoppingToken); continue; }
+                if (job == null) { await tx.CommitAsync(stoppingToken); await queue.WaitAsync(stoppingToken); continue; }
                 job.Status = "PROCESSING"; job.UpdatedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(stoppingToken); await tx.CommitAsync(stoppingToken);
                 var stage = "CHECK_VIDEO";
@@ -41,14 +58,14 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                     deadline.CancelAfter(TimeSpan.FromHours(2));
                     var ct = deadline.Token;
                     var input = files.PathFor(job.InputFile);
-                    var info = await probe.InspectAsync(input, true, ct);
+                    var info = await probe.InspectAsync(input, false, ct);
+                    await using var timeline = probe.OpenTimeline(input, info);
                     var intermediate = files.PathFor($"{job.Id:N}-render.avi");
                     stage = "START_AI";
-                    await using (var ai = new AiWorkerClient(options.Value, true))
+                    // Validate each timestamp before exposing its corresponding result.
                     {
                         using var startup = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         startup.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
-                        await ai.ReadyAsync(startup.Token);
                         var engine = new RiskDecisionEngine(risk.Value);
                         var lastProgress = DateTime.UtcNow;
                         // PHASE 1 — phân tích nhanh (infer thôi, không paint/encode/capture): AI chạy
@@ -59,14 +76,18 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                         var recorded = new HashSet<(string Track, string Episode, string Severity)>();
                         var snapshotQueue = new List<(Guid AlertId, SmartPool.Application.Features.SafetyMonitoring.RiskDecision Decision, int FrameIndex)>();
                         analysisState.Prepare(job.Id, info.Fps, info.FrameCount ?? 0);
-                        using var opened = await ai.SendAsync(new { op = "open", input, output = (string)null, fps = info.Fps, frames = info.FrameCount }, startup.Token);
+                        using var opened = await ai.SendAsync(new { op = "open", input, output = (string?)null, fps = info.Fps, frames = info.FrameCount }, startup.Token);
                         while (true)
                         {
                             using var step = CancellationTokenSource.CreateLinkedTokenSource(ct);
                             step.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
+                            stage = "CHECK_VIDEO";
+                            var hasFrame = await timeline.ReadAsync(step.Token);
                             stage = "ANALYZE";
                             using var next = await ai.SendAsync(new { op = "next" }, step.Token);
-                            if (next.RootElement.TryGetProperty("done", out _)) break;
+                            var done = next.RootElement.TryGetProperty("done", out _);
+                            if (done == hasFrame) throw new ArgumentException("Video decoder và timeline không khớp.");
+                            if (done) break;
                             var timestamp = next.RootElement.GetProperty("timestamp").GetDouble();
                             var detections = AiWorkerClient.Detections(next);
                             var decisions = engine.Observe(timestamp, detections);
@@ -99,7 +120,7 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                         // PHASE 2 — render offline: mở lại video, vẽ khung từ decisions đã lưu (đúng 1:1
                         // với cảnh báo phase 1), encode video kết quả. Không chặn realtime nữa.
                         stage = "PAINT";
-                        using var rendered = await ai.SendAsync(new { op = "reopen_render", input, output = intermediate, fps = info.Fps, frames = info.FrameCount }, ct);
+                        using var rendered = await ai.SendAsync(new { op = "reopen_render", input, output = intermediate, fps = info.Fps, frames = frameIndex }, ct);
                         // Snapshot tách riêng: khi render qua đúng frame cảnh báo, chụp frame gốc (image
                         // chưa vẽ) + ghi file + đặt PENDING — offline, không ảnh hưởng pha phân tích.
                         // GroupBy (không ToDictionary) để 2+ cảnh báo cùng frame đều được chụp.
@@ -129,6 +150,7 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                             using var painted = await ai.SendAsync(new { op = "paint", decisions = analysisState.FrameAt(job.Id, renderIndex) }, step.Token);
                             renderIndex++;
                         }
+                        using var closed = await ai.SendAsync(new { op = "close" }, ct);
                     }
                     job.Status = "RENDERING"; job.Progress = 0.90; job.UpdatedAt = DateTime.UtcNow;
                     await db.SaveChangesAsync(ct);
@@ -143,6 +165,7 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                 }
                 catch (Exception ex)
                 {
+                    queue.SetWorkerReady(false); await ai.DisposeAsync(); ai = null;
                     var error = ex is ArgumentException && stage == "CHECK_VIDEO" ? ex.Message : stage switch
                     {
                         "CHECK_VIDEO" => "Không kiểm tra được video đầu vào. Vui lòng chọn video khác.",
@@ -162,7 +185,13 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception) { logger.LogWarning("Video analysis queue unavailable. Retrying."); await Task.Delay(5000, stoppingToken); }
+            catch (Exception)
+            {
+                queue.SetWorkerReady(false);
+                if (ai != null) { await ai.DisposeAsync(); ai = null; }
+                logger.LogWarning("Video analysis queue unavailable. Retrying.");
+                await Task.Delay(5000, stoppingToken);
+            }
         }
     }
 
