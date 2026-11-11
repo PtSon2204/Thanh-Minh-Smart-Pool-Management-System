@@ -439,7 +439,8 @@ public sealed class UserOperations : IUserOperations
 
     public async Task CreateUserWithProfileAsync(User user, UserProfile profile, Notification? notification, CancellationToken cancellationToken)
     {
-        await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var existingTx = _context.Database.CurrentTransaction;
+        await using var tx = existingTx == null ? await _context.Database.BeginTransactionAsync(cancellationToken) : null;
         try
         {
             await _context.Users.AddAsync(user, cancellationToken);
@@ -449,7 +450,7 @@ public sealed class UserOperations : IUserOperations
                 await _context.Notifications.AddAsync(notification, cancellationToken);
             }
             await _context.SaveChangesAsync(cancellationToken);
-            await tx.CommitAsync(cancellationToken);
+            if (tx != null) await tx.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
             { SqlState: PostgresErrorCodes.UniqueViolation } postgres &&

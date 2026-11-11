@@ -9,17 +9,19 @@ public sealed class TicketOrderOperations(SmartPoolDbContext db) : ITicketOrderO
 {
     public async Task CreateOrderAsync(Order order, IEnumerable<OrderDetail> details, Payment payment, CancellationToken cancellationToken)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        var existingTx = db.Database.CurrentTransaction;
+        await using var tx = existingTx == null ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         await db.Orders.AddAsync(order, cancellationToken);
         await db.OrderDetails.AddRangeAsync(details, cancellationToken);
         await db.Payments.AddAsync(payment, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await tx.CommitAsync(cancellationToken);
+        if (tx != null) await tx.CommitAsync(cancellationToken);
     }
 
     public async Task CreateOfflineSaleAsync(Order order, IEnumerable<OrderDetail> details, Payment payment, IEnumerable<Ticket> tickets, CancellationToken cancellationToken)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        var existingTx = db.Database.CurrentTransaction;
+        await using var tx = existingTx == null ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         await db.Orders.AddAsync(order, cancellationToken);
         await db.OrderDetails.AddRangeAsync(details, cancellationToken);
         await db.Payments.AddAsync(payment, cancellationToken);
@@ -29,7 +31,7 @@ public sealed class TicketOrderOperations(SmartPoolDbContext db) : ITicketOrderO
             await db.Tickets.AddRangeAsync(ticketList, cancellationToken);
         }
         await db.SaveChangesAsync(cancellationToken);
-        await tx.CommitAsync(cancellationToken);
+        if (tx != null) await tx.CommitAsync(cancellationToken);
     }
 
     public async Task<Order?> GetOrderByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -146,7 +148,8 @@ public sealed class TicketOrderOperations(SmartPoolDbContext db) : ITicketOrderO
 
     public async Task ConfirmOrderAndAddTicketsAsync(Order order, Payment pendingPayment, Payment? bankPayment, IEnumerable<Ticket> tickets, CancellationToken cancellationToken)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        var existingTx = db.Database.CurrentTransaction;
+        await using var tx = existingTx == null ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         if (bankPayment != null)
         {
             await db.Payments.AddAsync(bankPayment, cancellationToken);
@@ -159,7 +162,7 @@ public sealed class TicketOrderOperations(SmartPoolDbContext db) : ITicketOrderO
             await db.Tickets.AddRangeAsync(ticketList, cancellationToken);
         }
         await db.SaveChangesAsync(cancellationToken);
-        await tx.CommitAsync(cancellationToken);
+        if (tx != null) await tx.CommitAsync(cancellationToken);
     }
 
     public async Task<Ticket?> GetTicketByIdAsync(Guid id, CancellationToken cancellationToken)
