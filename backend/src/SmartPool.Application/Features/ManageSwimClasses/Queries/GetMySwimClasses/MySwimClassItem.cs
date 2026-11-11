@@ -15,4 +15,5 @@ public sealed record MySwimClassItem(
     bool CanSelfCancel,
     DateTime? ReviewedAt,
     string? ReviewNote,
-    string? CancelReason);
+    string? CancelReason,
+    bool CanRequestAgain);

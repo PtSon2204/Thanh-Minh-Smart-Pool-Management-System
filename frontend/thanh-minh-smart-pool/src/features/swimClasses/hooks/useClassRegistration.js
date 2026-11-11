@@ -20,19 +20,12 @@ export function useMyClassRegistration(classId, userId) {
   })
 }
 
-export function useRegisterForClass(userId, classId) {
+export function useRegisterForClass(classId) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => swimClassService.register(classId),
     retry: false,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: classRegistrationKey(userId, classId) }),
-        queryClient.invalidateQueries({ queryKey: ['swim-class-detail'] }),
-        queryClient.invalidateQueries({ queryKey: ['swim-classes'] }),
-        queryClient.invalidateQueries({ queryKey: ['my-swim-classes', userId] }),
-      ])
-    },
+    onSuccess: () => refreshRegistrationViews(queryClient),
   })
 }
 
@@ -43,7 +36,17 @@ async function refreshRegistrationViews(queryClient) {
     queryClient.invalidateQueries({ queryKey: ['class-registrations'] }),
     queryClient.invalidateQueries({ queryKey: ['swim-class-detail'] }),
     queryClient.invalidateQueries({ queryKey: ['swim-classes'] }),
+    queryClient.invalidateQueries({ queryKey: ['my-class-attendances'] }),
   ])
+}
+
+export function useResubmitClassRegistration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (classId) => swimClassService.register(classId),
+    retry: false,
+    onSuccess: () => refreshRegistrationViews(queryClient),
+  })
 }
 
 export function useCancelMyClassRegistration() {
@@ -69,6 +72,16 @@ export function useCancelClassRegistration() {
   return useMutation({
     mutationFn: ({ classId, registrationId, payload }) =>
       swimClassService.cancelClassRegistration(classId, registrationId, payload),
+    retry: false,
+    onSuccess: () => refreshRegistrationViews(queryClient),
+  })
+}
+
+export function useReviewClassRegistration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ classId, registrationId, payload }) =>
+      swimClassService.reviewClassRegistration(classId, registrationId, payload),
     retry: false,
     onSuccess: () => refreshRegistrationViews(queryClient),
   })

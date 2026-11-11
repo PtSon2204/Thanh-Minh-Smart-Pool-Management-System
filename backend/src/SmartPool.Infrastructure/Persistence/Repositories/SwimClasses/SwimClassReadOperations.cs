@@ -108,7 +108,16 @@ public sealed partial class SwimClassOperations
                     session.Status == "Scheduled" && session.StartsAt <= now)),
                 item.ReviewedAt,
                 item.ReviewNote,
-                item.CancelReason))
+                item.CancelReason,
+                item.Status == "Rejected" && item.Class.Status == "Active" &&
+                item.Class.RegistrationStartAt <= now && now < item.Class.RegistrationEndAt &&
+                item.Class.CreatedByUserId != customerUserId &&
+                !item.Class.Sessions.Any(session => session.Status == "Scheduled" &&
+                    session.CoachUserId == customerUserId) &&
+                item.Class.Sessions.Any(session => session.Status == "Scheduled" &&
+                    session.StartsAt > now) &&
+                item.Class.Registrations.Count(registration => registration.Status == "Confirmed") <
+                    item.Class.Capacity))
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<MySwimClassItem>

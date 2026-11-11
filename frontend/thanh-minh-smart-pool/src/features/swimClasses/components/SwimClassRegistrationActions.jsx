@@ -9,11 +9,14 @@ import { useCancelMyClassRegistration, useRegisterForClass } from '../hooks/useC
 export default function SwimClassRegistrationActions({ swimClass, userId, now, registrationQuery, onRefresh }) {
   const navigate = useNavigate()
   const [submitError, setSubmitError] = useState(null)
-  const register = useRegisterForClass(userId, swimClass.id)
+  const register = useRegisterForClass(swimClass.id)
   const cancelRegistration = useCancelMyClassRegistration()
   const registration = registrationQuery.data
   const availability = classAvailability(swimClass, now)
-  const canRegister = availability.kind === 'open'
+  const canRegister = availability.kind === 'open' &&
+    swimClass.createdByUserId !== userId &&
+    !(swimClass.sessions || []).some(session =>
+      session.status === 'Scheduled' && session.coachUserId === userId)
   const confirmed = registration?.registrationStatus === 'Confirmed'
   const pending = registration?.registrationStatus === 'PendingApproval'
   const rejected = registration?.registrationStatus === 'Rejected'
@@ -71,6 +74,8 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
       action={<Button icon={<ReloadOutlined />} loading={registrationQuery.isFetching} onClick={() => registrationQuery.refetch()}>Thử lại</Button>} />}
     {!registrationQuery.isPending && !registrationQuery.isError && <>
       {confirmed ? <>
+          <Alert type="success" showIcon title="Đã được chấp nhận"
+            description="Coach đã chấp nhận yêu cầu tham gia. Bạn đã có chỗ trong lớp." />
           <div className="swim-class-registration-actions">
             <Button type="primary" size="large" icon={<CameraOutlined />} onClick={openAttendance}>Xem điểm danh của tôi</Button>
             {canSelfCancel && <Button danger icon={<StopOutlined />} loading={cancelRegistration.isPending}

@@ -65,6 +65,7 @@
 .swim-class-student-main span { color: #61758a; font-size: 12px; }
 .swim-class-student-main .swim-class-student-reason { color: #a33b2b; overflow-wrap: anywhere; }
 .swim-class-student .ant-tag { margin: 0; }
+.swim-class-student-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .swim-class-students-pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
 @media (max-width: 640px) {
   .swim-class-detail-page { gap: 12px; }
@@ -102,6 +103,7 @@
   .swim-class-students-toolbar .ant-segmented { max-width: 100%; }
   .swim-class-students-toolbar .ant-btn { margin-left: auto; }
   .swim-class-student > .ant-btn { flex: 1 1 100%; }
+  .swim-class-student-actions { width: 100%; }
   .swim-class-schedule-view-switch .ant-btn { flex: 1 1 100%; }
   .swim-class-session-list-row > .ant-btn { flex: 1 1 100%; }
 }
