@@ -1,6 +1,6 @@
 using DotNetEnv;
 using SmartPool.API.Extensions;
-using SmartPool.Application.Interfaces;
+using SmartPool.Application;
 using SmartPool.Infrastructure;
 using SmartPool.Infrastructure.Seeding;
 

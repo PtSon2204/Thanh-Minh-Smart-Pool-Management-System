@@ -19,7 +19,7 @@ using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;
 using SmartPool.Infrastructure.Persistence.DbContext;
-using SmartPool.Application.Interfaces;
+using SmartPool.Application;
 
 namespace SmartPool.IntegrationTests.ManageEquipments;
 
