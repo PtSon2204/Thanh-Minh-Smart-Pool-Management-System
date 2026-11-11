@@ -7,7 +7,10 @@ public sealed record MyClassRegistrationSnapshot(
     string Status,
     DateTime RegisteredAt,
     DateTime? ConfirmedAt,
-    DateTime? CancelledAt);
+    DateTime? CancelledAt,
+    DateTime? ReviewedAt,
+    string? ReviewNote,
+    string? CancelReason);
 
 public sealed record MyClassRegistrationResponse(
     Guid RegistrationId,
@@ -15,4 +18,7 @@ public sealed record MyClassRegistrationResponse(
     string RegistrationStatus,
     DateTime RegisteredAt,
     DateTime? ConfirmedAt,
-    DateTime? CancelledAt);
+    DateTime? CancelledAt,
+    DateTime? ReviewedAt,
+    string? ReviewNote,
+    string? CancelReason);

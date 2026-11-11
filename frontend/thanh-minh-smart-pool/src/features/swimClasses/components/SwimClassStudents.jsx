@@ -7,9 +7,18 @@ import { applyClassServerErrors, classServerMessage } from '../utils/classDispla
 
 const filters = [
   { label: 'Tất cả', value: 'all' },
+  { label: 'Chờ duyệt', value: 'PendingApproval' },
   { label: 'Đang học', value: 'Confirmed' },
+  { label: 'Từ chối', value: 'Rejected' },
   { label: 'Đã hủy', value: 'Cancelled' },
 ]
+
+const registrationStates = {
+  PendingApproval: { label: 'Chờ duyệt', color: 'processing' },
+  Confirmed: { label: 'Đang học', color: 'success' },
+  Rejected: { label: 'Đã từ chối', color: 'error' },
+  Cancelled: { label: 'Đã hủy', color: 'default' },
+}
 
 export default function SwimClassStudents({ classId }) {
   const [status, setStatus] = useState('all')
@@ -72,9 +81,11 @@ export default function SwimClassStudents({ classId }) {
             <span>Đăng ký {formatVietnamTime(item.registeredAt)}</span>
             {item.status === 'Cancelled' && item.cancelReason &&
               <span className="swim-class-student-reason">Lý do hủy: {item.cancelReason}</span>}
+            {item.status === 'Rejected' && item.reviewNote &&
+              <span className="swim-class-student-reason">Lý do từ chối: {item.reviewNote}</span>}
           </div>
-          <Tag color={item.status === 'Confirmed' ? 'success' : 'default'}>
-            {item.status === 'Confirmed' ? 'Đang học' : 'Đã hủy'}
+          <Tag color={registrationStates[item.status]?.color || 'default'}>
+            {registrationStates[item.status]?.label || item.status}
           </Tag>
           {item.status === 'Confirmed' && <Button danger icon={<StopOutlined />}
             onClick={() => { setSelected(item); setSubmitError(null) }}>Hủy đăng ký</Button>}

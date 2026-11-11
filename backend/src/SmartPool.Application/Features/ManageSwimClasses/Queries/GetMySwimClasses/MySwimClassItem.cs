@@ -12,4 +12,7 @@ public sealed record MySwimClassItem(
     DateTime RegisteredAt,
     DateTime? ConfirmedAt,
     DateTime? CancelledAt,
-    bool CanSelfCancel);
+    bool CanSelfCancel,
+    DateTime? ReviewedAt,
+    string? ReviewNote,
+    string? CancelReason);

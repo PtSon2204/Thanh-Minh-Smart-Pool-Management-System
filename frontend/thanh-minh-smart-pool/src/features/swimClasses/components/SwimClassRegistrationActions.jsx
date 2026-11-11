@@ -15,6 +15,8 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
   const availability = classAvailability(swimClass, now)
   const canRegister = availability.kind === 'open'
   const confirmed = registration?.registrationStatus === 'Confirmed'
+  const pending = registration?.registrationStatus === 'PendingApproval'
+  const rejected = registration?.registrationStatus === 'Rejected'
   const cancelled = registration?.registrationStatus === 'Cancelled'
   const canSelfCancel = confirmed && !(swimClass.sessions || []).some(session =>
     session.status === 'Scheduled' && Date.parse(session.startsAt) <= now)
@@ -26,15 +28,17 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
 
   function confirmCancel() {
     Modal.confirm({
-      title: `Hủy đăng ký lớp ${swimClass.name}?`,
-      content: 'Sau khi hủy, bạn sẽ không còn giữ chỗ trong lớp. Bạn có thể đăng ký lại nếu lớp vẫn nhận đăng ký và còn chỗ.',
-      okText: 'Xác nhận hủy',
+      title: pending ? `Rút yêu cầu tham gia lớp ${swimClass.name}?` : `Hủy đăng ký lớp ${swimClass.name}?`,
+      content: pending
+        ? 'Coach sẽ không thể duyệt yêu cầu này sau khi bạn rút.'
+        : 'Sau khi hủy, bạn sẽ không còn giữ chỗ trong lớp. Bạn có thể gửi yêu cầu lại nếu lớp vẫn nhận đăng ký và còn chỗ.',
+      okText: pending ? 'Rút yêu cầu' : 'Xác nhận hủy',
       okType: 'danger',
       cancelText: 'Giữ đăng ký',
       onOk: async () => {
         try {
           await cancelRegistration.mutateAsync(swimClass.id)
-          message.success('Đã hủy đăng ký lớp.')
+          message.success(pending ? 'Đã rút yêu cầu tham gia lớp.' : 'Đã hủy đăng ký lớp.')
           onRefresh()
         } catch (error) {
           message.error(classServerMessage(error, 'Không thể hủy đăng ký. Vui lòng thử lại.'))
@@ -50,7 +54,7 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
     setSubmitError(null)
     try {
       await register.mutateAsync()
-      message.success('Bạn đã đăng ký lớp thành công.')
+      message.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ Coach duyệt.')
     } catch (error) {
       setSubmitError(classServerMessage(error, 'Không thể đăng ký lớp. Vui lòng thử lại.'))
       if (error?.response?.status === 409) {
@@ -74,16 +78,24 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
           </div>
           {!canSelfCancel && <p>Đã qua hạn tự hủy; vui lòng liên hệ Coach.</p>}
         </>
-        : cancelled ? <>
-          <Alert type="warning" showIcon title="Đăng ký trước đã bị hủy"
-            description={canRegister ? 'Bạn có thể đăng ký lại nếu lớp vẫn còn chỗ.' : availability.text} />
+        : pending ? <>
+          <Alert type="info" showIcon title="Yêu cầu đang chờ Coach duyệt"
+            description="Yêu cầu chưa giữ chỗ trong lớp. Bạn có thể rút yêu cầu khi chưa được duyệt." />
+          <Button danger icon={<StopOutlined />} loading={cancelRegistration.isPending}
+            onClick={confirmCancel}>Rút yêu cầu</Button>
+        </> : (cancelled || rejected) ? <>
+          <Alert type="warning" showIcon title={rejected ? 'Yêu cầu đã bị từ chối' : 'Đăng ký trước đã bị hủy'}
+            description={rejected && registration.reviewNote
+              ? `Lý do: ${registration.reviewNote}`
+              : cancelled && registration.cancelReason ? `Lý do: ${registration.cancelReason}` :
+                canRegister ? 'Bạn có thể gửi lại nếu lớp vẫn còn chỗ.' : availability.text} />
           <div className="swim-class-registration-actions">
-            <Button icon={<CameraOutlined />} onClick={openAttendance}>Xem điểm danh của tôi</Button>
-            {canRegister && <Button type="primary" icon={<UserAddOutlined />} loading={register.isPending} onClick={submit}>Đăng ký lại</Button>}
+            {cancelled && <Button icon={<CameraOutlined />} onClick={openAttendance}>Xem điểm danh của tôi</Button>}
+            {canRegister && <Button type="primary" icon={<UserAddOutlined />} loading={register.isPending} onClick={submit}>Gửi lại yêu cầu</Button>}
           </div>
         </> : <>
-          <p>{canRegister ? 'Đăng ký lớp sẽ được xác nhận ngay.' : availability.text}</p>
-          {canRegister && <Button type="primary" icon={<UserAddOutlined />} loading={register.isPending} onClick={submit}>Đăng ký lớp</Button>}
+          <p>{canRegister ? 'Gửi yêu cầu để Coach xem và duyệt. Yêu cầu chưa giữ chỗ trong lớp.' : availability.text}</p>
+          {canRegister && <Button type="primary" icon={<UserAddOutlined />} loading={register.isPending} onClick={submit}>Gửi yêu cầu tham gia</Button>}
         </>}
       {submitError && <Alert className="swim-class-registration-error" type="error" showIcon title={submitError} />}
     </>}
