@@ -57,5 +57,63 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
 
             return (items, totalCount);
         }
+
+        public async Task<TicketType?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.TicketTypes
+                .FirstOrDefaultAsync(t => t.Id == id && t.IsDeleted != true, cancellationToken);
+        }
+
+        public async Task<List<TicketType>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return await _context.TicketTypes.AsNoTracking()
+                .Where(t => t.IsDeleted != true)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<List<TicketType>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+        {
+            var idList = ids.ToList();
+            return await _context.TicketTypes.AsNoTracking()
+                .Where(t => idList.Contains(t.Id) && t.IsDeleted != true)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task AddAsync(TicketType ticketType, CancellationToken cancellationToken = default)
+        {
+            await _context.TicketTypes.AddAsync(ticketType, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task UpdateAsync(TicketType ticketType, CancellationToken cancellationToken = default)
+        {
+            _context.TicketTypes.Update(ticketType);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var entity = await _context.TicketTypes
+                .FirstOrDefaultAsync(t => t.Id == id && t.IsDeleted != true, cancellationToken)
+                ?? throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {id}");
+
+            entity.IsDeleted = true;
+            entity.IsActive = false;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        public async Task<bool> ToggleLockAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var entity = await _context.TicketTypes
+                .FirstOrDefaultAsync(t => t.Id == id && t.IsDeleted != true, cancellationToken)
+                ?? throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {id}");
+
+            entity.IsActive = !(entity.IsActive ?? true);
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+            return entity.IsActive.Value;
+        }
     }
 }

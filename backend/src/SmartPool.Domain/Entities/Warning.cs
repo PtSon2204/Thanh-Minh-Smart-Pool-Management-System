@@ -37,6 +37,8 @@ namespace SmartPool.Domain.Entities
         // Trạng thái upload ảnh snapshot lên Cloudinary
         public string SnapshotStatus { get; set; } = "NONE";
         public int SnapshotAttempts { get; set; }
+        // Khung cảnh báo (x1,y1,x2,y2) chuẩn hóa 0..1 theo khung hình — dùng vẽ overlay khi video đang phân tích.
+        public double[]? Box { get; set; }
 
         // Navigation properties
         public virtual Equipment? Cam { get; set; }

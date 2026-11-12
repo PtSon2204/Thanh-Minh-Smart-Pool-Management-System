@@ -11,19 +11,17 @@ namespace SmartPool.Application.Features.Authentication.Commands.GoogleLogin;
 public sealed class GoogleLoginHandler : IRequestHandler<GoogleLoginCommand, IActionResult>
 {
     private readonly IGoogleIdTokenVerifier _verifier;
-    private readonly IRepository<User> _users;
-    private readonly IRepository<Role> _roles;
+    private readonly IUserOperations _userOperations;
     private readonly IAccessTokenService _accessTokens;
     private readonly IRefreshTokenService _refreshTokens;
     private readonly IUserRoleMembershipService? _membership;
 
-    public GoogleLoginHandler(IGoogleIdTokenVerifier verifier, IRepository<User> users,
-        IRepository<Role> roles, IAccessTokenService accessTokens, IRefreshTokenService refreshTokens,
+    public GoogleLoginHandler(IGoogleIdTokenVerifier verifier, IUserOperations userOperations,
+        IAccessTokenService accessTokens, IRefreshTokenService refreshTokens,
         IUserRoleMembershipService? membership = null)
     {
         _verifier = verifier;
-        _users = users;
-        _roles = roles;
+        _userOperations = userOperations;
         _accessTokens = accessTokens;
         _refreshTokens = refreshTokens;
         _membership = membership;
@@ -57,8 +55,7 @@ public sealed class GoogleLoginHandler : IRequestHandler<GoogleLoginCommand, IAc
             return Problem(StatusCodes.Status403Forbidden, "GOOGLE_EMAIL_UNSUPPORTED",
                 "Hiện chỉ hỗ trợ tài khoản Google dùng địa chỉ Gmail.");
 
-        var user = await _users.FirstOrDefaultAsync(candidate =>
-            candidate.Email != null && candidate.Email.ToLower() == email, cancellationToken);
+        var user = await _userOperations.GetByEmailAsync(email, cancellationToken);
         if (user is null)
             return Problem(StatusCodes.Status409Conflict, "GOOGLE_ACCOUNT_NOT_REGISTERED",
                 "Tài khoản Google chưa được đăng ký.");
@@ -70,7 +67,7 @@ public sealed class GoogleLoginHandler : IRequestHandler<GoogleLoginCommand, IAc
             return Problem(StatusCodes.Status401Unauthorized, "ACCOUNT_UNAVAILABLE",
                 "Tài khoản không khả dụng.");
 
-        var role = await _roles.GetByIdAsync(user.RoleId.Value, cancellationToken);
+        var role = await _userOperations.GetRoleByIdAsync(user.RoleId.Value, cancellationToken);
         if (role is null || role.IsDeleted == true ||
             !string.Equals(role.Name, "CUSTOMER", StringComparison.OrdinalIgnoreCase))
             return Problem(StatusCodes.Status401Unauthorized, "ACCOUNT_UNAVAILABLE",

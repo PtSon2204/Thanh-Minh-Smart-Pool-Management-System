@@ -19,12 +19,10 @@ public sealed class UpdateEquipmentUseCaseTests
         var entity = Equipment();
         var previousUpdatedAt = entity.UpdatedAt;
         var previousCreatedAt = entity.CreatedAt;
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
         using var cts = new CancellationTokenSource();
-        repo.Setup(r => r.GetByIdAsync(entity.Id, cts.Token)).ReturnsAsync(entity);
-        repo.Setup(r => r.Update(entity));
-        uow.Setup(x => x.SaveChangesAsync(cts.Token)).ReturnsAsync(1);
+        operations.Setup(r => r.GetByIdAsync(entity.Id, cts.Token)).ReturnsAsync(entity);
+        operations.Setup(r => r.UpdateAsync(entity, cts.Token)).Returns(Task.CompletedTask);
         using var metadataDocument = JsonDocument.Parse("{\"power\":\"3kW\"}");
         var time = new FixedTime();
         var command = new UpdateEquipmentCommand
@@ -33,7 +31,7 @@ public sealed class UpdateEquipmentUseCaseTests
             Metadata = metadataDocument.RootElement.Clone()
         };
 
-        var result = await Handler(repo, uow, time).Handle(command, cts.Token);
+        var result = await Handler(operations, time).Handle(command, cts.Token);
 
         Assert.True(result);
         Assert.Equal("Pump", entity.Name);
@@ -44,27 +42,23 @@ public sealed class UpdateEquipmentUseCaseTests
         Assert.Equal(previousCreatedAt, entity.CreatedAt);
         Assert.Equal(time.GetUtcNow().UtcDateTime, entity.UpdatedAt);
         Assert.NotEqual(previousUpdatedAt, entity.UpdatedAt);
-        repo.Verify(r => r.GetByIdAsync(entity.Id, cts.Token), Times.Once);
-        repo.Verify(r => r.Update(entity), Times.Once);
-        uow.Verify(x => x.SaveChangesAsync(cts.Token), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetByIdAsync(entity.Id, cts.Token), Times.Once);
+        operations.Verify(r => r.UpdateAsync(entity, cts.Token), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID02 (A) - Id không tìm thấy -> Trả false, không cập nhật/lưu")]
     public async Task UTCID02_MissingEquipment_ReturnsFalseWithoutSaving()
     {
         var id = Guid.NewGuid();
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(id, CancellationToken.None)).ReturnsAsync((Equipment?)null);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetByIdAsync(id, CancellationToken.None)).ReturnsAsync((Equipment?)null);
 
-        var result = await Handler(repo, uow, TimeProvider.System).Handle(ValidCommand(id), CancellationToken.None);
+        var result = await Handler(operations, TimeProvider.System).Handle(ValidCommand(id), CancellationToken.None);
 
         Assert.False(result);
-        repo.Verify(r => r.GetByIdAsync(id, CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetByIdAsync(id, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID03 (A) - Thiết bị đã xóa mềm -> Trả false, không cập nhật/lưu")]
@@ -72,54 +66,48 @@ public sealed class UpdateEquipmentUseCaseTests
     {
         var entity = Equipment();
         entity.IsDeleted = true;
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(entity.Id, CancellationToken.None)).ReturnsAsync(entity);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetByIdAsync(entity.Id, CancellationToken.None)).ReturnsAsync(entity);
 
-        var result = await Handler(repo, uow, TimeProvider.System).Handle(ValidCommand(entity.Id), CancellationToken.None);
+        var result = await Handler(operations, TimeProvider.System).Handle(ValidCommand(entity.Id), CancellationToken.None);
 
         Assert.False(result);
-        repo.Verify(r => r.GetByIdAsync(entity.Id, CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetByIdAsync(entity.Id, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID04 (A) - Chuyển từ thiết bị thường sang Camera -> Handler từ chối chuyển nhóm")]
     public async Task UTCID04_ChangingToCameraCategory_IsRejected()
     {
         var entity = Equipment();
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(entity.Id, CancellationToken.None)).ReturnsAsync(entity);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetByIdAsync(entity.Id, CancellationToken.None)).ReturnsAsync(entity);
         var command = ValidCommand(entity.Id);
         command.Category = "Camera";
 
-        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(repo, uow, TimeProvider.System)
+        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(operations, TimeProvider.System)
             .Handle(command, CancellationToken.None));
 
         Assert.Contains(error.Errors, item => item.PropertyName == nameof(UpdateEquipmentCommand.Category)
             && item.ErrorMessage == "Không thể chuyển đổi giữa Camera và nhóm thiết bị khác.");
-        repo.Verify(r => r.GetByIdAsync(entity.Id, CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetByIdAsync(entity.Id, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID05 (A) - Đổi nhóm giữa Camera và nhóm thường -> ValidationException")]
     public async Task UTCID05_ChangingCameraCategory_IsRejected()
     {
         var entity = Equipment(category: "Camera");
-        var repo = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(entity.Id, CancellationToken.None)).ReturnsAsync(entity);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetByIdAsync(entity.Id, CancellationToken.None)).ReturnsAsync(entity);
 
-        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(repo, uow, TimeProvider.System)
+        var error = await Assert.ThrowsAsync<ValidationException>(() => Handler(operations, TimeProvider.System)
             .Handle(ValidCommand(entity.Id), CancellationToken.None));
 
         Assert.Contains(error.Errors, item => item.PropertyName == nameof(UpdateEquipmentCommand.Category)
             && item.ErrorMessage == "Không thể chuyển đổi giữa Camera và nhóm thiết bị khác.");
-        repo.Verify(r => r.GetByIdAsync(entity.Id, CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetByIdAsync(entity.Id, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID06 (A) - Id rỗng -> Validator từ chối")]
@@ -185,9 +173,8 @@ public sealed class UpdateEquipmentUseCaseTests
         sender.VerifyNoOtherCalls();
     }
 
-    private static UpdateEquipmentHandler Handler(Mock<IRepository<Equipment>> repo,
-        Mock<IUnitOfWork> unitOfWork, TimeProvider clock) =>
-        new(repo.Object, unitOfWork.Object, new UpdateEquipmentValidator(), clock);
+    private static UpdateEquipmentHandler Handler(Mock<IEquipmentOperations> operations, TimeProvider clock) =>
+        new(operations.Object, new UpdateEquipmentValidator(), clock);
 
     private static EquipmentsController Controller(Mock<ISender> sender) =>
         new(sender.Object, NullLogger<EquipmentsController>.Instance);

@@ -15,8 +15,7 @@ namespace SmartPool.UnitTests.Features.ManageWaterQuality;
 public sealed class PoolDutyScheduleHandlersTests
 {
     private readonly Mock<IWaterQualityOperations> _operationsMock = new();
-    private readonly Mock<IRepository<Notification>> _notificationRepoMock = new();
-    private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
+    private readonly Mock<INotificationOperations> _notificationOperationsMock = new();
     private readonly Mock<ILogger<AutoAssignPoolDutyHandler>> _autoLoggerMock = new();
     private readonly Mock<ILogger<UpdatePoolDutyScheduleHandler>> _updateLoggerMock = new();
     private readonly TimeProvider _timeProvider = TimeProvider.System;
@@ -70,8 +69,7 @@ public sealed class PoolDutyScheduleHandlersTests
         var handler = new AutoAssignPoolDutyHandler(
             _operationsMock.Object,
             new AutoAssignPoolDutyValidator(),
-            _notificationRepoMock.Object,
-            _unitOfWorkMock.Object,
+            _notificationOperationsMock.Object,
             _timeProvider,
             _autoLoggerMock.Object);
 
@@ -88,8 +86,7 @@ public sealed class PoolDutyScheduleHandlersTests
         Assert.NotNull(result);
         Assert.Equal(14, result.CreatedCount);
         Assert.Equal(2, result.AssignedSchedules.Count);
-        _notificationRepoMock.Verify(r => r.AddAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _notificationOperationsMock.Verify(r => r.AddRangeAsync(It.Is<List<Notification>>(l => l.Count == 2), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTC_PD02 (E) - Tự động gán lịch trực bể với ToDate < FromDate -> Ném ValidationException")]
@@ -98,8 +95,7 @@ public sealed class PoolDutyScheduleHandlersTests
         var handler = new AutoAssignPoolDutyHandler(
             _operationsMock.Object,
             new AutoAssignPoolDutyValidator(),
-            _notificationRepoMock.Object,
-            _unitOfWorkMock.Object,
+            _notificationOperationsMock.Object,
             _timeProvider,
             _autoLoggerMock.Object);
 
@@ -174,8 +170,7 @@ public sealed class PoolDutyScheduleHandlersTests
         var handler = new UpdatePoolDutyScheduleHandler(
             _operationsMock.Object,
             new UpdatePoolDutyScheduleValidator(),
-            _notificationRepoMock.Object,
-            _unitOfWorkMock.Object,
+            _notificationOperationsMock.Object,
             _timeProvider,
             _updateLoggerMock.Object);
 
@@ -194,7 +189,7 @@ public sealed class PoolDutyScheduleHandlersTests
         Assert.Equal(scheduleId, result.Id);
         Assert.Equal("Completed", result.Status);
         Assert.Equal("Manual", result.AssignmentType);
-        _notificationRepoMock.Verify(r => r.AddAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Once);
+        _notificationOperationsMock.Verify(r => r.AddAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTC_PD05 (E) - Cập nhật lịch trực bể với trạng thái không hợp lệ -> Ném ValidationException")]
@@ -203,8 +198,7 @@ public sealed class PoolDutyScheduleHandlersTests
         var handler = new UpdatePoolDutyScheduleHandler(
             _operationsMock.Object,
             new UpdatePoolDutyScheduleValidator(),
-            _notificationRepoMock.Object,
-            _unitOfWorkMock.Object,
+            _notificationOperationsMock.Object,
             _timeProvider,
             _updateLoggerMock.Object);
 
@@ -220,4 +214,3 @@ public sealed class PoolDutyScheduleHandlersTests
         await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(command, CancellationToken.None));
     }
 }
-

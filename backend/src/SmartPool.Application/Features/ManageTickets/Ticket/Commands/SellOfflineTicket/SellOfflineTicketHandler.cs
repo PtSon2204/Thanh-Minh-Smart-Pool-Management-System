@@ -9,35 +9,23 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
 {
     public class SellOfflineTicketHandler : IRequestHandler<SellOfflineTicketCommand, SellOfflineTicketResponse>
     {
-        private readonly IRepository<Domain.Entities.Ticket> _ticketRepo;
-        private readonly IRepository<Domain.Entities.TicketType> _ticketTypeRepo;
-        private readonly IRepository<Domain.Entities.Order> _orderRepo;
-        private readonly IRepository<Domain.Entities.OrderDetail> _orderDetailRepo;
-        private readonly IRepository<Domain.Entities.User> _userRepo;
-        private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
-        private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ITicketOrderOperations _ticketOrderOperations;
+        private readonly ITicketTypeOperations _ticketTypeOperations;
+        private readonly IUserOperations _userOperations;
+        private readonly IVoucherOperations _voucherOperations;
         private readonly TimeProvider _timeProvider;
 
         public SellOfflineTicketHandler(
-            IRepository<Domain.Entities.Ticket> ticketRepo,
-            IRepository<Domain.Entities.TicketType> ticketTypeRepo,
-            IRepository<Domain.Entities.Order> orderRepo,
-            IRepository<Domain.Entities.OrderDetail> orderDetailRepo,
-            IRepository<Domain.Entities.User> userRepo,
-            IRepository<Domain.Entities.Payment> paymentRepo,
-            IRepository<Domain.Entities.Voucher> voucherRepo,
-            IUnitOfWork unitOfWork,
+            ITicketOrderOperations ticketOrderOperations,
+            ITicketTypeOperations ticketTypeOperations,
+            IUserOperations userOperations,
+            IVoucherOperations voucherOperations,
             TimeProvider timeProvider)
         {
-            _ticketRepo = ticketRepo;
-            _ticketTypeRepo = ticketTypeRepo;
-            _orderRepo = orderRepo;
-            _orderDetailRepo = orderDetailRepo;
-            _userRepo = userRepo;
-            _paymentRepo = paymentRepo;
-            _voucherRepo = voucherRepo;
-            _unitOfWork = unitOfWork;
+            _ticketOrderOperations = ticketOrderOperations;
+            _ticketTypeOperations = ticketTypeOperations;
+            _userOperations = userOperations;
+            _voucherOperations = voucherOperations;
             _timeProvider = timeProvider;
         }
 
@@ -52,9 +40,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             // 1. Xử lý Khách hàng nếu có SĐT
             if (!string.IsNullOrWhiteSpace(request.CustomerPhone))
             {
-                // Tìm theo Phone HOẶC Username (SĐT) để tránh UNIQUE constraint
-                var existingUser = await _userRepo.FirstOrDefaultAsync(
-                    u => u.Phone == request.CustomerPhone || u.Username == request.CustomerPhone,
+                var existingUser = await _userOperations.GetByPhoneOrUsernameAsync(
+                    request.CustomerPhone,
                     cancellationToken);
 
                 if (existingUser != null)
@@ -63,8 +50,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 }
                 else
                 {
-                    // Username = SĐT (hệ thống đăng nhập bằng SĐT)
-                    // Mật khẩu ngẫu nhiên đủ mạnh: HOA + thường + số + ký tự đặc biệt, 8 ký tự
                     var password = GenerateStrongPassword();
 
                     var newUser = new Domain.Entities.User
@@ -77,7 +62,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                         IsDeleted = false,
                         CreatedAt = DateTime.UtcNow
                     };
-                    await _userRepo.AddAsync(newUser, cancellationToken);
+                    await _userOperations.AddUserAsync(newUser, cancellationToken);
                     customerUserId = newUser.Id;
 
                     accountInfo = new AccountInfo
@@ -94,12 +79,11 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
 
             foreach (var item in request.Items)
             {
-                var ticketType = await _ticketTypeRepo.GetByIdAsync(item.TicketTypeId, cancellationToken)
+                var ticketType = await _ticketTypeOperations.GetByIdAsync(item.TicketTypeId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Loại vé không tồn tại: {item.TicketTypeId}");
 
                 if (ticketType.IsActive != true)
                     throw new InvalidOperationException($"Loại vé {ticketType.Name} đang bị khóa.");
-
 
                 ticketTypesCache[item.TicketTypeId] = ticketType;
                 int entries = (item.RequestedEntries.HasValue && item.RequestedEntries.Value > 0) ? item.RequestedEntries.Value : 1;
@@ -115,8 +99,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             if (!string.IsNullOrWhiteSpace(request.VoucherCode))
             {
                 var now = _timeProvider.GetUtcNow().UtcDateTime;
-                var voucher = await _voucherRepo.FirstOrDefaultAsync(
-                    VoucherValidityPolicy.UsableCodeAt(request.VoucherCode, now),
+                var voucher = await _voucherOperations.GetUsableVoucherByCodeAsync(
+                    request.VoucherCode,
+                    now,
                     cancellationToken)
                     ?? throw new InvalidOperationException($"Mã giảm giá '{request.VoucherCode}' không hợp lệ hoặc đã hết hạn.");
 
@@ -151,7 +136,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 Status = OrderStatusEnum.COMPLETED.ToString(),
                 CreatedAt = DateTime.UtcNow
             };
-            await _orderRepo.AddAsync(order, cancellationToken);
 
             var response = new SellOfflineTicketResponse
             {
@@ -163,8 +147,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 AccountInfo = accountInfo
             };
 
-            // Hiệu lực tính từ lúc mua, không nhận ngày bắt đầu tùy chỉnh từ client.
             DateTime issueDate = DateTime.UtcNow;
+            var orderDetails = new List<OrderDetail>();
+            var tickets = new List<Domain.Entities.Ticket>();
 
             // 5. Tạo OrderDetail và Ticket
             foreach (var item in request.Items)
@@ -172,9 +157,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 var ticketType = ticketTypesCache[item.TicketTypeId];
                 int entries = (item.RequestedEntries.HasValue && item.RequestedEntries.Value > 0) ? item.RequestedEntries.Value : 1;
                 bool isVeLuot = ticketType.TicketCategory == TicketCategoryEnum.VE_LUOT.ToString();
-                decimal itemTotal = (isVeLuot ? ticketType.Price * entries : ticketType.Price) * item.Quantity;
 
-                // Tạo Order Detail
                 var orderDetail = new Domain.Entities.OrderDetail
                 {
                     Id = Guid.NewGuid(),
@@ -186,7 +169,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                     CustomEntries = isVeLuot ? entries : null,
                     CreatedAt = DateTime.UtcNow
                 };
-                await _orderDetailRepo.AddAsync(orderDetail, cancellationToken);
+                orderDetails.Add(orderDetail);
 
                 // VE_LUOT 1 lượt tại quầy: không tạo Ticket entity (không có QR)
                 if (isVeLuot && entries <= 1)
@@ -195,9 +178,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 for (int i = 0; i < item.Quantity; i++)
                 {
                     int? remainingEntries = isVeLuot ? entries : null;
-
-
-
                     DateTime? expiryDate = TicketValidityPolicy.GetExpiryDate(issueDate, ticketType.TicketCategory, entries);
 
                     var ticket = new Domain.Entities.Ticket
@@ -213,7 +193,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                         CreatedAt = DateTime.UtcNow
                     };
 
-                    await _ticketRepo.AddAsync(ticket, cancellationToken);
+                    tickets.Add(ticket);
 
                     response.Tickets.Add(new TicketInfo
                     {
@@ -237,9 +217,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
                 PaymentTime = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
             };
-            await _paymentRepo.AddAsync(payment, cancellationToken);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _ticketOrderOperations.CreateOfflineSaleAsync(order, orderDetails, payment, tickets, cancellationToken);
 
             return response;
         }
@@ -250,8 +229,8 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             for (int attempt = 0; attempt < 10; attempt++)
             {
                 var code = TicketCodeGenerator.Generate();
-                var exists = await _ticketRepo.FirstOrDefaultAsync(t => t.QrCode == code, cancellationToken);
-                if (exists == null)
+                var exists = await _ticketOrderOperations.TicketCodeExistsAsync(code, null, cancellationToken);
+                if (!exists)
                     return code;
             }
             throw new InvalidOperationException("Không thể sinh mã vé duy nhất sau 10 lần thử. Vui lòng thử lại.");
@@ -269,7 +248,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             var bytes = new byte[8];
             System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
 
-            // Đảm bảo mỗi nhóm có ít nhất 1 ký tự
             var chars = new char[8];
             chars[0] = upper  [bytes[0] % upper.Length];
             chars[1] = lower  [bytes[1] % lower.Length];
@@ -278,7 +256,6 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
             for (int i = 4; i < 8; i++)
                 chars[i] = all[bytes[i] % all.Length];
 
-            // Xáo trộn để tránh pattern cố định (HOA luôn ở đầu)
             var shuffled = chars.OrderBy(_ => System.Security.Cryptography.RandomNumberGenerator.GetInt32(100)).ToArray();
             return new string(shuffled);
         }

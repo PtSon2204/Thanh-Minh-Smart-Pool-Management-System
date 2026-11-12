@@ -43,7 +43,7 @@ try {
   await page.waitForFunction(() => { const video = document.querySelector('video'); return video?.currentTime > video.duration / 2 + 0.1 })
   if (!streamStatuses.includes(206)) throw new Error('Browser did not receive HTTP Range video')
   const downloading = page.waitForEvent('download')
-  await page.getByRole('link', { name: 'Tải video kết quả', exact: true }).click()
+  await page.getByRole('button', { name: 'Tải video kết quả', exact: true }).click()
   const download = await downloading
   if (!download.suggestedFilename().endsWith('.mp4')) throw new Error('Download filename is invalid')
   if (errors.length) throw new Error(errors.join('\n'))

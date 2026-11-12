@@ -60,6 +60,7 @@ public class SmartPoolDbContext : EfDbContext
     public DbSet<ClassAttendance> ClassAttendances { get; set; }
     public DbSet<CoachApplication> CoachApplications { get; set; }
     public DbSet<PoolOperationalConfig> PoolOperationalConfigs { get; set; }
+    public DbSet<SafetyMonitoringThreshold> SafetyMonitoringThresholds { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -113,5 +114,6 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new ClassAttendanceConfiguration());
         modelBuilder.ApplyConfiguration(new CoachApplicationConfiguration());
         modelBuilder.ApplyConfiguration(new PoolOperationalConfigConfiguration());
+        modelBuilder.ApplyConfiguration(new SafetyMonitoringThresholdConfiguration());
     }
 }

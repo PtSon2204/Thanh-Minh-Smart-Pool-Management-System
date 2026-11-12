@@ -7,9 +7,9 @@ using SmartPool.Domain.Entities;
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspectionForm;
 
 public sealed class GetDailyInspectionFormHandler(
-    IRepository<Equipment> equipmentRepository,
-    IRepository<DailyInspection> inspectionRepository,
-    IRepository<User> userRepository,
+    IEquipmentOperations equipmentOperations,
+    IDailyInspectionOperations inspectionOperations,
+    IUserOperations userOperations,
     TimeProvider timeProvider)
     : IRequestHandler<GetDailyInspectionFormQuery, DailyInspectionFormResponseDto>
 {
@@ -22,9 +22,7 @@ public sealed class GetDailyInspectionFormHandler(
         var vietnamNow = VietnamTimeBoundary.GetVietnamNow(timeProvider);
 
         // 1. Equipments to inspect
-        var equipments = await equipmentRepository.FindAsync(
-            x => x.IsDeleted != true,
-            cancellationToken);
+        var equipments = await equipmentOperations.GetAllActiveAsync(cancellationToken);
 
         var equipmentDtos = equipments
             .OrderBy(x => x.Category)
@@ -41,9 +39,7 @@ public sealed class GetDailyInspectionFormHandler(
             .ToList();
 
         // 2. Today's inspections to check duplicate submissions
-        var todayInspections = await inspectionRepository.FindAsync(
-            x => x.InspectionDate == today,
-            cancellationToken);
+        var todayInspections = await inspectionOperations.GetByDateAsync(today, cancellationToken);
 
         var shiftDtos = new List<ShiftInspectionStatusDto>();
 
@@ -56,7 +52,7 @@ public sealed class GetDailyInspectionFormHandler(
             string? submittedByName = null;
             if (existing != null)
             {
-                var inspector = await userRepository.GetByIdAsync(existing.InspectorId, cancellationToken);
+                var inspector = await userOperations.GetByIdAsync(existing.InspectorId, cancellationToken);
                 submittedByName = inspector?.UserProfile?.FullName ?? inspector?.Username ?? "Cứu hộ";
             }
 

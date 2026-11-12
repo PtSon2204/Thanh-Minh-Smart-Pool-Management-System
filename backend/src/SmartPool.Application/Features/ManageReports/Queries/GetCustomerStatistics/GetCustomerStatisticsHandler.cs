@@ -11,27 +11,11 @@ namespace SmartPool.Application.Features.ManageReports.Queries.GetCustomerStatis
 
 public sealed class GetCustomerStatisticsHandler : IRequestHandler<GetCustomerStatisticsQuery, CustomerStatisticsResponse>
 {
-    private readonly IRepository<User> _userRepo;
-    private readonly IRepository<UserProfile> _profileRepo;
-    private readonly IRepository<Ticket> _ticketRepo;
-    private readonly IRepository<TicketType> _ticketTypeRepo;
-    private readonly IRepository<EntryLog> _entryLogRepo;
-    private readonly IRepository<Order> _orderRepo;
+    private readonly IReportOperations _reportOps;
 
-    public GetCustomerStatisticsHandler(
-        IRepository<User> userRepo,
-        IRepository<UserProfile> profileRepo,
-        IRepository<Ticket> ticketRepo,
-        IRepository<TicketType> ticketTypeRepo,
-        IRepository<EntryLog> entryLogRepo,
-        IRepository<Order> orderRepo)
+    public GetCustomerStatisticsHandler(IReportOperations reportOps)
     {
-        _userRepo = userRepo;
-        _profileRepo = profileRepo;
-        _ticketRepo = ticketRepo;
-        _ticketTypeRepo = ticketTypeRepo;
-        _entryLogRepo = entryLogRepo;
-        _orderRepo = orderRepo;
+        _reportOps = reportOps;
     }
 
     public async Task<CustomerStatisticsResponse> Handle(GetCustomerStatisticsQuery request, CancellationToken cancellationToken)
@@ -40,12 +24,12 @@ public sealed class GetCustomerStatisticsHandler : IRequestHandler<GetCustomerSt
         var (fromDate, toDate, daysCount) = ResolveDateRange(request, now);
 
         // Lấy dữ liệu cơ bản từ database
-        var allUsers = (await _userRepo.GetAllAsync(cancellationToken)).ToList();
-        var allProfiles = (await _profileRepo.GetAllAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
-        var allTickets = (await _ticketRepo.GetAllAsync(cancellationToken)).ToList();
-        var allTicketTypes = (await _ticketTypeRepo.GetAllAsync(cancellationToken)).ToDictionary(t => t.Id, t => t);
-        var allEntries = (await _entryLogRepo.GetAllAsync(cancellationToken)).ToList();
-        var allOrders = (await _orderRepo.GetAllAsync(cancellationToken)).ToList();
+        var allUsers = await _reportOps.GetUsersAsync(cancellationToken);
+        var allProfiles = (await _reportOps.GetUserProfilesAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
+        var allTickets = await _reportOps.GetTicketsAsync(cancellationToken);
+        var allTicketTypes = (await _reportOps.GetTicketTypesAsync(cancellationToken)).ToDictionary(t => t.Id, t => t);
+        var allEntries = await _reportOps.GetEntryLogsAsync(cancellationToken);
+        var allOrders = await _reportOps.GetOrdersAsync(cancellationToken);
 
         // Lọc người dùng khách hàng (không tính admin hệ thống nếu có)
         var customerUsers = allUsers.Where(u => u.IsDeleted != true).ToList();

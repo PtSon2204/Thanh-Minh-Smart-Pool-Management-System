@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -30,24 +29,22 @@ public sealed class DailyInspectionTests
         var inspectorId = Guid.NewGuid();
         var eqId = Guid.NewGuid();
 
-        var inspectionRepo = new Mock<IRepository<DailyInspection>>();
-        var eqRepo = new Mock<IRepository<Equipment>>();
-        var notifRepo = new Mock<IRepository<Notification>>();
-        var userRepo = new Mock<IRepository<User>>();
-        var unitOfWork = new Mock<IUnitOfWork>();
+        var inspectionOps = new Mock<IDailyInspectionOperations>();
+        var eqOps = new Mock<IEquipmentOperations>();
+        var notifOps = new Mock<INotificationOperations>();
+        var userOps = new Mock<IUserOperations>();
 
-        userRepo.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
+        userOps.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = inspectorId, Username = "lifeguard1" });
 
-        inspectionRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<DailyInspection, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<DailyInspection>());
+        inspectionOps.Setup(r => r.GetByDateAndShiftAsync(It.IsAny<DateOnly>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DailyInspection?)null);
 
         var handler = new SubmitDailyInspectionHandler(
-            inspectionRepo.Object,
-            eqRepo.Object,
-            notifRepo.Object,
-            userRepo.Object,
-            unitOfWork.Object,
+            inspectionOps.Object,
+            eqOps.Object,
+            notifOps.Object,
+            userOps.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(MorningTestTimeUtc));
 
@@ -74,8 +71,7 @@ public sealed class DailyInspectionTests
         Assert.Equal(0, result.IssuesCount);
         Assert.Equal("Ca sáng", result.ShiftName);
 
-        inspectionRepo.Verify(r => r.AddAsync(It.IsAny<DailyInspection>(), It.IsAny<CancellationToken>()), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        inspectionOps.Verify(r => r.AddAsync(It.IsAny<DailyInspection>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "Submit inspection có thiết bị hỏng -> Lưu trạng thái HasIssues và thông báo Admin")]
@@ -84,26 +80,24 @@ public sealed class DailyInspectionTests
         var inspectorId = Guid.NewGuid();
         var eqId = Guid.NewGuid();
 
-        var inspectionRepo = new Mock<IRepository<DailyInspection>>();
-        var eqRepo = new Mock<IRepository<Equipment>>();
-        var notifRepo = new Mock<IRepository<Notification>>();
-        var userRepo = new Mock<IRepository<User>>();
-        var unitOfWork = new Mock<IUnitOfWork>();
+        var inspectionOps = new Mock<IDailyInspectionOperations>();
+        var eqOps = new Mock<IEquipmentOperations>();
+        var notifOps = new Mock<INotificationOperations>();
+        var userOps = new Mock<IUserOperations>();
 
-        userRepo.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
+        userOps.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = inspectorId, Username = "lifeguard1" });
-        userRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
+        userOps.Setup(r => r.GetUsersByRoleAsync("ADMIN", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<User> { new() { Id = Guid.NewGuid(), Username = "admin" } });
 
-        inspectionRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<DailyInspection, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<DailyInspection>());
+        inspectionOps.Setup(r => r.GetByDateAndShiftAsync(It.IsAny<DateOnly>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DailyInspection?)null);
 
         var handler = new SubmitDailyInspectionHandler(
-            inspectionRepo.Object,
-            eqRepo.Object,
-            notifRepo.Object,
-            userRepo.Object,
-            unitOfWork.Object,
+            inspectionOps.Object,
+            eqOps.Object,
+            notifOps.Object,
+            userOps.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(MorningTestTimeUtc));
 
@@ -129,25 +123,22 @@ public sealed class DailyInspectionTests
         Assert.Equal("HasIssues", result.OverallStatus);
         Assert.Equal(1, result.IssuesCount);
 
-        notifRepo.Verify(r => r.AddAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        notifOps.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<Notification>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "Từ chối nộp biên bản khi chưa đến giờ mở (trước ca 30 phút)")]
     public async Task SubmitInspection_TooEarly_ThrowsValidationException()
     {
-        var inspectionRepo = new Mock<IRepository<DailyInspection>>();
-        var eqRepo = new Mock<IRepository<Equipment>>();
-        var notifRepo = new Mock<IRepository<Notification>>();
-        var userRepo = new Mock<IRepository<User>>();
-        var unitOfWork = new Mock<IUnitOfWork>();
+        var inspectionOps = new Mock<IDailyInspectionOperations>();
+        var eqOps = new Mock<IEquipmentOperations>();
+        var notifOps = new Mock<INotificationOperations>();
+        var userOps = new Mock<IUserOperations>();
 
         var handler = new SubmitDailyInspectionHandler(
-            inspectionRepo.Object,
-            eqRepo.Object,
-            notifRepo.Object,
-            userRepo.Object,
-            unitOfWork.Object,
+            inspectionOps.Object,
+            eqOps.Object,
+            notifOps.Object,
+            userOps.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(TooEarlyTestTimeUtc)); // 04:00 sáng
 
@@ -178,35 +169,30 @@ public sealed class DailyInspectionTests
         var inspectorId = Guid.NewGuid();
         var shiftId = FixedShifts.Morning.Id;
 
-        var inspectionRepo = new Mock<IRepository<DailyInspection>>();
-        var eqRepo = new Mock<IRepository<Equipment>>();
-        var notifRepo = new Mock<IRepository<Notification>>();
-        var userRepo = new Mock<IRepository<User>>();
-        var unitOfWork = new Mock<IUnitOfWork>();
+        var inspectionOps = new Mock<IDailyInspectionOperations>();
+        var eqOps = new Mock<IEquipmentOperations>();
+        var notifOps = new Mock<INotificationOperations>();
+        var userOps = new Mock<IUserOperations>();
 
         // Giả lập đã có bản ghi trong DB cho ca sáng hôm nay
-        inspectionRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<DailyInspection, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<DailyInspection>
+        inspectionOps.Setup(r => r.GetByDateAndShiftAsync(It.IsAny<DateOnly>(), shiftId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DailyInspection
             {
-                new()
-                {
-                    Id = Guid.NewGuid(),
-                    InspectorId = inspectorId,
-                    ShiftId = shiftId,
-                    InspectionDate = new DateOnly(2026, 10, 28),
-                    InspectionTime = new DateTime(2026, 10, 28, 5, 40, 0)
-                }
+                Id = Guid.NewGuid(),
+                InspectorId = inspectorId,
+                ShiftId = shiftId,
+                InspectionDate = new DateOnly(2026, 10, 28),
+                InspectionTime = new DateTime(2026, 10, 28, 5, 40, 0)
             });
 
-        userRepo.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
+        userOps.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = inspectorId, Username = "lifeguard1" });
 
         var handler = new SubmitDailyInspectionHandler(
-            inspectionRepo.Object,
-            eqRepo.Object,
-            notifRepo.Object,
-            userRepo.Object,
-            unitOfWork.Object,
+            inspectionOps.Object,
+            eqOps.Object,
+            notifOps.Object,
+            userOps.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(MorningTestTimeUtc));
 
@@ -285,24 +271,24 @@ public sealed class DailyInspectionTests
     [Fact(DisplayName = "GetDailyInspectionForm trả danh sách thiết bị và trạng thái ca trực")]
     public async Task GetDailyInspectionForm_ReturnsEquipmentsAndShifts()
     {
-        var eqRepo = new Mock<IRepository<Equipment>>();
-        var inspRepo = new Mock<IRepository<DailyInspection>>();
-        var userRepo = new Mock<IRepository<User>>();
+        var eqOps = new Mock<IEquipmentOperations>();
+        var inspOps = new Mock<IDailyInspectionOperations>();
+        var userOps = new Mock<IUserOperations>();
 
-        eqRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Equipment, bool>>>(), It.IsAny<CancellationToken>()))
+        eqOps.Setup(r => r.GetAllActiveAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Equipment>
             {
                 new() { Id = Guid.NewGuid(), Name = "Camera 01", Category = "Camera", Status = "Active", IsDeleted = false },
                 new() { Id = Guid.NewGuid(), Name = "Phao tròn", Category = "Rescue", Status = "Active", IsDeleted = false }
             });
 
-        inspRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<DailyInspection, bool>>>(), It.IsAny<CancellationToken>()))
+        inspOps.Setup(r => r.GetByDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DailyInspection>());
 
         var handler = new GetDailyInspectionFormHandler(
-            eqRepo.Object,
-            inspRepo.Object,
-            userRepo.Object,
+            eqOps.Object,
+            inspOps.Object,
+            userOps.Object,
             new TestTimeProvider(MorningTestTimeUtc)); // 05:45 AM VN
 
         var result = await handler.Handle(new GetDailyInspectionFormQuery(), CancellationToken.None);

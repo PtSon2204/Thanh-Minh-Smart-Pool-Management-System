@@ -23,15 +23,34 @@ internal static class TicketTypeTestSupport
         CreatedAt = new DateTime(2026, 10, day, 0, 0, 0, DateTimeKind.Utc)
     };
 
-    // Evaluate the handler's actual predicate so tests detect missing Id/soft-delete conditions.
-    public static Mock<IRepository<TicketTypeEntity>> Repository(params TicketTypeEntity[] entities)
+    public static Mock<ITicketTypeOperations> Operations(params TicketTypeEntity[] entities)
     {
-        var repository = new Mock<IRepository<TicketTypeEntity>>(MockBehavior.Strict);
-        repository.Setup(r => r.FirstOrDefaultAsync(
-                It.IsAny<Expression<Func<TicketTypeEntity, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<TicketTypeEntity, bool>> predicate, CancellationToken _) =>
-                Task.FromResult(entities.FirstOrDefault(predicate.Compile())));
-        return repository;
+        var ops = new Mock<ITicketTypeOperations>();
+        ops.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid id, CancellationToken _) =>
+                Task.FromResult(entities.FirstOrDefault(t => t.Id == id && t.IsDeleted != true)));
+        ops.Setup(r => r.AddAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        ops.Setup(r => r.UpdateAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        ops.Setup(r => r.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid id, CancellationToken _) =>
+            {
+                var match = entities.FirstOrDefault(t => t.Id == id && t.IsDeleted != true);
+                if (match == null) throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {id}");
+                match.IsDeleted = true;
+                match.IsActive = false;
+                return Task.FromResult(true);
+            });
+        ops.Setup(r => r.ToggleLockAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid id, CancellationToken _) =>
+            {
+                var match = entities.FirstOrDefault(t => t.Id == id && t.IsDeleted != true);
+                if (match == null) throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {id}");
+                match.IsActive = !(match.IsActive ?? true);
+                return Task.FromResult(match.IsActive.Value);
+            });
+        return ops;
     }
 
     // Execute production LINQ expressions over in-memory data without a database/provider dependency.

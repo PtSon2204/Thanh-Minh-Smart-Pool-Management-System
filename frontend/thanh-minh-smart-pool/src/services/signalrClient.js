@@ -73,6 +73,15 @@ export function onSignalRStateChange(callback) {
 }
 
 /**
+ * Dấu hiệu nhận dạng của phiên dùng để biết kết nối SignalR có cần (lại) khởi
+ * động không: chỉ định khi có token hợp lệ (một người dùng một kết nối).
+ * undefined khi chưa đăng nhập → các hook chờ đăng nhập rồi mới nối.
+ */
+export function signalRIdentity(session) {
+  return session?.accessToken ? `${session.id}|${session.accessToken}` : undefined
+}
+
+/**
  * Khởi động kết nối SignalR (nếu chưa kết nối)
  */
 export async function startSignalRConnection() {

@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Moq;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOfflineTicket;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
@@ -22,8 +21,7 @@ public class SellMonthlyTicketAtCounterTests
 
         Assert.Equal("Giỏ hàng rỗng.", emptyError.Message);
         Assert.Equal("Giỏ hàng rỗng.", nullError.Message);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID02 (N) - Bán 1 vé tháng không có khách hàng -> Tạo vé QR hiệu lực 30 ngày và thanh toán tiền mặt")]
@@ -43,12 +41,16 @@ public class SellMonthlyTicketAtCounterTests
         Assert.Matches("^\\d{6}$", issued.QrCode);
         Assert.Equal("ACTIVE", issued.Status);
         Assert.Equal(issued.IssueDate!.Value.AddDays(30), issued.ExpiryDate);
-        harness.Orders.Verify(r => r.AddAsync(It.Is<Order>(o => o.TotalAmount == 500_000m
-            && o.FinalAmount == 500_000m && o.Status == "COMPLETED" && o.UserId == null),
-            It.IsAny<CancellationToken>()), Times.Once);
-        harness.Payments.Verify(r => r.AddAsync(It.Is<Payment>(p => p.Amount == 500_000m
-            && p.PaymentMethod == "CASH" && p.Status == "COMPLETED"), It.IsAny<CancellationToken>()), Times.Once);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        var order = Assert.Single(harness.CreatedOrders);
+        Assert.Equal(500_000m, order.TotalAmount);
+        Assert.Equal(500_000m, order.FinalAmount);
+        Assert.Equal("COMPLETED", order.Status);
+        Assert.Null(order.UserId);
+        var payment = Assert.Single(harness.CreatedPayments);
+        Assert.Equal(500_000m, payment.Amount);
+        Assert.Equal("CASH", payment.PaymentMethod);
+        Assert.Equal("COMPLETED", payment.Status);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID03 (N) - Mua nhiều vé tháng -> Mỗi vé có QR riêng và hiệu lực 30 ngày")]
@@ -66,8 +68,10 @@ public class SellMonthlyTicketAtCounterTests
             Assert.Matches("^\\d{6}$", ticket.QrCode);
             Assert.Equal(ticket.IssueDate!.Value.AddDays(30), ticket.ExpiryDate);
         });
-        harness.OrderDetails.Verify(r => r.AddAsync(It.Is<OrderDetail>(d => d.Quantity == 3
-            && d.UnitPrice == 500_000m && d.ItemType == "TICKET"), It.IsAny<CancellationToken>()), Times.Once);
+        var detail = Assert.Single(harness.CreatedDetails);
+        Assert.Equal(3, detail.Quantity);
+        Assert.Equal(500_000m, detail.UnitPrice);
+        Assert.Equal("TICKET", detail.ItemType);
     }
 
     [Fact(DisplayName = "UTCID04 (N) - Số điện thoại đã có tài khoản -> Gắn UserId vào đơn và vé tháng")]
@@ -80,9 +84,8 @@ public class SellMonthlyTicketAtCounterTests
 
         Assert.Null(response.AccountInfo);
         Assert.Equal(customer.Id, Assert.Single(harness.CreatedTickets).UserId);
-        harness.Orders.Verify(r => r.AddAsync(It.Is<Order>(o => o.UserId == customer.Id),
-            It.IsAny<CancellationToken>()), Times.Once);
-        harness.Users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Equal(customer.Id, Assert.Single(harness.CreatedOrders).UserId);
+        harness.UserOperations.Verify(r => r.AddUserAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID05 (N) - Số điện thoại chưa có tài khoản -> Tạo User và trả AccountInfo")]
@@ -99,9 +102,9 @@ public class SellMonthlyTicketAtCounterTests
         Assert.Matches("[a-z]", response.AccountInfo.Password);
         Assert.Matches("[2-9]", response.AccountInfo.Password);
         Assert.Matches("[@#!%*?&]", response.AccountInfo.Password);
-        harness.Users.Verify(r => r.AddAsync(It.Is<User>(u => u.Phone == "0900000002"
+        harness.UserOperations.Verify(r => r.AddUserAsync(It.Is<User>(u => u.Phone == "0900000002"
             && u.Username == "0900000002" && u.Status == "ACTIVE"), It.IsAny<CancellationToken>()), Times.Once);
-        harness.Orders.Verify(r => r.AddAsync(It.Is<Order>(o => o.UserId != null), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(Assert.Single(harness.CreatedOrders).UserId);
         Assert.Equal(harness.CreatedUsers.Single().Id, harness.CreatedTickets.Single().UserId);
     }
 
@@ -112,8 +115,7 @@ public class SellMonthlyTicketAtCounterTests
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => harness.Sell(harness.Command()));
 
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID07 (A) - Loại vé tháng đang bị khóa -> Báo lỗi và không tạo đơn")]
@@ -124,8 +126,7 @@ public class SellMonthlyTicketAtCounterTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Sell(harness.Command()));
 
         Assert.Contains("đang bị khóa", error.Message);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID08 (A) - Voucher không hợp lệ hoặc hết hạn -> Báo lỗi trước khi lưu")]
@@ -137,8 +138,7 @@ public class SellMonthlyTicketAtCounterTests
             harness.Command(voucherCode: "SAI")));
 
         Assert.Contains("không hợp lệ hoặc đã hết hạn", error.Message);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID09 (A) - Tổng đơn dưới MinOrderValue -> Báo lỗi và không lưu")]
@@ -152,8 +152,7 @@ public class SellMonthlyTicketAtCounterTests
             harness.Command(voucherCode: "GIAM20K")));
 
         Assert.Contains("Đơn hàng tối thiểu", error.Message);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID10 (N) - Voucher phần trăm -> Tính đúng giảm giá và thanh toán tiền mặt")]
@@ -167,8 +166,7 @@ public class SellMonthlyTicketAtCounterTests
         Assert.Equal(100_000m, response.DiscountAmount);
         Assert.Equal(400_000m, response.FinalAmount);
         Assert.Single(response.Tickets);
-        harness.Payments.Verify(r => r.AddAsync(It.Is<Payment>(p => p.Amount == 400_000m
-            && p.PaymentMethod == "CASH"), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(400_000m, Assert.Single(harness.CreatedPayments).Amount);
     }
 
     [Fact(DisplayName = "UTCID11 (B) - Voucher giảm cố định lớn hơn tổng tiền -> Giảm tối đa bằng tổng tiền")]
@@ -182,8 +180,7 @@ public class SellMonthlyTicketAtCounterTests
         Assert.Equal(500_000m, response.DiscountAmount);
         Assert.Equal(0m, response.FinalAmount);
         Assert.Single(response.Tickets);
-        harness.Payments.Verify(r => r.AddAsync(It.Is<Payment>(p => p.Amount == 0m),
-            It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(0m, Assert.Single(harness.CreatedPayments).Amount);
     }
 
     [Fact(DisplayName = "UTCID12 (B) - StartDate từ client ở tương lai -> Ngày phát hành vẫn lấy từ thời điểm mua và hạn 30 ngày")]
@@ -211,7 +208,7 @@ public class SellMonthlyTicketAtCounterTests
         Assert.Single(harness.CreatedTickets);
         Assert.Equal(2, harness.QrLookupCount);
         Assert.Equal("ACTIVE", Assert.Single(harness.CreatedTickets).Status);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID14 (A) - Sinh QR trùng cả 10 lần -> Báo lỗi và không commit đơn")]
@@ -224,8 +221,7 @@ public class SellMonthlyTicketAtCounterTests
         Assert.Contains("sau 10 lần thử", error.Message);
         Assert.Empty(harness.CreatedTickets);
         Assert.Equal(10, harness.QrLookupCount);
-        harness.Payments.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static TicketTypeEntity CreateMonthlyTicketType(bool isActive = true) => new()
@@ -245,18 +241,15 @@ public class SellMonthlyTicketAtCounterTests
     private sealed class Harness
     {
         private readonly Guid ticketTypeId;
-        private readonly Mock<IRepository<TicketEntity>> tickets = new();
-        private readonly Mock<IRepository<TicketTypeEntity>> ticketTypes = new();
-        private readonly Mock<IRepository<OrderDetail>> orderDetails = new();
-        private readonly Mock<IRepository<User>> users = new();
-        private readonly Mock<IRepository<Voucher>> vouchers = new();
+        public Mock<ITicketOrderOperations> TicketOrderOperations { get; } = new();
+        public Mock<ITicketTypeOperations> TicketTypeOperations { get; } = new();
+        public Mock<IUserOperations> UserOperations { get; } = new();
+        public Mock<IVoucherOperations> VoucherOperations { get; } = new();
         private readonly QrLookupBehavior qrLookupBehavior;
 
-        public Mock<IRepository<Order>> Orders { get; } = new();
-        public Mock<IRepository<Payment>> Payments { get; } = new();
-        public Mock<IRepository<OrderDetail>> OrderDetails => orderDetails;
-        public Mock<IRepository<User>> Users => users;
-        public Mock<IUnitOfWork> UnitOfWork { get; } = new();
+        public List<Order> CreatedOrders { get; } = [];
+        public List<OrderDetail> CreatedDetails { get; } = [];
+        public List<Payment> CreatedPayments { get; } = [];
         public List<TicketEntity> CreatedTickets { get; } = [];
         public List<User> CreatedUsers { get; } = [];
         public int QrLookupCount { get; private set; }
@@ -267,32 +260,39 @@ public class SellMonthlyTicketAtCounterTests
             this.qrLookupBehavior = qrLookupBehavior;
             var configuredTicketType = ticketTypeMissing ? null : ticketType ?? CreateMonthlyTicketType();
             ticketTypeId = configuredTicketType?.Id ?? Guid.NewGuid();
-            ticketTypes.Setup(r => r.GetByIdAsync(ticketTypeId, It.IsAny<CancellationToken>()))
+            TicketTypeOperations.Setup(r => r.GetByIdAsync(ticketTypeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(configuredTicketType);
-            users.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
-                .Returns((Expression<Func<User, bool>> predicate, CancellationToken _) =>
-                    Task.FromResult(existingUser != null && predicate.Compile()(existingUser) ? existingUser : null));
-            users.Setup(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+
+            UserOperations.Setup(u => u.GetByPhoneOrUsernameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string phone, CancellationToken _) => existingUser != null && existingUser.Phone == phone ? existingUser : null);
+            UserOperations.Setup(u => u.AddUserAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
                 .Callback((User user, CancellationToken _) => CreatedUsers.Add(user))
                 .Returns(Task.CompletedTask);
-            vouchers.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()))
-                .Returns((Expression<Func<Voucher, bool>> predicate, CancellationToken _) =>
-                    Task.FromResult(voucher != null && predicate.Compile()(voucher) ? voucher : null));
-            tickets.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), It.IsAny<CancellationToken>()))
-                .Returns((Expression<Func<TicketEntity, bool>> _, CancellationToken _) =>
+
+            VoucherOperations.Setup(v => v.GetUsableVoucherByCodeAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                .Returns((string code, DateTime now, CancellationToken _) =>
+                    Task.FromResult(voucher != null && string.Equals(voucher.Code, code.Trim(), StringComparison.OrdinalIgnoreCase) && voucher.IsActive == true && voucher.IsDeleted != true && (voucher.StartDate == null || voucher.StartDate <= now) && (voucher.EndDate == null || voucher.EndDate >= now) ? voucher : null));
+
+            TicketOrderOperations.Setup(r => r.TicketCodeExistsAsync(It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, Guid? _, CancellationToken _) =>
                 {
                     QrLookupCount++;
-                    return Task.FromResult<TicketEntity?>(qrLookupBehavior switch
+                    return Task.FromResult(qrLookupBehavior switch
                     {
-                        QrLookupBehavior.AlwaysCollide => new TicketEntity { QrCode = "COLLISION" },
-                        QrLookupBehavior.CollideOnce when QrLookupCount == 1 => new TicketEntity { QrCode = "COLLISION" },
-                        _ => null
+                        QrLookupBehavior.AlwaysCollide => true,
+                        QrLookupBehavior.CollideOnce when QrLookupCount == 1 => true,
+                        _ => false
                     });
                 });
-            tickets.Setup(r => r.AddAsync(It.IsAny<TicketEntity>(), It.IsAny<CancellationToken>()))
-                .Callback((TicketEntity ticket, CancellationToken _) => CreatedTickets.Add(ticket))
-                .Returns(Task.CompletedTask);
-            UnitOfWork.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+            TicketOrderOperations.Setup(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()))
+                .Callback((Order order, IEnumerable<OrderDetail> details, Payment payment, IEnumerable<TicketEntity> tickets, CancellationToken _) =>
+                {
+                    CreatedOrders.Add(order);
+                    CreatedDetails.AddRange(details);
+                    CreatedPayments.Add(payment);
+                    CreatedTickets.AddRange(tickets);
+                }).Returns(Task.CompletedTask);
         }
 
         public SellOfflineTicketCommand Command(int quantity = 1, string? phone = null, string? voucherCode = null,
@@ -303,8 +303,8 @@ public class SellMonthlyTicketAtCounterTests
         };
 
         public Task<SellOfflineTicketResponse> Sell(SellOfflineTicketCommand command) =>
-            new SellOfflineTicketHandler(tickets.Object, ticketTypes.Object, Orders.Object, orderDetails.Object,
-                users.Object, Payments.Object, vouchers.Object, UnitOfWork.Object, TimeProvider.System)
+            new SellOfflineTicketHandler(TicketOrderOperations.Object, TicketTypeOperations.Object,
+                UserOperations.Object, VoucherOperations.Object, TimeProvider.System)
                 .Handle(command, CancellationToken.None);
     }
 }

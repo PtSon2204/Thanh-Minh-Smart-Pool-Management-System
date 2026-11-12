@@ -16,6 +16,36 @@ public sealed class RiskOptions
         RecoveryRatio >= 0 && RecoveryRatio < WarningRatio && WarningRatio < CriticalRatio && CriticalRatio <= 1 &&
         CriticalHoldSeconds > 0 && RecoveryHoldSeconds > 0 && MaxObservationGapSeconds > 0 &&
         CooldownSeconds >= 0 && MinObservations >= 2;
+
+    public RiskOptions Clone() => new()
+    {
+        WindowSeconds = WindowSeconds,
+        ConfidenceThreshold = ConfidenceThreshold,
+        WarningRatio = WarningRatio,
+        CriticalRatio = CriticalRatio,
+        CriticalHoldSeconds = CriticalHoldSeconds,
+        RecoveryRatio = RecoveryRatio,
+        RecoveryHoldSeconds = RecoveryHoldSeconds,
+        MaxObservationGapSeconds = MaxObservationGapSeconds,
+        CooldownSeconds = CooldownSeconds,
+        MinObservations = MinObservations,
+    };
+
+    // Ghi đè toàn bộ giá trị vào instance hiện tại. Provider dùng để "nóng" đổi ngưỡng
+    // mà không tạo instance mới (giữ nguyên state theo dõi trong engine).
+    public void CopyFrom(RiskOptions s)
+    {
+        WindowSeconds = s.WindowSeconds;
+        ConfidenceThreshold = s.ConfidenceThreshold;
+        WarningRatio = s.WarningRatio;
+        CriticalRatio = s.CriticalRatio;
+        CriticalHoldSeconds = s.CriticalHoldSeconds;
+        RecoveryRatio = s.RecoveryRatio;
+        RecoveryHoldSeconds = s.RecoveryHoldSeconds;
+        MaxObservationGapSeconds = s.MaxObservationGapSeconds;
+        CooldownSeconds = s.CooldownSeconds;
+        MinObservations = s.MinObservations;
+    }
 }
 
 public sealed record TrackedDetection(string TrackId, string Class, double Confidence, double[] Box);

@@ -9,26 +9,26 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyTicke
 {
     public class GetMyTicketsHandler : IRequestHandler<GetMyTicketsQuery, List<MyTicketDto>>
     {
-        private readonly IRepository<Domain.Entities.Ticket> _ticketRepo;
-        private readonly IRepository<Domain.Entities.TicketType> _ticketTypeRepo;
-        private readonly IRepository<Domain.Entities.User> _userRepo;
+        private readonly ITicketOrderOperations _ticketOrderOperations;
+        private readonly ITicketTypeOperations _ticketTypeOperations;
+        private readonly IUserOperations _userOperations;
 
         public GetMyTicketsHandler(
-            IRepository<Domain.Entities.Ticket> ticketRepo,
-            IRepository<Domain.Entities.TicketType> ticketTypeRepo,
-            IRepository<Domain.Entities.User> userRepo)
+            ITicketOrderOperations ticketOrderOperations,
+            ITicketTypeOperations ticketTypeOperations,
+            IUserOperations userOperations)
         {
-            _ticketRepo = ticketRepo;
-            _ticketTypeRepo = ticketTypeRepo;
-            _userRepo = userRepo;
+            _ticketOrderOperations = ticketOrderOperations;
+            _ticketTypeOperations = ticketTypeOperations;
+            _userOperations = userOperations;
         }
 
         public async Task<List<MyTicketDto>> Handle(GetMyTicketsQuery request, CancellationToken cancellationToken)
         {
-            var tickets = await _ticketRepo.FindAsync(t => t.UserId == request.UserId && t.IsDeleted != true, cancellationToken);
+            var tickets = await _ticketOrderOperations.GetTicketsByUserIdAsync(request.UserId, cancellationToken);
             
-            var user = await _userRepo.GetByIdAsync(request.UserId, cancellationToken);
-            var ticketTypes = await _ticketTypeRepo.GetAllAsync(cancellationToken);
+            var user = await _userOperations.GetByIdAsync(request.UserId, cancellationToken);
+            var ticketTypes = await _ticketTypeOperations.GetAllAsync(cancellationToken);
             var typeDict = ticketTypes.ToDictionary(t => t.Id);
 
             var result = new List<MyTicketDto>();

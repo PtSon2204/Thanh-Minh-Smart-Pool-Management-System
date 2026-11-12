@@ -9,14 +9,12 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
 {
     public class CreateTicketTypeHandler : IRequestHandler<CreateTicketTypeCommand, CreateTicketTypeResponse>
     {
-        private readonly IRepository<TicketTypeEntity> _repo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ITicketTypeOperations _operations;
         private readonly IMapper _mapper;
 
-        public CreateTicketTypeHandler(IRepository<TicketTypeEntity> repo, IUnitOfWork unitOfWork, IMapper mapper)
+        public CreateTicketTypeHandler(ITicketTypeOperations operations, IMapper mapper)
         {
-            _repo = repo;
-            _unitOfWork = unitOfWork;
+            _operations = operations;
             _mapper = mapper;
         }
 
@@ -35,8 +33,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
                 DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory, totalEntries),
             };
                 
-            await _repo.AddAsync(entity, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _operations.AddAsync(entity, cancellationToken);
 
             return _mapper.Map<CreateTicketTypeResponse>(entity);
         }

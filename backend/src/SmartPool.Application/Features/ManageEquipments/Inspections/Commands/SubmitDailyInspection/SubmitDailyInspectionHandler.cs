@@ -16,11 +16,10 @@ using SmartPool.Domain.Enums;
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 
 public sealed class SubmitDailyInspectionHandler(
-    IRepository<DailyInspection> inspectionRepository,
-    IRepository<Equipment> equipmentRepository,
-    IRepository<Notification> notificationRepository,
-    IRepository<User> userRepository,
-    IUnitOfWork unitOfWork,
+    IDailyInspectionOperations inspectionOperations,
+    IEquipmentOperations equipmentOperations,
+    INotificationOperations notificationOperations,
+    IUserOperations userOperations,
     IValidator<SubmitDailyInspectionCommand> validator,
     TimeProvider timeProvider,
     IEmailService? emailService = null,
@@ -58,14 +57,10 @@ public sealed class SubmitDailyInspectionHandler(
         }
 
         // Rule 2: Mỗi ca trực chỉ được gửi 1 lần duy nhất trong ngày
-        var existingInspections = await inspectionRepository.FindAsync(
-            x => x.InspectionDate == today && x.ShiftId == command.ShiftId,
-            cancellationToken);
-
-        var existing = existingInspections.FirstOrDefault();
+        var existing = await inspectionOperations.GetByDateAndShiftAsync(today, command.ShiftId, cancellationToken);
         if (existing != null)
         {
-            var prevInspector = await userRepository.GetByIdAsync(existing.InspectorId, cancellationToken);
+            var prevInspector = await userOperations.GetByIdAsync(existing.InspectorId, cancellationToken);
             var prevInspectorName = prevInspector?.UserProfile?.FullName ?? prevInspector?.Username ?? "Cứu hộ";
 
             throw new ValidationException(
@@ -76,7 +71,7 @@ public sealed class SubmitDailyInspectionHandler(
         // Lấy mức độ ưu tiên trực tiếp từ cấu hình của từng thiết bị trong cơ sở dữ liệu
         foreach (var item in command.Items)
         {
-            var eq = await equipmentRepository.GetByIdAsync(item.EquipmentId, cancellationToken);
+            var eq = await equipmentOperations.GetByIdAsync(item.EquipmentId, cancellationToken);
             if (eq != null && !string.IsNullOrWhiteSpace(eq.PriorityLevel))
             {
                 item.PriorityLevel = eq.PriorityLevel;
@@ -99,7 +94,7 @@ public sealed class SubmitDailyInspectionHandler(
         var overallStatus = hasIssues ? "HasIssues" : "Passed";
 
         // Fetch inspector info
-        var inspector = await userRepository.GetByIdAsync(command.InspectorId, cancellationToken);
+        var inspector = await userOperations.GetByIdAsync(command.InspectorId, cancellationToken);
         var inspectorName = inspector?.UserProfile?.FullName
             ?? inspector?.Username
             ?? "Cứu hộ";
@@ -119,25 +114,24 @@ public sealed class SubmitDailyInspectionHandler(
             UpdatedAt = nowUtc
         };
 
-        await inspectionRepository.AddAsync(inspection, cancellationToken);
+        await inspectionOperations.AddAsync(inspection, cancellationToken);
 
         // 2. Tự động chuyển các thiết bị gặp sự cố sang trạng thái Bảo trì (Maintenance)
         if (hasIssues)
         {
             foreach (var failedItem in failedItems)
             {
-                var equipment = await equipmentRepository.GetByIdAsync(failedItem.EquipmentId, cancellationToken);
+                var equipment = await equipmentOperations.GetByIdAsync(failedItem.EquipmentId, cancellationToken);
                 if (equipment != null)
                 {
                     equipment.Status = EquipmentStatuses.Maintenance;
                     equipment.UpdatedAt = nowUtc;
+                    await equipmentOperations.UpdateAsync(equipment, cancellationToken);
                 }
             }
 
             // 3. Notify Admins if there are failed items
-            var admins = await userRepository.FindAsync(
-                u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() == "ADMIN",
-                cancellationToken);
+            var admins = await userOperations.GetUsersByRoleAsync("ADMIN", cancellationToken);
 
             var notifType = hasCriticalSafetyViolation ? $"SAFETY_ALERT:{inspection.Id:N}" : $"INSP:{inspection.Id:N}";
             var notifTitle = hasCriticalSafetyViolation
@@ -147,19 +141,20 @@ public sealed class SubmitDailyInspectionHandler(
                 ? $"{inspectorName} ghi nhận {criticalFailed.Count} thiết bị cốt lõi ({string.Join(", ", criticalFailed.Select(c => c.EquipmentName))}) bị hư hỏng, vi phạm an toàn pháp lý! Đề xuất Admin kiểm tra và xác nhận tạm dừng hồ bơi."
                 : $"{inspectorName} đã kiểm tra đầu {shiftDef.Name.ToLower()} ngày {today:dd/MM/yyyy} và ghi nhận {failedItems.Count} thiết bị gặp sự cố.";
 
-            foreach (var admin in admins)
+            var notifications = admins.Select(admin => new Notification
             {
-                var notif = new Notification
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = admin.Id,
-                    Type = notifType,
-                    Title = notifTitle,
-                    Content = notifContent,
-                    IsRead = false,
-                    CreatedAt = nowUtc
-                };
-                await notificationRepository.AddAsync(notif, cancellationToken);
+                Id = Guid.NewGuid(),
+                UserId = admin.Id,
+                Type = notifType,
+                Title = notifTitle,
+                Content = notifContent,
+                IsRead = false,
+                CreatedAt = nowUtc
+            }).ToList();
+
+            if (notifications.Count > 0)
+            {
+                await notificationOperations.AddRangeAsync(notifications, cancellationToken);
             }
 
             // 4. Gửi email cảnh báo kèm ảnh chụp trực tiếp cho tất cả Admin
@@ -250,8 +245,6 @@ public sealed class SubmitDailyInspectionHandler(
                 }
             }
         }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new DailyInspectionDto
         {

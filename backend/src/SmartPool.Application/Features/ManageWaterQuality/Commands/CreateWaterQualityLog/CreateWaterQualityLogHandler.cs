@@ -16,9 +16,8 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
     private readonly IValidator<CreateWaterQualityLogCommand> _validator;
     private readonly ICurrentUser _currentUser;
     private readonly INotificationService _notificationService;
-    private readonly IRepository<Notification> _notificationRepo;
-    private readonly IRepository<User> _userRepo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationOperations _notificationOperations;
+    private readonly IUserOperations _userOperations;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<CreateWaterQualityLogHandler> _logger;
 
@@ -28,9 +27,8 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
         IValidator<CreateWaterQualityLogCommand> validator,
         ICurrentUser currentUser,
         INotificationService notificationService,
-        IRepository<Notification> notificationRepo,
-        IRepository<User> userRepo,
-        IUnitOfWork unitOfWork,
+        INotificationOperations notificationOperations,
+        IUserOperations userOperations,
         TimeProvider timeProvider,
         ILogger<CreateWaterQualityLogHandler> logger)
     {
@@ -39,9 +37,8 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
         _validator = validator;
         _currentUser = currentUser;
         _notificationService = notificationService;
-        _notificationRepo = notificationRepo;
-        _userRepo = userRepo;
-        _unitOfWork = unitOfWork;
+        _notificationOperations = notificationOperations;
+        _userOperations = userOperations;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -95,22 +92,22 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
             var title = "CẢNH BÁO NƯỚC BỂ NGUY HIỂM";
             var content = $"Phiếu đo lúc {dto.InspectionTime:dd/MM/yyyy HH:mm} vượt ngưỡng an toàn nghiêm trọng (pH: {dto.PhValue:F2}, Clo: {dto.FreeChlorineMgL:F2} mg/L). {dto.Recommendation}";
 
-            var admins = await _userRepo.FindAsync(u => u.Role != null && u.Role.Name.ToUpper() == "ADMIN" && u.IsDeleted != true, cancellationToken);
-            foreach (var admin in admins)
+            var admins = await _userOperations.GetUsersByRoleAsync("ADMIN", cancellationToken);
+            var notifs = admins.Select(admin => new Notification
             {
-                var notif = new Notification
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = admin.Id,
-                    Title = title,
-                    Content = content,
-                    Type = "WATER_QUALITY_ALERT",
-                    IsRead = false,
-                    CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
-                };
-                await _notificationRepo.AddAsync(notif, cancellationToken);
+                Id = Guid.NewGuid(),
+                UserId = admin.Id,
+                Title = title,
+                Content = content,
+                Type = "WATER_QUALITY_ALERT",
+                IsRead = false,
+                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+            }).ToList();
+
+            if (notifs.Count > 0)
+            {
+                await _notificationOperations.AddRangeAsync(notifs, cancellationToken);
             }
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             await _notificationService.SendToAllAsync("water_quality_danger", new
             {

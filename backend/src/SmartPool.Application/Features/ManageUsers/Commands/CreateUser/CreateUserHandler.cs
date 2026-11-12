@@ -13,25 +13,16 @@ namespace SmartPool.Application.Features.ManageUsers.Commands.CreateUser;
 
 public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActionResult>
 {
-    private readonly IRepository<User> _users;
-    private readonly IRepository<UserProfile> _profiles;
-    private readonly IRepository<Role> _roles;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserOperations _userOperations;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IValidator<CreateUserCommand> _validator;
 
     public CreateUserHandler(
-        IRepository<User> users,
-        IRepository<UserProfile> profiles,
-        IRepository<Role> roles,
-        IUnitOfWork unitOfWork,
+        IUserOperations userOperations,
         IPasswordHasher passwordHasher,
         IValidator<CreateUserCommand> validator)
     {
-        _users = users;
-        _profiles = profiles;
-        _roles = roles;
-        _unitOfWork = unitOfWork;
+        _userOperations = userOperations;
         _passwordHasher = passwordHasher;
         _validator = validator;
     }
@@ -83,12 +74,9 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
 
         user.UserProfile = profile;
 
-        await _users.AddAsync(user, cancellationToken);
-        await _profiles.AddAsync(profile, cancellationToken);
-
         try
         {
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userOperations.CreateUserWithProfileAsync(user, profile, null, cancellationToken);
         }
         catch (UniqueUserFieldException exception)
         {
@@ -167,29 +155,17 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
     {
         var internationalPhone = ToInternationalPhone(phone);
 
-        if (await _users.ExistsAsync(
-                user =>
-                    user.Username != null &&
-                    user.Username.ToLower() == username,
-                cancellationToken))
+        if (await _userOperations.ExistsByUsernameAsync(username, cancellationToken))
         {
             return ("username", GetConflictMessage("username"));
         }
 
-        if (await _users.ExistsAsync(
-                user =>
-                    user.Email != null &&
-                    user.Email.ToLower() == email,
-                cancellationToken))
+        if (await _userOperations.ExistsByEmailAsync(email, cancellationToken))
         {
             return ("email", GetConflictMessage("email"));
         }
 
-        if (await _users.ExistsAsync(
-                user =>
-                    user.Phone == phone ||
-                    user.Phone == internationalPhone,
-                cancellationToken))
+        if (await _userOperations.ExistsByPhoneAsync(phone, internationalPhone, cancellationToken))
         {
             return ("phone", GetConflictMessage("phone"));
         }
@@ -206,12 +182,7 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
         string roleName,
         CancellationToken cancellationToken)
     {
-        return await _roles.FirstOrDefaultAsync(
-            role =>
-                role.Name != null &&
-                role.Name.ToUpper() == roleName.ToUpper() &&
-                role.IsDeleted != true,
-            cancellationToken);
+        return await _userOperations.GetRoleByNameAsync(roleName, cancellationToken);
     }
 
     private static UserProfile CreateUserProfile(

@@ -17,9 +17,8 @@ public sealed class CreateWaterQualityLogHandlerTests
     private readonly IWaterQualityEvaluator _evaluator = new WaterQualityEvaluator();
     private readonly Mock<ICurrentUser> _currentUserMock = new();
     private readonly Mock<INotificationService> _notificationServiceMock = new();
-    private readonly Mock<IRepository<Notification>> _notificationRepoMock = new();
-    private readonly Mock<IRepository<User>> _userRepoMock = new();
-    private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
+    private readonly Mock<INotificationOperations> _notificationOperationsMock = new();
+    private readonly Mock<IUserOperations> _userOperationsMock = new();
     private readonly Mock<ILogger<CreateWaterQualityLogHandler>> _loggerMock = new();
     private readonly TimeProvider _timeProvider = TimeProvider.System;
     private readonly IValidator<CreateWaterQualityLogCommand> _validator;
@@ -37,9 +36,8 @@ public sealed class CreateWaterQualityLogHandlerTests
             _validator,
             _currentUserMock.Object,
             _notificationServiceMock.Object,
-            _notificationRepoMock.Object,
-            _userRepoMock.Object,
-            _unitOfWorkMock.Object,
+            _notificationOperationsMock.Object,
+            _userOperationsMock.Object,
             _timeProvider,
             _loggerMock.Object);
     }
@@ -89,7 +87,7 @@ public sealed class CreateWaterQualityLogHandlerTests
         _currentUserMock.Setup(u => u.UserId).Returns(inspectorId);
 
         var adminUser = new User { Id = Guid.NewGuid(), Username = "admin", Role = new Role { Name = "ADMIN" }, IsDeleted = false };
-        _userRepoMock.Setup(u => u.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
+        _userOperationsMock.Setup(u => u.GetUsersByRoleAsync("ADMIN", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<User> { adminUser });
 
         _operationsMock.Setup(o => o.CreateWaterQualityLogAsync(It.IsAny<WaterQualityLog>(), It.IsAny<CancellationToken>()))
@@ -116,7 +114,7 @@ public sealed class CreateWaterQualityLogHandlerTests
         var result = await handler.Handle(command, CancellationToken.None);
 
         Assert.Equal(WaterQualityConstants.StatusDanger, result.Status);
-        _notificationRepoMock.Verify(r => r.AddAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Once);
+        _notificationOperationsMock.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<Notification>>(), It.IsAny<CancellationToken>()), Times.Once);
         _notificationServiceMock.Verify(s => s.SendToAllAsync(
             "water_quality_danger",
             It.IsAny<object>(),

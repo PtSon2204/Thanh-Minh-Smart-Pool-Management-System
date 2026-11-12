@@ -8,8 +8,9 @@ using SmartPool.Application.Features.ManageUsers.Commands.UpdateUser;
 using SmartPool.Application.Features.ManageUsers.Queries.GetUserById;
 using SmartPool.Application.Features.ManageUsers.Queries.GetUsers;
 using SmartPool.Application.Interfaces.Repositories;
-using SmartPool.Infrastructure.Persistence.DbContext;
+using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
+using SmartPool.Infrastructure.Persistence.DbContext;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.Users;
 
@@ -20,6 +21,50 @@ public sealed class UserOperations : IUserOperations
     public UserOperations(SmartPoolDbContext context)
     {
         _context = context;
+    }
+
+    public async Task<SmartPool.Domain.Entities.User?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await _context.Users
+            .Include(u => u.UserProfile)
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.Id == id && u.IsDeleted != true, cancellationToken);
+    }
+
+    public async Task<SmartPool.Domain.Entities.User?> GetByPhoneOrUsernameAsync(string phoneOrUsername, CancellationToken cancellationToken)
+    {
+        return await _context.Users
+            .FirstOrDefaultAsync(u => (u.Phone == phoneOrUsername || u.Username == phoneOrUsername) && u.IsDeleted != true, cancellationToken);
+    }
+
+    public async Task AddUserAsync(SmartPool.Domain.Entities.User user, CancellationToken cancellationToken)
+    {
+        await _context.Users.AddAsync(user, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<SmartPool.Domain.Entities.UserProfile?> GetUserProfileByUserIdAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return await _context.UserProfiles
+            .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
+    }
+
+    public async Task<List<SmartPool.Domain.Entities.User>> GetUsersByRoleAsync(string roleName, CancellationToken cancellationToken)
+    {
+        return await _context.Users
+            .Include(u => u.UserProfile)
+            .Include(u => u.Role)
+            .Where(u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() == roleName.ToUpper())
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<SmartPool.Domain.Entities.User>> GetUsersByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken)
+    {
+        var idList = ids.ToList();
+        return await _context.Users
+            .Include(u => u.UserProfile)
+            .Where(u => idList.Contains(u.Id) && u.IsDeleted != true)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<bool> TryUpdatePasswordAsync(Guid userId, string expectedEmail,
@@ -363,4 +408,128 @@ public sealed class UserOperations : IUserOperations
     private static string EscapeLike(string value) => value.Replace("\\", "\\\\")
         .Replace("%", "\\%")
         .Replace("_", "\\_");
+
+    public async Task<bool> ExistsByUsernameAsync(string username, CancellationToken cancellationToken)
+    {
+        var lower = username.ToLower();
+        return await _context.Users.AnyAsync(u => u.Username != null && u.Username.ToLower() == lower, cancellationToken);
+    }
+
+    public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        var lower = email.ToLower();
+        return await _context.Users.AnyAsync(u => u.Email != null && u.Email.ToLower() == lower, cancellationToken);
+    }
+
+    public async Task<bool> ExistsByPhoneAsync(string phone, string internationalPhone, CancellationToken cancellationToken)
+    {
+        return await _context.Users.AnyAsync(u => u.Phone == phone || u.Phone == internationalPhone, cancellationToken);
+    }
+
+    public async Task<Role?> GetRoleByIdAsync(Guid roleId, CancellationToken cancellationToken)
+    {
+        return await _context.Roles.FirstOrDefaultAsync(r => r.Id == roleId && r.IsDeleted != true, cancellationToken);
+    }
+
+    public async Task<Role?> GetRoleByNameAsync(string roleName, CancellationToken cancellationToken)
+    {
+        var upper = roleName.ToUpper();
+        return await _context.Roles.FirstOrDefaultAsync(r => r.Name != null && r.Name.ToUpper() == upper && r.IsDeleted != true, cancellationToken);
+    }
+
+    public async Task CreateUserWithProfileAsync(User user, UserProfile profile, Notification? notification, CancellationToken cancellationToken)
+    {
+        var existingTx = _context.Database.CurrentTransaction;
+        await using var tx = existingTx == null ? await _context.Database.BeginTransactionAsync(cancellationToken) : null;
+        try
+        {
+            await _context.Users.AddAsync(user, cancellationToken);
+            await _context.UserProfiles.AddAsync(profile, cancellationToken);
+            if (notification != null)
+            {
+                await _context.Notifications.AddAsync(notification, cancellationToken);
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+            if (tx != null) await tx.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation } postgres &&
+            UserFieldForConstraint(postgres.ConstraintName) is not null)
+        {
+            var field = UserFieldForConstraint(postgres.ConstraintName)!;
+            throw new UniqueUserFieldException(field, exception);
+        }
+    }
+
+    public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        var lower = email.ToLower();
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == lower, cancellationToken);
+    }
+
+    public async Task<User?> GetUserByUsernameAsync(string username, CancellationToken cancellationToken)
+    {
+        var lower = username.ToLower();
+        return await _context.Users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == lower, cancellationToken);
+    }
+
+    public async Task<List<User>> FindUsersByIdentifierAsync(string identifier, CancellationToken cancellationToken)
+    {
+        var id = identifier.Trim().ToLowerInvariant();
+        if (id.Contains('@'))
+        {
+            var u = await _context.Users.FirstOrDefaultAsync(c => c.Email != null && c.Email.ToLower() == id, cancellationToken);
+            return u is null ? new List<User>() : new List<User> { u };
+        }
+        if (System.Text.RegularExpressions.Regex.IsMatch(id, @"^(?:0|\+84)[35789][0-9]{8}$"))
+        {
+            var localPhone = id.StartsWith("+84", StringComparison.Ordinal) ? "0" + id[3..] : id;
+            var internationalPhone = "+84" + localPhone[1..];
+            return await _context.Users.Where(c => c.Phone == localPhone || c.Phone == internationalPhone || (c.Username != null && c.Username.ToLower() == id)).ToListAsync(cancellationToken);
+        }
+        var user = await _context.Users.FirstOrDefaultAsync(c => c.Username != null && c.Username.ToLower() == id, cancellationToken);
+        return user is null ? new List<User>() : new List<User> { user };
+    }
+
+    public async Task<User?> FindActiveUserByEmailWithPasswordAsync(string email, CancellationToken cancellationToken)
+    {
+        var lower = email.ToLower();
+        return await _context.Users.FirstOrDefaultAsync(candidate =>
+            candidate.Email != null && candidate.Email.ToLower() == lower &&
+            candidate.IsDeleted != true && candidate.Status != null &&
+            candidate.Status.ToLower() == "active" &&
+            candidate.PasswordHash != null && candidate.PasswordHash != "",
+            cancellationToken);
+    }
+
+    public async Task<User?> GetActiveUserWithPasswordAsync(Guid userId, string email, CancellationToken cancellationToken)
+    {
+        var lower = email.ToLower();
+        return await _context.Users.FirstOrDefaultAsync(candidate =>
+            candidate.Id == userId && candidate.IsDeleted != true &&
+            candidate.Status != null && candidate.Status.ToLower() == "active" &&
+            candidate.Email != null && candidate.Email.ToLower() == lower &&
+            candidate.PasswordHash != null && candidate.PasswordHash != "",
+            cancellationToken);
+    }
+
+    public async Task AddUserProfileAsync(UserProfile profile, CancellationToken cancellationToken)
+    {
+        await _context.UserProfiles.AddAsync(profile, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateUserProfileAsync(UserProfile profile, CancellationToken cancellationToken)
+    {
+        _context.UserProfiles.Update(profile);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string? UserFieldForConstraint(string? constraintName) => constraintName switch
+    {
+        "users_username_key" => "username",
+        "users_email_key" => "email",
+        "users_phone_key" => "phone",
+        _ => null
+    };
 }
