@@ -19,6 +19,7 @@ public static class EmailTemplateBuilder
             "ticket_confirmation" => BuildTicketConfirmationBody(recipientName, meta),
             "ticket_reminder"     => BuildTicketReminderBody(recipientName, meta),
             "announcement"        => BuildAnnouncementBody(recipientName, content, meta),
+            "event_promo"         => BuildEventPromoBody(recipientName, content, meta),
             _                     => BuildCustomBody(recipientName, content, meta),
         };
 
@@ -175,6 +176,23 @@ public static class EmailTemplateBuilder
       </div>
 
       <p>Mọi thắc mắc hoặc cần hỗ trợ thêm, Quý khách vui lòng liên hệ hotline ban quản lý để được giải đáp nhanh nhất.</p>
+";
+    }
+
+    private static string BuildEventPromoBody(string recipientName, string? content, Dictionary<string, string> meta)
+    {
+        meta.TryGetValue("promoTitle", out var title);
+        title = string.IsNullOrWhiteSpace(title) ? "SỰ KIỆN & ƯU ĐÃI ĐẶC BIỆT" : title;
+
+        return $@"
+      <p>Kính gửi <strong>{(string.IsNullOrWhiteSpace(recipientName) ? "Quý hội viên" : recipientName)}</strong>,</p>
+      
+      <div style=""background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 8px; padding: 18px; margin: 18px 0;"">
+        <div style=""font-weight: 700; color: #db2777; font-size: 16px; margin-bottom: 8px;"">🎉 {title}</div>
+        <div style=""white-space: pre-wrap; color: #334155;"">{(string.IsNullOrWhiteSpace(content) ? "Ban quản lý trân trọng gửi tới Quý khách thông tin sự kiện & ưu đãi hấp dẫn tại bể bơi." : content)}</div>
+      </div>
+
+      <p>Kính chúc Quý khách có những phút giây bơi lội thư giãn và tràn đầy năng lượng!</p>
 ";
     }
 

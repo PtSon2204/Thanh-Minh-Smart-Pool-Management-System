@@ -40,5 +40,14 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Reports
 
         public async Task<List<Incident>> GetIncidentsAsync(CancellationToken cancellationToken = default)
             => await _context.Incidents.AsNoTracking().ToListAsync(cancellationToken);
+
+        public async Task<List<Rental>> GetRentalsAsync(CancellationToken cancellationToken = default)
+            => await _context.Rentals.AsNoTracking().ToListAsync(cancellationToken);
+
+        public async Task<List<RentalTransaction>> GetRentalTransactionsAsync(CancellationToken cancellationToken = default)
+            => await _context.RentalTransactions.AsNoTracking().ToListAsync(cancellationToken);
+
+        public async Task<List<Product>> GetProductsAsync(CancellationToken cancellationToken = default)
+            => await _context.Products.AsNoTracking().ToListAsync(cancellationToken);
     }
 }

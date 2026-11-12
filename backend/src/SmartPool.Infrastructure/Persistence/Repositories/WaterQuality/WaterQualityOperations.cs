@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.AutoAssignPoolDuty;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.UpdatePoolDutySchedule;
@@ -244,10 +244,20 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             })
             .ToListAsync(cancellationToken);
 
-        var staffs = await _context.Users.AsNoTracking()
+        var lifeguardQuery = _context.Users.AsNoTracking()
             .Include(u => u.Role)
             .Include(u => u.UserProfile)
-            .Where(u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() != "CUSTOMER")
+            .Where(u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() == "LIFEGUARD");
+
+        var hasLifeguards = await lifeguardQuery.AnyAsync(cancellationToken);
+        var staffsQuery = hasLifeguards
+            ? lifeguardQuery
+            : _context.Users.AsNoTracking()
+                .Include(u => u.Role)
+                .Include(u => u.UserProfile)
+                .Where(u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() != "CUSTOMER");
+
+        var staffs = await staffsQuery
             .OrderBy(u => u.Role!.Name)
             .ThenBy(u => u.Username)
             .Select(u => new PoolDutyStaffOptionDto
@@ -255,9 +265,9 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
                 EmployeeId = u.Id,
                 FullName = u.UserProfile != null && !string.IsNullOrEmpty(u.UserProfile.FullName)
                     ? u.UserProfile.FullName
-                    : u.Username,
+                    : (u.Username ?? "Nhân viên cứu hộ"),
                 Email = u.Email,
-                RoleName = u.Role != null ? u.Role.Name : "STAFF"
+                RoleName = u.Role != null ? u.Role.Name : "LIFEGUARD"
             })
             .ToListAsync(cancellationToken);
 
@@ -271,6 +281,23 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
     public async Task<PagedResponse<PoolDutyScheduleDto>> GetPoolDutySchedulesAsync(GetPoolDutySchedulesQuery query, CancellationToken cancellationToken)
     {
         await EnsurePoolDutyTableAsync(cancellationToken);
+
+        // Tự động phân công lịch trực bể nếu khoảng thời gian này chưa có lịch nào
+        if (query.FromDate.HasValue && query.ToDate.HasValue && !query.EmployeeId.HasValue && string.IsNullOrWhiteSpace(query.Status))
+        {
+            var hasAny = await _context.PoolDutySchedules
+                .AnyAsync(p => p.DutyDate >= query.FromDate.Value && p.DutyDate <= query.ToDate.Value, cancellationToken);
+            if (!hasAny)
+            {
+                await AutoAssignPoolDutySchedulesAsync(new AutoAssignPoolDutyCommand
+                {
+                    FromDate = query.FromDate.Value,
+                    ToDate = query.ToDate.Value,
+                    OverwriteExisting = false,
+                    DefaultNotes = "Đo pH, Clo tự do đầu ca và kiểm tra vệ sinh mặt nước bể bơi"
+                }, cancellationToken);
+            }
+        }
 
         var (page, pageSize) = Normalize(query.PageIndex, query.PageSize);
         var dbQuery = _context.PoolDutySchedules.AsNoTracking()
@@ -356,10 +383,17 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
         }
         else
         {
-            candidateIds = await _context.Users.AsNoTracking()
-                .Where(u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() != "CUSTOMER")
+            var lifeguardCandidates = await _context.Users.AsNoTracking()
+                .Where(u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() == "LIFEGUARD")
                 .Select(u => u.Id)
                 .ToListAsync(cancellationToken);
+
+            candidateIds = lifeguardCandidates.Count > 0
+                ? lifeguardCandidates
+                : await _context.Users.AsNoTracking()
+                    .Where(u => u.IsDeleted != true && u.Role != null && u.Role.Name.ToUpper() != "CUSTOMER")
+                    .Select(u => u.Id)
+                    .ToListAsync(cancellationToken);
         }
 
         if (candidateIds.Count == 0)

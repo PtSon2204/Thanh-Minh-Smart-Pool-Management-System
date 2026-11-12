@@ -1,4 +1,4 @@
-using SmartPool.Infrastructure.Persistence.Repositories.Users;
+﻿using SmartPool.Infrastructure.Persistence.Repositories.Users;
 using SmartPool.Infrastructure.Persistence.Repositories.Services;
 using SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
@@ -233,6 +233,8 @@ namespace SmartPool.Infrastructure
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker>();
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisWorker>();
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.SnapshotUploadWorker>();
+            services.AddHostedService<TicketExpiryReminderWorker>();
+            services.AddHostedService<PoolDutyAutoAssignWorker>();
 
             return services;
         }

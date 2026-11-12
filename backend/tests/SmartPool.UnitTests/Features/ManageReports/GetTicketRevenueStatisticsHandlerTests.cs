@@ -27,8 +27,8 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
     }
 
-    [Fact(DisplayName = "UTCID01 (N) - Không có dữ liệu trong DB -> Trả về dữ liệu demo hợp lệ 4 loại vé")]
-    public async Task UTCID01_WhenNoOrdersInDatabase_ReturnsDemoData()
+    [Fact(DisplayName = "UTCID01 (N) - Không có dữ liệu trong DB -> Trả về số liệu 0, không dùng dữ liệu demo")]
+    public async Task UTCID01_WhenNoOrdersInDatabase_ReturnsZeroValues()
     {
         SetupEmptyRepositories();
         var handler = CreateHandler();
@@ -37,13 +37,11 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         var result = await handler.Handle(query, CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.True(result.TotalTicketsSold > 0);
-        Assert.True(result.TotalRevenue > 0);
-        Assert.Equal(4, result.TicketTypeSales.Count);
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé lượt người lớn");
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé lượt trẻ em");
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé tháng người lớn");
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé tháng trẻ em");
+        Assert.Equal(0, result.TotalTicketsSold);
+        Assert.Equal(0m, result.TotalRevenue);
+        Assert.Empty(result.TicketTypeSales);
+        Assert.Empty(result.TicketTypeRevenues);
+        Assert.Empty(result.RecentTransactions);
     }
 
     [Fact(DisplayName = "UTCID02 (N) - Có đơn hàng vé lượt hợp lệ -> Tính đúng tổng số vé và tổng doanh thu")]

@@ -13,5 +13,8 @@ namespace SmartPool.Application.Interfaces.Repositories
         Task<List<UserProfile>> GetUserProfilesAsync(CancellationToken cancellationToken = default);
         Task<List<EntryLog>> GetEntryLogsAsync(CancellationToken cancellationToken = default);
         Task<List<Incident>> GetIncidentsAsync(CancellationToken cancellationToken = default);
+        Task<List<Rental>> GetRentalsAsync(CancellationToken cancellationToken = default);
+        Task<List<RentalTransaction>> GetRentalTransactionsAsync(CancellationToken cancellationToken = default);
+        Task<List<Product>> GetProductsAsync(CancellationToken cancellationToken = default);
     }
 }
