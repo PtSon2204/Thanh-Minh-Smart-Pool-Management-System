@@ -49,6 +49,15 @@ public sealed class UserOperations : IUserOperations
             .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
     }
 
+        public async Task<List<SmartPool.Domain.Entities.User>> GetAllUsersAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .Include(u => u.UserProfile)
+            .Include(u => u.Role)
+            .Where(u => u.IsDeleted != true && !string.IsNullOrEmpty(u.Email))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<SmartPool.Domain.Entities.User>> GetUsersByRoleAsync(string roleName, CancellationToken cancellationToken)
     {
         return await _context.Users

@@ -26,6 +26,8 @@ import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatistics
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatisticsPage";
+import RevenueStatisticsPage from "../pages/admin/statistics/RevenueStatisticsPage";
+import RentalStatisticsPage from "../pages/admin/statistics/RentalStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
 import StaffOnboardingPage from "../pages/staff/StaffOnboardingPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
@@ -183,6 +185,14 @@ const router = createBrowserRouter([
               {
                 path: "statistics/ticket-revenue",
                 element: <TicketRevenueStatisticsPage />,
+              },
+              {
+                path: "statistics/revenue",
+                element: <RevenueStatisticsPage />,
+              },
+              {
+                path: "statistics/rentals",
+                element: <RentalStatisticsPage />,
               },
               {
                 path: "statistics/monthly-tickets",

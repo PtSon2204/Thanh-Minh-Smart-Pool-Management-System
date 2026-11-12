@@ -18,20 +18,20 @@ public sealed class SendEmailNotificationHandler : IRequestHandler<SendEmailNoti
 {
     private readonly IEmailService _emailService;
     private readonly IEmailHistoryStore _historyStore;
-    private readonly IRepository<User> _userRepo;
+    private readonly IUserOperations _userOps;
     private readonly IConfiguration _config;
     private readonly ILogger<SendEmailNotificationHandler> _logger;
 
     public SendEmailNotificationHandler(
         IEmailService emailService,
         IEmailHistoryStore historyStore,
-        IRepository<User> userRepo,
+        IUserOperations userOps,
         IConfiguration config,
         ILogger<SendEmailNotificationHandler> logger)
     {
         _emailService = emailService;
         _historyStore = historyStore;
-        _userRepo = userRepo;
+        _userOps = userOps;
         _config = config;
         _logger = logger;
     }
@@ -54,9 +54,7 @@ public sealed class SendEmailNotificationHandler : IRequestHandler<SendEmailNoti
             }
 
             // Kiểm tra email người nhận có tồn tại trong hệ thống tài khoản bể bơi không
-            var existingUser = await _userRepo.FirstOrDefaultAsync(
-                u => u.IsDeleted != true && u.Email != null && u.Email.ToLower() == trimmedEmail.ToLower(),
-                cancellationToken);
+            var existingUser = await _userOps.GetByEmailAsync(trimmedEmail, cancellationToken);
 
             if (existingUser == null)
             {
@@ -75,7 +73,7 @@ public sealed class SendEmailNotificationHandler : IRequestHandler<SendEmailNoti
         }
         else
         {
-            var users = await _userRepo.FindAsync(u => u.IsDeleted != true && !string.IsNullOrEmpty(u.Email), cancellationToken);
+            var users = await _userOps.GetAllUsersAsync(cancellationToken);
 
             if (targetAudience == "customers")
             {
