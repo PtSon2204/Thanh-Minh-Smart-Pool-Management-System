@@ -13,24 +13,11 @@ namespace SmartPool.Application.Features.ManageReports.Queries.GetMonthlyTicketS
 public sealed class GetMonthlyTicketStatisticsHandler
     : IRequestHandler<GetMonthlyTicketStatisticsQuery, MonthlyTicketStatisticsResponse>
 {
-    private readonly IRepository<Ticket> _ticketRepo;
-    private readonly IRepository<TicketType> _ticketTypeRepo;
-    private readonly IRepository<User> _userRepo;
-    private readonly IRepository<UserProfile> _profileRepo;
-    private readonly IRepository<EntryLog> _entryLogRepo;
+    private readonly IReportOperations _reportOps;
 
-    public GetMonthlyTicketStatisticsHandler(
-        IRepository<Ticket> ticketRepo,
-        IRepository<TicketType> ticketTypeRepo,
-        IRepository<User> userRepo,
-        IRepository<UserProfile> profileRepo,
-        IRepository<EntryLog> entryLogRepo)
+    public GetMonthlyTicketStatisticsHandler(IReportOperations reportOps)
     {
-        _ticketRepo = ticketRepo;
-        _ticketTypeRepo = ticketTypeRepo;
-        _userRepo = userRepo;
-        _profileRepo = profileRepo;
-        _entryLogRepo = entryLogRepo;
+        _reportOps = reportOps;
     }
 
     public async Task<MonthlyTicketStatisticsResponse> Handle(
@@ -38,11 +25,11 @@ public sealed class GetMonthlyTicketStatisticsHandler
     {
         var now = DateTime.UtcNow;
 
-        var allTickets = (await _ticketRepo.GetAllAsync(cancellationToken)).ToList();
-        var allTicketTypes = (await _ticketTypeRepo.GetAllAsync(cancellationToken)).ToDictionary(t => t.Id, t => t);
-        var allUsers = (await _userRepo.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
-        var allProfiles = (await _profileRepo.GetAllAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
-        var allEntryLogs = (await _entryLogRepo.GetAllAsync(cancellationToken)).ToList();
+        var allTickets = await _reportOps.GetTicketsAsync(cancellationToken);
+        var allTicketTypes = (await _reportOps.GetTicketTypesAsync(cancellationToken)).ToDictionary(t => t.Id, t => t);
+        var allUsers = (await _reportOps.GetUsersAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
+        var allProfiles = (await _reportOps.GetUserProfilesAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
+        var allEntryLogs = await _reportOps.GetEntryLogsAsync(cancellationToken);
 
         // Lọc các vé tháng (TicketCategory == "VE_THANG" và chưa xóa)
         var monthlyTickets = allTickets

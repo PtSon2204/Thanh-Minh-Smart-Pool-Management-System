@@ -8,8 +8,8 @@ using SmartPool.Domain.Entities;
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspections;
 
 public sealed class GetDailyInspectionsHandler(
-    IRepository<DailyInspection> inspectionRepository,
-    IRepository<User> userRepository)
+    IDailyInspectionOperations inspectionOperations,
+    IUserOperations userOperations)
     : IRequestHandler<GetDailyInspectionsQuery, PagedResponse<DailyInspectionDto>>
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -21,29 +21,13 @@ public sealed class GetDailyInspectionsHandler(
         GetDailyInspectionsQuery request,
         CancellationToken cancellationToken)
     {
-        var all = await inspectionRepository.FindAsync(x => true, cancellationToken);
-        var query = all.AsQueryable();
-
-        if (request.FromDate.HasValue)
-            query = query.Where(x => x.InspectionDate >= request.FromDate.Value);
-
-        if (request.ToDate.HasValue)
-            query = query.Where(x => x.InspectionDate <= request.ToDate.Value);
-
-        if (!string.IsNullOrWhiteSpace(request.OverallStatus))
-            query = query.Where(x => x.OverallStatus == request.OverallStatus);
-
-        var total = query.Count();
-        var items = query
-            .OrderByDescending(x => x.InspectionDate)
-            .ThenByDescending(x => x.InspectionTime)
-            .Skip((request.PageIndex - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToList();
+        var (items, total) = await inspectionOperations.GetPagedInspectionsAsync(
+            request.FromDate, request.ToDate, request.OverallStatus,
+            request.PageIndex, request.PageSize, cancellationToken);
 
         // Fetch inspector names
         var inspectorIds = items.Select(x => x.InspectorId).Distinct().ToList();
-        var users = (await userRepository.FindAsync(u => inspectorIds.Contains(u.Id), cancellationToken))
+        var users = (await userOperations.GetUsersByIdsAsync(inspectorIds, cancellationToken))
             .ToDictionary(
                 u => u.Id,
                 u => u.UserProfile?.FullName ?? u.Username ?? "Nhân viên");

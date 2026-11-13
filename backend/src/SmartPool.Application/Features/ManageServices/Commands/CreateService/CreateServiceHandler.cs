@@ -1,23 +1,17 @@
-using AutoMapper;
 using FluentValidation;
 using MediatR;
 using SmartPool.Application.Interfaces.Repositories;
-using SmartPool.Domain.Entities;
 
 namespace SmartPool.Application.Features.ManageServices.Commands.CreateService
 {
     public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand, CreateServiceResponse>
     {
-        private readonly IRepository<Product> _repository;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly IServiceOperations _serviceOperations;
         private readonly IValidator<CreateServiceCommand> _validator;
 
-        public CreateServiceHandler(IRepository<Product> repository, IUnitOfWork unitOfWork, IMapper mapper, IValidator<CreateServiceCommand> validator)
+        public CreateServiceHandler(IServiceOperations serviceOperations, IValidator<CreateServiceCommand> validator)
         {
-            _repository = repository;
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _serviceOperations = serviceOperations;
             _validator = validator;
         }
 
@@ -29,21 +23,7 @@ namespace SmartPool.Application.Features.ManageServices.Commands.CreateService
                 throw new ValidationException(validation.Errors);
             }
 
-            var product = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = request.Name.Trim(),
-                Price = request.Price,
-                StockQuantity = request.StockQuantity,
-                IsActive = request.IsActive,
-                IsDeleted = false,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            await _repository.AddAsync(product, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return _mapper.Map<CreateServiceResponse>(product);
+            return await _serviceOperations.CreateServiceAsync(request, cancellationToken);
         }
     }
 }

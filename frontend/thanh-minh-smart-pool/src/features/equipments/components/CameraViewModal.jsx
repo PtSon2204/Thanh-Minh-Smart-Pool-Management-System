@@ -32,11 +32,87 @@ function cameraError(status) {
   return 'Không thể kết nối đến camera'
 }
 
-function CameraVideoPlayer({ equipment }) {
+function drawBoxes(canvas, video, risks) {
+  const ctx = canvas.getContext('2d')
+  const cw = canvas.clientWidth
+  const ch = canvas.clientHeight
+  const dpr = window.devicePixelRatio || 1
+  if (canvas.width !== cw * dpr || canvas.height !== ch * dpr) {
+    canvas.width = cw * dpr
+    canvas.height = ch * dpr
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, cw, ch)
+  const vw = video.videoWidth
+  const vh = video.videoHeight
+  if (!vw || !vh || !risks?.length) return
+  // object-fit: contain — tính vùng hình ảnh thật trong container, bo khung theo toạ độ
+  // normalised của AI (đã hiệu chỉnh letterbox), không vẽ box tràn phần nền đen.
+  const scale = Math.min(cw / vw, ch / vh)
+  const dw = vw * scale
+  const dh = vh * scale
+  const ox = (cw - dw) / 2
+  const oy = (ch - dh) / 2
+  for (const risk of risks) {
+    // Box = [x1, y1, x2, y2] normalised theo kích thước frame nguồn (khớp rendering.py của worker).
+    const [bx1, by1, bx2, by2] = risk.box || []
+    if ([bx1, by1, bx2, by2].some(v => !Number.isFinite(v)) || bx2 <= bx1 || by2 <= by1) continue
+    const critical = risk.severity === 'CRITICAL' || risk.severity === 'EMERGENCY'
+    const color = critical ? '#EF4444' : '#F97316'
+    const px = ox + bx1 * dw
+    const py = oy + by1 * dh
+    const pw = (bx2 - bx1) * dw
+    const ph = (by2 - by1) * dh
+    ctx.lineWidth = 3
+    ctx.strokeStyle = color
+    ctx.strokeRect(px, py, pw, ph)
+    ctx.font = '600 13px system-ui, sans-serif'
+    const label = critical ? `Khẩn cấp · ${risk.trackId}` : `Chú ý · ${risk.trackId}`
+    const ty = Math.max(py - 6, 14)
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 4
+    ctx.strokeStyle = 'rgba(0,0,0,.65)'
+    ctx.strokeText(label, px + 4, ty)
+    ctx.fillStyle = color
+    ctx.fillText(label, px + 4, ty)
+  }
+}
+
+export function CameraVideoPlayer({ equipment, risks = [] }) {
   const videoRef = useRef(null)
+  const containerRef = useRef(null)
+  const overlayRef = useRef(null)
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState('connecting')
   const [error, setError] = useState('')
+  const risksRef = useRef(risks)
+
+  function paintOverlay() {
+    if (overlayRef.current && videoRef.current) drawBoxes(overlayRef.current, videoRef.current, risksRef.current)
+  }
+
+  // Vẽ lại khi dữ liệu AI thay đổi.
+  useEffect(() => {
+    risksRef.current = risks
+    paintOverlay()
+  }, [risks])
+
+  // Canvas theo kích thước container (resize window / đổi cột grid).
+  useEffect(() => {
+    if (!containerRef.current) return
+    const observer = new ResizeObserver(paintOverlay)
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  // Video có metadata mới (kích thước nội tại đổi) thì vẽ lại vùng letterbox.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    const onMeta = () => paintOverlay()
+    video.addEventListener('loadedmetadata', onMeta)
+    return () => video.removeEventListener('loadedmetadata', onMeta)
+  }, [])
 
   useEffect(() => {
     const video = videoRef.current
@@ -199,8 +275,9 @@ function CameraVideoPlayer({ equipment }) {
         {state === 'playing' ? 'Đang phát trực tiếp' : ['error', 'disconnected'].includes(state) ? 'Camera mất kết nối' : 'Đang kết nối camera...'}
       </Tag>
     </div>
-    <div className="camera-video-container">
+    <div className="camera-video-container" ref={containerRef}>
       <video ref={videoRef} autoPlay muted playsInline disablePictureInPicture className={state === 'playing' ? 'camera-video' : 'camera-video camera-video-hidden'} aria-label={`Video camera ${equipment.name}`} />
+      {risks.length > 0 && <canvas ref={overlayRef} className="camera-analysis-overlay" aria-hidden="true" />}
       {state === 'connecting' && <div className="camera-video-loading"><Spin /><span>Đang kết nối camera...</span></div>}
     </div>
     {error && <Alert type="error" showIcon title={error} action={<Button icon={<ReloadOutlined />} onClick={retry}>Thử lại</Button>} />}

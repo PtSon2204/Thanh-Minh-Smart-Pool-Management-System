@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SmartPool.API.Controllers;
 using SmartPool.API.Extensions;
-using SmartPool.Application;
 using SmartPool.Application.Features.SafetyMonitoring;
+using SmartPool.Application;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;
@@ -120,6 +121,75 @@ public sealed partial class SafetyMonitoringTests
         await app.StopAsync();
     }
 
+    [Fact]
+    public async Task ThresholdsEndpoint_ReadsForOperators_WritesForAdmins_AndHotReloads()
+    {
+        await using var app = await ApiAsync();
+        using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
+        const string path = "/api/thresholds/safety-monitoring";
+        // Chưa đăng nhập: 401.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
+
+        // Operator (LIFEGUARD) đọc được, không sửa được (403); SALES bị cấm (403).
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.PutAsJsonAsync(path, new { confidenceThreshold = 0.7, warningRatio = 0.5, criticalRatio = 0.9,
+                recoveryRatio = 0.2, criticalHoldSeconds = 3, recoveryHoldSeconds = 5, cooldownSeconds = 15,
+                windowSeconds = 5, maxObservationGapSeconds = 3, minObservations = 3 })).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "SALES"));
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(path)).StatusCode);
+
+        // Admin sửa được: ghi DB (bảng đã có seed row sau migration) + version tăng.
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "ADMIN"));
+        var before = await client.GetFromJsonAsync<JsonDocument>(path);
+        var saved = await client.PutAsJsonAsync(path, new
+        {
+            confidenceThreshold = 0.75,
+            warningRatio = 0.5,
+            criticalRatio = 0.9,
+            recoveryRatio = 0.2,
+            criticalHoldSeconds = 3,
+            recoveryHoldSeconds = 5,
+            cooldownSeconds = 15,
+            windowSeconds = 5,
+            maxObservationGapSeconds = 3,
+            minObservations = 3,
+        });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var body = await saved.Content.ReadAsStringAsync();
+        using var doc = System.Text.Json.JsonDocument.Parse(body);
+        Assert.Equal("DATABASE", doc.RootElement.GetProperty("origin").GetString());
+        Assert.True(doc.RootElement.GetProperty("version").GetInt32() > 0);
+        Assert.NotEqual(before.RootElement.TryGetProperty("version", out var v) ? v.GetInt32() : 0,
+            doc.RootElement.GetProperty("version").GetInt32());
+
+        // GET sau PUT đọc lại đúng giá trị (nguồn DATABASE), và provider áp nóng lên RiskOptions dùng chung.
+        using var scope = app.Services.CreateScope();
+        var thresholds = scope.ServiceProvider.GetRequiredService<SmartPool.Application.Features.SafetyMonitoring.IRiskThresholds>();
+        Assert.Equal(0.75, thresholds.Current.ConfidenceThreshold);
+        var after = await client.GetFromJsonAsync<JsonDocument>(path);
+        Assert.Equal("DATABASE", after.RootElement.GetProperty("origin").GetString());
+        Assert.Equal(0.75, after.RootElement.GetProperty("confidenceThreshold").GetDouble());
+
+        // Giá trị không hợp lệ (vi phạm RiskOptions.IsValid) → 400.
+        var invalid = await client.PutAsJsonAsync(path, new
+        {
+            confidenceThreshold = 1.5,
+            warningRatio = 0.5,
+            criticalRatio = 0.9,
+            recoveryRatio = 0.2,
+            criticalHoldSeconds = 3,
+            recoveryHoldSeconds = 5,
+            cooldownSeconds = 15,
+            windowSeconds = 5,
+            maxObservationGapSeconds = 3,
+            minObservations = 3,
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        await app.StopAsync();
+    }
+
     [NativeSafetyFact]
     public async Task VideoUpload_RealOnnxBackgroundJob_RendersPlayableH264AndSupportsRangeRequests()
     {
@@ -147,13 +217,44 @@ public sealed partial class SafetyMonitoringTests
         }
         using var body = new MultipartFormDataContent();
         var content = new ByteArrayContent(await File.ReadAllBytesAsync(input)); content.Headers.ContentType = new("video/mp4"); body.Add(content, "file", "pool.mp4");
+        var startupRuns = new List<object>();
+        async Task<object> MeasureStartup(Guid id, Stopwatch clock, double acceptedMs)
+        {
+            double? firstFramesMs = null;
+            VideoFrameAnalysisWindowDto sample;
+            var measurementDeadline = DateTime.UtcNow.AddMinutes(3);
+            do
+            {
+                sample = (await client.GetFromJsonAsync<VideoFrameAnalysisWindowDto>($"/api/video-analyses/{id}/frame-analysis/window?from=0&duration=1"))!;
+                if (sample.ReadyFrames >= 2) firstFramesMs ??= clock.Elapsed.TotalMilliseconds;
+                if (sample.Complete) break;
+                var currentJob = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{id}"))!;
+                Assert.NotEqual("FAILED", currentJob.Status);
+                await Task.Delay(25);
+            } while (DateTime.UtcNow < measurementDeadline);
+            Assert.True(sample.Complete);
+            Assert.NotNull(firstFramesMs);
+            var analysisMs = clock.Elapsed.TotalMilliseconds - acceptedMs;
+            return new { uploadAndValidationMs = acceptedMs, firstSynchronizedFramesAfterAcceptedMs = firstFramesMs - acceptedMs,
+                analysisCompleteAfterAcceptedMs = analysisMs, frames = sample.ReadyFrames, fps = sample.Fps,
+                speedIncludingProbeAndDb = sample.ReadyFrames / sample.Fps / (analysisMs / 1000) };
+        }
+        var startupClock = Stopwatch.StartNew();
         var response = await client.PostAsync("/api/video-analyses", body);
         Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
         var job = (await response.Content.ReadFromJsonAsync<VideoJobDto>())!;
+        startupRuns.Add(await MeasureStartup(job.Id, startupClock, startupClock.Elapsed.TotalMilliseconds));
         var deadline = DateTime.UtcNow.AddMinutes(5);
         while (DateTime.UtcNow < deadline && job.Status is not ("COMPLETED" or "FAILED"))
         { await Task.Delay(500); job = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{job.Id}"))!; }
         Assert.True(job.Status == "COMPLETED", job.Error ?? job.Status);
+        var window = (await client.GetFromJsonAsync<VideoFrameAnalysisWindowDto>($"/api/video-analyses/{job.Id}/frame-analysis/window?from=0&duration=1"))!;
+        Assert.True(window.Complete);
+        Assert.False(window.Legacy);
+        Assert.True(window.Fps > 0);
+        Assert.NotEmpty(window.Frames);
+        Assert.True(File.Exists(Path.Combine(root, $"{job.Id:N}-timeline.json")));
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"/api/video-analyses/{job.Id}/frame-analysis/window?duration=99")).StatusCode);
         // Legacy role names use title case. An admin must also be able to review another uploader's result.
         await using (var ownership = new SmartPoolDbContext(options))
             await ownership.VideoAnalysisJobs.Where(x => x.Id == job.Id).ExecuteUpdateAsync(set => set.SetProperty(x => x.UploadedBy, userId));
@@ -167,6 +268,15 @@ public sealed partial class SafetyMonitoringTests
         Assert.True((await entireVideo.Content.ReadAsByteArrayAsync()).Length > 128);
         var playback = (await client.GetFromJsonAsync<VideoPlaybackDto>($"/api/video-analyses/{job.Id}/playback"))!;
         using var mediaClient = new HttpClient { BaseAddress = client.BaseAddress };
+        var originalPlayback = (await client.GetFromJsonAsync<VideoPlaybackDto>($"/api/video-analyses/{job.Id}/playback?original=true"))!;
+        Assert.Contains("original=true", originalPlayback.StreamPath);
+        using (var originalRequest = new HttpRequestMessage(HttpMethod.Get, originalPlayback.StreamPath))
+        {
+            originalRequest.Headers.Range = new RangeHeaderValue(0, 127);
+            var originalResponse = await mediaClient.SendAsync(originalRequest);
+            Assert.Equal(HttpStatusCode.PartialContent, originalResponse.StatusCode);
+            Assert.Equal((await File.ReadAllBytesAsync(input))[..128], await originalResponse.Content.ReadAsByteArrayAsync());
+        }
         Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync($"/api/video-analyses/{job.Id}/playback")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync($"/api/video-analyses/{job.Id}/stream")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync(playback.StreamPath.Replace(job.Id.ToString(), Guid.NewGuid().ToString()))).StatusCode);
@@ -188,7 +298,7 @@ public sealed partial class SafetyMonitoringTests
             using var process = Process.Start(browser)!;
             var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
             await process.StandardInput.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(new { apiBase = app.Urls.Single(),
-                token = client.DefaultRequestHeaders.Authorization!.Parameter, userId = apiUserIds["Admin"], jobId = job.Id, root = RepositoryRoot() }));
+                token = client.DefaultRequestHeaders.Authorization!.Parameter, userId = apiUserIds["Admin"], jobId = job.Id, root = RepositoryRoot(), input }));
             process.StandardInput.Close();
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(90));
             Assert.True(process.ExitCode == 0, (await stdout) + (await stderr));
@@ -199,6 +309,29 @@ public sealed partial class SafetyMonitoringTests
         foreach (var arg in new[] { "-v", "error", "-show_entries", "stream=codec_name,codec_type:format=duration", "-of", "json", generated }) probe.ArgumentList.Add(arg);
         using (var check = Process.Start(probe)!)
         { var output = await check.StandardOutput.ReadToEndAsync(); await check.WaitForExitAsync(); Assert.Contains("h264", output); Assert.Contains("aac", output); }
+        // A second native upload exercises the retained model and reset tracker/decoder.
+        using var secondBody = new MultipartFormDataContent();
+        secondBody.Add(new ByteArrayContent(await File.ReadAllBytesAsync(input)), "file", "second.mp4");
+        startupClock.Restart();
+        var secondResponse = await client.PostAsync("/api/video-analyses", secondBody);
+        Assert.Equal(HttpStatusCode.Accepted, secondResponse.StatusCode);
+        var secondJob = (await secondResponse.Content.ReadFromJsonAsync<VideoJobDto>())!;
+        startupRuns.Add(await MeasureStartup(secondJob.Id, startupClock, startupClock.Elapsed.TotalMilliseconds));
+        var report = JsonSerializer.Serialize(new { fixture = "native ONNX, 640x360, 10 FPS, 2 seconds; HTTP and timeline included", runs = startupRuns }, new JsonSerializerOptions { WriteIndented = true });
+        await File.WriteAllTextAsync(Path.Combine(RepositoryRoot(), "backend", ".test-runtime", "video-startup-results.json"), report);
+        while (DateTime.UtcNow < deadline && secondJob.Status is not ("COMPLETED" or "FAILED"))
+        { await Task.Delay(100); secondJob = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{secondJob.Id}"))!; }
+        Assert.Equal("COMPLETED", secondJob.Status);
+        var vfrFile = Path.Combine(root, "variable-rate.mp4");
+        var variableRate = new ProcessStartInfo(Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")!)
+        { CreateNoWindow = true, UseShellExecute = false, RedirectStandardError = true };
+        foreach (var arg in new[] { "-v", "error", "-y", "-i", input, "-vf", "setpts=if(lt(N\\,5)\\,N/(10*TB)\\,(N+2)/(10*TB))", "-fps_mode", "vfr", "-an", vfrFile }) variableRate.ArgumentList.Add(arg);
+        using (var variable = Process.Start(variableRate)!)
+        { var error = variable.StandardError.ReadToEndAsync(); await variable.WaitForExitAsync(); Assert.True(variable.ExitCode == 0, await error); }
+        var videoProbe = app.Services.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
+        var vfrInfo = await videoProbe.InspectAsync(vfrFile, false, default);
+        await using (var timeline = videoProbe.OpenTimeline(vfrFile, vfrInfo))
+            await Assert.ThrowsAsync<ArgumentException>(async () => { while (await timeline.ReadAsync(default)) { } });
         await app.StopAsync();
     }
 

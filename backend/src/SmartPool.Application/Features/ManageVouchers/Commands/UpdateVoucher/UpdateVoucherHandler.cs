@@ -8,19 +8,16 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
 {
     public sealed class UpdateVoucherHandler : IRequestHandler<UpdateVoucherCommand, UpdateVoucherResponse>
     {
-        private readonly IRepository<VoucherEntity> _repo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IVoucherOperations _operations;
         private readonly IMapper _mapper;
         private readonly IValidator<UpdateVoucherCommand>? _validator;
 
         public UpdateVoucherHandler(
-            IRepository<VoucherEntity> repo, 
-            IUnitOfWork unitOfWork, 
+            IVoucherOperations operations,
             IMapper mapper, 
             IValidator<UpdateVoucherCommand>? validator = null)
         {
-            _repo = repo;
-            _unitOfWork = unitOfWork;
+            _operations = operations;
             _mapper = mapper;
             _validator = validator;
         }
@@ -32,16 +29,12 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
                 await _validator.ValidateAndThrowAsync(request, cancellationToken);
             }
 
-            var entity = await _repo.FirstOrDefaultAsync(
-                v => v.Id == request.Id && v.IsDeleted != true,
-                cancellationToken)
+            var entity = await _operations.GetVoucherByIdAsync(request.Id, cancellationToken)
                 ?? throw new KeyNotFoundException($"Không tìm thấy voucher với Id: {request.Id}");
 
             // Kiểm tra trùng Code nếu Code thay đổi
-            var codeConflict = await _repo.FirstOrDefaultAsync(
-                v => v.Code == request.Code && v.Id != request.Id && v.IsDeleted != true,
-                cancellationToken);
-            if (codeConflict is not null)
+            var codeConflict = await _operations.ExistsByCodeAsync(request.Code, request.Id, cancellationToken);
+            if (codeConflict)
                 throw new VoucherConflictException($"Mã voucher '{request.Code}' đã tồn tại.");
 
             entity.Code = request.Code.Trim().ToUpper();
@@ -60,8 +53,7 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
                 : null;
             entity.IsActive = request.IsActive;
 
-            _repo.Update(entity);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _operations.UpdateVoucherAsync(entity, cancellationToken);
 
             return _mapper.Map<UpdateVoucherResponse>(entity);
         }

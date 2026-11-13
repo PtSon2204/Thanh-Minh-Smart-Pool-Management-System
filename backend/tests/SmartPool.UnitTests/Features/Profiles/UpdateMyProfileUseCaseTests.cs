@@ -68,11 +68,11 @@ public sealed class UpdateMyProfileUseCaseTests
     {
         var userId = Guid.NewGuid();
         var profile = new UserProfile { UserId = userId, FullName = "Old", Address = "Old address", DateOfBirth = new DateOnly(1990, 1, 1) };
-        var (users, profiles, unitOfWork) = Repositories(profile, null);
+        var ops = Operations(profile, null);
         using var cts = new CancellationTokenSource();
         var command = Command("New name", "New address", new DateOnly(2000, 2, 3), userId);
 
-        var result = await Handler(users.Object, profiles.Object, unitOfWork.Object).Handle(command, cts.Token);
+        var result = await Handler(ops.Object).Handle(command, cts.Token);
 
         Assert.IsType<OkObjectResult>(result);
         Assert.Equal("New name", profile.FullName);
@@ -80,10 +80,9 @@ public sealed class UpdateMyProfileUseCaseTests
         Assert.Equal(new DateOnly(2000, 2, 3), profile.DateOfBirth);
         Assert.NotNull(profile.UpdatedAt);
         Assert.InRange(profile.UpdatedAt.Value, DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddMinutes(1));
-        profiles.Verify(r => r.Update(profile), Times.Once);
-        profiles.Verify(r => r.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
-        users.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateUserProfileAsync(profile, cts.Token), Times.Once);
+        ops.Verify(r => r.AddUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID09 (N) - Chưa có profile nhưng User tồn tại -> Tạo profile và lưu một lần")]
@@ -91,12 +90,12 @@ public sealed class UpdateMyProfileUseCaseTests
     {
         var userId = Guid.NewGuid();
         var user = new User { Id = userId };
-        var (users, profiles, unitOfWork) = Repositories(null, user);
+        var ops = Operations(null, user);
         UserProfile? added = null;
-        profiles.Setup(r => r.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()))
+        ops.Setup(r => r.AddUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()))
             .Callback<UserProfile, CancellationToken>((entity, _) => added = entity).Returns(Task.CompletedTask);
 
-        var result = await Handler(users.Object, profiles.Object, unitOfWork.Object)
+        var result = await Handler(ops.Object)
             .Handle(Command("New name", "New address", new DateOnly(2000, 2, 3), userId), default);
 
         Assert.IsType<OkObjectResult>(result);
@@ -105,59 +104,55 @@ public sealed class UpdateMyProfileUseCaseTests
         Assert.Equal("New name", added.FullName);
         Assert.Equal("New address", added.Address);
         Assert.Equal(new DateOnly(2000, 2, 3), added.DateOfBirth);
-        profiles.Verify(r => r.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Once);
-        profiles.Verify(r => r.Update(It.IsAny<UserProfile>()), Times.Never);
-        users.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.AddUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.UpdateUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID10 (A) - Chưa có profile và User không tồn tại -> 404, không ghi dữ liệu")]
     public async Task UTCID10_MissingProfileAndUser_ReturnsNotFoundWithoutWrites()
     {
-        var (users, profiles, unitOfWork) = Repositories(null, null);
+        var ops = Operations(null, null);
 
-        var result = await Handler(users.Object, profiles.Object, unitOfWork.Object)
+        var result = await Handler(ops.Object)
             .Handle(Command("New name", null, null, Guid.NewGuid()), default);
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result);
         Assert.Equal(StatusCodes.Status404NotFound, notFound.StatusCode);
-        profiles.Verify(r => r.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Never);
-        profiles.Verify(r => r.Update(It.IsAny<UserProfile>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.AddUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID11 (A) - Handler nhận FullName rỗng -> 400 và không gọi repository")]
     public async Task UTCID11_InvalidCommand_ReturnsBadRequestWithoutRepositoryCalls()
     {
-        var (users, profiles, unitOfWork) = Repositories(null, null);
+        var ops = Operations(null, null);
 
-        var result = await Handler(users.Object, profiles.Object, unitOfWork.Object)
+        var result = await Handler(ops.Object)
             .Handle(Command(string.Empty, null, null, Guid.NewGuid()), default);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         var details = Assert.IsType<ValidationProblemDetails>(badRequest.Value);
         Assert.Equal(StatusCodes.Status400BadRequest, details.Status);
         Assert.Contains("fullName", details.Errors.Keys);
-        users.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
-        profiles.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.GetUserProfileByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID12 (A) - SaveChangesAsync ném lỗi -> Handler truyền tiếp exception")]
     public async Task UTCID12_SaveFailure_IsPropagated()
     {
         var profile = new UserProfile { UserId = Guid.NewGuid(), FullName = "Old" };
-        var (users, profiles, unitOfWork) = Repositories(profile, null);
+        var ops = Operations(profile, null);
         var failure = new InvalidOperationException("Save failed");
-        unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+        ops.Setup(u => u.UpdateUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>())).ThrowsAsync(failure);
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler(users.Object, profiles.Object, unitOfWork.Object)
+            Handler(ops.Object)
                 .Handle(Command("New name", null, null, profile.UserId), default));
 
         Assert.Same(failure, actual);
-        profiles.Verify(r => r.Update(profile), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.UpdateUserProfileAsync(profile, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private static UpdateMyProfileCommand Command(string fullName, string? address, DateOnly? dateOfBirth, Guid? userId = null) => new()
@@ -165,20 +160,20 @@ public sealed class UpdateMyProfileUseCaseTests
         UserId = userId ?? Guid.NewGuid(), FullName = fullName, Address = address, DateOfBirth = dateOfBirth
     };
 
-    private static UpdateMyProfileHandler Handler(IRepository<User> users, IRepository<UserProfile> profiles, IUnitOfWork unitOfWork) =>
-        new(users, profiles, unitOfWork, new UpdateMyProfileValidator());
+    private static UpdateMyProfileHandler Handler(IUserOperations userOperations) =>
+        new(userOperations, new UpdateMyProfileValidator());
 
-    private static (Mock<IRepository<User>> Users, Mock<IRepository<UserProfile>> Profiles, Mock<IUnitOfWork> UnitOfWork)
-        Repositories(UserProfile? profile, User? user)
+    private static Mock<IUserOperations> Operations(UserProfile? profile, User? user)
     {
-        var users = new Mock<IRepository<User>>();
-        users.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<User, bool>> predicate, CancellationToken _) => Task.FromResult(user is not null && predicate.Compile()(user) ? user : null));
-        var profiles = new Mock<IRepository<UserProfile>>();
-        profiles.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<UserProfile, bool>> predicate, CancellationToken _) => Task.FromResult(profile is not null && predicate.Compile()(profile) ? profile : null));
-        var unitOfWork = new Mock<IUnitOfWork>();
-        unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        return (users, profiles, unitOfWork);
+        var ops = new Mock<IUserOperations>();
+        ops.Setup(r => r.GetUserProfileByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(profile);
+        ops.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        ops.Setup(r => r.AddUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        ops.Setup(r => r.UpdateUserProfileAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        return ops;
     }
 }

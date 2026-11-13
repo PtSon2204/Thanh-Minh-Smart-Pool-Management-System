@@ -10,17 +10,14 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
     public class UpdateTicketTypeHandler
         : IRequestHandler<UpdateTicketTypeCommand, UpdateTicketTypeResponse>
     {
-        private readonly IRepository<TicketTypeEntity> _repo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ITicketTypeOperations _operations;
         private readonly IMapper _mapper;
 
         public UpdateTicketTypeHandler(
-            IRepository<TicketTypeEntity> repo,
-            IUnitOfWork unitOfWork,
+            ITicketTypeOperations operations,
             IMapper mapper)
         {
-            _repo = repo;
-            _unitOfWork = unitOfWork;
+            _operations = operations;
             _mapper = mapper;
         }
 
@@ -28,9 +25,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
             UpdateTicketTypeCommand request,
             CancellationToken cancellationToken)
         {
-            var entity = await _repo.FirstOrDefaultAsync(
-                t => t.Id == request.Id && t.IsDeleted != true,
-                cancellationToken)
+            var entity = await _operations.GetByIdAsync(request.Id, cancellationToken)
                 ?? throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {request.Id}");
 
             int? totalEntries = request.TicketCategory == TicketCategoryEnum.VE_LUOT
@@ -45,8 +40,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
             entity.DurationDays   = TicketValidityPolicy.GetDurationDays(request.TicketCategory, totalEntries);
             entity.UpdatedAt      = DateTime.UtcNow;
 
-            _repo.Update(entity);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _operations.UpdateAsync(entity, cancellationToken);
 
             return _mapper.Map<UpdateTicketTypeResponse>(entity);
         }

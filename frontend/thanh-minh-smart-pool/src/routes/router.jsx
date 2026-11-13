@@ -44,6 +44,10 @@ import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import WaitingInvoicesPage from "../pages/admin/payments/WaitingInvoicesPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
+import CameraListPage from "../pages/admin/safety/CameraListPage";
+import MonitoringAlertsPage from "../pages/admin/safety/MonitoringAlertsPage";
+import VideoAnalysisPage from "../pages/admin/safety/VideoAnalysisPage";
+import ThresholdsPage from "../pages/admin/safety/ThresholdsPage";
 import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
 import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
@@ -212,7 +216,16 @@ const router = createBrowserRouter([
                 path: "safety/activate-alerts",
                 element: <ActivateAlertPage />,
               },
+              { path: "safety/alerts", element: <MonitoringAlertsPage /> },
+              { path: "safety/thresholds", element: <ThresholdsPage /> },
               { path: "safety/incidents", element: <IncidentHistoryPage /> },
+              {
+                element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+                children: [
+                  { path: "safety/list-camera", element: <CameraListPage /> },
+                  { path: "safety/video-analysis", element: <VideoAnalysisPage /> },
+                ],
+              },
               {
                 path: "safety/incident-history",
                 element: <IncidentHistoryPage />,

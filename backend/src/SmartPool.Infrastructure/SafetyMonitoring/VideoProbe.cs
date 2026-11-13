@@ -8,6 +8,8 @@ namespace SmartPool.Infrastructure.SafetyMonitoring;
 public sealed record VideoInfo(double Fps, double Duration, int? FrameCount = null);
 public sealed class VideoProbe(IOptions<MonitoringOptions> options)
 {
+    public VideoTimeline OpenTimeline(string path, VideoInfo info) => new(options.Value.FfprobePath, path, info);
+
     public async Task<VideoInfo> InspectAsync(string path, bool verifyTimeline, CancellationToken ct)
     {
         if (!File.Exists(options.Value.FfprobePath)) throw new InvalidOperationException("Chưa cấu hình FFprobe để kiểm tra nội dung video.");
@@ -59,5 +61,54 @@ public sealed class VideoProbe(IOptions<MonitoringOptions> options)
             verifiedFrames = index;
         }
         return new(fps, duration, verifiedFrames);
+    }
+}
+
+/// <summary>Validate the decoded CFR timeline one frame at a time, before publishing
+/// that frame's AI results. Avoid scanning the entire clip before its first frame.</summary>
+public sealed class VideoTimeline : IAsyncDisposable
+{
+    private readonly Process process;
+    private readonly Task<string> errors;
+    private readonly VideoInfo info;
+    private int index;
+    private double? first;
+    public VideoTimeline(string executable, string path, VideoInfo info)
+    {
+        this.info = info;
+        var start = new ProcessStartInfo(executable) { CreateNoWindow = true, UseShellExecute = false,
+            RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var arg in new[] { "-v", "error", "-threads", "1", "-protocol_whitelist", "file,pipe", "-format_whitelist", "mov,avi,matroska,webm",
+            "-select_streams", "v:0", "-show_frames", "-show_entries", "frame=best_effort_timestamp_time", "-of", "compact=p=0", path }) start.ArgumentList.Add(arg);
+        process = Process.Start(start) ?? throw new IOException("Không kiểm tra được timeline video.");
+        try { process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception) { }
+        errors = process.StandardError.ReadToEndAsync();
+    }
+    public async Task<bool> ReadAsync(CancellationToken ct)
+    {
+        string? line;
+        do { line = await process.StandardOutput.ReadLineAsync(ct); } while (line != null && string.IsNullOrWhiteSpace(line));
+        if (line == null)
+        {
+            await process.WaitForExitAsync(ct); await errors;
+            if (process.ExitCode != 0 || index < 2 || Math.Abs(index / info.Fps - info.Duration) > Math.Max(0.25, 2 / info.Fps))
+                throw new ArgumentException("Timeline hoặc thời lượng video không được hỗ trợ.");
+            return false;
+        }
+        const string prefix = "best_effort_timestamp_time=";
+        var value = line.Split('|', 2)[0];
+        if (!value.StartsWith(prefix, StringComparison.Ordinal) ||
+            !double.TryParse(value.AsSpan(prefix.Length), NumberStyles.Float, CultureInfo.InvariantCulture, out var timestamp) || !double.IsFinite(timestamp))
+            throw new ArgumentException("Video không có timeline hợp lệ.");
+        first ??= timestamp;
+        if (index >= 40000 || Math.Abs(timestamp - first.Value - index / info.Fps) > Math.Max(0.005, 0.1 / info.Fps))
+            throw new ArgumentException("Video có tốc độ khung hình biến đổi (VFR). Hãy chuyển sang CFR trước khi phân tích.");
+        index++;
+        return true;
+    }
+    public async ValueTask DisposeAsync()
+    {
+        try { if (!process.HasExited) process.Kill(true); await process.WaitForExitAsync(); await errors; }
+        finally { process.Dispose(); }
     }
 }

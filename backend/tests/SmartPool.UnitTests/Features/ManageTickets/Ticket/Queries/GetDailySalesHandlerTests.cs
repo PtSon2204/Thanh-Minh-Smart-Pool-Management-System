@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Moq;
 using SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetDailySales;
 using SmartPool.Application.Interfaces.Repositories;
@@ -130,28 +129,47 @@ public sealed class GetDailySalesHandlerTests
         List<TicketTypeEntity> ticketTypes,
         List<EntryLog> entries)
     {
-        var orderRepository = new Mock<IRepository<Order>>();
-        var paymentRepository = new Mock<IRepository<Payment>>();
-        var detailRepository = new Mock<IRepository<OrderDetail>>();
-        var ticketTypeRepository = new Mock<IRepository<TicketTypeEntity>>();
-        var entryRepository = new Mock<IRepository<EntryLog>>();
-        SetupFind(orderRepository, orders);
-        SetupFind(paymentRepository, payments);
-        SetupFind(detailRepository, details);
-        SetupFind(ticketTypeRepository, ticketTypes);
-        SetupFind(entryRepository, entries);
-        return new GetDailySalesHandler(
-            orderRepository.Object,
-            detailRepository.Object,
-            paymentRepository.Object,
-            ticketTypeRepository.Object,
-            entryRepository.Object);
-    }
+        var ticketOrderOperations = new Mock<ITicketOrderOperations>();
+        var ticketTypeOperations = new Mock<ITicketTypeOperations>();
 
-    private static void SetupFind<T>(Mock<IRepository<T>> repository, List<T> rows) where T : class =>
-        repository.Setup(item => item.FindAsync(It.IsAny<Expression<Func<T, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<T, bool>> predicate, CancellationToken _) =>
-                Task.FromResult<IEnumerable<T>>(rows.Where(predicate.Compile()).ToList()));
+        ticketOrderOperations.Setup(o => o.GetDailySalesPaymentsAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Returns((DateTime start, DateTime end, CancellationToken _) => Task.FromResult(
+                payments.Where(p => p.Status != null && p.Status.ToUpper() == "COMPLETED" && p.PaymentTime >= start && p.PaymentTime < end).ToList()));
+
+        ticketOrderOperations.Setup(o => o.GetOrdersByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .Returns((IEnumerable<Guid> candidateOrderIds, CancellationToken _) =>
+            {
+                var idSet = candidateOrderIds.ToHashSet();
+                return Task.FromResult(orders.Where(o => idSet.Contains(o.Id) && o.IsDeleted != true && o.Status != null && o.Status.ToUpper() == "COMPLETED").ToList());
+            });
+
+        ticketOrderOperations.Setup(o => o.GetPaymentsByOrderIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .Returns((IEnumerable<Guid> candidateOrderIds, CancellationToken _) =>
+            {
+                var idSet = candidateOrderIds.ToHashSet();
+                return Task.FromResult(payments.Where(p => idSet.Contains(p.OrderId) && p.Status != null && p.Status.ToUpper() == "COMPLETED").ToList());
+            });
+
+        ticketOrderOperations.Setup(o => o.GetTicketOrderDetailsByOrderIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .Returns((IEnumerable<Guid> saleOrderIds, CancellationToken _) =>
+            {
+                var idSet = saleOrderIds.ToHashSet();
+                return Task.FromResult(details.Where(d => idSet.Contains(d.OrderId) && d.ItemType.ToUpper() == "TICKET").ToList());
+            });
+
+        ticketTypeOperations.Setup(o => o.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .Returns((IEnumerable<Guid> typeIds, CancellationToken _) =>
+            {
+                var idSet = typeIds.ToHashSet();
+                return Task.FromResult(ticketTypes.Where(t => idSet.Contains(t.Id)).ToList());
+            });
+
+        ticketOrderOperations.Setup(o => o.GetAllowedEntryLogsAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Returns((DateTime start, DateTime end, CancellationToken _) => Task.FromResult(
+                entries.Where(e => e.TicketId.HasValue && e.ScanTime >= start && e.ScanTime < end && e.Status != null && e.Status.ToUpper() == "ALLOWED").ToList()));
+
+        return new GetDailySalesHandler(ticketOrderOperations.Object, ticketTypeOperations.Object);
+    }
 
     private static DateTime Utc(int year, int month, int day, int hour, int minute) =>
         new(year, month, day, hour, minute, 0, DateTimeKind.Utc);

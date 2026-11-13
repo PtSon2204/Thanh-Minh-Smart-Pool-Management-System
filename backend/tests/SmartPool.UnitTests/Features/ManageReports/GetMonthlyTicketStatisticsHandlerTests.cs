@@ -14,20 +14,11 @@ namespace SmartPool.UnitTests.Features.ManageReports;
 
 public sealed class GetMonthlyTicketStatisticsHandlerTests
 {
-    private readonly Mock<IRepository<Ticket>> _ticketRepo = new();
-    private readonly Mock<IRepository<TicketType>> _ticketTypeRepo = new();
-    private readonly Mock<IRepository<User>> _userRepo = new();
-    private readonly Mock<IRepository<UserProfile>> _profileRepo = new();
-    private readonly Mock<IRepository<EntryLog>> _entryLogRepo = new();
+    private readonly Mock<IReportOperations> _reportOps = new();
 
     private GetMonthlyTicketStatisticsHandler CreateHandler()
     {
-        return new GetMonthlyTicketStatisticsHandler(
-            _ticketRepo.Object,
-            _ticketTypeRepo.Object,
-            _userRepo.Object,
-            _profileRepo.Object,
-            _entryLogRepo.Object);
+        return new GetMonthlyTicketStatisticsHandler(_reportOps.Object);
     }
 
     [Fact(DisplayName = "UTCID01 (N) - Tính toán toàn diện bộ 4 KPI & Tỷ lệ gia hạn với dữ liệu thực tế")]
@@ -53,11 +44,11 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), TicketTypeId = tt.Id, UserId = user2, CreatedAt = now.AddMonths(-1), ExpiryDate = now.AddDays(4), Status = "ACTIVE", IsDeleted = false },
         };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetMonthlyTicketStatisticsQuery { Filter = "all" }, CancellationToken.None);
@@ -86,11 +77,11 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), TicketTypeId = ttChild.Id, CreatedAt = now, ExpiryDate = now.AddDays(30), IsDeleted = false },
         };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttAdult, ttChild });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttAdult, ttChild });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetMonthlyTicketStatisticsQuery { Filter = "all" }, CancellationToken.None);
@@ -141,11 +132,11 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), TicketId = Guid.NewGuid(), ScanTime = now } // Của vé khác
         };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket> { ticket });
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User> { user });
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile> { profile });
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(logs);
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket> { ticket });
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User> { user });
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile> { profile });
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(logs);
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetMonthlyTicketStatisticsQuery { Filter = "all" }, CancellationToken.None);
@@ -177,11 +168,11 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
 
         var user = new User { Id = userId, Email = "swimmer@test.com", Phone = "0911222333", Username = "super_swimmer" };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User> { user });
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>()); // Không có Profile
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User> { user });
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>()); // Không có Profile
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetMonthlyTicketStatisticsQuery { Filter = "all" }, CancellationToken.None);
@@ -212,11 +203,11 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
             IsDeleted = false
         };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket> { ticket });
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket> { ticket });
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetMonthlyTicketStatisticsQuery { Filter = "all" }, CancellationToken.None);
@@ -241,11 +232,11 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), TicketTypeId = tt.Id, ExpiryDate = now.AddDays(-2), Status = "EXPIRED", IsDeleted = false }  // EXPIRED
         };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
 
         var handler = CreateHandler();
 
@@ -279,16 +270,16 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
         var ticketBoundary8Days = new Ticket { Id = Guid.NewGuid(), TicketTypeId = tt.Id, ExpiryDate = now.AddDays(8), IsDeleted = false };
         var ticketBoundaryExpired1Day = new Ticket { Id = Guid.NewGuid(), TicketTypeId = tt.Id, ExpiryDate = now.AddDays(-1), IsDeleted = false };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>
         {
             ticketBoundary7Days,
             ticketBoundary8Days,
             ticketBoundaryExpired1Day
         });
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetMonthlyTicketStatisticsQuery { Filter = "all" }, CancellationToken.None);
@@ -319,11 +310,11 @@ public sealed class GetMonthlyTicketStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), TicketTypeId = ttSingle.Id, ExpiryDate = now.AddDays(1), IsDeleted = false },
         };
 
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
-        _entryLogRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tickets);
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetEntryLogsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<EntryLog>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetMonthlyTicketStatisticsQuery { Filter = "all" }, CancellationToken.None);

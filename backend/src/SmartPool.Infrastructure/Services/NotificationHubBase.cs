@@ -7,6 +7,17 @@ namespace SmartPool.Infrastructure.Services
     [Authorize]
     public class NotificationHubBase : Hub
     {
+        [Authorize(Roles = "ADMIN")]
+        public Task SubscribeCameraAnalysis(Guid cameraId)
+        {
+            if (cameraId == Guid.Empty || Context.User?.IsInRole("ADMIN") != true)
+                throw new HubException("Không có quyền xem phân tích camera.");
+            return Groups.AddToGroupAsync(Context.ConnectionId, $"camera-analysis_{cameraId:N}");
+        }
+
+        public Task UnsubscribeCameraAnalysis(Guid cameraId) =>
+            Groups.RemoveFromGroupAsync(Context.ConnectionId, $"camera-analysis_{cameraId:N}");
+
         public override async Task OnConnectedAsync()
         {
             var userId = Context.UserIdentifier;

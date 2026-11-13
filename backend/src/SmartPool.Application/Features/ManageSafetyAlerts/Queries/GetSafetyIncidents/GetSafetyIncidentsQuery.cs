@@ -8,6 +8,7 @@ public sealed record GetSafetyIncidentsQuery : IRequest<GetSafetyIncidentsResult
     public string? Zone { get; init; }
     public string? SeverityLevel { get; init; }
     public string? Status { get; init; }
+    public string? SourceType { get; init; }
     public DateTime? FromDate { get; init; }
     public DateTime? ToDate { get; init; }
     public int PageNumber { get; init; } = 1;

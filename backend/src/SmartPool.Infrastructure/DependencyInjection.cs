@@ -182,11 +182,9 @@ namespace SmartPool.Infrastructure
             services.AddScoped<ICacheService, RedisCacheService>();
             services.AddScoped<IStaffAttendanceSessionStore, RedisStaffAttendanceSessionStore>();
 
-            // Repository & Unit of Work
-            services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            // Operations
             services.AddScoped<IUserOperations, UserOperations>();
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ServiceOperations>();
             services.AddScoped<IServiceOperations>(provider => provider.GetRequiredService<ServiceOperations>());
             services.Configure<SePayOptions>(configuration.GetSection(SePayOptions.SectionName));
@@ -197,9 +195,14 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IPoolAccessOperations, PoolAccessOperations>();
             services.AddScoped<IVoucherOperations, VoucherOperations>();
             services.AddScoped<ITicketTypeOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketTypeOperations>();
+            services.AddScoped<ITicketOrderOperations, SmartPool.Infrastructure.Persistence.Repositories.Tickets.TicketOrderOperations>();
             services.AddScoped<IPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.PaymentOperations>();
             services.AddScoped<IOrderPaymentOperations, SmartPool.Infrastructure.Persistence.Repositories.Payments.OrderPaymentOperations>();
             services.AddScoped<SmartPool.Application.Interfaces.Repositories.IWaterQualityOperations, SmartPool.Infrastructure.Persistence.Repositories.WaterQuality.WaterQualityOperations>();
+            services.AddScoped<IReportOperations, SmartPool.Infrastructure.Persistence.Repositories.Reports.ReportOperations>();
+            services.AddScoped<ISafetyAlertOperations, SmartPool.Infrastructure.Persistence.Repositories.SafetyMonitoring.SafetyAlertOperations>();
+            services.AddScoped<IDailyInspectionOperations, SmartPool.Infrastructure.Persistence.Repositories.Equipments.DailyInspectionOperations>();
+            services.AddScoped<INotificationOperations, SmartPool.Infrastructure.Persistence.Repositories.Notifications.NotificationOperations>();
             services.AddHostedService<ExpiredOnlineOrderWorker>();
             services.AddHostedService<ExpiredRentalPaymentWorker>();
             services.AddHostedService<InspectionSafetyReminderWorker>();
@@ -210,14 +213,21 @@ namespace SmartPool.Infrastructure
             services.Configure<SmartPool.Application.Features.SafetyMonitoring.RiskOptions>(configuration.GetSection("SafetyMonitoring:Risk"));
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.MonitoringFiles>();
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisQueue>();
             // State trong bộ nhớ chia sẻ giữa worker AI LIVE và nguồn WebRTC AI (phải là instance duy nhất).
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>();
+            // Decisions (box) từng frame trong lúc video đang phân tích — cho phát song song overlay đúng 1:1.
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisState>();
             services.AddSingleton<SmartPool.Application.Interfaces.Services.ICameraFrameSource, SmartPool.Infrastructure.SafetyMonitoring.CameraFrameSource>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.ICameraAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>());
+            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoFrameAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisState>());
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IMonitoringRepository, SmartPool.Infrastructure.Persistence.Repositories.MonitoringRepository>();
             services.AddScoped<SmartPool.Application.Features.ManageEquipments.Queries.GetCameraList.ICameraListRepository, SmartPool.Infrastructure.Persistence.Repositories.Equipments.CameraListRepository>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoAnalysisService, SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisService>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoPlaybackTickets, SmartPool.Infrastructure.SafetyMonitoring.VideoPlaybackTickets>();
+            // Ngưỡng cảnh báo AI có thể chỉnh từ giao diện (bảng single-row), áp nóng lên instance RiskOptions dùng chung.
+            services.AddSingleton<SmartPool.Application.Features.SafetyMonitoring.IRiskThresholds, SmartPool.Infrastructure.SafetyMonitoring.RiskThresholds>();
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.SafetyThresholdsBootstrap>();
             // BackgroundService: khi SafetyMonitoring:Enabled=false (mặc định) các worker chỉ chạy vòng lặp rảnh,
             // không chạm DB hay khởi động Python/FFmpeg nên an toàn cho test tích hợp không cấu hình native.
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker>();

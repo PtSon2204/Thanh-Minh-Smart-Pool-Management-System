@@ -54,6 +54,8 @@ public sealed class CurrentUser : ICurrentUser
     {
         var principal = AuthenticatedPrincipal;
         return principal is not null && !string.IsNullOrWhiteSpace(role) &&
-            (principal.IsInRole(role) || string.Equals(Role, role, StringComparison.Ordinal));
+            (principal.IsInRole(role) || principal.Claims.Any(claim =>
+                (claim.Type == ClaimTypes.Role || claim.Type == "role") &&
+                string.Equals(claim.Value, role, StringComparison.OrdinalIgnoreCase)));
     }
 }

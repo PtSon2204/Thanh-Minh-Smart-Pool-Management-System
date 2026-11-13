@@ -13,13 +13,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SmartPool.API.Controllers;
 using SmartPool.API.Extensions;
-using SmartPool.Application;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;
 using SmartPool.Infrastructure.Persistence.DbContext;
+using SmartPool.Application;
 
 namespace SmartPool.IntegrationTests.ManageEquipments;
 
@@ -222,6 +222,6 @@ public sealed class EquipmentApiTests
     private static User TestUser(Role role, string username) => new()
     {
         Id = Guid.NewGuid(), Role = role, Username = username, PasswordHash = "test-only",
-        Email = username + "@example.test", Phone = username[..1] + username[^15..], Status = "Active", IsDeleted = false
+        Email = username + "@example.test", Phone = "09" + Guid.NewGuid().ToString("N")[..8], Status = "Active", IsDeleted = false
     };
 }

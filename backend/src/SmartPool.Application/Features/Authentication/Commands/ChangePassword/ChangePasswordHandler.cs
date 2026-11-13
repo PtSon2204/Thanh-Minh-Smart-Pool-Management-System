@@ -12,20 +12,17 @@ namespace SmartPool.Application.Features.Authentication.Commands.ChangePassword;
 public sealed class ChangePasswordHandler
     : IRequestHandler<ChangePasswordCommand, IActionResult>
 {
-    private readonly IRepository<User> _users;
     private readonly IUserOperations _userOperations;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IValidator<ChangePasswordCommand> _validator;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ChangePasswordHandler(
-        IRepository<User> users,
         IUserOperations userOperations,
         IPasswordHasher passwordHasher,
         IValidator<ChangePasswordCommand> validator,
         IHttpContextAccessor httpContextAccessor)
     {
-        _users = users;
         _userOperations = userOperations;
         _passwordHasher = passwordHasher;
         _validator = validator;
@@ -65,9 +62,7 @@ public sealed class ChangePasswordHandler
         }
 
         // 3. Tìm tài khoản của chính người dùng đó.
-        var user = await _users.FirstOrDefaultAsync(
-            x => x.Id == userId && x.IsDeleted != true,
-            cancellationToken);
+        var user = await _userOperations.GetByIdAsync(userId, cancellationToken);
 
         if (user is null || string.IsNullOrWhiteSpace(user.PasswordHash))
         {

@@ -197,3 +197,79 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
         try { await accepting.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception) { }
     }
 }
+
+internal static class CameraTestEnvironment
+{
+    private static string? cachedFfmpeg;
+    private static bool searched;
+
+    public static string? ResolveFfmpeg()
+    {
+        if (searched) return cachedFfmpeg;
+        searched = true;
+
+        var env = Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG");
+        if (!string.IsNullOrWhiteSpace(env) && File.Exists(env))
+        {
+            cachedFfmpeg = env;
+            return cachedFfmpeg;
+        }
+
+        var exeName = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
+        var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            try
+            {
+                var full = Path.Combine(dir, exeName);
+                if (File.Exists(full))
+                {
+                    cachedFfmpeg = full;
+                    return cachedFfmpeg;
+                }
+            }
+            catch { }
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var winget = Path.Combine(localAppData, "Microsoft", "WinGet", "Links", "ffmpeg.exe");
+            if (File.Exists(winget))
+            {
+                cachedFfmpeg = winget;
+                return cachedFfmpeg;
+            }
+        }
+
+        return null;
+    }
+
+    public static string GetRequiredFfmpeg()
+    {
+        return ResolveFfmpeg()
+            ?? throw new InvalidOperationException("FFmpeg was not found. Install FFmpeg or set SMARTPOOL_CAMERA_TEST_FFMPEG to run camera tests.");
+    }
+}
+
+public sealed class CameraFactAttribute : FactAttribute
+{
+    public CameraFactAttribute()
+    {
+        if (CameraTestEnvironment.ResolveFfmpeg() is null)
+        {
+            Skip = "FFmpeg was not found. Install FFmpeg or set SMARTPOOL_CAMERA_TEST_FFMPEG to run camera tests.";
+        }
+    }
+}
+
+public sealed class CameraTheoryAttribute : TheoryAttribute
+{
+    public CameraTheoryAttribute()
+    {
+        if (CameraTestEnvironment.ResolveFfmpeg() is null)
+        {
+            Skip = "FFmpeg was not found. Install FFmpeg or set SMARTPOOL_CAMERA_TEST_FFMPEG to run camera tests.";
+        }
+    }
+}

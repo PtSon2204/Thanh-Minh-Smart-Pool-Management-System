@@ -17,10 +17,9 @@ namespace SmartPool.IntegrationTests.ManageEquipments;
 
 public sealed class CameraEquipmentTests
 {
-    private static string Ffmpeg => Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")
-        ?? throw new InvalidOperationException("Set SMARTPOOL_CAMERA_TEST_FFMPEG to an FFmpeg executable to run camera integration tests.");
+    private static string Ffmpeg => CameraTestEnvironment.GetRequiredFfmpeg();
 
-    [Theory]
+    [CameraTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RealRtsp_ValidatesDecodedFramePersistsEncryptedConfigurationRejectsDuplicateAndReportsDisconnect(bool hevc)
@@ -39,7 +38,7 @@ public sealed class CameraEquipmentTests
         var protection = new EphemeralDataProtectionProvider();
         await using var cameras = new CameraService(new CameraAddressPolicy(options), new CameraFrameDecoder(options), protection, options, TimeProvider.System, NullLogger<CameraService>.Instance);
         var operations = new EquipmentOperations(db);
-        var handler = new CreateEquipmentHandler(new Repository<Equipment>(db), new UnitOfWork(db), new CreateEquipmentValidator(), TimeProvider.System, cameras, operations);
+        var handler = new CreateEquipmentHandler(operations, new CreateEquipmentValidator(), TimeProvider.System, cameras);
         var request = new CreateEquipmentCommand
         {
             Name = "Camera integration " + Guid.NewGuid(), Category = "Camera",
@@ -104,7 +103,7 @@ public sealed class CameraEquipmentTests
         Assert.Equal(new byte[] { 0xff, 0xd9 }, jpeg[^2..]);
     }
 
-    [Theory]
+    [CameraTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RealRtsp_StoredConfigurationRestoresOneSharedConnection(bool hevc)
@@ -155,7 +154,7 @@ public sealed class CameraEquipmentTests
         Assert.NotNull(retry);
     }
 
-    [Theory]
+    [CameraTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RealRtsp_BadCredentialsAndInvalidVideoDoNotProduceSuccessfulRegistration(bool hevc)

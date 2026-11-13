@@ -11,6 +11,8 @@ public sealed class MonitoringOptions
     public string StoragePath { get; set; } = "";
     public int MaxLiveCameras { get; set; } = 4;
     public int WorkerTimeoutSeconds { get; set; } = 60;
+    public int LiveInferenceThreads { get; set; } = 4;
+    public string InferenceProviders { get; set; } = "DmlExecutionProvider,CPUExecutionProvider";
     public int MaxVideoMegabytes { get; set; } = 200;
     public int MaxVideoSeconds { get; set; } = 600;
     public int MaxActiveJobsPerUser { get; set; } = 2;

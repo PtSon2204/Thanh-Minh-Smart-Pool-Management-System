@@ -11,23 +11,20 @@ public sealed class AutoAssignPoolDutyHandler : IRequestHandler<AutoAssignPoolDu
 {
     private readonly IWaterQualityOperations _operations;
     private readonly IValidator<AutoAssignPoolDutyCommand> _validator;
-    private readonly IRepository<Notification> _notificationRepo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationOperations _notificationOperations;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutoAssignPoolDutyHandler> _logger;
 
     public AutoAssignPoolDutyHandler(
         IWaterQualityOperations operations,
         IValidator<AutoAssignPoolDutyCommand> validator,
-        IRepository<Notification> notificationRepo,
-        IUnitOfWork unitOfWork,
+        INotificationOperations notificationOperations,
         TimeProvider timeProvider,
         ILogger<AutoAssignPoolDutyHandler> logger)
     {
         _operations = operations;
         _validator = validator;
-        _notificationRepo = notificationRepo;
-        _unitOfWork = unitOfWork;
+        _notificationOperations = notificationOperations;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -58,10 +55,11 @@ public sealed class AutoAssignPoolDutyHandler : IRequestHandler<AutoAssignPoolDu
                 .GroupBy(s => s.AssignedEmployeeId.GetValueOrDefault());
             var nowUtc = _timeProvider.GetUtcNow().UtcDateTime;
 
+            var notifs = new List<Notification>();
             foreach (var group in groupedByEmployee)
             {
                 var count = group.Count();
-                var notif = new Notification
+                notifs.Add(new Notification
                 {
                     Id = Guid.NewGuid(),
                     UserId = group.Key,
@@ -70,11 +68,13 @@ public sealed class AutoAssignPoolDutyHandler : IRequestHandler<AutoAssignPoolDu
                     Type = "POOL_DUTY_ASSIGNED",
                     IsRead = false,
                     CreatedAt = nowUtc
-                };
-                await _notificationRepo.AddAsync(notif, cancellationToken);
+                });
             }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (notifs.Count > 0)
+            {
+                await _notificationOperations.AddRangeAsync(notifs, cancellationToken);
+            }
         }
         catch (Exception ex)
         {
@@ -82,4 +82,3 @@ public sealed class AutoAssignPoolDutyHandler : IRequestHandler<AutoAssignPoolDu
         }
     }
 }
-

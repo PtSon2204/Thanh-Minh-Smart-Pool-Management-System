@@ -1804,6 +1804,99 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("roles", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.SafetyMonitoringThreshold", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double>("ConfidenceThreshold")
+                        .HasColumnType("double precision")
+                        .HasColumnName("confidence_threshold");
+
+                    b.Property<double>("CooldownSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("cooldown_seconds");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<double>("CriticalHoldSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("critical_hold_seconds");
+
+                    b.Property<double>("CriticalRatio")
+                        .HasColumnType("double precision")
+                        .HasColumnName("critical_ratio");
+
+                    b.Property<double>("MaxObservationGapSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_observation_gap_seconds");
+
+                    b.Property<int>("MinObservations")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_observations");
+
+                    b.Property<double>("RecoveryHoldSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("recovery_hold_seconds");
+
+                    b.Property<double>("RecoveryRatio")
+                        .HasColumnType("double precision")
+                        .HasColumnName("recovery_ratio");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("version");
+
+                    b.Property<double>("WarningRatio")
+                        .HasColumnType("double precision")
+                        .HasColumnName("warning_ratio");
+
+                    b.Property<double>("WindowSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("window_seconds");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("safety_monitoring_thresholds", "smart_pool");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-000000000042"),
+                            ConfidenceThreshold = 0.59999999999999998,
+                            CooldownSeconds = 15.0,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CriticalHoldSeconds = 3.0,
+                            CriticalRatio = 0.69999999999999996,
+                            MaxObservationGapSeconds = 3.0,
+                            MinObservations = 3,
+                            RecoveryHoldSeconds = 5.0,
+                            RecoveryRatio = 0.20000000000000001,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Version = 0,
+                            WarningRatio = 0.40000000000000002,
+                            WindowSeconds = 5.0
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Shift", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2226,10 +2319,10 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("DestinationShiftId")
+                    b.Property<Guid?>("DestinationEmployeeId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("DestinationEmployeeId")
+                    b.Property<Guid?>("DestinationShiftId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("EmployeeId")
@@ -2258,9 +2351,9 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasIndex("CreatedBy");
 
-                    b.HasIndex("DestinationShiftId");
-
                     b.HasIndex("DestinationEmployeeId");
+
+                    b.HasIndex("DestinationShiftId");
 
                     b.HasIndex("EmployeeId", "Version")
                         .IsUnique();
@@ -2859,6 +2952,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<double[]>("Box")
+                        .HasColumnType("double precision[]")
+                        .HasColumnName("box");
 
                     b.Property<Guid?>("CamId")
                         .HasColumnType("uuid")
@@ -3604,6 +3701,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SmartPool.Domain.Entities.Shift", null)
                         .WithMany()
                         .HasForeignKey("DestinationShiftId")
@@ -3614,11 +3716,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("DestinationEmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleOperation", b =>

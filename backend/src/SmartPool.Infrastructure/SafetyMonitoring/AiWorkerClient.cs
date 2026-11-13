@@ -16,7 +16,10 @@ internal sealed class AiWorkerClient : IAsyncDisposable
         var start = new ProcessStartInfo(options.PythonPath) { UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var arg in new[] { "-u", options.WorkerPath, options.ModelPath, options.FontPath }) start.ArgumentList.Add(arg);
-        start.Environment["OMP_NUM_THREADS"] = "1"; start.Environment["MKL_NUM_THREADS"] = "1";
+        var threads = lowPriority ? 4 : Math.Clamp(options.LiveInferenceThreads, 1, Math.Max(1, Environment.ProcessorCount));
+        start.Environment["OMP_NUM_THREADS"] = threads.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        start.Environment["MKL_NUM_THREADS"] = threads.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        start.Environment["SAFETY_ORT_PROVIDER"] = options.InferenceProviders;
         start.Environment["YOLO_AUTOINSTALL"] = "false";
         process = Process.Start(start) ?? throw new InvalidOperationException("Không khởi động được AI worker.");
         if (lowPriority) try { process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception) { }

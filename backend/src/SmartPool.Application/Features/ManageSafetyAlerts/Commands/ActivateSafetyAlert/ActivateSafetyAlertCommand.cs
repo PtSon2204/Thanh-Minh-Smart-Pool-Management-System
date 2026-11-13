@@ -8,6 +8,7 @@ namespace SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSaf
 /// </summary>
 public sealed record ActivateSafetyAlertCommand : IRequest<ActivateSafetyAlertResult>
 {
+    public Guid? ClientRequestId { get; init; }
     /// <summary>Khu vực xảy ra sự cố: e.g. "Bể chính", "Bể trẻ em", "Khu thay đồ"</summary>
     public string Zone { get; init; } = string.Empty;
 
