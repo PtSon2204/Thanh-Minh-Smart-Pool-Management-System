@@ -276,7 +276,7 @@ export default function MySwimClassesView() {
                       {item.registrationStatus === 'Cancelled' && item.cancelReason &&
                         <p className="my-swim-class-registered-at">Lý do hủy: {item.cancelReason}</p>}
                       <div className="my-swim-class-card-actions">
-                        {['Confirmed', 'Cancelled'].includes(item.registrationStatus) &&
+                        {canOpen && ['Confirmed', 'Cancelled'].includes(item.registrationStatus) &&
                           <Button icon={<CameraOutlined />} onClick={() => openAttendance(item)}>Điểm danh</Button>}
                         {canOpen ? (
                           <Button

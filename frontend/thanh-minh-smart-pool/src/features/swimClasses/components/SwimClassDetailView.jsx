@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Spin } from 'antd'
-import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined, StopOutlined, TeamOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined, SettingOutlined, StopOutlined, TeamOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
+import { hasSessionRole } from '../../auth/utils/sessionRoles'
 import { useSwimClassDetail } from '../hooks/useSwimClasses'
 import { useMyClassRegistration } from '../hooks/useClassRegistration'
 import SwimClassStatusTag from './SwimClassStatusTag'
@@ -21,14 +22,11 @@ export default function SwimClassDetailView() {
   const navigate = useNavigate()
   const location = useLocation()
   const session = useAuthStore(state => state.session)
-  const roles = (session?.roles?.length ? session.roles : [session?.role])
-    .filter(Boolean).map(item => item.toUpperCase())
-  const role = location.pathname.startsWith('/coach/classes') && roles.includes('COACH')
-    ? 'COACH' : session?.role?.toUpperCase()
+  const role = location.pathname.startsWith('/coach/classes') ? 'COACH' : 'CUSTOMER'
   const fromMyClasses = role === 'CUSTOMER' && location.state?.fromMyClasses === true
   const backPath = role === 'COACH' ? '/coach/classes'
     : (fromMyClasses ? '/lop-hoc-cua-toi' : '/lop-hoc')
-  const detail = useSwimClassDetail(classId, session?.id, role === 'COACH' ? 'coach' : undefined)
+  const detail = useSwimClassDetail(classId, session?.id, role.toLowerCase())
   const registrationQuery = useMyClassRegistration(classId, role === 'CUSTOMER' ? session?.id : undefined)
   const [now, setNow] = useState(() => Date.now())
   const [editingClass, setEditingClass] = useState(false)
@@ -44,6 +42,7 @@ export default function SwimClassDetailView() {
   const swimClass = detail.data
   const showRegistrationInfo = role !== 'CUSTOMER' || (registrationQuery.isSuccess && registrationQuery.data?.registrationStatus !== 'Confirmed')
   const isOwner = role === 'COACH' && swimClass?.createdByUserId === session?.id
+  const canOpenCoachView = role === 'CUSTOMER' && hasSessionRole(session, 'COACH') && swimClass?.createdByUserId === session?.id
   const notFound = detail.error?.response?.status === 404
   const forbidden = detail.error?.response?.status === 403
 
@@ -63,6 +62,7 @@ export default function SwimClassDetailView() {
         <header className="swim-class-detail-header">
           <div className="swim-class-detail-heading"><span className="swim-class-detail-icon"><BookOutlined /></span><div><small>CHI TIẾT LỚP DẠY BƠI</small><h1>{swimClass.name}</h1><SwimClassStatusTag status={swimClass.status} /></div></div>
           <div className="swim-class-detail-header-actions">
+            {canOpenCoachView && <Button icon={<SettingOutlined />} onClick={() => navigate(`/coach/classes/${swimClass.id}`)}>Quản lý lớp</Button>}
             {isOwner && <Button type="primary" icon={<TeamOutlined />} onClick={() => navigate(`/coach/classes/${swimClass.id}/students`)}>Xem danh sách học viên</Button>}
             {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <>
               <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Sửa thông tin lớp</Button>
@@ -70,7 +70,7 @@ export default function SwimClassDetailView() {
             </>}
           </div>
         </header>
-        {role === 'CUSTOMER' && <SwimClassRegistrationActions key={swimClass.id} swimClass={swimClass}
+        {role === 'CUSTOMER' && !canOpenCoachView && <SwimClassRegistrationActions key={swimClass.id} swimClass={swimClass}
           userId={session.id} now={now} registrationQuery={registrationQuery} onRefresh={() => detail.refetch()} />}
         <SwimClassDetailSummary swimClass={swimClass} now={now} showRegistrationInfo={showRegistrationInfo} />
         {swimClass.status === 'Inactive' && swimClass.inactiveReason &&

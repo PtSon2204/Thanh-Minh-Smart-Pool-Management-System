@@ -5,7 +5,7 @@ import { useAuthStore } from '../../auth/store/authStore'
 import { useActivateSwimClass, useCreateClassSessions, useCreateSwimClass, useSwimClassCoaches } from '../hooks/useSwimClassManagement'
 import { applyClassServerErrors, classServerMessage } from '../utils/classDisplay'
 import { clearClassDraft, readClassDraft, saveClassDraft } from '../utils/classDraftStorage'
-import { findRequestedOverlap, vietnamPickerTimeToUtc } from '../utils/classSchedule'
+import { findRequestedOverlap, utcTimeToVietnamPicker, vietnamPickerTimeToUtc } from '../utils/classSchedule'
 import ClassCreationComplete from './ClassCreationComplete'
 import ClassDraftSummary from './ClassDraftSummary'
 import ClassScheduleReview from './ClassScheduleReview'
@@ -60,46 +60,71 @@ export default function ClassCreationFlow() {
   }
 
   async function submitSessions(values) {
-    if (!draft || createSessions.isPending) return
+    if (!draft || createSessions.isPending || activate.isPending) return
     setSessionsError(null)
     setConflicts([])
-    const overlap = findRequestedOverlap(values.sessions)
+    const overlap = findRequestedOverlap([
+      ...draft.sessions.filter(item => item.status === 'Scheduled').map(item => ({
+        startsAt: utcTimeToVietnamPicker(item.startsAt),
+        endsAt: utcTimeToVietnamPicker(item.endsAt),
+      })),
+      ...values.sessions,
+    ])
     if (overlap) {
-      sessionsForm.setFields([{ name: ['sessions', overlap.index, 'startsAt'], errors: [`Trùng với buổi ${overlap.earlier + 1}.`] }])
-      setSessionsError(`Buổi ${overlap.index + 1} trùng với buổi ${overlap.earlier + 1}.`)
+      const savedCount = draft.sessions.filter(item => item.status === 'Scheduled').length
+      const formIndex = overlap.index - savedCount
+      if (formIndex >= 0) sessionsForm.setFields([{ name: ['sessions', formIndex, 'startsAt'], errors: ['Trùng với buổi đã lưu.'] }])
+      setSessionsError('Buổi học bị trùng với lịch đã lưu hoặc buổi khác đang nhập.')
       return
     }
-    try {
-      const saved = await createSessions.mutateAsync({
-        classId: draft.id,
-        sessions: values.sessions.map((item) => ({
-          startsAt: vietnamPickerTimeToUtc(item.startsAt),
-          endsAt: vietnamPickerTimeToUtc(item.endsAt),
-          ...(item.coachUserId ? { coachUserId: item.coachUserId } : {}),
-        })),
-      })
-      const next = { ...draft, sessions: [...draft.sessions, ...(saved.sessions || [])] }
-      saveClassDraft(userId, next)
-      setDraft(next)
-      sessionsForm.resetFields()
-      sessionsForm.setFieldsValue({ sessions: [{}] })
-    } catch (error) {
-      applyClassServerErrors(sessionsForm, error)
-      setConflicts(error?.response?.data?.conflicts || [])
-      setSessionsError(classServerMessage(error, 'Không thể lưu lịch học. Vui lòng thử lại.'))
-    }
+    const next = { ...draft, sessions: [...draft.sessions,
+      ...values.sessions.map(item => ({
+        id: crypto.randomUUID(),
+        isLocal: true,
+        status: 'Scheduled',
+        coachUserId: userId,
+        startsAt: vietnamPickerTimeToUtc(item.startsAt),
+        endsAt: vietnamPickerTimeToUtc(item.endsAt),
+      })),
+    ] }
+    saveClassDraft(userId, next)
+    setDraft(next)
+    sessionsForm.resetFields()
+    sessionsForm.setFieldsValue({ sessions: [{}] })
+  }
+
+  function removeSession(sessionId) {
+    if (!draft || createSessions.isPending || activate.isPending) return
+    const next = { ...draft, sessions: draft.sessions.filter(item => item.id !== sessionId) }
+    saveClassDraft(userId, next)
+    setDraft(next)
+    setActivationError(null)
   }
 
   async function activateClass() {
-    if (!draft || activate.isPending) return
+    if (!draft || activate.isPending || createSessions.isPending) return
     setActivationError(null)
     try {
+      let ready = draft
+      const localSessions = draft.sessions.filter(item => item.isLocal)
+      if (localSessions.length > 0) {
+        const saved = await createSessions.mutateAsync({
+          classId: draft.id,
+          sessions: localSessions.map(({ startsAt, endsAt }) => ({ startsAt, endsAt })),
+        })
+        ready = { ...draft, sessions: [
+          ...draft.sessions.filter(item => !item.isLocal),
+          ...(saved.sessions || []),
+        ] }
+        saveClassDraft(userId, ready)
+        setDraft(ready)
+      }
       const activated = await activate.mutateAsync(draft.id)
-      const next = { ...draft, ...activated }
+      const next = { ...ready, ...activated }
       saveClassDraft(userId, next)
       setDraft(next)
     } catch (error) {
-      setActivationError(classServerMessage(error, 'Không thể kích hoạt lớp. Vui lòng thử lại.'))
+      setActivationError(classServerMessage(error, 'Không thể lưu lịch và kích hoạt lớp. Vui lòng thử lại.'))
     }
   }
 
@@ -143,7 +168,7 @@ export default function ClassCreationFlow() {
 
       <div className="swim-class-flow-next" role="status">
         <div><strong>{stage === 0 ? '1. Nhập thông tin lớp' : stage === 1 ? '2. Sắp lịch và mở đăng ký' : '3. Xem và quản lý lớp'}</strong>
-          <span>{stage === 0 ? 'Lưu thông tin lớp trước khi thêm các buổi học.' : stage === 1 ? 'Thêm buổi học, lưu lịch, sau đó kích hoạt lớp. Bạn có thể quay lại lớp nháp từ danh sách lớp.' : 'Lớp đã sẵn sàng. Mở trang lớp để xem lịch và chỉnh sửa từng buổi.'}</span></div>
+          <span>{stage === 0 ? 'Lưu thông tin lớp trước khi thêm các buổi học.' : stage === 1 ? 'Thêm và chỉnh lịch trong bản nháp. Các buổi học chỉ được gửi khi bạn kích hoạt lớp.' : 'Lớp đã sẵn sàng. Mở trang lớp để xem lịch và chỉnh sửa từng buổi.'}</span></div>
         {draft && <Button icon={<EyeOutlined />} href={`/coach/classes/${draft.id}`}>Xem lớp {stage === 1 ? 'nháp' : ''}</Button>}
       </div>
 
@@ -153,12 +178,13 @@ export default function ClassCreationFlow() {
       {stage === 1 && <div className="swim-class-schedule-layout">
         <ClassDraftSummary draft={draft} coaches={coaches} />
         <div className="swim-class-schedule-main">
-          <ClassSessionsEditor form={sessionsForm} onFinish={submitSessions} pending={createSessions.isPending}
+          <ClassSessionsEditor form={sessionsForm} onFinish={submitSessions} pending={createSessions.isPending || activate.isPending}
             coachesQuery={coachesQuery} coachOptions={coachOptions} coaches={coaches} draft={draft}
             error={sessionsError} conflicts={conflicts}
             onValuesChange={() => { setConflicts([]); setSessionsError(null) }} />
           <ClassScheduleReview draft={draft} coaches={coaches} activationError={activationError}
-            activating={activate.isPending} savingSessions={createSessions.isPending} onActivate={activateClass} />
+            activating={activate.isPending || createSessions.isPending} savingSessions={createSessions.isPending}
+            onActivate={activateClass} onRemoveSession={removeSession} />
         </div>
       </div>}
 

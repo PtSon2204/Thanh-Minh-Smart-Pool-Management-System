@@ -8,6 +8,7 @@ public sealed class GetSwimClassesQuery : IRequest<PagedResponse<SwimClassListIt
     public string? SearchTerm { get; set; }
     public string? Status { get; set; }
     public string? Scope { get; set; }
+    public bool RegistrationOpenNow { get; set; }
     public int PageIndex { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }

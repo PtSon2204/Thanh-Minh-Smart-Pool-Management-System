@@ -98,6 +98,7 @@
 .swim-class-saved-row strong { color: #234b61; font-size: 13px; }
 .swim-class-saved-row > div span { color: var(--swim-muted); font-size: 12px; }
 .swim-class-saved-row .ant-tag { margin: 0; }
+.swim-class-saved-row > .ant-btn { flex: 0 0 auto; }
 .swim-class-activate-card .ant-card-body { align-items: center; display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; }
 .swim-class-activate-card .ant-card-body > div:first-child { flex: 1 1 260px; }
 .swim-class-activate-card strong { color: #173c55; font-size: 15px; }

@@ -149,6 +149,15 @@ public sealed partial class SwimClassOperations
     {
         var query = VisibleTo(userId, role);
 
+        if (request.RegistrationOpenNow)
+        {
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            query = query.Where(swimClass =>
+                swimClass.Status == "Active" &&
+                swimClass.RegistrationStartAt <= now &&
+                now < swimClass.RegistrationEndAt);
+        }
+
         var name = request.SearchTerm?.Trim();
         if (!string.IsNullOrEmpty(name))
         {
