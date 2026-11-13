@@ -31,10 +31,7 @@ public sealed partial class SwimClassOperations
         var registration = await context.ClassRegistrations.SingleOrDefaultAsync(
             item => item.ClassId == classId && item.CustomerUserId == customerUserId,
             cancellationToken);
-        if (registration is { Status: "Confirmed" })
-            throw new SwimClassStateConflictException("Bạn đã đăng ký lớp này.");
-        if (registration is { Status: not "Cancelled" })
-            throw new SwimClassStateConflictException("Đăng ký lớp hiện tại chưa thể tạo lại.");
+        ClassRegistrationRequestPolicy.EnsureCanRequest(registration);
 
         var occupied = await context.ClassRegistrations.AsNoTracking()
             .CountAsync(item => item.ClassId == classId && item.Status == "Confirmed",
@@ -42,6 +39,8 @@ public sealed partial class SwimClassOperations
         if (occupied >= swimClass.Capacity)
             throw new SwimClassStateConflictException("Lớp đã hết chỗ đăng ký.");
 
+        var updatedAt = registration is null
+            ? now : NextVersionTimestamp(now, registration.UpdatedAt);
         registration ??= new ClassRegistration
         {
             Id = Guid.NewGuid(), ClassId = classId,
@@ -49,17 +48,24 @@ public sealed partial class SwimClassOperations
         };
         if (context.Entry(registration).State == EntityState.Detached)
             context.ClassRegistrations.Add(registration);
-        registration.Status = "Confirmed";
-        registration.RegisteredAt = now;
-        registration.ConfirmedAt = now;
-        registration.CancelledAt = null;
-        registration.CancelledByUserId = null;
-        registration.CancelReason = null;
-        registration.UpdatedAt = now;
+        ClassRegistrationRequestPolicy.PreparePendingApproval(registration, now, updatedAt);
+
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = swimClass.CreatedByUserId,
+            Title = "Có yêu cầu tham gia lớp mới",
+            Content = $"Một Customer đã gửi yêu cầu tham gia lớp {swimClass.Name}.",
+            Type = "swim_class_registration_requested",
+            IsRead = false,
+            CreatedAt = now
+        };
+        context.Notifications.Add(notification);
 
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        await PublishClassNotificationsAsync(classId, [notification]);
         return new RegisterForSwimClassResponse(registration.Id, classId,
-            registration.Status, registration.RegisteredAt, registration.ConfirmedAt.Value);
+            registration.Status, registration.RegisteredAt, registration.ConfirmedAt);
     }
 }

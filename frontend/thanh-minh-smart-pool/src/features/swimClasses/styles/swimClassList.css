@@ -9,29 +9,42 @@
 .swim-class-list-heading p { color: #e6f1ff; line-height: 1.6; margin: 0; }
 .swim-class-list-header .ant-btn { border-color: #fff; color: #0b638b; flex: 0 0 auto; font-weight: 650; }
 .swim-class-list-header .ant-btn-primary { background: #fff; }
-.swim-class-list-panel { background: #fff; min-width: 0; padding: 24px 28px; }
+.swim-class-list-panel { background: #fff; min-width: 0; padding: 28px 30px; }
 .swim-class-list-panel-heading { align-items: center; display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .swim-class-list-panel-heading h2 { color: #173c55; font-size: 19px; margin: 0; }
 .swim-class-list-count { background: #e6f5fb; border-radius: 16px; color: #006da4; font-size: 13px; margin-left: 10px; padding: 3px 9px; }
-.swim-class-list-filters { padding-bottom: 26px; }
+.swim-class-list-filters { border-bottom: 1px solid #e4ebf5; margin-bottom: 24px; padding-bottom: 24px; }
 .swim-class-list-filter-fields { display: flex; flex-wrap: wrap; gap: 14px; }
 .swim-class-list-filter-fields label { display: grid; flex: 1 1 220px; gap: 7px; max-width: 380px; }
+.swim-class-list-filter-fields label:first-child { flex-grow: 2; }
 .swim-class-list-filter-fields label span { color: #294a5e; font-size: 13px; font-weight: 650; }
 .swim-class-list-filter-fields .ant-select { width: 100%; }
 .swim-class-list-name { display: grid; gap: 3px; min-width: 0; }
+.swim-class-list-name strong { line-height: 1.45; overflow-wrap: anywhere; }
 .swim-class-list-name strong { color: #173c55; }
 .swim-class-list-name span { color: #61758a; display: -webkit-box; font-size: 12px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .swim-class-list-dates { color: #294a5e; display: grid; font-size: 12px; gap: 2px; }
 .swim-class-list-pagination { display: flex; justify-content: flex-end; padding-top: 18px; }
 .swim-class-list-page .ant-table-wrapper { min-width: 0; }
+.swim-class-list-page .ant-table-wrapper .ant-tag { margin-inline-end: 0; }
 .swim-class-list-page .ant-table-thead > tr > th { background: #f3f8fc; color: #365b72; font-weight: 700; }
 .swim-class-list-page .ant-table-tbody > tr:hover > td { background: #f5fbff; }
+@media (max-width: 900px) {
+  .swim-class-list-header { align-items: flex-start; flex-wrap: wrap; }
+  .swim-class-list-heading { flex: 1 1 100%; }
+}
 @media (max-width: 640px) {
   .swim-class-list-page { gap: 12px; }
   .swim-class-list-header { align-items: flex-start; flex-direction: column; padding: 24px 20px; }
+  .swim-class-list-heading { align-items: flex-start; gap: 12px; }
+  .swim-class-list-header .ant-btn { width: 100%; }
   .swim-class-list-icon { border-radius: 12px; flex-basis: 48px; font-size: 23px; height: 48px; }
   .swim-class-list-heading h1 { font-size: 23px; }
   .swim-class-list-panel { padding: 17px 14px; }
+  .swim-class-list-panel-heading { align-items: flex-start; }
+  .swim-class-list-panel-heading h2 { font-size: 17px; }
+  .swim-class-list-filters { margin-bottom: 18px; padding-bottom: 18px; }
+  .swim-class-list-filter-fields label { flex-basis: 100%; max-width: none; }
   .swim-class-list-page--customer, .swim-class-list-page--coach { margin-top: 18px; padding: 0 12px; }
   .swim-class-list-pagination { justify-content: center; }
 }

@@ -42,7 +42,7 @@ export default function ClassSessionsEditor({ form, onFinish, pending, coaches, 
         </>}
       </Form.List>
       <div className="swim-class-time-note"><ClockCircleOutlined /> Giờ nhập theo Việt Nam (UTC+7). Các buổi trùng nhau không thể lưu.</div>
-      <div className="swim-class-actions"><Button type="primary" htmlType="submit" size="large" icon={<SaveOutlined />} loading={pending}>Lưu các buổi học</Button></div>
+      <div className="swim-class-actions"><Button type="primary" htmlType="submit" size="large" icon={<SaveOutlined />} loading={pending}>Thêm vào bản nháp</Button></div>
     </Form>
   </Card>
 }

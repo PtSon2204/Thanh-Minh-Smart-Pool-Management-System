@@ -4,7 +4,7 @@ namespace SmartPool.Application.Features.ManageSwimClasses.Queries.GetMySwimClas
 
 public sealed class GetMySwimClassesValidator : AbstractValidator<GetMySwimClassesQuery>
 {
-    private static readonly string[] AllowedStatuses = ["Confirmed", "Cancelled"];
+    private static readonly string[] AllowedStatuses = ["PendingApproval", "Confirmed", "Rejected", "Cancelled"];
 
     public GetMySwimClassesValidator()
     {

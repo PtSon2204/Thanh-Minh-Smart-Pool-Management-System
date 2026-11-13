@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { swimClassService } from '../services/swimClassService'
+import userService from '../../users/services/userService'
 
 export const classRegistrationKey = (userId, classId) => ['my-class-registration', userId, classId]
 
@@ -20,19 +21,12 @@ export function useMyClassRegistration(classId, userId) {
   })
 }
 
-export function useRegisterForClass(userId, classId) {
+export function useRegisterForClass(classId) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => swimClassService.register(classId),
     retry: false,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: classRegistrationKey(userId, classId) }),
-        queryClient.invalidateQueries({ queryKey: ['swim-class-detail'] }),
-        queryClient.invalidateQueries({ queryKey: ['swim-classes'] }),
-        queryClient.invalidateQueries({ queryKey: ['my-swim-classes', userId] }),
-      ])
-    },
+    onSuccess: () => refreshRegistrationViews(queryClient),
   })
 }
 
@@ -43,7 +37,17 @@ async function refreshRegistrationViews(queryClient) {
     queryClient.invalidateQueries({ queryKey: ['class-registrations'] }),
     queryClient.invalidateQueries({ queryKey: ['swim-class-detail'] }),
     queryClient.invalidateQueries({ queryKey: ['swim-classes'] }),
+    queryClient.invalidateQueries({ queryKey: ['my-class-attendances'] }),
   ])
+}
+
+export function useResubmitClassRegistration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (classId) => swimClassService.register(classId),
+    retry: false,
+    onSuccess: () => refreshRegistrationViews(queryClient),
+  })
 }
 
 export function useCancelMyClassRegistration() {
@@ -64,11 +68,31 @@ export function useClassRegistrations(classId, params, enabled) {
   })
 }
 
+export function useClassRegistrantContact(classId, userId) {
+  return useQuery({
+    queryKey: ['class-registrant-contact', classId, userId],
+    queryFn: ({ signal }) => userService.getClassContact(userId, classId, signal),
+    enabled: Boolean(classId && userId),
+    staleTime: 60_000,
+    retry: (attempt, error) => ![401, 403, 404].includes(error?.response?.status) && attempt < 2,
+  })
+}
+
 export function useCancelClassRegistration() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ classId, registrationId, payload }) =>
       swimClassService.cancelClassRegistration(classId, registrationId, payload),
+    retry: false,
+    onSuccess: () => refreshRegistrationViews(queryClient),
+  })
+}
+
+export function useReviewClassRegistration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ classId, registrationId, payload }) =>
+      swimClassService.reviewClassRegistration(classId, registrationId, payload),
     retry: false,
     onSuccess: () => refreshRegistrationViews(queryClient),
   })

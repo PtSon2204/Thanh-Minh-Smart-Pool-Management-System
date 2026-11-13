@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.DeactivateSwimClass;
+using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
@@ -27,6 +28,9 @@ public sealed partial class SwimClassOperations
             .Where(item => item.ClassId == request.ClassId && item.Status == "Scheduled" &&
                 item.StartsAt > now)
             .ToListAsync(cancellationToken);
+        var pendingRegistrations = await context.ClassRegistrations
+            .Where(item => item.ClassId == request.ClassId && item.Status == "PendingApproval")
+            .ToListAsync(cancellationToken);
         // Resolve recipients while the class and its sessions still have their original state.
         var notifications = await AddClassNotificationsAsync(request.ClassId,
             futureSessions.Select(item => item.CoachUserId).Append(coachUserId),
@@ -39,6 +43,27 @@ public sealed partial class SwimClassOperations
             session.CancelReason = reason;
             session.UpdatedAt = NextVersionTimestamp(now, session.UpdatedAt);
         }
+        var pendingNotifications = new List<Notification>();
+        foreach (var registration in pendingRegistrations)
+        {
+            registration.Status = "Cancelled";
+            registration.CancelledAt = now;
+            registration.CancelledByUserId = coachUserId;
+            registration.CancelReason = reason;
+            registration.UpdatedAt = NextVersionTimestamp(now, registration.UpdatedAt);
+            pendingNotifications.Add(new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = registration.CustomerUserId,
+                Title = "Yêu cầu tham gia lớp đã được hủy",
+                Content = $"Lớp {swimClass.Name} đã ngừng hoạt động. Lý do: {reason}",
+                Type = "swim_class_registration_cancelled",
+                IsRead = false,
+                CreatedAt = now
+            });
+        }
+        context.Notifications.AddRange(pendingNotifications);
+        notifications.AddRange(pendingNotifications);
 
         swimClass.Status = "Inactive";
         swimClass.InactiveReason = reason;

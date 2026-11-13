@@ -49,6 +49,9 @@ public sealed partial class SwimClassOperations
                 item.CancelledAt,
                 item.CancelledByUserId,
                 item.CancelReason,
+                item.ReviewedByUserId,
+                item.ReviewedAt,
+                item.ReviewNote,
                 item.UpdatedAt))
             .ToListAsync(cancellationToken);
 
@@ -99,9 +102,22 @@ public sealed partial class SwimClassOperations
                 item.RegisteredAt,
                 item.ConfirmedAt,
                 item.CancelledAt,
-                item.Status == "Confirmed" &&
-                !item.Class.Sessions.Any(session =>
-                    session.Status == "Scheduled" && session.StartsAt <= now)))
+                item.Status == "PendingApproval" ||
+                (item.Status == "Confirmed" &&
+                 !item.Class.Sessions.Any(session =>
+                    session.Status == "Scheduled" && session.StartsAt <= now)),
+                item.ReviewedAt,
+                item.ReviewNote,
+                item.CancelReason,
+                item.Status == "Rejected" && item.Class.Status == "Active" &&
+                item.Class.RegistrationStartAt <= now && now < item.Class.RegistrationEndAt &&
+                item.Class.CreatedByUserId != customerUserId &&
+                !item.Class.Sessions.Any(session => session.Status == "Scheduled" &&
+                    session.CoachUserId == customerUserId) &&
+                item.Class.Sessions.Any(session => session.Status == "Scheduled" &&
+                    session.StartsAt > now) &&
+                item.Class.Registrations.Count(registration => registration.Status == "Confirmed") <
+                    item.Class.Capacity))
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<MySwimClassItem>
@@ -121,7 +137,8 @@ public sealed partial class SwimClassOperations
             .Where(item => item.ClassId == classId && item.CustomerUserId == customerUserId)
             .Select(item => new MyClassRegistrationSnapshot(
                 item.Id, item.ClassId, item.CustomerUserId, item.Status,
-                item.RegisteredAt, item.ConfirmedAt, item.CancelledAt))
+                item.RegisteredAt, item.ConfirmedAt, item.CancelledAt,
+                item.ReviewedAt, item.ReviewNote, item.CancelReason))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResponse<SwimClassListItem>> GetListAsync(
@@ -131,6 +148,15 @@ public sealed partial class SwimClassOperations
         CancellationToken cancellationToken)
     {
         var query = VisibleTo(userId, role);
+
+        if (request.RegistrationOpenNow)
+        {
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            query = query.Where(swimClass =>
+                swimClass.Status == "Active" &&
+                swimClass.RegistrationStartAt <= now &&
+                now < swimClass.RegistrationEndAt);
+        }
 
         var name = request.SearchTerm?.Trim();
         if (!string.IsNullOrEmpty(name))

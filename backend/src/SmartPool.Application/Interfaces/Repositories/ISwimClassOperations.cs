@@ -18,11 +18,16 @@ using SmartPool.Application.Features.ManageSwimClasses.Commands.SubmitClassAtten
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassAttendances;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassSessionAttendances;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.ReviewClassAttendance;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.ReviewClassRegistration;
+using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassRegistrantContact;
 
 namespace SmartPool.Application.Interfaces.Repositories;
 
 public interface ISwimClassOperations
 {
+    Task<GetClassRegistrantContactResponse> GetClassRegistrantContactAsync(
+        Guid classId, Guid customerUserId, Guid coachUserId,
+        CancellationToken cancellationToken);
     Task<PagedResponse<ClassSessionAttendanceItem>> GetClassSessionAttendancesAsync(
         GetClassSessionAttendancesQuery request, Guid coachUserId,
         CancellationToken cancellationToken);
@@ -53,6 +58,8 @@ public interface ISwimClassOperations
         Guid classId, Guid customerUserId, CancellationToken cancellationToken);
     Task<CancelClassRegistrationResponse> CancelClassRegistrationAsync(
         CancelClassRegistrationCommand request, Guid coachUserId, CancellationToken cancellationToken);
+    Task<ReviewClassRegistrationResponse> ReviewClassRegistrationAsync(
+        ReviewClassRegistrationCommand request, Guid coachUserId, CancellationToken cancellationToken);
     Task<PagedResponse<SwimClassListItem>> GetListAsync(
         GetSwimClassesQuery request,
         Guid userId,

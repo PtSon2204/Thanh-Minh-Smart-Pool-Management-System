@@ -20,25 +20,32 @@ import {
   RightOutlined,
   StopOutlined,
   UnorderedListOutlined,
+  UserAddOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../auth/store/authStore";
 import { formatVietnamTime } from "../utils/classSchedule";
 import { useMySwimClasses } from "../hooks/useMySwimClasses";
-import { useCancelMyClassRegistration } from "../hooks/useClassRegistration";
+import { useCancelMyClassRegistration, useResubmitClassRegistration } from "../hooks/useClassRegistration";
 import { classServerMessage } from "../utils/classDisplay";
 import "../styles/mySwimClasses.css";
 
 const filters = [
   { label: "Tất cả", value: "all" },
-  { label: "Đã đăng ký", value: "Confirmed" },
+  { label: "Chờ duyệt", value: "PendingApproval" },
+  { label: "Đã chấp nhận", value: "Confirmed" },
+  { label: "Bị từ chối", value: "Rejected" },
   { label: "Đã hủy", value: "Cancelled" },
 ];
 
 function registrationState(item) {
+  if (item.registrationStatus === "PendingApproval")
+    return { text: "Chờ Coach duyệt", color: "processing" };
   if (item.registrationStatus === "Confirmed")
-    return { text: "Đã đăng ký", color: "success" };
+    return { text: "Đã được chấp nhận", color: "success" };
+  if (item.registrationStatus === "Rejected")
+    return { text: "Bị từ chối", color: "error" };
   if (item.registrationStatus === "Cancelled")
     return { text: "Đã hủy", color: "default" };
   return { text: item.registrationStatus, color: "default" };
@@ -57,6 +64,7 @@ export default function MySwimClassesView() {
   };
   const classes = useMySwimClasses(params, userId);
   const cancelRegistration = useCancelMyClassRegistration();
+  const resubmitRegistration = useResubmitClassRegistration();
   const items = classes.data?.items || [];
   const upcoming = items
     .filter(
@@ -79,22 +87,35 @@ export default function MySwimClassesView() {
   }
 
   function confirmCancel(item) {
+    const pending = item.registrationStatus === 'PendingApproval';
     Modal.confirm({
-      title: `Hủy đăng ký lớp ${item.className}?`,
-      content: 'Sau khi hủy, bạn sẽ không còn giữ chỗ trong lớp. Bạn có thể đăng ký lại nếu lớp vẫn nhận đăng ký và còn chỗ.',
-      okText: 'Xác nhận hủy',
+      title: pending ? `Rút yêu cầu tham gia lớp ${item.className}?` : `Hủy đăng ký lớp ${item.className}?`,
+      content: pending
+        ? 'Coach sẽ không thể duyệt yêu cầu này sau khi bạn rút. Bạn có thể gửi lại khi lớp còn nhận đăng ký.'
+        : 'Sau khi hủy, bạn sẽ không còn giữ chỗ trong lớp. Bạn có thể gửi yêu cầu lại nếu lớp vẫn nhận đăng ký và còn chỗ.',
+      okText: pending ? 'Rút yêu cầu' : 'Xác nhận hủy',
       okType: 'danger',
       cancelText: 'Giữ đăng ký',
       onOk: async () => {
         try {
           await cancelRegistration.mutateAsync(item.classId);
-          message.success('Đã hủy đăng ký lớp.');
+          message.success(pending ? 'Đã rút yêu cầu tham gia lớp.' : 'Đã hủy đăng ký lớp.');
         } catch (error) {
           message.error(classServerMessage(error, 'Không thể hủy đăng ký. Vui lòng thử lại.'));
           void classes.refetch();
         }
       },
     });
+  }
+
+  async function resubmit(item) {
+    try {
+      await resubmitRegistration.mutateAsync(item.classId);
+      message.success('Đã gửi lại yêu cầu. Vui lòng chờ Coach duyệt.');
+    } catch (error) {
+      message.error(classServerMessage(error, 'Không gửi lại được yêu cầu. Vui lòng thử lại.'));
+      void classes.refetch();
+    }
   }
 
   return (
@@ -248,12 +269,15 @@ export default function MySwimClassesView() {
                         </div>
                       </dl>
                       <p className="my-swim-class-registered-at">
-                        Đăng ký lúc {formatVietnamTime(item.registeredAt)}
+                        Gửi yêu cầu lúc {formatVietnamTime(item.registeredAt)}
                       </p>
+                      {item.registrationStatus === 'Rejected' && item.reviewNote &&
+                        <p className="my-swim-class-registered-at">Lý do từ chối: {item.reviewNote}</p>}
+                      {item.registrationStatus === 'Cancelled' && item.cancelReason &&
+                        <p className="my-swim-class-registered-at">Lý do hủy: {item.cancelReason}</p>}
                       <div className="my-swim-class-card-actions">
-                        <Button icon={<CameraOutlined />} onClick={() => openAttendance(item)}>
-                          Điểm danh
-                        </Button>
+                        {canOpen && ['Confirmed', 'Cancelled'].includes(item.registrationStatus) &&
+                          <Button icon={<CameraOutlined />} onClick={() => openAttendance(item)}>Điểm danh</Button>}
                         {canOpen ? (
                           <Button
                             icon={<RightOutlined />}
@@ -269,6 +293,15 @@ export default function MySwimClassesView() {
                             onClick={() => confirmCancel(item)}>
                             Hủy đăng ký
                           </Button>
+                        )}
+                        {item.registrationStatus === 'PendingApproval' && item.canSelfCancel && (
+                          <Button danger icon={<StopOutlined />} loading={cancelRegistration.isPending && cancelRegistration.variables === item.classId}
+                            onClick={() => confirmCancel(item)}>Rút yêu cầu</Button>
+                        )}
+                        {item.registrationStatus === 'Rejected' && item.canRequestAgain && (
+                          <Button type="primary" icon={<UserAddOutlined />}
+                            loading={resubmitRegistration.isPending && resubmitRegistration.variables === item.classId}
+                            onClick={() => resubmit(item)}>Gửi lại yêu cầu</Button>
                         )}
                         {item.registrationStatus === 'Confirmed' && !item.canSelfCancel && (
                           <span>Đã qua hạn tự hủy; vui lòng liên hệ Coach.</span>
