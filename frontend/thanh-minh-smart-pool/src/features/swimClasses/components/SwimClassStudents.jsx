@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Alert, Button, Empty, Form, Input, Modal, Pagination, Segmented, Spin, Tag, message } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, StopOutlined, TeamOutlined } from '@ant-design/icons'
-import { useClassRegistrations, useCancelClassRegistration, useReviewClassRegistration } from '../hooks/useClassRegistration'
+import { useClassRegistrations, useClassRegistrantContact, useCancelClassRegistration, useReviewClassRegistration } from '../hooks/useClassRegistration'
 import { formatVietnamTime } from '../utils/classSchedule'
 import { applyClassServerErrors, classServerMessage } from '../utils/classDisplay'
 
@@ -18,6 +18,23 @@ const registrationStates = {
   Confirmed: { label: 'Đang học', color: 'success' },
   Rejected: { label: 'Đã từ chối', color: 'error' },
   Cancelled: { label: 'Đã hủy', color: 'default' },
+}
+
+function RegistrantIdentity({ classId, item }) {
+  const contact = useClassRegistrantContact(classId, item.customerUserId)
+  return <>
+    <strong>{contact.data?.fullName || item.customerName || 'Học viên'}</strong>
+    {contact.isPending && <span>Đang tải thông tin liên hệ...</span>}
+    {contact.isError && <span>Không tải được email và số điện thoại.</span>}
+    {contact.isSuccess && <>
+      <span>Email: {contact.data.email
+        ? <a href={`mailto:${contact.data.email}`}>{contact.data.email}</a>
+        : 'Chưa cập nhật'}</span>
+      <span>Số điện thoại: {contact.data.phone
+        ? <a href={`tel:${contact.data.phone}`}>{contact.data.phone}</a>
+        : 'Chưa cập nhật'}</span>
+    </>}
+  </>
 }
 
 export default function SwimClassStudents({ classId }) {
@@ -121,7 +138,7 @@ export default function SwimClassStudents({ classId }) {
       <div className="swim-class-students-list">
         {items.map(item => <article className="swim-class-student" key={item.registrationId}>
           <div className="swim-class-student-main">
-            <strong>{item.customerName || 'Học viên'}</strong>
+            <RegistrantIdentity classId={classId} item={item} />
             <span>Đăng ký {formatVietnamTime(item.registeredAt)}</span>
             {item.status === 'Cancelled' && item.cancelReason &&
               <span className="swim-class-student-reason">Lý do hủy: {item.cancelReason}</span>}

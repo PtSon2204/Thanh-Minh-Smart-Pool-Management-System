@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { swimClassService } from '../services/swimClassService'
+import userService from '../../users/services/userService'
 
 export const classRegistrationKey = (userId, classId) => ['my-class-registration', userId, classId]
 
@@ -63,6 +64,16 @@ export function useClassRegistrations(classId, params, enabled) {
     queryKey: ['class-registrations', classId, params],
     queryFn: ({ signal }) => swimClassService.getClassRegistrations(classId, params, signal),
     enabled: Boolean(classId && enabled),
+    retry: (attempt, error) => ![401, 403, 404].includes(error?.response?.status) && attempt < 2,
+  })
+}
+
+export function useClassRegistrantContact(classId, userId) {
+  return useQuery({
+    queryKey: ['class-registrant-contact', classId, userId],
+    queryFn: ({ signal }) => userService.getClassContact(userId, classId, signal),
+    enabled: Boolean(classId && userId),
+    staleTime: 60_000,
     retry: (attempt, error) => ![401, 403, 404].includes(error?.response?.status) && attempt < 2,
   })
 }
