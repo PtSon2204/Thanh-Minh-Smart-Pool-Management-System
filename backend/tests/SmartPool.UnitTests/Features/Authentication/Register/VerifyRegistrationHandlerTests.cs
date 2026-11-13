@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -54,7 +53,8 @@ public sealed class VerifyRegistrationHandlerTests
         Assert.Contains("customer@example.com", notification.Content);
         harness.OtpStore.Verify(store => store.TryBeginVerificationAsync(
             RegistrationId, harness.Codes.ComputeDigest(RegistrationId, Otp), CancellationToken.None), Times.Once);
-        harness.UnitOfWork.Verify(unit => unit.SaveChangesAsync(CancellationToken.None), Times.Once);
+        harness.Users.Verify(repository => repository.CreateUserWithProfileAsync(
+            It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), CancellationToken.None), Times.Once);
         harness.Notifications.Verify(service => service.SendToAllAsync(
             "ReceiveNotification", It.IsAny<object>(), CancellationToken.None), Times.Once);
         harness.OtpStore.Verify(store => store.CompleteVerificationAsync(
@@ -67,14 +67,15 @@ public sealed class VerifyRegistrationHandlerTests
     public async Task Handle_AdminMissing_AssignsNotificationToNewUser()
     {
         var harness = new Harness();
-        harness.Users.Setup(repository => repository.FirstOrDefaultAsync(
-                It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
+        harness.Users.Setup(repository => repository.GetUserByUsernameAsync(
+                "admin", CancellationToken.None))
             .ReturnsAsync((User?)null);
 
         Assert.Equal(201, Assert.IsType<ObjectResult>(await harness.Handle()).StatusCode);
 
         Assert.Equal(Assert.Single(harness.CreatedUsers).Id, Assert.Single(harness.CreatedNotifications).UserId);
-        harness.UnitOfWork.Verify(unit => unit.SaveChangesAsync(CancellationToken.None), Times.Once);
+        harness.Users.Verify(repository => repository.CreateUserWithProfileAsync(
+            It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), CancellationToken.None), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID03 (A) - OTP sai -> Trả 400 INVALID_OTP và không ghi DB")]
@@ -101,10 +102,9 @@ public sealed class VerifyRegistrationHandlerTests
     public async Task Handle_ConflictAfterOtp_ReturnsConflictAndReleasesLease()
     {
         var harness = new Harness();
-        harness.Users.Setup(repository => repository.ExistsAsync(
-                It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
-            .ReturnsAsync((Expression<Func<User, bool>> predicate, CancellationToken _) =>
-                predicate.Compile()(new User { Email = "customer@example.com" }));
+        harness.Users.Setup(repository => repository.ExistsByEmailAsync(
+                "customer@example.com", CancellationToken.None))
+            .ReturnsAsync(true);
 
         AssertProblem(await harness.Handle(), 409, "EMAIL_TAKEN");
 
@@ -115,8 +115,8 @@ public sealed class VerifyRegistrationHandlerTests
     public async Task Handle_CustomerRoleMissing_ReturnsConfigurationErrorAndReleasesLease()
     {
         var harness = new Harness();
-        harness.Roles.Setup(repository => repository.FirstOrDefaultAsync(
-                It.IsAny<Expression<Func<Role, bool>>>(), CancellationToken.None))
+        harness.Users.Setup(repository => repository.GetRoleByNameAsync(
+                "CUSTOMER", CancellationToken.None))
             .ReturnsAsync((Role?)null);
 
         AssertProblem(await harness.Handle(), 500, "CUSTOMER_ROLE_NOT_CONFIGURED");
@@ -128,12 +128,14 @@ public sealed class VerifyRegistrationHandlerTests
     public async Task Handle_SaveFailure_ReturnsServiceUnavailableAndReleasesLease()
     {
         var harness = new Harness();
-        harness.UnitOfWork.Setup(unit => unit.SaveChangesAsync(CancellationToken.None))
+        harness.Users.Setup(repository => repository.CreateUserWithProfileAsync(
+                It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), CancellationToken.None))
             .ThrowsAsync(new InvalidOperationException("Database unavailable"));
 
         AssertProblem(await harness.Handle(), 503, "REGISTRATION_SAVE_FAILED");
 
-        harness.UnitOfWork.Verify(unit => unit.SaveChangesAsync(CancellationToken.None), Times.Once);
+        harness.Users.Verify(repository => repository.CreateUserWithProfileAsync(
+            It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), CancellationToken.None), Times.Once);
         harness.OtpStore.Verify(store => store.ReleaseVerificationAsync(
             RegistrationId, LeaseId, It.IsAny<CancellationToken>()), Times.Once);
         harness.OtpStore.Verify(store => store.CompleteVerificationAsync(
@@ -169,12 +171,8 @@ public sealed class VerifyRegistrationHandlerTests
 
     private sealed class Harness
     {
-        public Mock<IRepository<User>> Users { get; } = new();
-        public Mock<IRepository<UserProfile>> Profiles { get; } = new();
-        public Mock<IRepository<Role>> Roles { get; } = new();
-        public Mock<IRepository<Notification>> NotificationRepository { get; } = new();
+        public Mock<IUserOperations> Users { get; } = new();
         public Mock<INotificationService> Notifications { get; } = new();
-        public Mock<IUnitOfWork> UnitOfWork { get; } = new();
         public Mock<IRegistrationOtpStore> OtpStore { get; } = new();
         public DefaultHttpContext HttpContext { get; } = new();
         public RegistrationOtpCodeService Codes { get; } = new(new ConfigurationBuilder()
@@ -200,27 +198,21 @@ public sealed class VerifyRegistrationHandlerTests
             OtpStore.Setup(store => store.ReleaseVerificationAsync(
                     RegistrationId, LeaseId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
-            Users.Setup(repository => repository.ExistsAsync(
-                    It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
-                .ReturnsAsync(false);
-            Users.Setup(repository => repository.FirstOrDefaultAsync(
-                    It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
+            Users.Setup(repository => repository.GetUserByUsernameAsync(
+                    "admin", CancellationToken.None))
                 .ReturnsAsync(Admin);
-            Users.Setup(repository => repository.AddAsync(It.IsAny<User>(), CancellationToken.None))
-                .Callback<User, CancellationToken>((user, _) => CreatedUsers.Add(user))
+            Users.Setup(repository => repository.CreateUserWithProfileAsync(
+                    It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), CancellationToken.None))
+                .Callback<User, UserProfile, Notification?, CancellationToken>((user, profile, notification, _) =>
+                {
+                    CreatedUsers.Add(user);
+                    CreatedProfiles.Add(profile);
+                    if (notification is not null) CreatedNotifications.Add(notification);
+                })
                 .Returns(Task.CompletedTask);
-            Profiles.Setup(repository => repository.AddAsync(It.IsAny<UserProfile>(), CancellationToken.None))
-                .Callback<UserProfile, CancellationToken>((profile, _) => CreatedProfiles.Add(profile))
-                .Returns(Task.CompletedTask);
-            NotificationRepository.Setup(repository => repository.AddAsync(
-                    It.IsAny<Notification>(), CancellationToken.None))
-                .Callback<Notification, CancellationToken>((notification, _) => CreatedNotifications.Add(notification))
-                .Returns(Task.CompletedTask);
-            Roles.Setup(repository => repository.FirstOrDefaultAsync(
-                    It.IsAny<Expression<Func<Role, bool>>>(), CancellationToken.None))
-                .ReturnsAsync((Expression<Func<Role, bool>> predicate, CancellationToken _) =>
-                    predicate.Compile()(CustomerRole) ? CustomerRole : null);
-            UnitOfWork.Setup(unit => unit.SaveChangesAsync(CancellationToken.None)).ReturnsAsync(1);
+            Users.Setup(repository => repository.GetRoleByNameAsync(
+                    "CUSTOMER", CancellationToken.None))
+                .ReturnsAsync(CustomerRole);
             Notifications.Setup(service => service.SendToAllAsync(
                     "ReceiveNotification", It.IsAny<object>(), CancellationToken.None))
                 .Returns(Task.CompletedTask);
@@ -228,8 +220,8 @@ public sealed class VerifyRegistrationHandlerTests
 
         public Task<IActionResult> Handle()
         {
-            var handler = new VerifyRegistrationHandler(Users.Object, Profiles.Object, Roles.Object,
-                NotificationRepository.Object, Notifications.Object, UnitOfWork.Object, OtpStore.Object,
+            var handler = new VerifyRegistrationHandler(Users.Object,
+                Notifications.Object, OtpStore.Object,
                 Codes, new HttpContextAccessor { HttpContext = HttpContext },
                 new VerifyRegistrationValidator(), NullLogger<VerifyRegistrationHandler>.Instance);
             return handler.Handle(new VerifyRegistrationCommand
@@ -243,7 +235,8 @@ public sealed class VerifyRegistrationHandlerTests
             Assert.Empty(CreatedUsers);
             Assert.Empty(CreatedProfiles);
             Assert.Empty(CreatedNotifications);
-            UnitOfWork.Verify(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+            Users.Verify(repository => repository.CreateUserWithProfileAsync(
+                It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Never);
             OtpStore.Verify(store => store.CompleteVerificationAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
             Notifications.Verify(service => service.SendToAllAsync(

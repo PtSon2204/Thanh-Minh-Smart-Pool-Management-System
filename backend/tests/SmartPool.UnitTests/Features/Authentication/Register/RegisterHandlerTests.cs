@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -63,8 +62,8 @@ public sealed class RegisterHandlerTests
             "customer@example.com", It.IsAny<string>(),
             It.Is<string>(body => body.Contains("Mã xác minh") && body.Contains("<strong>")),
             CancellationToken.None), Times.Once);
-        harness.Users.Verify(repository => repository.AddAsync(
-            It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.Users.Verify(repository => repository.CreateUserWithProfileAsync(
+            It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Never);
         harness.OtpStore.Verify(store => store.CancelStartAsync(
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -73,10 +72,8 @@ public sealed class RegisterHandlerTests
     public async Task Handle_DuplicateEmail_ReturnsConflictWithoutStartingOtp()
     {
         var harness = new Harness();
-        harness.Users.Setup(repository => repository.ExistsAsync(
-                It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
-            .ReturnsAsync((Expression<Func<User, bool>> predicate, CancellationToken _) =>
-                predicate.Compile()(new User { Email = "customer@example.com" }));
+        harness.Users.Setup(repository => repository.ExistsByEmailAsync("customer@example.com", CancellationToken.None))
+            .ReturnsAsync(true);
 
         AssertProblem(await harness.Handle(new RegisterCommand
         {
@@ -84,30 +81,31 @@ public sealed class RegisterHandlerTests
         }), 409, "EMAIL_TAKEN");
 
         harness.AssertNoOtpStartOrEmail();
-        harness.Roles.VerifyNoOtherCalls();
+        harness.Users.Verify(repository => repository.GetRoleByNameAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID03 (A) - Số điện thoại đã tồn tại dạng +84 -> Trả 409 PHONE_TAKEN, không lưu phiên hoặc gửi email")]
     public async Task Handle_DuplicatePhone_ReturnsConflictWithoutStartingOtp()
     {
         var harness = new Harness();
-        harness.Users.Setup(repository => repository.ExistsAsync(
-                It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
-            .ReturnsAsync((Expression<Func<User, bool>> predicate, CancellationToken _) =>
-                predicate.Compile()(new User { Phone = "+84912345678" }));
+        harness.Users.Setup(repository => repository.ExistsByPhoneAsync(
+                "0912345678", "+84912345678", CancellationToken.None))
+            .ReturnsAsync(true);
 
         AssertProblem(await harness.Handle(), 409, "PHONE_TAKEN");
 
         harness.AssertNoOtpStartOrEmail();
-        harness.Roles.VerifyNoOtherCalls();
+        harness.Users.Verify(repository => repository.GetRoleByNameAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID04 (A) - Thiếu role CUSTOMER -> Trả 500 CUSTOMER_ROLE_NOT_CONFIGURED")]
     public async Task Handle_CustomerRoleMissing_ReturnsConfigurationError()
     {
         var harness = new Harness();
-        harness.Roles.Setup(repository => repository.FirstOrDefaultAsync(
-                It.IsAny<Expression<Func<Role, bool>>>(), CancellationToken.None))
+        harness.Users.Setup(repository => repository.GetRoleByNameAsync(
+                "CUSTOMER", CancellationToken.None))
             .ReturnsAsync((Role?)null);
 
         AssertProblem(await harness.Handle(), 500, "CUSTOMER_ROLE_NOT_CONFIGURED");
@@ -129,8 +127,8 @@ public sealed class RegisterHandlerTests
         harness.Email.VerifyNoOtherCalls();
         harness.OtpStore.Verify(store => store.CancelStartAsync(
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.Users.Verify(repository => repository.AddAsync(
-            It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.Users.Verify(repository => repository.CreateUserWithProfileAsync(
+            It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID06 (A) - Gửi email OTP lỗi -> Hủy phiên và trả 503 EMAIL_SEND_FAILED")]
@@ -153,8 +151,8 @@ public sealed class RegisterHandlerTests
             "customer@example.com", It.IsAny<string>(), It.IsAny<string>(), CancellationToken.None), Times.Once);
         harness.OtpStore.Verify(store => store.CancelStartAsync(
             registrationId, "customer@example.com", It.IsAny<CancellationToken>()), Times.Once);
-        harness.Users.Verify(repository => repository.AddAsync(
-            It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.Users.Verify(repository => repository.CreateUserWithProfileAsync(
+            It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static RegistrationOtpStoreResult SuccessfulStart() => new(
@@ -171,8 +169,7 @@ public sealed class RegisterHandlerTests
 
     private sealed class Harness
     {
-        public Mock<IRepository<User>> Users { get; } = new();
-        public Mock<IRepository<Role>> Roles { get; } = new();
+        public Mock<IUserOperations> Users { get; } = new();
         public Mock<IPasswordHasher> PasswordHasher { get; } = new();
         public Mock<IRegistrationOtpStore> OtpStore { get; } = new();
         public Mock<IEmailService> Email { get; } = new();
@@ -181,14 +178,10 @@ public sealed class RegisterHandlerTests
         public Harness()
         {
             HttpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
-            Users.Setup(repository => repository.ExistsAsync(
-                    It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
-                .ReturnsAsync(false);
             var role = new Role { Id = Guid.NewGuid(), Name = "CUSTOMER", IsDeleted = false };
-            Roles.Setup(repository => repository.FirstOrDefaultAsync(
-                    It.IsAny<Expression<Func<Role, bool>>>(), CancellationToken.None))
-                .ReturnsAsync((Expression<Func<Role, bool>> predicate, CancellationToken _) =>
-                    predicate.Compile()(role) ? role : null);
+            Users.Setup(repository => repository.GetRoleByNameAsync(
+                    "CUSTOMER", CancellationToken.None))
+                .ReturnsAsync(role);
             PasswordHasher.Setup(hasher => hasher.HashPassword(It.IsAny<User>(), It.IsAny<string>()))
                 .Returns("hashed-password");
             OtpStore.Setup(store => store.TryConsumeStartQuotaAsync(
@@ -212,7 +205,7 @@ public sealed class RegisterHandlerTests
                 {
                     ["RegistrationOtp:HmacKey"] = Convert.ToBase64String(new byte[32])
                 }).Build());
-            var handler = new RegisterHandler(Users.Object, Roles.Object, PasswordHasher.Object,
+            var handler = new RegisterHandler(Users.Object, PasswordHasher.Object,
                 OtpStore.Object, codes, Email.Object,
                 new HttpContextAccessor { HttpContext = HttpContext }, new RegisterValidator(),
                 NullLogger<RegisterHandler>.Instance);
@@ -227,8 +220,8 @@ public sealed class RegisterHandlerTests
             OtpStore.Verify(store => store.TryStartAsync(
                 It.IsAny<PendingRegistration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
             Email.VerifyNoOtherCalls();
-            Users.Verify(repository => repository.AddAsync(
-                It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+            Users.Verify(repository => repository.CreateUserWithProfileAsync(
+                It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Never);
         }
     }
 }

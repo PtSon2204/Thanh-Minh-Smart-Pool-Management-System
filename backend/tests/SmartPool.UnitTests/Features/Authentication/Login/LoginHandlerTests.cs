@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -250,8 +249,8 @@ public sealed class LoginHandlerTests
     public async Task Handle_UserRepositoryThrowsException_ThrowsException()
     {
         var harness = new Harness();
-        harness.Users.Setup(r => r.FirstOrDefaultAsync(
-                It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
+        harness.Users.Setup(r => r.FindUsersByIdentifierAsync(
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("DB Failure"));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Handle());
@@ -413,8 +412,7 @@ public sealed class LoginHandlerTests
 
     private sealed class Harness
     {
-        public Mock<IRepository<User>> Users { get; } = new();
-        public Mock<IRepository<Role>> Roles { get; } = new();
+        public Mock<IUserOperations> Users { get; } = new();
         public Mock<IPasswordHasher> PasswordHasher { get; } = new();
         public Mock<IAccessTokenService> AccessTokenService { get; } = new();
         public Mock<IRefreshTokenService> RefreshTokenService { get; } = new();
@@ -440,17 +438,16 @@ public sealed class LoginHandlerTests
                 RoleId = roleId
             });
 
-            Users.Setup(repository => repository.FirstOrDefaultAsync(
-                    It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
-                .ReturnsAsync((Expression<Func<User, bool>> predicate, CancellationToken _) =>
-                    DefaultUsers.FirstOrDefault(predicate.Compile()));
+            Users.Setup(repository => repository.FindUsersByIdentifierAsync(
+                    It.IsAny<string>(), CancellationToken.None))
+                .ReturnsAsync((string identifier, CancellationToken _) =>
+                    DefaultUsers.Where(u => string.Equals(u.Username, identifier, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(u.Email, identifier, StringComparison.OrdinalIgnoreCase)
+                        || u.Phone == identifier
+                        || (identifier.StartsWith("+84", StringComparison.Ordinal)
+                            && u.Phone == "0" + identifier[3..])).ToList());
 
-            Users.Setup(repository => repository.FindAsync(
-                    It.IsAny<Expression<Func<User, bool>>>(), CancellationToken.None))
-                .ReturnsAsync((Expression<Func<User, bool>> predicate, CancellationToken _) =>
-                    DefaultUsers.Where(predicate.Compile()).ToList());
-
-            Roles.Setup(repository => repository.GetByIdAsync(
+            Users.Setup(repository => repository.GetRoleByIdAsync(
                     It.IsAny<Guid>(), CancellationToken.None))
                 .ReturnsAsync((Guid id, CancellationToken _) =>
                     DefaultRoles.FirstOrDefault(r => r.Id == id));
@@ -481,7 +478,6 @@ public sealed class LoginHandlerTests
         {
             var handler = new LoginHandler(
                 Users.Object,
-                Roles.Object,
                 PasswordHasher.Object,
                 AccessTokenService.Object,
                 RefreshTokenService.Object,
