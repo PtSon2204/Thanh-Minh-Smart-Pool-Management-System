@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using FluentValidation.Results;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
+using SmartPool.Application.Features.ManageServices.Payments;
 
 namespace SmartPool.UnitTests.Features.ManageServices;
 
@@ -245,16 +246,47 @@ public sealed class RentalIssueValidatorTests
         Assert.Empty(result.Errors);
     }
 
-    [Fact]
-    public void GivenCheckoutPhoneAtItsMaximum_WhenValidating_ThenItIsAccepted()
+    [Theory]
+    [InlineData("0901234567", true)]
+    [InlineData("+84901234567", true)]
+    [InlineData("0401234567", false)]
+    [InlineData("1234567890", false)]
+    public void GivenCheckoutPhone_WhenValidating_ThenItMatchesTheOnboardingFormat(string phone, bool expectedValid)
     {
         var command = ValidCheckout();
-        command.CustomerPhone = new string('1', 20);
+        command.CustomerPhone = phone;
 
         var result = new CheckoutRentalValidator().Validate(command);
 
-        Assert.True(result.IsValid);
-        Assert.Empty(result.Errors);
+        Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            AssertRejected(result, nameof(CheckoutRentalCommand.CustomerPhone));
+    }
+
+    [Theory]
+    [InlineData("0901234567", true)]
+    [InlineData("+84901234567", true)]
+    [InlineData("04", false)]
+    public void GivenQrCheckoutPhone_WhenValidating_ThenItMatchesTheOnboardingFormat(string phone, bool expectedValid)
+    {
+        var command = new CreateRentalQrCommand
+        {
+            RequestId = Guid.NewGuid(),
+            OperatorId = Guid.NewGuid(),
+            CustomerName = "QA customer",
+            CustomerPhone = phone,
+            Items = [new() { ProductId = Guid.NewGuid(), Quantity = 1, ExpectedUnitPrice = 10000 }]
+        };
+
+        var result = new CreateRentalQrValidator().Validate(command);
+
+        Assert.Equal(expectedValid, result.IsValid);
+        if (expectedValid)
+            Assert.Empty(result.Errors);
+        else
+            AssertRejected(result, nameof(CreateRentalQrCommand.CustomerPhone));
     }
 
     [Theory]
