@@ -8,6 +8,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
+using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
@@ -18,11 +19,14 @@ namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.S
 public sealed class SubmitDailyInspectionHandler(
     IRepository<DailyInspection> inspectionRepository,
     IRepository<Equipment> equipmentRepository,
+    IRepository<PoolDutySchedule> taskRepository,
+    IWaterQualityOperations waterQualityOperations,
     IRepository<Notification> notificationRepository,
     IRepository<User> userRepository,
     IUnitOfWork unitOfWork,
     IValidator<SubmitDailyInspectionCommand> validator,
     TimeProvider timeProvider,
+    ICurrentUser currentUser,
     IEmailService? emailService = null,
     ILogger<SubmitDailyInspectionHandler>? logger = null)
     : IRequestHandler<SubmitDailyInspectionCommand, DailyInspectionDto>
@@ -34,11 +38,59 @@ public sealed class SubmitDailyInspectionHandler(
         await validator.ValidateAndThrowAsync(command, cancellationToken);
 
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        var inspectorId = currentUser.UserId
+            ?? throw new UnauthorizedAccessException("Không xác định được người thực hiện kiểm tra.");
+        var isAdmin = currentUser.IsInRole("ADMIN");
+        var isLifeguard = currentUser.IsInRole("LIFEGUARD");
+        command.InspectorId = inspectorId;
+        if (command.OperationalTaskId.HasValue && !isAdmin && !isLifeguard)
+            throw new UnauthorizedAccessException("Chỉ Admin hoặc nhân viên cứu hộ mới có thể thực hiện công việc.");
+        if (isLifeguard && !command.OperationalTaskId.HasValue)
+            throw new ValidationException("Nhân viên cứu hộ chỉ có thể nộp biên bản từ công việc đã được phân công.");
+        await using var taskTransaction = command.OperationalTaskId.HasValue
+            ? await unitOfWork.BeginTransactionAsync(cancellationToken)
+            : null;
+
         var today = VietnamTimeBoundary.GetDate(timeProvider);
         var currentTime = VietnamTimeBoundary.GetTime(timeProvider);
 
         var shiftDef = FixedShifts.FindById(command.ShiftId)
             ?? throw new ValidationException("Ca trực không hợp lệ. Chỉ chấp nhận Ca sáng hoặc Ca chiều.");
+
+        PoolDutySchedule? operationalTask = null;
+        OperationalTaskExecutionAuthorization? taskExecution = null;
+        if (command.OperationalTaskId.HasValue)
+        {
+            operationalTask = await taskRepository.GetByIdAsync(command.OperationalTaskId.Value, cancellationToken)
+                ?? throw new ValidationException("Không tìm thấy công việc kiểm tra thiết bị.");
+            if (operationalTask.TaskType != PoolDutyTaskTypes.EquipmentChecklist ||
+                operationalTask.InspectionWindow != (command.ShiftId == FixedShifts.Morning.Id
+                    ? PoolDutyInspectionWindows.Morning : PoolDutyInspectionWindows.Afternoon) ||
+                operationalTask.DutyDate != today || operationalTask.Status is "Completed" or "Cancelled")
+                throw new ValidationException("Công việc kiểm tra thiết bị không thuộc ngày, ca hoặc trạng thái đang mở.");
+
+            if (isAdmin)
+            {
+                if (!command.AdminExecutionConfirmed || !command.ExpectedTaskRevision.HasValue ||
+                    command.ExpectedTaskRevision.Value != operationalTask.Revision ||
+                    command.ExpectedAssigneeId != operationalTask.AssignedEmployeeId)
+                    throw new InvalidOperationException("Công việc đã thay đổi hoặc Admin chưa xác nhận. Hãy làm mới và xác nhận lại.");
+            }
+            else
+            {
+                if (operationalTask.AssignedEmployeeId != inspectorId || !operationalTask.EmployeeShiftId.HasValue)
+                    throw new UnauthorizedAccessException("Công việc kiểm tra thiết bị không thuộc nhân viên này.");
+                var eligibleAssignees = await waterQualityOperations.GetOperationalTaskAssigneesAsync(
+                    operationalTask.Id, cancellationToken);
+                if (!eligibleAssignees.Any(item => item.EmployeeId == inspectorId &&
+                    item.EmployeeShiftId == operationalTask.EmployeeShiftId))
+                    throw new ValidationException("Ca làm được phân công không còn đủ điều kiện cho công việc này.");
+            }
+
+            taskExecution = new OperationalTaskExecutionAuthorization(isAdmin, isLifeguard,
+                command.AdminExecutionConfirmed, isAdmin ? command.ExpectedTaskRevision : operationalTask.Revision,
+                isAdmin ? command.ExpectedAssigneeId : operationalTask.AssignedEmployeeId);
+        }
 
         // Rule 1: Khung giờ kiểm tra — Chỉ mở trước ca trực 30 phút cho đến khi ca kết thúc
         if (!shiftDef.IsInInspectionWindow(currentTime))
@@ -110,6 +162,7 @@ public sealed class SubmitDailyInspectionHandler(
             Id = Guid.NewGuid(),
             InspectorId = command.InspectorId,
             ShiftId = command.ShiftId,
+            OperationalTaskId = operationalTask?.Id,
             InspectionDate = today,
             InspectionTime = nowUtc,
             ItemsJson = JsonSerializer.Serialize(command.Items),
@@ -120,6 +173,8 @@ public sealed class SubmitDailyInspectionHandler(
         };
 
         await inspectionRepository.AddAsync(inspection, cancellationToken);
+        if (operationalTask is not null && taskExecution is not null)
+            await waterQualityOperations.CompleteOperationalChecklistTaskAsync(inspection, taskExecution, cancellationToken);
 
         // 2. Tự động chuyển các thiết bị gặp sự cố sang trạng thái Bảo trì (Maintenance)
         if (hasIssues)
@@ -252,6 +307,8 @@ public sealed class SubmitDailyInspectionHandler(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (taskTransaction is not null)
+            await taskTransaction.CommitAsync(cancellationToken);
 
         return new DailyInspectionDto
         {

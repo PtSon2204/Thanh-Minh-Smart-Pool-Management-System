@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using SmartPool.Application.Common.Exceptions;
 using SmartPool.Application.Interfaces.Repositories;
@@ -14,6 +15,12 @@ namespace SmartPool.Infrastructure.Persistence
         public UnitOfWork(SmartPoolDbContext context)
         {
             _context = context;
+        }
+
+        public async Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            return new UnitOfWorkTransaction(transaction);
         }
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -41,5 +48,13 @@ namespace SmartPool.Infrastructure.Persistence
 
         public void Dispose()
             => _context.Dispose();
+
+        private sealed class UnitOfWorkTransaction(IDbContextTransaction transaction) : IUnitOfWorkTransaction
+        {
+            public Task CommitAsync(CancellationToken cancellationToken = default) =>
+                transaction.CommitAsync(cancellationToken);
+
+            public ValueTask DisposeAsync() => transaction.DisposeAsync();
+        }
     }
 }

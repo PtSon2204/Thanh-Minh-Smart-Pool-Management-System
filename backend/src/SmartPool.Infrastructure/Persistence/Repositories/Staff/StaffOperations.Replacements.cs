@@ -36,13 +36,13 @@ public sealed partial class StaffOperations
         if (request.Action == StaffShiftReplacementAction.Confirm)
         {
             if (request.OperationId == Guid.Empty) throw new StaffOnboardingException("OPERATION_ID_REQUIRED", 400);
-            var existingReceipt = await context.StaffScheduleOperations.AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Id == request.OperationId, cancellationToken);
+            var existingReceipt = await context.StaffScheduleChanges.AsNoTracking()
+                .SingleOrDefaultAsync(item => item.OperationId == request.OperationId, cancellationToken);
             if (existingReceipt is not null)
             {
-                if (existingReceipt.ActorId != request.ActorId || existingReceipt.ProposalHash != proposalHash)
+                if (existingReceipt.CreatedBy != request.ActorId || existingReceipt.Kind != "Replace" || existingReceipt.ProposalHash != proposalHash)
                     throw new StaffOnboardingException("OPERATION_PAYLOAD_MISMATCH");
-                return ScheduleDeserialize<StaffShiftReplacementResult>(existingReceipt.ResponseJson);
+                return ScheduleDeserialize<StaffShiftReplacementResult>(existingReceipt.ResponseJson!);
             }
         }
 
@@ -56,13 +56,13 @@ public sealed partial class StaffOperations
         if (request.Action == StaffShiftReplacementAction.Confirm)
         {
             await LockStaffScheduleOperationAsync(request.OperationId, cancellationToken);
-            var lockedReceipt = await context.StaffScheduleOperations.AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Id == request.OperationId, cancellationToken);
+            var lockedReceipt = await context.StaffScheduleChanges.AsNoTracking()
+                .SingleOrDefaultAsync(item => item.OperationId == request.OperationId, cancellationToken);
             if (lockedReceipt is not null)
             {
-                if (lockedReceipt.ActorId != request.ActorId || lockedReceipt.ProposalHash != proposalHash)
+                if (lockedReceipt.CreatedBy != request.ActorId || lockedReceipt.Kind != "Replace" || lockedReceipt.ProposalHash != proposalHash)
                     throw new StaffOnboardingException("OPERATION_PAYLOAD_MISMATCH");
-                var replay = ScheduleDeserialize<StaffShiftReplacementResult>(lockedReceipt.ResponseJson);
+                var replay = ScheduleDeserialize<StaffShiftReplacementResult>(lockedReceipt.ResponseJson!);
                 await transaction.CommitAsync(cancellationToken);
                 return replay;
             }
@@ -105,22 +105,21 @@ public sealed partial class StaffOperations
         var duties = await context.PoolDutySchedules.Include(item => item.Shift)
             .Where(item => employeeIds.Contains(item.AssignedEmployeeId ?? Guid.Empty) && item.DutyDate >= from && item.DutyDate <= through)
             .OrderBy(item => item.AssignedEmployeeId).ThenBy(item => item.Id).ToListAsync(cancellationToken);
-        var sourceExceptions = await context.StaffScheduleExceptions
+        var sourceExceptions = await AppliedExceptions
             .Where(item => item.EmployeeId == sourceOwnerId && item.WorkDate == source.WorkDate)
-            .OrderBy(item => item.Version).ToListAsync(cancellationToken);
-        var targetHasLeave = target is not null && await context.StaffScheduleExceptions.AnyAsync(item =>
+            .OrderBy(item => item.AppliedVersion).ToListAsync(cancellationToken);
+        var targetHasLeave = target is not null && await AppliedExceptions.AnyAsync(item =>
             item.EmployeeId == target.UserId && item.WorkDate == source.WorkDate && item.Kind == "Leave", cancellationToken);
-        var sourcePatterns = await context.StaffWorkPatterns.Where(item => item.EmployeeId == sourceOwnerId)
-            .OrderBy(item => item.Version).Select(item => new { item.Id, item.ContractJson, item.EffectiveFrom, item.Version }).ToListAsync(cancellationToken);
-        var targetPatterns = await context.StaffWorkPatterns.Where(item => item.EmployeeId == request.ReplacementEmployeeId)
-            .OrderBy(item => item.Version).Select(item => new { item.Id, item.ContractJson, item.EffectiveFrom, item.Version }).ToListAsync(cancellationToken);
-        var sourceVersion = Math.Max(sourcePatterns.Select(item => item.Version).DefaultIfEmpty().Max(),
-            await context.StaffScheduleExceptions.Where(item => item.EmployeeId == sourceOwnerId)
-                .Select(item => (long?)item.Version).MaxAsync(cancellationToken) ?? 0);
-        var sourceOtherExceptions = await context.StaffScheduleExceptions.Where(item => item.EmployeeId == sourceOwnerId)
-            .OrderBy(item => item.Version).Select(item => new { item.Id, item.Kind, item.WorkDate, item.SourceAssignmentIdsJson, item.DestinationShiftId, item.DestinationEmployeeId, item.Version }).ToListAsync(cancellationToken);
-        var targetExceptions = await context.StaffScheduleExceptions.Where(item => item.EmployeeId == request.ReplacementEmployeeId)
-            .OrderBy(item => item.Version).Select(item => new { item.Id, item.Kind, item.WorkDate, item.SourceAssignmentIdsJson, item.DestinationShiftId, item.DestinationEmployeeId, item.Version }).ToListAsync(cancellationToken);
+        var sourcePatterns = await AppliedPatterns.Where(item => item.EmployeeId == sourceOwnerId)
+            .OrderBy(item => item.AppliedVersion).Select(item => new { item.Id, item.ContractJson, item.EffectiveFrom, item.AppliedVersion }).ToListAsync(cancellationToken);
+        var targetPatterns = await AppliedPatterns.Where(item => item.EmployeeId == request.ReplacementEmployeeId)
+            .OrderBy(item => item.AppliedVersion).Select(item => new { item.Id, item.ContractJson, item.EffectiveFrom, item.AppliedVersion }).ToListAsync(cancellationToken);
+        var sourceVersion = await AppliedScheduleChanges.Where(item => item.EmployeeId == sourceOwnerId)
+            .Select(item => item.AppliedVersion).MaxAsync(cancellationToken) ?? 0;
+        var sourceOtherExceptions = await AppliedExceptions.Where(item => item.EmployeeId == sourceOwnerId)
+            .OrderBy(item => item.AppliedVersion).Select(item => new { item.Id, item.Kind, item.WorkDate, item.SourceAssignmentIdsJson, item.DestinationShiftId, item.DestinationEmployeeId, item.AppliedVersion }).ToListAsync(cancellationToken);
+        var targetExceptions = await AppliedExceptions.Where(item => item.EmployeeId == request.ReplacementEmployeeId)
+            .OrderBy(item => item.AppliedVersion).Select(item => new { item.Id, item.Kind, item.WorkDate, item.SourceAssignmentIdsJson, item.DestinationShiftId, item.DestinationEmployeeId, item.AppliedVersion }).ToListAsync(cancellationToken);
 
         var plan = BuildStaffShiftReplacementPlan(request, source, sourceEmployee, target, assignments, duties,
             sourceExceptions, targetHasLeave, sourceVersion);
@@ -138,10 +137,12 @@ public sealed partial class StaffOperations
             TargetExceptions = targetExceptions,
             TargetHasLeave = targetHasLeave,
             Assignments = assignments.Select(item => new { item.Id, item.EmployeeId, item.ShiftId, item.WorkDate, item.Status,
-                item.CheckInTime, item.CheckOutTime, item.UpdatedAt, item.WorkPatternId, item.ScheduleExceptionId,
+                item.CheckInTime, item.CheckOutTime, item.CheckInMethod, item.CheckOutMethod, item.UpdatedAt, item.ScheduleChangeId,
                 item.Shift.StartTime, item.Shift.EndTime, item.Shift.IsActive }),
             Duties = duties.Select(item => new { item.Id, item.AssignedEmployeeId, item.DutyDate, item.ShiftId, item.Status,
-                item.WaterQualityLogId, item.UpdatedAt, item.Shift!.StartTime, item.Shift.EndTime }),
+                item.TaskType, item.EmployeeShiftId, item.WaterQualityLogId, item.TriggerWaterQualityLogId,
+                item.UpdatedAt, StartTime = item.Shift != null ? item.Shift.StartTime : (TimeOnly?)null,
+                EndTime = item.Shift != null ? item.Shift.EndTime : (TimeOnly?)null }),
             plan.Result.ConflictCode, plan.Result.Status, ResultDuties = plan.Result.Duties
         });
 
@@ -152,21 +153,14 @@ public sealed partial class StaffOperations
                 await transaction.RollbackAsync(cancellationToken);
                 return plan.Result;
             }
-            var preview = new StaffSchedulePreview { EmployeeId = sourceOwnerId, ActorId = request.ActorId,
-                ProposalHash = proposalHash, StateHash = stateHash, ExpiresAtUtc = OnboardingNow.AddMinutes(15) };
-            context.StaffSchedulePreviews.Add(preview);
-            await context.SaveChangesAsync(cancellationToken);
+            var previewToken = ProtectSchedulePreview("Replace", sourceOwnerId, request.ActorId, proposalHash, stateHash);
             await transaction.CommitAsync(cancellationToken);
-            return plan.Result with { PreviewToken = preview.Id.ToString() };
+            return plan.Result with { PreviewToken = previewToken };
         }
 
         if (request.Action != StaffShiftReplacementAction.Confirm)
             throw new StaffOnboardingException("INVALID_ACTION", 400);
-        if (!Guid.TryParse(request.PreviewToken, out var previewId)) throw new StaffOnboardingException("PREVIEW_REQUIRED", 400);
-        var storedPreview = await context.StaffSchedulePreviews.SingleOrDefaultAsync(item => item.Id == previewId, cancellationToken);
-        if (storedPreview is null || storedPreview.EmployeeId != sourceOwnerId || storedPreview.ActorId != request.ActorId ||
-            storedPreview.ExpiresAtUtc <= OnboardingNow || storedPreview.ProposalHash != proposalHash || storedPreview.StateHash != stateHash)
-            throw new StaffOnboardingException("STALE_PREVIEW");
+        ValidateSchedulePreview(request.PreviewToken, "Replace", sourceOwnerId, request.ActorId, proposalHash, stateHash);
         if (!plan.CanConfirm) throw new StaffOnboardingException(plan.Result.ConflictCode ?? "REPLACEMENT_BLOCKED", 409);
 
         var completed = ApplyStaffShiftReplacement(request, plan, proposalHash);
@@ -177,7 +171,7 @@ public sealed partial class StaffOperations
 
     private StaffShiftReplacementPlan BuildStaffShiftReplacementPlan(ReplaceStaffShiftCommand request,
         EmployeeShift source, Employee sourceEmployee, Employee? target, List<EmployeeShift> assignments,
-        List<PoolDutySchedule> allDuties, List<StaffScheduleException> sourceExceptions,
+        List<PoolDutySchedule> allDuties, List<StaffScheduleChange> sourceExceptions,
         bool targetHasLeave, long sourceVersion)
     {
         var targetId = request.ReplacementEmployeeId;
@@ -186,7 +180,8 @@ public sealed partial class StaffOperations
         var targetAssignments = assignments.Where(item => item.EmployeeId == targetId).ToList();
         var exactTarget = targetAssignments.SingleOrDefault(item => item.WorkDate == source.WorkDate && item.ShiftId == source.ShiftId);
         var sourceDuties = allDuties.Where(item => item.AssignedEmployeeId == source.EmployeeId &&
-            item.DutyDate == source.WorkDate && item.ShiftId == source.ShiftId).ToList();
+            (item.EmployeeShiftId == source.Id || (item.TaskType is null && item.DutyDate == source.WorkDate &&
+                item.ShiftId == source.ShiftId))).ToList();
         var targetDuties = allDuties.Where(item => item.AssignedEmployeeId == targetId && item.Status != "Cancelled").ToList();
         string? code = null;
         string? message = null;
@@ -208,7 +203,7 @@ public sealed partial class StaffOperations
         else if (targetHasLeave)
             (code, message) = ("replacement_on_leave", "Nhân viên thay thế đã có ngoại lệ nghỉ trong ngày này.");
         else if (sourceExceptions.Any(item => item.Kind == "Replace" &&
-            ScheduleDeserialize<Guid[]>(item.SourceAssignmentIdsJson).Any(id => id == source.Id)))
+            ScheduleDeserialize<Guid[]>(item.SourceAssignmentIdsJson!).Any(id => id == source.Id)))
             (code, message) = ("exception_exists", "Ca này đã được thay thế trước đó.");
         else if (exactTarget is not null && (exactTarget.Status != "Scheduled" || exactTarget.CheckInTime is not null || exactTarget.CheckOutTime is not null))
             (code, message) = ("destination_assignment_unavailable", "Nhân viên thay thế đã có lịch sử cho đúng ca này.");
@@ -234,15 +229,15 @@ public sealed partial class StaffOperations
         StaffShiftReplacementPlan plan, string proposalHash)
     {
         var target = plan.Target!;
-        var exception = new StaffScheduleException
+        var change = new StaffScheduleChange
         {
             Id = Guid.NewGuid(), EmployeeId = plan.Source.EmployeeId, Kind = "Replace",
             WorkDate = plan.Source.WorkDate, SourceAssignmentIdsJson = ScheduleSerialize(new[] { plan.Source.Id }),
             DestinationShiftId = plan.Source.ShiftId, DestinationEmployeeId = target.UserId,
-            Reason = request.Reason.Trim(), Version = plan.SourceVersion + 1, CreatedBy = request.ActorId,
-            CreatedAtUtc = OnboardingNow
+            Reason = request.Reason.Trim(), AppliedVersion = plan.SourceVersion + 1, CreatedBy = request.ActorId,
+            CreatedAtUtc = OnboardingNow, OperationId = request.OperationId, ProposalHash = proposalHash
         };
-        context.StaffScheduleExceptions.Add(exception);
+        context.StaffScheduleChanges.Add(change);
         plan.Source.Status = "Cancelled";
         plan.Source.UpdatedAt = OnboardingNow;
 
@@ -253,13 +248,18 @@ public sealed partial class StaffOperations
             {
                 Id = Guid.NewGuid(), EmployeeId = target.UserId, ShiftId = plan.Source.ShiftId,
                 Shift = plan.Source.Shift, WorkDate = plan.Source.WorkDate, Status = "Scheduled",
-                ScheduleExceptionId = exception.Id, CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow
+                ScheduleChangeId = change.Id, CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow
             };
             context.EmployeeShifts.Add(replacement);
         }
         foreach (var duty in plan.Duties)
         {
             duty.AssignedEmployeeId = target.UserId;
+            duty.EmployeeShiftId = replacement.Id;
+            duty.ShiftId = replacement.ShiftId;
+            duty.UnassignedReason = null;
+            duty.Revision++;
+            duty.UpdatedBy = request.ActorId;
             duty.UpdatedAt = OnboardingNow;
         }
 
@@ -276,11 +276,7 @@ public sealed partial class StaffOperations
         AddReplacementNotification(request.OperationId, target.UserId, target.UserId, target.User.Email,
             "Bạn được phân công thay ca", $"Bạn được phân công nhận ca làm việc. {summary} Mở lịch: {link}");
 
-        context.StaffScheduleOperations.Add(new StaffScheduleOperation
-        {
-            Id = request.OperationId, EmployeeId = plan.Source.EmployeeId, ActorId = request.ActorId,
-            ProposalHash = proposalHash, ResponseJson = ScheduleSerialize(completed), CreatedAtUtc = OnboardingNow
-        });
+        change.ResponseJson = ScheduleSerialize(completed);
         return completed;
     }
 
@@ -306,10 +302,10 @@ public sealed partial class StaffOperations
     private async Task<StaffShiftReplacementResult> ReadStaffShiftReplacementReceiptAsync(
         Guid operationId, Guid actorId, CancellationToken cancellationToken)
     {
-        var receipt = await context.StaffScheduleOperations.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == operationId && item.ActorId == actorId, cancellationToken)
+        var receipt = await context.StaffScheduleChanges.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.OperationId == operationId && item.CreatedBy == actorId && item.Kind == "Replace", cancellationToken)
             ?? throw new StaffOnboardingException("OPERATION_NOT_FOUND", 404);
-        var result = ScheduleDeserialize<StaffShiftReplacementResult>(receipt.ResponseJson);
+        var result = ScheduleDeserialize<StaffShiftReplacementResult>(receipt.ResponseJson!);
         if (result.Status != "completed") throw new StaffOnboardingException("OPERATION_NOT_FOUND", 404);
         return result;
     }

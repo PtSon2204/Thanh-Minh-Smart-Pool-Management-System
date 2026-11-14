@@ -6,6 +6,7 @@ namespace SmartPool.Application.Features.ManageEquipments.Inspections.Queries.Ge
 
 public sealed class GetDailyInspectionsQuery : IRequest<PagedResponse<DailyInspectionDto>>
 {
+    public Guid? InspectionId { get; set; }
     public DateOnly? FromDate { get; set; }
     public DateOnly? ToDate { get; set; }
     public string? OverallStatus { get; set; }

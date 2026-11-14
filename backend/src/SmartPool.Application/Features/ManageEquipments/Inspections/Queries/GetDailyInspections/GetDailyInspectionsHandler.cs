@@ -24,6 +24,9 @@ public sealed class GetDailyInspectionsHandler(
         var all = await inspectionRepository.FindAsync(x => true, cancellationToken);
         var query = all.AsQueryable();
 
+        if (request.InspectionId.HasValue)
+            query = query.Where(x => x.Id == request.InspectionId.Value);
+
         if (request.FromDate.HasValue)
             query = query.Where(x => x.InspectionDate >= request.FromDate.Value);
 

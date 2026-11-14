@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using SmartPool.Application.Features.ManageWaterQuality.Dtos;
+using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Features.ManageWaterQuality.Services;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
@@ -56,6 +57,12 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
         {
             throw new UnauthorizedAccessException("Người đo không hợp lệ hoặc phiên đăng nhập đã hết hạn.");
         }
+        var isAdmin = _currentUser.IsInRole("ADMIN");
+        var isLifeguard = _currentUser.IsInRole("LIFEGUARD");
+        if (request.OperationalTaskId.HasValue && !isAdmin && !isLifeguard)
+            throw new UnauthorizedAccessException("Chỉ quản trị viên hoặc nhân viên cứu hộ mới có thể thực hiện công việc.");
+        if (isLifeguard && !request.OperationalTaskId.HasValue)
+            throw new UnauthorizedAccessException("Nhân viên cứu hộ chỉ có thể đo từ công việc đã được phân công.");
 
         var evaluation = _evaluator.Evaluate(request.PhValue, request.FreeChlorineMgL, request.IsWaterClear);
 
@@ -69,6 +76,7 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
             Source = "Manual",
             InspectedBy = inspectorId.Value,
             EquipmentId = request.EquipmentId,
+            OperationalTaskId = request.OperationalTaskId,
             SourceEventId = null,
             Status = evaluation.Status,
             Recommendation = evaluation.Recommendation,
@@ -77,7 +85,11 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
             CreatedAt = nowUtc
         };
 
-        var createdDto = await _operations.CreateWaterQualityLogAsync(log, cancellationToken);
+        var taskExecution = request.OperationalTaskId.HasValue
+            ? new OperationalTaskExecutionAuthorization(isAdmin, isLifeguard, request.AdminExecutionConfirmed,
+                request.ExpectedTaskRevision, request.ExpectedAssigneeId)
+            : null;
+        var createdDto = await _operations.CreateWaterQualityLogAsync(log, cancellationToken, taskExecution);
 
         // Nếu trạng thái là Danger, phát cảnh báo khẩn cấp tới Admin
         if (evaluation.Status == WaterQualityConstants.StatusDanger)

@@ -98,7 +98,7 @@ public sealed partial class StaffOperations
                             item.Version++;
                             await QueueDocumentsAsync(item.Id, "CANCELLED", cancellationToken);
                         }
-                        await ReleaseIdentityClaimsAsync(invitation.Id, null, cancellationToken);
+                        await ReleaseIdentityReservationsAsync(invitation.Id, null, cancellationToken);
                         break;
                     case OnboardingAction.Draft:
                         RequireEditable(revision, request.ExpectedVersion);

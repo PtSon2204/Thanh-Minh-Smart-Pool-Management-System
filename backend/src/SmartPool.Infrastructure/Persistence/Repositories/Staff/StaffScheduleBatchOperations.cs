@@ -21,7 +21,8 @@ public sealed partial class StaffOperations
                     employee.User.UserProfile.FullName.Trim() != string.Empty
                     ? employee.User.UserProfile.FullName
                     : employee.User.Username ?? string.Empty,
-                EmploymentStatus = employee.Status!
+                EmploymentStatus = employee.Status!,
+                RoleName = employee.User.Role != null ? employee.User.Role.Name : string.Empty
             })
             .ToListAsync(cancellationToken);
     }

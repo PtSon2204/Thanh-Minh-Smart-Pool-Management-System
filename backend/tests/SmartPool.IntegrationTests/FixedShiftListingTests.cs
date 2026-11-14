@@ -48,7 +48,7 @@ public sealed class FixedShiftListingTests
             var mapper = new MapperConfiguration(configuration => configuration.AddProfile<StaffMappingProfile>(),
                 NullLoggerFactory.Instance).CreateMapper();
             var operations = new StaffOperations(context, mapper, TimeProvider.System,
-                Options.Create(new StaffAttendanceQrSettings()));
+                Options.Create(new StaffAttendanceQrSettings()), null, new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider());
 
             const int pageSize = 100;
             var firstPage = await operations.GetShiftsAsync(

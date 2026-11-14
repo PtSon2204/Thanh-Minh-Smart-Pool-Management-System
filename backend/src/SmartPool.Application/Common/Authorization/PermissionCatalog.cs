@@ -8,6 +8,7 @@ public static class PermissionCatalog
         ["staff"] = ["read", "create", "update"],
         ["shifts"] = ["read", "create", "update"],
         ["staff_schedule"] = ["read", "create", "delete"],
+        ["staff_tasks"] = ["read", "create", "update", "delete"],
         ["swim_classes"] = ["read", "create", "update"],
         ["class_sessions"] = ["create", "update"],
         ["class_registrations"] = ["create", "read", "update"],

@@ -8,7 +8,9 @@ using Moq;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspectionForm;
+using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using Xunit;
 
@@ -35,6 +37,8 @@ public sealed class DailyInspectionTests
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.Setup(user => user.UserId).Returns(inspectorId);
 
         userRepo.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = inspectorId, Username = "lifeguard1" });
@@ -45,11 +49,14 @@ public sealed class DailyInspectionTests
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
             eqRepo.Object,
+            new Mock<IRepository<PoolDutySchedule>>().Object,
+            new Mock<IWaterQualityOperations>().Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
-            new TestTimeProvider(MorningTestTimeUtc));
+            new TestTimeProvider(MorningTestTimeUtc),
+            currentUser.Object);
 
         var command = new SubmitDailyInspectionCommand
         {
@@ -78,6 +85,75 @@ public sealed class DailyInspectionTests
         unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task Confirmed_admin_task_submission_uses_authenticated_actor_instead_of_client_inspector()
+    {
+        var adminId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        var task = new PoolDutySchedule
+        {
+            Id = taskId,
+            TaskType = PoolDutyTaskTypes.EquipmentChecklist,
+            InspectionWindow = PoolDutyInspectionWindows.Morning,
+            DutyDate = new DateOnly(2026, 10, 28),
+            Status = "Unassigned",
+            Revision = 4
+        };
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.Setup(user => user.UserId).Returns(adminId);
+        currentUser.Setup(user => user.IsInRole("ADMIN")).Returns(true);
+        var taskTransaction = new Mock<IUnitOfWorkTransaction>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.Setup(work => work.BeginTransactionAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(taskTransaction.Object);
+        var inspectionRepository = new Mock<IRepository<DailyInspection>>();
+        inspectionRepository.Setup(repository => repository.FindAsync(
+                It.IsAny<Expression<Func<DailyInspection, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<DailyInspection>());
+        var taskRepository = new Mock<IRepository<PoolDutySchedule>>();
+        taskRepository.Setup(repository => repository.GetByIdAsync(taskId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(task);
+        var operations = new Mock<IWaterQualityOperations>();
+        operations.Setup(repository => repository.CompleteOperationalChecklistTaskAsync(
+                It.IsAny<DailyInspection>(), It.IsAny<OperationalTaskExecutionAuthorization>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var userRepository = new Mock<IRepository<User>>();
+        userRepository.Setup(repository => repository.GetByIdAsync(adminId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User { Id = adminId, Username = "admin" });
+
+        var handler = new SubmitDailyInspectionHandler(
+            inspectionRepository.Object,
+            new Mock<IRepository<Equipment>>().Object,
+            taskRepository.Object,
+            operations.Object,
+            new Mock<IRepository<Notification>>().Object,
+            userRepository.Object,
+            unitOfWork.Object,
+            new SubmitDailyInspectionValidator(),
+            new TestTimeProvider(MorningTestTimeUtc),
+            currentUser.Object);
+        var command = new SubmitDailyInspectionCommand
+        {
+            InspectorId = Guid.NewGuid(),
+            ShiftId = FixedShifts.Morning.Id,
+            OperationalTaskId = taskId,
+            AdminExecutionConfirmed = true,
+            ExpectedTaskRevision = 4,
+            ExpectedAssigneeId = null,
+            Items = [new DailyInspectionItemDto { EquipmentId = Guid.NewGuid(), EquipmentName = "Camera", IsPassed = true }]
+        };
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.Equal(adminId, result.InspectorId);
+        operations.Verify(repository => repository.CompleteOperationalChecklistTaskAsync(
+            It.Is<DailyInspection>(inspection => inspection.InspectorId == adminId && inspection.OperationalTaskId == taskId),
+            It.Is<OperationalTaskExecutionAuthorization>(authorization => authorization.IsAdmin &&
+                authorization.AdminExecutionConfirmed && authorization.ExpectedTaskRevision == 4 &&
+                authorization.ExpectedAssigneeId == null), It.IsAny<CancellationToken>()), Times.Once);
+        taskTransaction.Verify(transaction => transaction.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact(DisplayName = "Submit inspection có thiết bị hỏng -> Lưu trạng thái HasIssues và thông báo Admin")]
     public async Task SubmitInspection_HasBrokenEquipment_SavesIssuesAndNotifiesAdmin()
     {
@@ -89,6 +165,8 @@ public sealed class DailyInspectionTests
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.Setup(user => user.UserId).Returns(inspectorId);
 
         userRepo.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = inspectorId, Username = "lifeguard1" });
@@ -101,11 +179,14 @@ public sealed class DailyInspectionTests
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
             eqRepo.Object,
+            new Mock<IRepository<PoolDutySchedule>>().Object,
+            new Mock<IWaterQualityOperations>().Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
-            new TestTimeProvider(MorningTestTimeUtc));
+            new TestTimeProvider(MorningTestTimeUtc),
+            currentUser.Object);
 
         var command = new SubmitDailyInspectionCommand
         {
@@ -141,19 +222,25 @@ public sealed class DailyInspectionTests
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
+        var inspectorId = Guid.NewGuid();
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.Setup(user => user.UserId).Returns(inspectorId);
 
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
             eqRepo.Object,
+            new Mock<IRepository<PoolDutySchedule>>().Object,
+            new Mock<IWaterQualityOperations>().Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
-            new TestTimeProvider(TooEarlyTestTimeUtc)); // 04:00 sáng
+            new TestTimeProvider(TooEarlyTestTimeUtc), // 04:00 sáng
+            currentUser.Object);
 
         var command = new SubmitDailyInspectionCommand
         {
-            InspectorId = Guid.NewGuid(),
+            InspectorId = inspectorId,
             ShiftId = FixedShifts.Morning.Id,
             Items =
             [
@@ -183,6 +270,8 @@ public sealed class DailyInspectionTests
         var notifRepo = new Mock<IRepository<Notification>>();
         var userRepo = new Mock<IRepository<User>>();
         var unitOfWork = new Mock<IUnitOfWork>();
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.Setup(user => user.UserId).Returns(inspectorId);
 
         // Giả lập đã có bản ghi trong DB cho ca sáng hôm nay
         inspectionRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<DailyInspection, bool>>>(), It.IsAny<CancellationToken>()))
@@ -204,11 +293,14 @@ public sealed class DailyInspectionTests
         var handler = new SubmitDailyInspectionHandler(
             inspectionRepo.Object,
             eqRepo.Object,
+            new Mock<IRepository<PoolDutySchedule>>().Object,
+            new Mock<IWaterQualityOperations>().Object,
             notifRepo.Object,
             userRepo.Object,
             unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
-            new TestTimeProvider(MorningTestTimeUtc));
+            new TestTimeProvider(MorningTestTimeUtc),
+            currentUser.Object);
 
         var command = new SubmitDailyInspectionCommand
         {

@@ -11,13 +11,10 @@ public sealed class AddEntryLogInputMode : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<string>(
-            name: "input_mode",
-            schema: "smart_pool",
-            table: "entry_logs",
-            type: "character varying(50)",
-            maxLength: 50,
-            nullable: true);
+        migrationBuilder.Sql("""
+            ALTER TABLE smart_pool.entry_logs
+            ADD COLUMN IF NOT EXISTS input_mode character varying(50);
+            """);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
