@@ -109,7 +109,9 @@ export default function MyClassAttendancesView() {
               </> : canSubmit ? <Button type="primary" icon={<CameraOutlined />}
                 onClick={() => { setSelected(item); setError(null) }}>Gửi ảnh điểm danh</Button>
                 : <span className="class-attendance-muted">{item.sessionStatus === 'Cancelled' ? 'Không điểm danh' :
-                  item.registrationStatus !== 'Confirmed' ? 'Đăng ký đã hủy' :
+                  item.registrationStatus === 'PendingApproval' ? 'Đang chờ Coach duyệt' :
+                    item.registrationStatus === 'Rejected' ? 'Yêu cầu bị từ chối' :
+                      item.registrationStatus !== 'Confirmed' ? 'Đăng ký đã hủy' :
                     now < Date.parse(item.startsAt) ? 'Chưa đến giờ gửi ảnh' : 'Đã hết hạn gửi ảnh'}</span>}
             </article>
           })}

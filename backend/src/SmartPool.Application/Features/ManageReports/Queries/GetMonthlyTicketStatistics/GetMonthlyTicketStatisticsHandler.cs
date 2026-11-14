@@ -38,12 +38,6 @@ public sealed class GetMonthlyTicketStatisticsHandler
                         tt.TicketCategory.Equals(TicketCategoryEnum.VE_THANG.ToString(), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // Fallback: nếu DB chưa có vé tháng thật, trả về dữ liệu mẫu (demo)
-        if (!monthlyTickets.Any())
-        {
-            return BuildDemoResponse(request.Filter);
-        }
-
         // === 1. TÍNH TOÁN KPI CARDS ===
         int totalMembers = monthlyTickets.Select(t => t.UserId ?? t.Id).Distinct().Count();
         int newMembersThisMonth = monthlyTickets.Count(t =>
@@ -223,51 +217,4 @@ public sealed class GetMonthlyTicketStatisticsHandler
         };
     }
 
-    /// <summary>
-    /// Trả về dữ liệu demo chuẩn khi database chưa có vé tháng thật.
-    /// Dữ liệu bám sát mockup mẫu UI và chỉ sử dụng đúng 2 loại vé tháng thật: "Vé tháng người lớn" & "Vé tháng trẻ em".
-    /// </summary>
-    private static MonthlyTicketStatisticsResponse BuildDemoResponse(string? filter)
-    {
-        var rawMembers = new List<MemberTicketWarningDto>
-        {
-            new() { Id = Guid.NewGuid(), CustomerName = "Nguyễn Văn Tuấn", Email = "tuan.nguyen@gmail.com", Phone = "0988.223.111", PackageName = "Vé tháng người lớn", IssueDate = "12/09/2026", ExpiryDate = "12/10/2026", DaysRemaining = 3, Status = "EXPIRING_SOON", TotalEntriesUsed = 18 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Lê Thị Bích Hạnh", Email = "hanh.le@gmail.com", Phone = "0912.445.678", PackageName = "Vé tháng người lớn", IssueDate = "13/09/2026", ExpiryDate = "13/10/2026", DaysRemaining = 4, Status = "EXPIRING_SOON", TotalEntriesUsed = 21 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Trần Minh Hoàng", Email = "hoang.tm@gmail.com", Phone = "0933.789.012", PackageName = "Vé tháng trẻ em", IssueDate = "14/09/2026", ExpiryDate = "14/10/2026", DaysRemaining = 5, Status = "EXPIRING_SOON", TotalEntriesUsed = 12 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Phạm Quỳnh Chi", Email = "chi.pq@gmail.com", Phone = "0944.567.890", PackageName = "Vé tháng người lớn", IssueDate = "15/09/2026", ExpiryDate = "15/10/2026", DaysRemaining = 6, Status = "EXPIRING_SOON", TotalEntriesUsed = 15 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Đỗ Đức Dũng", Email = "dung.do@gmail.com", Phone = "0966.123.456", PackageName = "Vé tháng trẻ em", IssueDate = "16/09/2026", ExpiryDate = "16/10/2026", DaysRemaining = 7, Status = "EXPIRING_SOON", TotalEntriesUsed = 8 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Vũ Mai Phương", Email = "phuong.vu@gmail.com", Phone = "0977.890.123", PackageName = "Vé tháng người lớn", IssueDate = "10/09/2026", ExpiryDate = "10/10/2026", DaysRemaining = 1, Status = "EXPIRING_SOON", TotalEntriesUsed = 24 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Hoàng Bảo Nam", Email = "nam.hb@gmail.com", Phone = "0922.333.444", PackageName = "Vé tháng trẻ em", IssueDate = "01/10/2026", ExpiryDate = "31/10/2026", DaysRemaining = 22, Status = "ACTIVE", TotalEntriesUsed = 6 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Ngô Thùy Trang", Email = "trang.ngo@gmail.com", Phone = "0911.222.333", PackageName = "Vé tháng người lớn", IssueDate = "05/10/2026", ExpiryDate = "05/11/2026", DaysRemaining = 26, Status = "ACTIVE", TotalEntriesUsed = 4 },
-            new() { Id = Guid.NewGuid(), CustomerName = "Bùi Anh Tuấn", Email = "tuan.ba@gmail.com", Phone = "0933.111.222", PackageName = "Vé tháng người lớn", IssueDate = "01/09/2026", ExpiryDate = "01/10/2026", DaysRemaining = -8, Status = "EXPIRED", TotalEntriesUsed = 22 },
-        };
-
-        var filteredList = ApplyFilter(rawMembers, filter);
-
-        return new MonthlyTicketStatisticsResponse
-        {
-            TotalMembers = 148,
-            NewMembersThisMonth = 12,
-            ActiveTickets = 132,
-            ActivePercentage = 89.2,
-            ExpiringSoonTickets = 16,
-            ExpiredTickets = 16,
-            RenewalRate = 78.5,
-            MonthlyTrends = new List<MonthlyTrendDto>
-            {
-                new() { Month = "T05", RenewedMembers = 45, NewMembers = 22 },
-                new() { Month = "T06", RenewedMembers = 58, NewMembers = 35 },
-                new() { Month = "T07", RenewedMembers = 72, NewMembers = 48 },
-                new() { Month = "T08", RenewedMembers = 85, NewMembers = 40 },
-                new() { Month = "T09", RenewedMembers = 96, NewMembers = 28 },
-                new() { Month = "T10", RenewedMembers = 100, NewMembers = 32 },
-            },
-            PackageDistributions = new List<PackageDistributionDto>
-            {
-                new() { Name = "Vé tháng người lớn", Value = 98, Percentage = 66.2, Color = "#8b5cf6" },
-                new() { Name = "Vé tháng trẻ em",    Value = 50, Percentage = 33.8, Color = "#0284c7" },
-            },
-            MemberWarnings = filteredList
-        };
-    }
 }

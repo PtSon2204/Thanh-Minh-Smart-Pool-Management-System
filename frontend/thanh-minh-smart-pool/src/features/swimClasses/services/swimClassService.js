@@ -11,6 +11,8 @@ export const swimClassService = {
   cancelMyRegistration: (classId) => apiClient.patch(`${BASE}/${classId}/registrations/me/cancel`).then(({ data }) => data),
   getClassRegistrations: (classId, params, signal) => apiClient.get(`${BASE}/${classId}/registrations`, { params, signal }).then(({ data }) => data),
   cancelClassRegistration: (classId, registrationId, payload) => apiClient.patch(`${BASE}/${classId}/registrations/${registrationId}/cancel`, payload).then(({ data }) => data),
+  reviewClassRegistration: (classId, registrationId, payload) => apiClient.patch(
+    `${BASE}/${classId}/registrations/${registrationId}/review`, payload).then(({ data }) => data),
   getMyClassAttendances: (classId, params, signal) => apiClient.get(`${BASE}/${classId}/attendances/me`, { params, signal }).then(({ data }) => data),
   submitClassAttendance: (classId, sessionId, image) => {
     const body = new FormData()

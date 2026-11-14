@@ -220,12 +220,6 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
             .Where(t => isAll || t.TotalAmount > 0)
             .ToList();
 
-        // Fallback: nếu không có data thực, trả demo data
-        if (!filteredOrders.Any())
-        {
-            return BuildDemoResponse(fromDate, toDate, daysCount, isSingle, isMonthly);
-        }
-
         return new TicketRevenueStatisticsResponse
         {
             TotalTicketsSold = totalTicketsSold,
@@ -256,81 +250,4 @@ public sealed class GetTicketRevenueStatisticsHandler : IRequestHandler<GetTicke
         };
     }
 
-    /// <summary>
-    /// Trả về dữ liệu demo khi chưa có giao dịch thực.
-    /// </summary>
-    private static TicketRevenueStatisticsResponse BuildDemoResponse(
-        DateTime from, DateTime to, int daysCount, bool isSingle, bool isMonthly)
-    {
-        var rng = new Random(42);
-        var dailyRevenues = new List<DailyRevenueDto>();
-        decimal totalRev = 0;
-        int totalTickets = 0;
-
-        for (var day = from.Date; day <= to.Date; day = day.AddDays(1))
-        {
-            var ticketCount = isMonthly ? rng.Next(2, 10) : (isSingle ? rng.Next(8, 35) : rng.Next(8, 45));
-            var pricePerTicket = isMonthly ? rng.Next(150000, 250000) : (isSingle ? rng.Next(35000, 60000) : rng.Next(35000, 85000));
-            var revenue = ticketCount * pricePerTicket;
-            totalTickets += ticketCount;
-            totalRev += revenue;
-
-            dailyRevenues.Add(new DailyRevenueDto
-            {
-                Date = day.ToString("dd/MM"),
-                Revenue = revenue,
-                TicketCount = ticketCount
-            });
-        }
-
-        var allSales = new List<TicketTypeSalesDto>
-        {
-            new() { Name = "Vé lượt người lớn",  Value = 165, Color = "#0284c7" },
-            new() { Name = "Vé lượt trẻ em",     Value = 80,  Color = "#06b6d4" },
-            new() { Name = "Vé tháng người lớn", Value = 32,  Color = "#8b5cf6" },
-            new() { Name = "Vé tháng trẻ em",    Value = 14,  Color = "#ec4899" },
-        };
-
-        var allRevs = new List<TicketTypeRevenueDto>
-        {
-            new() { Name = "Vé lượt người lớn",  Revenue = 8_250_000, Count = 165 },
-            new() { Name = "Vé lượt trẻ em",     Revenue = 4_000_000, Count = 80  },
-            new() { Name = "Vé tháng người lớn", Revenue = 6_400_000, Count = 32  },
-            new() { Name = "Vé tháng trẻ em",    Revenue = 2_800_000, Count = 14  },
-        };
-
-        var allTxs = new List<RecentTransactionDto>
-        {
-            new() { Id = Guid.NewGuid(), CustomerName = "Nguyễn Văn An",    Phone = "0901.234.567", TicketType = "Vé lượt người lớn",  Quantity = 2, TotalAmount = 100_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm") },
-            new() { Id = Guid.NewGuid(), CustomerName = "Trần Thị Mai",     Phone = "0912.345.678", TicketType = "Vé tháng người lớn", Quantity = 1, TotalAmount = 200_000, PaymentMethod = "Chuyển khoản", Status = "Completed", CreatedAt = DateTime.UtcNow.AddHours(-2).ToString("dd/MM/yyyy HH:mm") },
-            new() { Id = Guid.NewGuid(), CustomerName = "Lê Hoàng Nam",     Phone = "0923.456.789", TicketType = "Vé lượt trẻ em",     Quantity = 3, TotalAmount = 150_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddHours(-5).ToString("dd/MM/yyyy HH:mm") },
-            new() { Id = Guid.NewGuid(), CustomerName = "Phạm Thanh Hương", Phone = "0934.567.890", TicketType = "Vé lượt người lớn",  Quantity = 1, TotalAmount = 50_000,  PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-1).ToString("dd/MM/yyyy HH:mm") },
-            new() { Id = Guid.NewGuid(), CustomerName = "Đỗ Minh Tuấn",    Phone = "0945.678.901", TicketType = "Vé tháng trẻ em",    Quantity = 1, TotalAmount = 200_000, PaymentMethod = "Chuyển khoản", Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-1).ToString("dd/MM/yyyy HH:mm") },
-            new() { Id = Guid.NewGuid(), CustomerName = "Vũ Thị Lan",      Phone = "0956.789.012", TicketType = "Vé lượt người lớn",  Quantity = 2, TotalAmount = 100_000, PaymentMethod = "Tiền mặt",     Status = "Completed", CreatedAt = DateTime.UtcNow.AddDays(-2).ToString("dd/MM/yyyy HH:mm") },
-        };
-
-        var filteredSales = allSales
-            .Where(s => isSingle ? s.Name.Contains("lượt") : (isMonthly ? s.Name.Contains("tháng") : true))
-            .ToList();
-
-        var filteredRevs = allRevs
-            .Where(r => isSingle ? r.Name.Contains("lượt") : (isMonthly ? r.Name.Contains("tháng") : true))
-            .ToList();
-
-        var filteredTxs = allTxs
-            .Where(t => isSingle ? t.TicketType.Contains("lượt") : (isMonthly ? t.TicketType.Contains("tháng") : true))
-            .ToList();
-
-        return new TicketRevenueStatisticsResponse
-        {
-            TotalTicketsSold = totalTickets,
-            TotalRevenue = totalRev,
-            AverageOrderValue = totalTickets > 0 ? Math.Round(totalRev / totalTickets, 0) : 0,
-            RevenueGrowthRate = 12.5,
-            DailyRevenues = dailyRevenues,
-            TicketTypeSales = filteredSales,
-            TicketTypeRevenues = filteredRevs,
-            RecentTransactions = filteredTxs
-        };
-    }
 }

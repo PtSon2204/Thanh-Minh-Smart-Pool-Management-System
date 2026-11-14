@@ -8,6 +8,8 @@ using SmartPool.Application.Features.ManageReports.Queries.GetCustomerStatistics
 using SmartPool.Application.Features.ManageReports.Queries.GetTicketRevenueStatistics;
 using SmartPool.Application.Features.ManageReports.Queries.GetMonthlyTicketStatistics;
 using SmartPool.Application.Features.ManageReports.Queries.GetIncidentStatistics;
+using SmartPool.Application.Features.ManageReports.Queries.GetRevenueStatistics;
+using SmartPool.Application.Features.ManageReports.Queries.GetRentalStatistics;
 
 namespace SmartPool.API.Controllers;
 
@@ -73,6 +75,30 @@ public sealed class ReportsController : ControllerBase
     [RequirePermission("reports", "read")]
     [ProducesResponseType(typeof(IncidentStatisticsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIncidentStatistics([FromQuery] GetIncidentStatisticsQuery query, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy dữ liệu thống kê doanh thu tổng hợp (vé + cho thuê đồ).
+    /// </summary>
+    [HttpGet("revenue")]
+    [RequirePermission("reports", "read")]
+    [ProducesResponseType(typeof(RevenueStatisticsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRevenueStatistics([FromQuery] GetRevenueStatisticsQuery query, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy dữ liệu thống kê chi phí / hoạt động thuê đồ.
+    /// </summary>
+    [HttpGet("rentals")]
+    [RequirePermission("reports", "read")]
+    [ProducesResponseType(typeof(RentalStatisticsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRentalStatistics([FromQuery] GetRentalStatisticsQuery query, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(query, cancellationToken);
         return Ok(result);

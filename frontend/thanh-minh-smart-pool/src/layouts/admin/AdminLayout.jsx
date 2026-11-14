@@ -26,6 +26,7 @@ import {
   TransactionOutlined,
   BarChartOutlined,
   BellOutlined,
+  MailOutlined,
   LogoutOutlined,
   LockOutlined,
   SecurityScanOutlined,
@@ -472,6 +473,11 @@ export default function AdminLayout() {
             },
           ],
         },
+        isAdmin && {
+          key: "/admin/notifications",
+          icon: <MailOutlined />,
+          label: <Link to="/admin/notifications">Thông báo & Email</Link>,
+        },
       ].filter(Boolean),
     },
     {
@@ -485,18 +491,18 @@ export default function AdminLayout() {
           label: "Thống kê",
           children: [
             {
+              key: "/admin/statistics/rentals",
+              label: <Link to="/admin/statistics/rentals">Thống kê chi phí thuê đồ</Link>,
+            },
+            {
+              key: "/admin/statistics/revenue",
+              label: <Link to="/admin/statistics/revenue">Thống kê doanh thu</Link>,
+            },
+            {
               key: "/admin/statistics/ticket-revenue",
               label: (
                 <Link to="/admin/statistics/ticket-revenue">
-                  Thống kê số tiền vé
-                </Link>
-              ),
-            },
-            {
-              key: "/admin/statistics/monthly-tickets",
-              label: (
-                <Link to="/admin/statistics/monthly-tickets">
-                  Thống kê vé tháng
+                  Thống kê bán vé
                 </Link>
               ),
             },
@@ -504,7 +510,7 @@ export default function AdminLayout() {
               key: "/admin/statistics/user-count",
               label: (
                 <Link to="/admin/statistics/user-count">
-                  Thống kê số lượng người dùng
+                  Thống kê số lượng khách
                 </Link>
               ),
             },

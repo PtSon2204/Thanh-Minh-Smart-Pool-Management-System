@@ -9,14 +9,11 @@ import {
   Segmented,
   Typography,
   Tooltip,
-  Badge,
   Row,
   Col,
   Statistic,
 } from 'antd';
 import {
-  ThunderboltOutlined,
-  PlusOutlined,
   EditOutlined,
   ReloadOutlined,
   LeftOutlined,
@@ -30,7 +27,6 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { waterQualityService } from '../services/waterQualityService';
-import AutoAssignPoolDutyModal from './AutoAssignPoolDutyModal';
 import UpdatePoolDutyModal from './UpdatePoolDutyModal';
 
 const { Text } = Typography;
@@ -65,7 +61,6 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
   const [statusFilter, setStatusFilter] = useState(null);
 
   // Modals
-  const [autoAssignOpen, setAutoAssignOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedDuty, setSelectedDuty] = useState(null);
 
@@ -151,9 +146,6 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
   // Summary metrics for current week
   const totalScheduled = schedules.filter((s) => s.status !== 'Cancelled').length;
   const completedCount = schedules.filter((s) => s.status === 'Completed').length;
-  const autoAssignedCount = schedules.filter(
-    (s) => s.assignmentType === 'Auto' && s.status !== 'Cancelled'
-  ).length;
 
   const tableColumns = [
     {
@@ -196,21 +188,6 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
           </div>
         </Space>
       ),
-    },
-    {
-      title: 'Hình thức gán',
-      dataIndex: 'assignmentType',
-      key: 'assignmentType',
-      width: 130,
-      align: 'center',
-      render: (type) =>
-        type === 'Auto' ? (
-          <Tag color="gold" icon={<ThunderboltOutlined />}>
-            Tự động
-          </Tag>
-        ) : (
-          <Tag color="purple">Cập nhật tay</Tag>
-        ),
     },
     {
       title: 'Trạng thái trực',
@@ -297,7 +274,7 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Overview KPI row */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12}>
           <Card size="small">
             <Statistic
               title="Tổng số ca trực bể trong tuần"
@@ -307,7 +284,7 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12}>
           <Card size="small">
             <Statistic
               title="Ca đã hoàn thành trực & đo nước"
@@ -315,17 +292,6 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
               suffix="ca"
               valueStyle={{ color: '#3f8600' }}
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card size="small">
-            <Statistic
-              title="Ca được gán tự động (Round-Robin)"
-              value={autoAssignedCount}
-              suffix="ca"
-              valueStyle={{ color: '#d48806' }}
-              prefix={<ThunderboltOutlined style={{ color: '#faad14' }} />}
             />
           </Card>
         </Col>
@@ -432,28 +398,6 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
 
             <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
               Làm mới
-            </Button>
-
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() =>
-                handleOpenEdit({
-                  dutyDate: dayjs().format('YYYY-MM-DD'),
-                  shiftId: shiftsToRender[0]?.shiftId,
-                  status: 'Scheduled',
-                })
-              }
-            >
-              Gán ca lẻ
-            </Button>
-
-            <Button
-              type="primary"
-              icon={<ThunderboltOutlined />}
-              onClick={() => setAutoAssignOpen(true)}
-              style={{ background: '#fa8c16', borderColor: '#fa8c16' }}
-            >
-              Tự động gán lịch trực bể
             </Button>
           </Space>
         </div>
@@ -599,43 +543,28 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
                                     </Tag>
                                   </Tooltip>
                                 ) : (
-                                  <Badge
-                                    status="default"
-                                    text={
-                                      <span style={{ fontSize: 11, color: '#8c8c8c' }}>
-                                        {slotDuty.assignmentType === 'Auto'
-                                          ? 'Gán tự động'
-                                          : 'Gán thủ công'}
-                                      </span>
-                                    }
-                                  />
+                                  <Text type="secondary" style={{ fontSize: 11 }}>
+                                    Chưa đo nước
+                                  </Text>
                                 )}
                               </div>
                             </div>
                           ) : (
                             <div
-                              onClick={() =>
-                                handleOpenEdit({
-                                  dutyDate: dateStr,
-                                  shiftId: shift.shiftId,
-                                  status: 'Scheduled',
-                                })
-                              }
                               style={{
                                 height: '100%',
-                                border: '1px dashed #d9d9d9',
+                                border: '1px dashed #f0f0f0',
                                 borderRadius: 6,
                                 display: 'flex',
-                                flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                cursor: 'pointer',
                                 color: '#bfbfbf',
                                 padding: 8,
                               }}
                             >
-                              <PlusOutlined />
-                              <span style={{ fontSize: 12, marginTop: 4 }}>Phân công trực</span>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                Chưa có ca
+                              </Text>
                             </div>
                           )}
                         </td>
@@ -654,20 +583,11 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
             columns={tableColumns}
             pagination={{ pageSize: 14, showSizeChanger: false }}
             locale={{
-              emptyText:
-                'Chưa có lịch trực bể trong tuần này. Hãy bấm "Tự động gán lịch trực bể" để phân công nhanh!',
+              emptyText: 'Chưa có lịch trực bể trong tuần này.',
             }}
           />
         )}
       </Card>
-
-      <AutoAssignPoolDutyModal
-        visible={autoAssignOpen}
-        options={options}
-        defaultDateRange={[weekStart, weekStart.add(6, 'day')]}
-        onCancel={() => setAutoAssignOpen(false)}
-        onSuccess={handleRefresh}
-      />
 
       <UpdatePoolDutyModal
         visible={editModalOpen}
@@ -680,4 +600,3 @@ export default function PoolDutyScheduleTab({ onOpenCreateMeasurement }) {
     </div>
   );
 }
-

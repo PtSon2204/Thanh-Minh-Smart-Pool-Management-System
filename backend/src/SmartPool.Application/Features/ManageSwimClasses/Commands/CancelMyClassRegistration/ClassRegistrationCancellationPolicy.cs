@@ -4,4 +4,9 @@ public static class ClassRegistrationCancellationPolicy
 {
     public static bool CanSelfCancel(DateTime? firstScheduledStart, DateTime nowUtc) =>
         firstScheduledStart is null || nowUtc < firstScheduledStart.Value;
+
+    public static bool CanWithdraw(string registrationStatus,
+        DateTime? firstScheduledStart, DateTime nowUtc) =>
+        registrationStatus == "PendingApproval" ||
+        (registrationStatus == "Confirmed" && CanSelfCancel(firstScheduledStart, nowUtc));
 }

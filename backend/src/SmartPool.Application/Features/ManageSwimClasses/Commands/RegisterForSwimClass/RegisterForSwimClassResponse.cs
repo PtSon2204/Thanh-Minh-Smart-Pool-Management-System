@@ -5,4 +5,4 @@ public sealed record RegisterForSwimClassResponse(
     Guid ClassId,
     string RegistrationStatus,
     DateTime RegisteredAt,
-    DateTime ConfirmedAt);
+    DateTime? ConfirmedAt);

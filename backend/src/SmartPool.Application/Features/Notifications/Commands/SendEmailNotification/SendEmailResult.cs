@@ -12,4 +12,5 @@ public sealed record SendEmailResult
     public string? TemplateType { get; init; }
     public DateTime SentAt { get; init; } = DateTime.UtcNow;
     public string? HtmlBody { get; init; }
+    public int TotalRecipients { get; init; } = 1;
 }
