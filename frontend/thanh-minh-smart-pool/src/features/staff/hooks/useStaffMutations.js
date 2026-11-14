@@ -9,6 +9,7 @@ function useStaffMutation(mutationFn) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: ['staff-options'] })
+      queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] })
     },
   })
 }
