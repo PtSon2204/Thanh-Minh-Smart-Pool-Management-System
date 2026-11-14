@@ -3,8 +3,26 @@
 .monitoring-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .monitoring-filters .ant-input-affix-wrapper { width: 260px; }
 .monitoring-filters .ant-select { min-width: 180px; }
-.camera-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.camera-grid .ant-card { min-width: 0; }
+.camera-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 20px; }
+.camera-grid > .ant-card { min-width: 0; }
+/* Mỗi card là một lưới cố định 3 vùng (tên → tag → video), mọi camera cùng bố cục;
+   card cùng hàng cao bằng nhau (grid-auto-rows) và video luôn bị đẩy xuống đáy
+   (justify-content: flex-end) nên khung video 16:9 căn hàng ngang, không lệch theo
+   chiều dài nhãn/trạng thái bên trên. */
+.camera-card .ant-card-body { margin: 0; display: flex; flex-direction: column; }
+.camera-card-media {
+  display: grid; grid-template-rows: auto auto 1fr;
+  grid-template-areas: 'title' 'tags' 'video';
+  gap: 12px; min-height: 100%; flex: 1;
+}
+.camera-card-title { grid-area: title; min-width: 0; min-height: 22px; display: flex; align-items: baseline; gap: 8px; }
+.camera-card-title .ant-typography { margin: 0; font-size: 16px; }
+.camera-card-location { font-size: 13px; overflow-wrap: anywhere; }
+.camera-card-tags { grid-area: tags; min-width: 0; min-height: 52px; }
+.camera-card-video { grid-area: video; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+/* Đứng video trong vùng cố định: khung 16:9 luôn cùng cao/đặt cho mọi camera. */
+.camera-card-video .camera-video-container { margin-bottom: 0; }
+.camera-card-video .camera-view-status { margin: 0; }
 .monitor-video-placeholder { aspect-ratio: 16 / 9; background: #0f172a; color: white; display: grid; place-items: center; }
 .monitoring-page video { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #0f172a; }
 .analysis-reference { margin: 16px 0; overflow-wrap: anywhere; }

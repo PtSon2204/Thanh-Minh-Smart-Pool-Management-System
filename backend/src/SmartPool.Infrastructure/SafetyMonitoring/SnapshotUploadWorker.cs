@@ -11,15 +11,39 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 
 namespace SmartPool.Infrastructure.SafetyMonitoring;
 
-public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, MonitoringFiles files, Cloudinary cloudinary, IOptions<MonitoringOptions> options,
+public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, MonitoringFiles files, AlertSnapshotQueue outbox, Cloudinary cloudinary, IOptions<MonitoringOptions> options,
     ILogger<SnapshotUploadWorker> logger) : BackgroundService
 {
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> activeEpisodes = new();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // One slow upload must not serialize alerts from every camera. Each item
+        // still has its own filesystem lease, DB scope, timeout and durable retry.
+        await Task.WhenAll(RunOutboxAsync(stoppingToken), RunOutboxAsync(stoppingToken),
+            RunOutboxAsync(stoppingToken), RunLegacyAsync(stoppingToken));
+    }
+
+    private async Task RunOutboxAsync(CancellationToken ct)
+    {
+        try {
+            while (!ct.IsCancellationRequested) {
+                try { if (await ProcessOneOutboxAsync(ct)) continue; }
+                catch (Exception) when (!ct.IsCancellationRequested) { logger.LogWarning("Snapshot outbox unavailable; retrying."); }
+                await outbox.WaitForWorkAsync(ct);
+            }
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+    }
+
+    private async Task RunLegacyAsync(CancellationToken stoppingToken)
+    {
+        var nextLegacy = DateTimeOffset.MinValue;
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                // Chỉ còn phục hồi các bản ghi cũ từ phiên bản lưu trước khi có ảnh.
+                if (DateTimeOffset.UtcNow < nextLegacy) { await Task.Delay(1000, stoppingToken); continue; }
+                nextLegacy = DateTimeOffset.UtcNow.AddSeconds(10);
                 using var scope = scopes.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
                 var stale = DateTime.UtcNow.AddMinutes(-2);
@@ -55,7 +79,7 @@ public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, Monitoring
                         var uploaded = await cloudinary.UploadAsync(new ImageUploadParams { File = new FileDescription($"{id:N}.jpg", image),
                             Folder = "smart-pool/incidents", PublicId = id.ToString("N"), Overwrite = true }, timeout.Token);
                         if (uploaded.Error != null || uploaded.SecureUrl == null) throw new IOException("Snapshot upload failed.");
-                        await scope.ServiceProvider.GetRequiredService<IMonitoringRepository>().CompleteSnapshotAsync(id, uploaded.SecureUrl.AbsoluteUri, stoppingToken);
+                        await scope.ServiceProvider.GetRequiredService<ISafetyMonitoringService>().CompleteSnapshotAsync(id, uploaded.SecureUrl.AbsoluteUri, stoppingToken);
                         File.Delete(files.PathFor($"{id:N}.jpg"));
                         File.Delete(files.PathFor($"{id:N}-source.jpg"));
                         File.Delete(files.PathFor($"{id:N}-boxes.json"));
@@ -70,8 +94,82 @@ public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, Monitoring
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception) { logger.LogWarning("Snapshot queue unavailable. Retrying."); }
-            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
         }
+    }
+
+    private async Task<bool> ProcessOneOutboxAsync(CancellationToken ct)
+    {
+        foreach (var path in outbox.PendingFiles())
+        {
+            FileStream? lease = null;
+            PendingAlertSnapshot? job = null;
+            var claimed = false;
+            string? episodeKey = null;
+            try
+            {
+                lease = new FileStream(path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                job = await outbox.ReadAsync(path, ct);
+                if (job.NextAttemptAt > DateTimeOffset.UtcNow) continue;
+                var key = $"{job.Command.SourceType}:{job.Command.SourceId}:{job.Command.Decision.TrackId}:{job.Command.Decision.Episode}";
+                if (!activeEpisodes.TryAdd(key, 0)) continue;
+                episodeKey = key;
+                claimed = true;
+                var started = Stopwatch.GetTimestamp();
+                using var scope = scopes.CreateScope();
+                var repository = scope.ServiceProvider.GetRequiredService<ISafetyMonitoringService>();
+                var target = await repository.PrepareSnapshotAsync(job.Command, ct);
+                if (target == null) { outbox.Complete(job.Id); return true; }
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeout.CancelAfter(TimeSpan.FromSeconds(30));
+                if (string.IsNullOrWhiteSpace(job.Command.ImageUrl))
+                {
+                    // Cố định public_id trước upload để retry không nhân bản asset.
+                    job = job with { Command = job.Command with { AlertId = target } };
+                    await outbox.SaveAsync(job, ct);
+                    if (!File.Exists(files.PathFor($"{job.Id:N}.jpg"))) await RenderAsync(job.Id, timeout.Token);
+                    await using var image = File.OpenRead(files.PathFor($"{job.Id:N}.jpg"));
+                    var uploaded = await cloudinary.UploadAsync(new ImageUploadParams {
+                        File = new FileDescription($"{job.Id:N}.jpg", image), Folder = "smart-pool/incidents",
+                        // A concurrent ACK may require a new warning ID after this upload.
+                        // Keep this observation's asset separate from the handled warning's photo.
+                        PublicId = job.Id.ToString("N"), Overwrite = true }, timeout.Token);
+                    if (uploaded.Error != null || uploaded.SecureUrl == null) throw new IOException("Snapshot upload failed.");
+                    job = job with { Command = job.Command with { ImageUrl = uploaded.SecureUrl.AbsoluteUri } };
+                    await outbox.SaveAsync(job, ct);
+                }
+                // Application commits the image-backed alert and decides which events to publish.
+                var recorded = await repository.RecordAsync(job.Command, timeout.Token);
+                logger.LogInformation("Alert {AlertId} saved with image: source {Source}, processing {ProcessingMs:F0} ms, observation age {ObservationAgeMs:F0} ms.",
+                    recorded.Alert.Id, job.Command.SourceType, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                    (DateTime.UtcNow - DateTime.SpecifyKind(job.Command.ObservedAt, DateTimeKind.Utc)).TotalMilliseconds);
+                outbox.Complete(job.Id);
+            }
+            catch (IOException) when (lease == null) { /* Một worker khác đang giữ lease. */ }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception exception)
+            {
+                if (job != null)
+                {
+                    job = job with { Attempts = Math.Min(job.Attempts + 1, 30),
+                        NextAttemptAt = DateTimeOffset.UtcNow.AddSeconds(Math.Min(60, Math.Pow(2, Math.Min(job.Attempts + 1, 6)))) };
+                    await outbox.SaveAsync(job, ct);
+                    logger.LogWarning("Snapshot {SnapshotId} deferred ({FailureType}); alert has not been saved without an image.", job.Id, exception.GetType().Name);
+                }
+                else logger.LogWarning("Invalid snapshot outbox item; no alert was saved.");
+            }
+            finally
+            {
+                if (episodeKey != null) activeEpisodes.TryRemove(episodeKey, out _);
+                if (lease != null)
+                {
+                    await lease.DisposeAsync();
+                    try { File.Delete(path + ".lock"); } catch (IOException) { /* Worker khác vừa nhận lease. */ }
+                }
+            }
+            if (claimed) return true;
+        }
+        return false;
     }
 
     private async Task RenderAsync(Guid id, CancellationToken ct)

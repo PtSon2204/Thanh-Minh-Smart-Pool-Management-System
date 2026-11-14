@@ -61,3 +61,19 @@ test('canvas boxes respect the video letterbox and display size', () => {
   assert.equal(canvas.height, 1200)
   globalThis.window = previousWindow
 })
+
+test('buffered camera image and its box use the same dimensions and letterbox', () => {
+  const previousWindow = globalThis.window
+  globalThis.window = { devicePixelRatio: 1 }
+  const images = [], boxes = []
+  const context = { setTransform() {}, clearRect() {}, fillRect() {}, fillText() {}, measureText() { return { width: 40 } },
+    drawImage(...args) { images.push(args) }, strokeRect(...args) { boxes.push(args) } }
+  const canvas = { width: 0, height: 0, getContext: () => context }
+  const frame = { displayWidth: 1600, displayHeight: 900 }
+  try {
+    // The live source can resize while an older decoded frame is still queued.
+    drawVideoRisks(canvas, { clientWidth: 800, clientHeight: 600, videoWidth: 640, videoHeight: 480 }, [risk('WARNING')], frame)
+    assert.deepEqual(images[0], [frame, 0, 75, 800, 450])
+    assert.deepEqual(boxes[0], [80, 165, 160, 90])
+  } finally { globalThis.window = previousWindow }
+})

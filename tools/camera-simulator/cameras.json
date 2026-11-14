@@ -1,0 +1,16 @@
+{
+  "enabled": false,
+  "environment": "Development",
+  "publishBaseUrl": "rtsp://127.0.0.1:8554",
+  "consumerBaseUrl": "rtsp://127.0.0.1:8554",
+  "ffmpegPath": "ffmpeg",
+  "ffprobePath": "ffprobe",
+  "mediaMtxPath": "mediamtx",
+  "mediaMtxConfig": "./mediamtx.yml",
+  "loopPauseSeconds": 0,
+  "cameras": [
+    { "name": "Pool Normal Camera", "streamName": "pool1", "videoPath": "./videos/normal.mp4", "fps": 25, "loop": true, "enabled": true },
+    { "name": "Pool Drowning Camera", "streamName": "pool2", "videoPath": "./videos/drowning.mp4", "fps": 25, "loop": true, "enabled": true },
+    { "name": "Pool Splash Camera", "streamName": "pool3", "videoPath": "./videos/splash.mp4", "fps": 25, "loop": true, "enabled": false }
+  ]
+}

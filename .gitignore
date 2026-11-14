@@ -157,6 +157,10 @@ PublishScripts/
 MigrationBackup/
 # Runtime phuc vu test (Postgres portable, FFmpeg tools, video test)
 backend/.test-runtime/
+# Runtime uploads, rendered videos, snapshots, timelines and pending outbox data
+backend/src/SmartPool.API/App_Data/
+# Auto-generated local development certificate
+/auto.crt
 
 # Thu vien Python vendored + FFmpeg binary dung cho worker AI
 backend/ai/.deps/
@@ -189,3 +193,7 @@ ARCHITECTURE.md
 
 # Bỏ qua tất cả file Markdown
 *.md
+!/tools/camera-simulator/README.md
+!/tools/camera-simulator/VERIFICATION.md
+!/docs/LUONG_GIAM_SAT_AN_TOAN.md
+!/docs/KIEM_TRA_GIAM_SAT_AN_TOAN.md

@@ -13,7 +13,7 @@ namespace SmartPool.Domain.Entities
         // null khi cảnh báo đến từ video tải lên (UPLOAD), không gắn camera
         public Guid? CamId { get; set; }
         public DateTime WarningTime { get; set; }
-        // Rỗng cho tới khi upload xong ảnh snapshot lên Cloudinary; không bao giờ null (cột NOT NULL).
+        // Bản ghi mới phải có URL ảnh đã upload; giá trị rỗng chỉ còn ở dữ liệu cũ.
         public string ImageUrl { get; set; } = "";
         public string SeverityLevel { get; set; } = null!;
         public decimal Confidence { get; set; }

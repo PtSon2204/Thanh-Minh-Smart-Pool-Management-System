@@ -55,9 +55,10 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         await using var cmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{database}\" WITH (FORCE)", connection);
         await cmd.ExecuteNonQueryAsync();
     }
-    private MonitoringRepository Repo(SmartPoolDbContext db) => new(db, events, Options.Create(new RiskOptions()), NullLogger<MonitoringRepository>.Instance);
+    private SafetyMonitoringService Repo(SmartPoolDbContext db) => new(new MonitoringRepository(db), events,
+        Options.Create(new RiskOptions()), TimeProvider.System, NullLogger<SafetyMonitoringService>.Instance);
     private RecordRiskCommand Event(string severity = "WARNING", string source = "LIVE", Guid? id = null, string? episode = null) =>
-        new(source, id ?? cameraId, new("1", episode ?? "episode", severity, .9, 5, [.1, .1, .3, .5]), .9, DateTime.UtcNow);
+        new(source, id ?? cameraId, new("1", episode ?? "episode", severity, .9, 5, [.1, .1, .3, .5]), .9, DateTime.UtcNow, "https://example.test/verified-snapshot.jpg");
 
     [Fact]
     public async Task Migration_PreservesExistingWarningsAndIncidents()
@@ -103,8 +104,10 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
             alertId = (await Repo(db).RecordAsync(Event(), default)).Alert.Id;
             Assert.Equal(alertId, (await Repo(db).RecordAsync(Event(), default)).Alert.Id);
             var escalated = await Repo(db).RecordAsync(Event("CRITICAL"), default);
-            Assert.True(escalated.SnapshotRequired); Assert.Equal(alertId, escalated.Alert.Id);
-            Assert.False((await Repo(db).RecordAsync(Event("CRITICAL"), default)).SnapshotRequired);
+            Assert.Equal("COMPLETED", escalated.Alert.SnapshotStatus); Assert.Equal(alertId, escalated.Alert.Id);
+            Assert.Equal("COMPLETED", escalated.Alert.SnapshotStatus);
+            Assert.False(string.IsNullOrWhiteSpace(escalated.Alert.ImageUrl));
+            Assert.Equal(alertId, (await Repo(db).RecordAsync(Event("CRITICAL"), default)).Alert.Id);
         }
         async Task<bool> Ack()
         {
@@ -142,7 +145,7 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() => Repo(db).GetAsync(alert.Alert.Id, Guid.NewGuid(), false, default));
         await Repo(db).HandleAsync(alert.Alert.Id, "ACKNOWLEDGED", userId, false, default);
         await Repo(db).CompleteSnapshotAsync(alert.Alert.Id, "https://example.test/snapshot.jpg", default);
-        Assert.Empty(await db.Incidents.ToListAsync()); Assert.Empty(events.Names); Assert.True(alert.SnapshotRequired);
+        Assert.Empty(await db.Incidents.ToListAsync()); Assert.Empty(events.Names); Assert.Equal("COMPLETED", alert.Alert.SnapshotStatus);
     }
 
     [Fact]
@@ -193,13 +196,39 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
     {
         await using var db = new SmartPoolDbContext(options); var repo = Repo(db);
         var warning = await repo.RecordAsync(Event(), default);
+        var uploadTarget = await repo.PrepareSnapshotAsync(Event("CRITICAL") with { ImageUrl = null }, default);
+        Assert.Equal(warning.Alert.Id, uploadTarget);
         await repo.HandleAsync(warning.Alert.Id, "ACKNOWLEDGED", userId, true, default);
-        var critical = await repo.RecordAsync(Event("CRITICAL"), default);
+        Assert.NotEqual(warning.Alert.Id, await repo.PrepareSnapshotAsync(Event("CRITICAL") with { AlertId = uploadTarget, ImageUrl = null }, default));
+        var critical = await repo.RecordAsync(Event("CRITICAL") with { AlertId = uploadTarget }, default);
         Assert.NotEqual(warning.Alert.Id, critical.Alert.Id); Assert.Equal("PENDING", critical.Alert.Status);
         Assert.Equal("ACKNOWLEDGED", (await repo.GetAsync(warning.Alert.Id, userId, true, default)).Status);
         Assert.Equal(critical.Alert.Id, (await repo.RecordAsync(Event("CRITICAL"), default)).Alert.Id);
         await repo.HandleAsync(critical.Alert.Id, "ACKNOWLEDGED", userId, true, default);
         Assert.Equal(1, await db.Incidents.CountAsync());
+    }
+
+    [Fact]
+    public async Task VisibleWarningAck_RacingEscalation_NeverCreatesAnIncidentOrSilentlyHandlesTheCriticalAlert()
+    {
+        Guid id;
+        await using (var setup = new SmartPoolDbContext(options)) id = (await Repo(setup).RecordAsync(Event(), default)).Alert.Id;
+        var ack = Task.Run(async () => {
+            await using var db = new SmartPoolDbContext(options);
+            try { await Repo(db).HandleAsync(id, "ACKNOWLEDGED", userId, true, default, "WARNING"); }
+            catch (MonitoringConflictException) { }
+        });
+        var escalation = Task.Run(async () => {
+            await using var db = new SmartPoolDbContext(options);
+            return await Repo(db).RecordAsync(Event("CRITICAL"), default);
+        });
+        await Task.WhenAll(ack, escalation);
+        await using var verify = new SmartPoolDbContext(options);
+        Assert.Empty(await verify.Incidents.ToListAsync());
+        var critical = await verify.Warnings.AsNoTracking().SingleAsync(x => x.Id == escalation.Result.Alert.Id);
+        Assert.Equal("CRITICAL", critical.SeverityLevel);
+        Assert.Equal("PENDING", critical.Status);
+        if (critical.Id != id) Assert.Equal("WARNING", (await verify.Warnings.SingleAsync(x => x.Id == id)).SeverityLevel);
     }
 
     private sealed class Events : INotificationService

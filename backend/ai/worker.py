@@ -1,4 +1,5 @@
-"""Private JSON-lines worker. Uses the supplied ONNX weights; never downloads/trains a model.
+"""Private worker: JSON-line headers with optional length-delimited JPEG bodies for LIVE.
+Uses the supplied ONNX weights; never downloads/trains a model.
 stdout is protocol only. Input paths originate from the API's private storage, not clients.
 Risk decisions are made in the shared .NET RiskDecisionEngine for both LIVE and UPLOAD.
 """
@@ -25,6 +26,84 @@ from ultralytics.trackers.byte_tracker import BYTETracker
 
 
 class CameraTracker(BYTETracker):
+    def _apply_match(self, track, detection, activated, refind):
+        # Kalman chỉ dùng để liên kết danh tính. Box hiển thị phải là measurement
+        # của frame hiện tại, không phải vị trí lọc còn trễ phía sau người đang bơi.
+        observation = detection.xyxy.copy()
+        super()._apply_match(track, detection, activated, refind)
+        track.observation_box = observation
+
+    def _format_output(self):
+        rows = []
+        for track in self.tracked_stracks:
+            if not track.is_activated:
+                continue
+            row = track.result
+            if track.frame_id == self.frame_id and hasattr(track, 'observation_box'):
+                row[:4] = track.observation_box.tolist()
+            rows.append(row)
+        return np.asarray(rows, dtype=np.float32)
+
+    @staticmethod
+    def _nested_observation(first, second):
+        """Hai box gần đồng tâm, một box hầu như nằm trong box kia.
+
+        Chỉ dùng để cứu ghép/bỏ birth trùng; không gộp hai ID đã được xác nhận.
+        """
+        first, second = np.asarray(first), np.asarray(second)
+        if not np.isfinite(first).all() or not np.isfinite(second).all():
+            return False
+        sizes = np.array([first[2:] - first[:2], second[2:] - second[:2]])
+        if (sizes <= 0).any():
+            return False
+        areas = sizes.prod(axis=1)
+        ratio = areas.min() / areas.max()
+        intersection = np.maximum(0, np.minimum(first[2:], second[2:]) - np.maximum(first[:2], second[:2])).prod()
+        centers = np.array([(first[:2] + first[2:]) / 2, (second[:2] + second[2:]) / 2])
+        center_distance = np.linalg.norm(centers[0] - centers[1]) / np.linalg.norm(sizes[areas.argmax()])
+        return 0.20 <= ratio <= 0.70 and intersection / areas.min() >= 0.95 and center_distance <= 0.20
+
+    def _post_first_association(self, pool, detections, u_track, u_detection, activated, refind):
+        # Score fusion có thể bỏ ghép khi người được detect từ cả thân -> phần thân nhỏ.
+        # Chỉ cứu cặp duy nhất theo cả hai chiều, vừa thấy <= 3 lần update trước.
+        if len(u_track) == 0 or len(u_detection) == 0:
+            return u_track, u_detection
+        candidates = [(ti, di) for ti, track in enumerate(pool) for di, detection in enumerate(detections)
+                      if track.is_activated and self.frame_id - track.frame_id <= 3
+                      and self._nested_observation(track.xyxy, detection.xyxy)]
+        track_counts, detection_counts = {}, {}
+        for ti, di in candidates:
+            track_counts[ti] = track_counts.get(ti, 0) + 1
+            detection_counts[di] = detection_counts.get(di, 0) + 1
+        matched_tracks, matched_detections = set(), set()
+        for ti, di in candidates:
+            if ti not in u_track or di not in u_detection:
+                continue
+            if track_counts[ti] != 1 or detection_counts[di] != 1:
+                continue
+            self._apply_match(pool[ti], detections[di], activated, refind)
+            matched_tracks.add(ti)
+            matched_detections.add(di)
+        return ([ti for ti in u_track if ti not in matched_tracks],
+                [di for di in u_detection if di not in matched_detections])
+
+    def _init_new_tracks(self, u_detection, detections, activated, refind=None):
+        remaining = []
+        for di in u_detection:
+            detection = detections[di]
+            # Không sinh ID thứ hai từ box nhỏ, confidence thấp hơn, nằm trong
+            # một track đã được ghép bằng quan sát thực của CHÍNH frame hiện tại.
+            owners = [track for track in activated + (refind or [])
+                      if track.is_activated and track.frame_id == self.frame_id
+                      and track.cls == detection.cls and track.score >= detection.score
+                      and np.prod(track.xyxy[2:] - track.xyxy[:2]) > np.prod(detection.xyxy[2:] - detection.xyxy[:2])
+                      and self._nested_observation(track.xyxy, detection.xyxy)]
+            if len(owners) != 1:
+                remaining.append(di)
+        for di in remaining:
+            detections[di].observation_box = detections[di].xyxy.copy()
+        super()._init_new_tracks(remaining, detections, activated, refind)
+
     @staticmethod
     def reset_id():
         # Ultralytics normally resets a process-global counter in each constructor.
@@ -101,7 +180,19 @@ class Detector:
                          float(np.clip(t[2] / w, 0, 1)), float(np.clip(t[3] / h, 0, 1))]} for t in tracks]
 
 
-def main():
+def read_exact(stream, length):
+    if type(length) is not int or not 4 <= length <= 4 * 1024 * 1024:
+        raise ValueError("Invalid JPEG length")
+    data = bytearray()
+    while len(data) < length:
+        chunk = stream.read(length - len(data))
+        if not chunk:
+            raise ValueError("Truncated JPEG")
+        data.extend(chunk)
+    return data
+
+
+def main(protocol):
     # Respect the process-specific thread budget for preprocessing as well as ORT.
     cv2.setNumThreads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
     detector = Detector(sys.argv[1])
@@ -115,11 +206,16 @@ def main():
     fps = total = 0
     expected_frames = None
     print(json.dumps({"ready": True, "classes": detector.names}), flush=True)
-    for line in sys.stdin:
+    for line in sys.stdin.buffer:
         request = json.loads(line)
         op = request["op"]
+        binary_image = None
         if op == "infer":
-            image = cv2.imdecode(np.frombuffer(base64.b64decode(request["jpeg"]), np.uint8), cv2.IMREAD_COLOR)
+            # Backend chỉ yêu cầu reset cho session RTSP simulator mới; UPLOAD giữ nguyên.
+            if request.get("resetTracker", False):
+                detector.trackers.pop(request["key"], None)
+            encoded = read_exact(sys.stdin.buffer, request["jpegLength"]) if "jpegLength" in request else base64.b64decode(request["jpeg"])
+            image = cv2.imdecode(np.frombuffer(encoded, np.uint8), cv2.IMREAD_COLOR)
             if image is None:
                 raise ValueError("Invalid JPEG")
             result = {"detections": detector.infer(image, request["key"])}
@@ -218,10 +314,17 @@ def main():
                 ok, encoded = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 95])
                 if not ok:
                     raise ValueError("Snapshot encoding failed")
-                result = {"jpeg": base64.b64encode(encoded).decode("ascii")}
+                if request.get("binary", False):
+                    binary_image = encoded.tobytes()
+                    result = {"jpegLength": len(binary_image)}
+                else:
+                    result = {"jpeg": base64.b64encode(encoded).decode("ascii")}
         else:
             raise ValueError("Unknown operation")
         print(json.dumps(result, allow_nan=False), flush=True)
+        if binary_image is not None:
+            protocol.buffer.write(binary_image)
+            protocol.buffer.flush()
 
 
 if __name__ == "__main__":
@@ -234,7 +337,7 @@ if __name__ == "__main__":
             _print = builtins.print
             def print(*args, **kwargs):
                 _print(*args, file=protocol, **kwargs)
-            main()
+            main(protocol)
     except Exception:
         protocol.write(json.dumps({"error": "AI_WORKER_FAILED"}) + "\n")
         protocol.flush()

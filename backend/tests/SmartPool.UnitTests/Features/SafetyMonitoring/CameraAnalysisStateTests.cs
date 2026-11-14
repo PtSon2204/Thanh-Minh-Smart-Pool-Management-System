@@ -19,7 +19,15 @@ public sealed class CameraAnalysisStateTests
             Enabled = true, PythonPath = existing, WorkerPath = existing, ModelPath = existing }));
         state.Set(id, "old", DateTimeOffset.UtcNow.AddSeconds(-7), [], [9]);
         state.Set(id, "first", DateTimeOffset.UtcNow, [], [1]);
-        state.Set(id, "second", DateTimeOffset.UtcNow, [], [2]);
+        state.Set(id, "second", DateTimeOffset.UtcNow, [], [2], inferenceMilliseconds: 10,
+            activeRiskTrackIds: ["track"], renderMilliseconds: 2, analysisMilliseconds: 14,
+            displayRisks: [new("track", "episode", "CRITICAL", .9, 0, [.1, .1, .3, .5])]);
+        Assert.Empty(state.Get(id).Risks);
+        Assert.Equal("CRITICAL", Assert.Single(state.Get(id).DisplayRisks!).Severity);
+        Assert.Equal(new[] { "track" }, state.Get(id).ActiveRiskTrackIds);
+        Assert.Equal(10, state.Get(id).InferenceMilliseconds);
+        Assert.Equal(2, state.Get(id).RenderMilliseconds);
+        Assert.Equal(14, state.Get(id).AnalysisMilliseconds);
         Assert.Equal(new byte[] { 1 }, state.Frame(id, "first"));
         Assert.Equal(new byte[] { 2 }, state.Frame(id, "second"));
         Assert.Null(state.Frame(id, "old"));

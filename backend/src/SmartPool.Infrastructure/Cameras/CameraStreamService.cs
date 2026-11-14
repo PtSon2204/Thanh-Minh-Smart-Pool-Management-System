@@ -7,34 +7,65 @@ using SIPSorcery.Net;
 using SIPSorcery.Sys;
 using SIPSorceryMedia.Abstractions;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Infrastructure.SafetyMonitoring;
 
 namespace SmartPool.Infrastructure.Cameras;
 
-public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOptions> options) : BackgroundService, ICameraStreamService
+public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOptions> options, CameraAnalysisState? analysis = null) : BackgroundService, ICameraStreamService
 {
     private readonly SemaphoreSlim gate = new(1);
     private readonly PortRange ports = new(options.Value.WebRtc.PortRangeStart, options.Value.WebRtc.PortRangeEnd);
-    private readonly Dictionary<Guid, CameraWebRtcSource> sources = [];
+    private readonly Dictionary<(Guid CameraId, bool Analysis), IWebRtcVideoSource> sources = [];
     private readonly Dictionary<Guid, Viewer> viewers = [];
 
-    private sealed class Viewer(Guid equipmentId, string owner, CameraWebRtcSource source, RTCPeerConnection peer)
+    private sealed class Viewer(Guid equipmentId, string owner, IWebRtcVideoSource source, RTCPeerConnection peer, bool annotated)
     {
         public Guid EquipmentId { get; } = equipmentId;
         public string Owner { get; } = owner;
-        public CameraWebRtcSource Source { get; } = source;
+        public IWebRtcVideoSource Source { get; } = source;
+        public bool Annotated { get; } = annotated;
         public RTCPeerConnection Peer { get; } = peer;
         public DateTimeOffset LastSeen { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? SourceMissingAt { get; set; }
         private bool awaitingKey = true;
         private readonly object sendGate = new();
-        public void Send(byte[] bytes, bool key, uint duration)
+        public void Send(byte[] bytes, bool key, uint duration, uint? captureTimestamp)
         {
             lock (sendGate)
             {
                 if (Peer.connectionState != RTCPeerConnectionState.connected) { awaitingKey = true; return; }
                 if (awaitingKey && !key) return;
                 awaitingKey = false;
-                try { Peer.SendVideo(duration, bytes); }
+                try {
+                    if (captureTimestamp.HasValue) SendCapturedFrame(bytes, captureTimestamp.Value);
+                    else Peer.SendVideo(duration, bytes);
+                }
                 catch (Exception) { try { Peer.Close("Video send failed"); } catch (Exception) { } }
+            }
+        }
+        // Keep the original presentation clock on every RTP packet, including
+        // fragmented NALs. SendRtpRaw still handles sequence numbers, SRTP and RTCP.
+        private void SendCapturedFrame(byte[] bytes, uint timestamp)
+        {
+            var format = Peer.VideoLocalTrack.Capabilities.First().ToVideoFormat();
+            const int maxPayload = 1200;
+            foreach (var nal in H264Packetiser.ParseNals(bytes))
+            {
+                if (nal.NAL.Length <= maxPayload)
+                {
+                    Peer.SendRtpRaw(SDPMediaTypesEnum.video, nal.NAL, timestamp, nal.IsLast ? 1 : 0, format.FormatID);
+                    continue;
+                }
+                for (var offset = 1; offset < nal.NAL.Length; offset += maxPayload - 2)
+                {
+                    var length = Math.Min(maxPayload - 2, nal.NAL.Length - offset);
+                    var last = offset + length == nal.NAL.Length;
+                    var header = H264Packetiser.GetH264RtpHeader(nal.NAL[0], offset == 1, last);
+                    var payload = new byte[length + header.Length];
+                    header.CopyTo(payload, 0);
+                    nal.NAL.AsSpan(offset, length).CopyTo(payload.AsSpan(header.Length));
+                    Peer.SendRtpRaw(SDPMediaTypesEnum.video, payload, timestamp, last && nal.IsLast ? 1 : 0, format.FormatID);
+                }
             }
         }
         public void Close()
@@ -56,6 +87,8 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
         try
         {
             if (cameras.GetStatus(equipmentId).State != "Connected") throw Unavailable();
+            if (offer.Analysis && (analysis == null || analysis.Get(equipmentId).State == "NotConfigured"))
+                throw new CameraConnectionException("NotConfigured", "AI chưa được cấu hình để phát hình và box đồng bộ.");
             if (viewers.Count >= 64) throw new CameraConnectionException("Capacity", "Đã đạt giới hạn phiên xem camera.");
             try
             {
@@ -78,12 +111,15 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
                     "packetization-mode=1;profile-level-id=42e01f;level-asymmetry-allowed=1"), MediaStreamStatusEnum.SendOnly));
                 if (peer.setRemoteDescription(new RTCSessionDescriptionInit { type = RTCSdpType.offer, sdp = offer.Sdp }) != SetDescriptionResultEnum.OK)
                     throw new CameraConnectionException("InvalidOffer", "Không thể kết nối đến camera");
-                if (!sources.TryGetValue(equipmentId, out var source))
+                var paired = offer.Analysis && (!offer.Smooth || !cameras.GetStatus(equipmentId).SmoothPlayback);
+                var sourceKey = (equipmentId, paired);
+                if (!sources.TryGetValue(sourceKey, out var source))
                 {
-                    source = new CameraWebRtcSource(cameras, equipmentId, options.Value);
-                    sources.Add(equipmentId, source);
+                    source = paired ? new CameraAnalysisVideoSource(analysis!, equipmentId, options.Value)
+                        : new CameraWebRtcSource(cameras, equipmentId, options.Value);
+                    sources.Add(sourceKey, source);
                 }
-                viewer = new Viewer(equipmentId, owner, source, peer);
+                viewer = new Viewer(equipmentId, owner, source, peer, paired);
                 source.Frame += viewer.Send;
                 viewers.Add(id, viewer);
             }
@@ -119,13 +155,14 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
                 || DateTimeOffset.UtcNow - viewer.LastSeen > TimeSpan.FromSeconds(35))
                 throw new CameraConnectionException("ViewEnded", "Phiên xem camera đã kết thúc.");
             viewer.LastSeen = DateTimeOffset.UtcNow;
-            if (viewer.Source.Failed || cameras.GetStatus(equipmentId).State != "Connected") throw Unavailable();
+            if (viewer.Source.Failed || SourceUnavailable(viewer)) throw Unavailable();
             var state = viewer.Peer.connectionState switch
             {
                 RTCPeerConnectionState.connected => "Connected",
                 RTCPeerConnectionState.failed or RTCPeerConnectionState.closed or RTCPeerConnectionState.disconnected => "Disconnected",
                 _ => "Connecting"
             };
+            if (state == "Connected" && cameras.GetStatus(equipmentId).State != "Connected") state = "Connecting";
             return new CameraViewStatus(state, "H264", viewer.Source.Transcoding);
         }
         finally { gate.Release(); }
@@ -133,7 +170,7 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
 
     public async Task CloseAsync(Guid equipmentId, Guid viewId, string owner)
     {
-        CameraWebRtcSource? unused = null;
+        IWebRtcVideoSource? unused = null;
         Viewer? closed = null;
         await gate.WaitAsync();
         try
@@ -141,7 +178,8 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
             if (!viewers.TryGetValue(viewId, out var viewer) || viewer.EquipmentId != equipmentId || viewer.Owner != owner) return;
             viewers.Remove(viewId);
             closed = viewer;
-            if (!viewers.Values.Any(x => x.EquipmentId == equipmentId)) sources.Remove(equipmentId, out unused);
+            if (!viewers.Values.Any(x => x.EquipmentId == equipmentId && x.Annotated == viewer.Annotated))
+                sources.Remove((equipmentId, viewer.Annotated), out unused);
         }
         finally { gate.Release(); }
         closed.Close();
@@ -160,7 +198,7 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
                 try
                 {
                     expired = viewers.Where(x => DateTimeOffset.UtcNow - x.Value.LastSeen > TimeSpan.FromSeconds(35)
-                        || x.Value.Source.Failed || cameras.GetStatus(x.Value.EquipmentId).State != "Connected"
+                        || x.Value.Source.Failed || SourceUnavailable(x.Value)
                         || x.Value.Peer.connectionState is RTCPeerConnectionState.failed or RTCPeerConnectionState.closed).ToArray();
                 }
                 finally { gate.Release(); }
@@ -188,4 +226,15 @@ public sealed class CameraStreamService(CameraService cameras, IOptions<CameraOp
     }
 
     private static CameraConnectionException Unavailable() => new("StreamUnavailable", "Camera hiện không khả dụng");
+
+    // Giữ ICE/decoder trong khoảng ngắt ngắn ở seam video simulator. Không phát frame cũ;
+    // player vẫn ẩn hình khi thiếu frame, và camera vật lý giữ quy tắc ngắt ngay như trước.
+    private bool SourceUnavailable(Viewer viewer)
+    {
+        var status = cameras.GetStatus(viewer.EquipmentId);
+        if (status.State == "Connected") { viewer.SourceMissingAt = null; return false; }
+        if (status.AnalysisSession == null) return true;
+        viewer.SourceMissingAt ??= DateTimeOffset.UtcNow;
+        return DateTimeOffset.UtcNow - viewer.SourceMissingAt > TimeSpan.FromSeconds(5);
+    }
 }

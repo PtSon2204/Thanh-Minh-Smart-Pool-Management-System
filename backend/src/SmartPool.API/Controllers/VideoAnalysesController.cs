@@ -59,7 +59,10 @@ public sealed class VideoAnalysesController(ISender sender) : ControllerBase
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> Playback(Guid jobId, CancellationToken ct, [FromQuery] bool original = false)
     {
-        try { return Ok(await sender.Send(new GetVideoPlaybackQuery(jobId, original), ct)); }
+        try {
+            var access = await sender.Send(new GetVideoPlaybackQuery(jobId, original), ct);
+            return Ok(new VideoPlaybackDto($"/api/video-analyses/{jobId}/stream?ticket={Uri.EscapeDataString(access.Ticket)}{(access.Original ? "&original=true" : "")}", access.ExpiresAt));
+        }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (MonitoringConflictException ex) { return Conflict(new { message = ex.Message }); }
     }

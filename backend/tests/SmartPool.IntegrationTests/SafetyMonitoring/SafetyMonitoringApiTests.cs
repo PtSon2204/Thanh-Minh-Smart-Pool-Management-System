@@ -23,26 +23,28 @@ namespace SmartPool.IntegrationTests.SafetyMonitoring;
 public sealed partial class SafetyMonitoringTests
 {
     private readonly Dictionary<string, Guid> apiUserIds = new();
-    private async Task<WebApplication> ApiAsync(bool native = false, bool realCloudinary = false)
+    private async Task<WebApplication> ApiAsync(bool native = false, bool realCloudinary = false, Uri? simulator = null, string? snapshotPython = null)
     {
         await using var db = new SmartPoolDbContext(options);
         var role = new Role { Id = Guid.NewGuid(), Name = "ADMIN", Permissions = "[]", IsDeleted = false };
         db.Roles.Add(role);
         var user = await db.Users.SingleAsync(x => x.Id == userId); user.RoleId = role.Id;
         await db.SaveChangesAsync();
-        var builder = WebApplication.CreateBuilder();
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = simulator == null ? null : "Testing" });
         builder.Logging.ClearProviders(); builder.WebHost.UseUrls("http://127.0.0.1:0");
         if (native) builder.Logging.AddConsole().AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>(
-            (category, level) => category == typeof(SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisWorker).FullName && level >= LogLevel.Warning);
+            (category, level) => (category == typeof(SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisWorker).FullName ||
+                category == typeof(SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker).FullName ||
+                category == typeof(SmartPool.Infrastructure.SafetyMonitoring.CameraFrameSource).FullName) && level >= LogLevel.Warning);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = db.Database.GetConnectionString(),
-            ["ConnectionStrings:Redis"] = "localhost:56379,abortConnect=false",
+            ["ConnectionStrings:Redis"] = "localhost:56379,abortConnect=false,connectTimeout=100,connectRetry=0,syncTimeout=100,asyncTimeout=100",
             ["JwtSettings:SecretKey"] = "safety-integration-tests-signing-key-at-least-32-bytes",
             ["JwtSettings:Issuer"] = "safety-tests", ["JwtSettings:Audience"] = "safety-tests", ["JwtSettings:AccessTokenExpirationMinutes"] = "5",
             ["CloudinarySettings:CloudName"] = "test", ["CloudinarySettings:ApiKey"] = "test", ["CloudinarySettings:ApiSecret"] = "test",
             ["SafetyMonitoring:Enabled"] = native.ToString(),
-            ["SafetyMonitoring:PythonPath"] = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_PYTHON"),
+            ["SafetyMonitoring:PythonPath"] = snapshotPython ?? Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_PYTHON"),
             ["SafetyMonitoring:WorkerPath"] = Path.Combine(RepositoryRoot(), "backend", "ai", "worker.py"),
             ["SafetyMonitoring:ModelPath"] = Path.Combine(RepositoryRoot(), "model", "best.onnx"),
             ["SafetyMonitoring:FfprobePath"] = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_FFPROBE"),
@@ -51,6 +53,10 @@ public sealed partial class SafetyMonitoringTests
             ["CameraSettings:FfmpegPath"] = Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")
         });
         builder.Services.AddApplicationServices(builder.Configuration);
+        if (simulator != null) builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
+            ["CameraSettings:AllowedEndpoints:0:Host"] = simulator.DnsSafeHost,
+            ["CameraSettings:AllowedEndpoints:0:Port"] = simulator.Port.ToString(),
+            ["CameraSettings:AllowedEndpoints:0:Simulator"] = "true" });
         if (realCloudinary) builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
             ["CloudinarySettings:CloudName"] = Environment.GetEnvironmentVariable("SMARTPOOL_CLOUDINARY_TEST_CLOUD_NAME"),
             ["CloudinarySettings:ApiKey"] = Environment.GetEnvironmentVariable("SMARTPOOL_CLOUDINARY_TEST_API_KEY"),
@@ -343,23 +349,23 @@ public sealed partial class SafetyMonitoringTests
         try
         {
             await using var db = new SmartPoolDbContext(options);
-            var command = Event("CRITICAL");
-            id = (await Repo(db).RecordAsync(command, default)).Alert.Id;
-            await Repo(db).HandleAsync(id, "ACKNOWLEDGED", userId, true, default);
-            Assert.Equal("", (await db.Incidents.SingleAsync(x => x.WarningId == id)).ImageIncidents);
-            var files = app.Services.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.MonitoringFiles>();
-            File.Copy(Path.Combine(RepositoryRoot(), "frontend/thanh-minh-smart-pool/src/assets/anh-be-boi.jpg"), files.PathFor($"{id:N}-source.jpg"));
-            await File.WriteAllTextAsync(files.PathFor($"{id:N}-boxes.json"), System.Text.Json.JsonSerializer.Serialize(new[] { command.Decision }, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
-            await db.Warnings.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.SnapshotStatus, "PENDING"));
+            var command = Event("CRITICAL") with { ImageUrl = null };
+            Assert.Empty(await db.Warnings.ToListAsync());
+            var outbox = app.Services.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.AlertSnapshotQueue>();
+            Assert.True(await outbox.StageAsync(command,
+                await File.ReadAllBytesAsync(Path.Combine(RepositoryRoot(), "frontend/thanh-minh-smart-pool/src/assets/anh-be-boi.jpg")), default));
             var deadline = DateTime.UtcNow.AddSeconds(75);
-            Warning warning;
+            Warning? warning;
             do
             {
                 await Task.Delay(1000);
-                warning = await db.Warnings.AsNoTracking().SingleAsync(x => x.Id == id);
-            } while (DateTime.UtcNow < deadline && warning.SnapshotStatus is not ("COMPLETED" or "FAILED"));
+                warning = await db.Warnings.AsNoTracking().SingleOrDefaultAsync();
+            } while (DateTime.UtcNow < deadline && warning == null);
+            Assert.NotNull(warning);
+            id = warning.Id;
             Assert.Equal("COMPLETED", warning.SnapshotStatus);
             Assert.StartsWith("https://res.cloudinary.com/", warning.ImageUrl);
+            await Repo(db).HandleAsync(id, "ACKNOWLEDGED", userId, true, default);
             Assert.Equal(warning.ImageUrl, (await db.Incidents.AsNoTracking().SingleAsync(x => x.WarningId == id)).ImageIncidents);
             Assert.Equal(1, await db.Incidents.CountAsync());
         }

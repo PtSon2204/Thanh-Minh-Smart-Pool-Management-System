@@ -4,5 +4,5 @@ internal interface IWebRtcVideoSource : IAsyncDisposable
 {
     bool Failed { get; }
     bool Transcoding { get; }
-    event Action<byte[], bool, uint>? Frame;
+    event Action<byte[], bool, uint, uint?>? Frame;
 }

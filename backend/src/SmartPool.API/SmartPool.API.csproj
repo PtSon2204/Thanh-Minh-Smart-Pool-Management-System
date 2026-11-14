@@ -13,6 +13,9 @@
     <Content Remove="Middleware\**" />
     <EmbeddedResource Remove="Middleware\**" />
     <None Remove="Middleware\**" />
+    <!-- Dữ liệu runtime có thể bị snapshot worker xóa trong khi build/test. -->
+    <Content Remove="App_Data\**" />
+    <None Remove="App_Data\**" />
   </ItemGroup>
 
   <ItemGroup>

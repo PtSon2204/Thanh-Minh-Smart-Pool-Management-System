@@ -19,7 +19,7 @@ public sealed class CameraFrameDecoder(IOptions<CameraOptions> options) : ICamer
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true
         };
         // Decoder sees encoded bytes only, never a URL, password or network protocol.
-        foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-protocol_whitelist", "pipe", "-f", format, "-i", "pipe:0", "-frames:v", "1", "-vf", "scale=640:-2", "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1" }) start.ArgumentList.Add(arg);
+        foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-protocol_whitelist", "pipe", "-threads", "1", "-filter_threads", "1", "-f", format, "-i", "pipe:0", "-frames:v", "1", "-vf", "scale=640:-2", "-f", "image2pipe", "-vcodec", "mjpeg", "-threads", "1", "pipe:1" }) start.ArgumentList.Add(arg);
         using var process = Process.Start(start) ?? throw new CameraConnectionException("NotConfigured", "Không thể khởi động bộ giải mã camera.");
         using var cancellation = timeout.Token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch (InvalidOperationException) { } });
         var outputTask = ReadBoundedAsync(process.StandardOutput.BaseStream, 4 * 1024 * 1024, timeout.Token);

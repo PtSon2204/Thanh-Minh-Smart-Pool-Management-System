@@ -8,8 +8,9 @@ public sealed record UploadVideoCommand(Stream Content, string FileName, long Le
 public sealed record GetVideoJobQuery(Guid Id) : IRequest<VideoJobDto>;
 public sealed record GetVideoFileQuery(Guid Id) : IRequest<string>;
 public sealed record VideoPlaybackDto(string StreamPath, DateTimeOffset ExpiresAt);
+public sealed record VideoPlaybackAccess(string Ticket, DateTimeOffset ExpiresAt, bool Original);
 public sealed record VideoPlaybackTicket(string Value, DateTimeOffset ExpiresAt);
-public sealed record GetVideoPlaybackQuery(Guid Id, bool Original = false) : IRequest<VideoPlaybackDto>;
+public sealed record GetVideoPlaybackQuery(Guid Id, bool Original = false) : IRequest<VideoPlaybackAccess>;
 public sealed record GetVideoStreamQuery(Guid Id, string Ticket, bool Original = false) : IRequest<string>;
 public interface IVideoPlaybackTickets
 {
@@ -25,6 +26,15 @@ public sealed record CameraAnalysisDto(string State, string? FrameId, DateTimeOf
     public DateTimeOffset ServerTime { get; init; } = DateTimeOffset.UtcNow;
     public Guid? CameraId { get; init; }
     public double? InferenceMilliseconds { get; init; }
+    public double? RenderMilliseconds { get; init; }
+    // Capture/AI/risk/render up to metadata publication; excludes upload and loop delay.
+    public double? AnalysisMilliseconds { get; init; }
+    public uint? RtpTimestamp { get; init; }
+    public string? TrackingSession { get; init; }
+    public IReadOnlyList<string>? ActiveRiskTrackIds { get; init; }
+    // Current measured geometry with a latched risk colour, for new viewers.
+    // Display-only; Risks remains the actual evidence from RiskDecisionEngine.
+    public IReadOnlyList<RiskDecision>? DisplayRisks { get; init; }
 }
 
 public interface IVideoAnalysisService
@@ -94,9 +104,9 @@ public sealed class GetVideoFileHandler(IVideoAnalysisService service, ICurrentU
         user.UserId ?? throw new UnauthorizedAccessException(), user.IsInRole("ADMIN"), ct);
 }
 public sealed class GetVideoPlaybackHandler(IVideoAnalysisService service, ICurrentUser user, IVideoPlaybackTickets tickets)
-    : IRequestHandler<GetVideoPlaybackQuery, VideoPlaybackDto>
+    : IRequestHandler<GetVideoPlaybackQuery, VideoPlaybackAccess>
 {
-    public async Task<VideoPlaybackDto> Handle(GetVideoPlaybackQuery request, CancellationToken ct)
+    public async Task<VideoPlaybackAccess> Handle(GetVideoPlaybackQuery request, CancellationToken ct)
     {
         // Cho phát từ khi video gốc đã tải xong (QUEUED trở đi) — không phải chờ kết quả vẽ khung.
         if (request.Original)
@@ -104,7 +114,7 @@ public sealed class GetVideoPlaybackHandler(IVideoAnalysisService service, ICurr
         else
             await service.LiveFileAsync(request.Id, user.UserId ?? throw new UnauthorizedAccessException(), user.IsInRole("ADMIN"), ct);
         var ticket = tickets.Create(request.Id);
-        return new($"/api/video-analyses/{request.Id}/stream?ticket={Uri.EscapeDataString(ticket.Value)}{(request.Original ? "&original=true" : "")}", ticket.ExpiresAt);
+        return new(ticket.Value, ticket.ExpiresAt, request.Original);
     }
 }
 public sealed class GetVideoStreamHandler(IVideoAnalysisService service, IVideoPlaybackTickets tickets)

@@ -96,7 +96,8 @@ public sealed class VideoFrameWindowTests : IDisposable
         tickets.Setup(x => x.Create(id)).Returns(new VideoPlaybackTicket("valid", DateTimeOffset.UtcNow.AddMinutes(15)));
         tickets.Setup(x => x.Validate(id, "valid")).Returns(true);
         var playback = await new GetVideoPlaybackHandler(service.Object, user.Object, tickets.Object).Handle(new(id, true), default);
-        Assert.Contains("original=true", playback.StreamPath);
+        Assert.True(playback.Original);
+        Assert.Equal("valid", playback.Ticket);
         Assert.Equal("input.mp4", await new GetVideoStreamHandler(service.Object, tickets.Object).Handle(new(id, "valid", true), default));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => new GetVideoStreamHandler(service.Object, tickets.Object).Handle(new(id, "wrong", true), default));
         service.Verify(x => x.LiveFileAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);

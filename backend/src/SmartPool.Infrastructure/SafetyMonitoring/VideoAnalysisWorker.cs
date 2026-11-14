@@ -13,7 +13,7 @@ namespace SmartPool.Infrastructure.SafetyMonitoring;
 
 public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringFiles files, VideoProbe probe,
     IOptions<MonitoringOptions> options, IOptions<CameraOptions> cameras, IOptions<RiskOptions> risk,
-    VideoAnalysisState analysisState, VideoAnalysisQueue queue, ILogger<VideoAnalysisWorker> logger) : BackgroundService
+    VideoAnalysisState analysisState, VideoAnalysisQueue queue, AlertSnapshotQueue snapshots, ILogger<VideoAnalysisWorker> logger) : BackgroundService
 {
     private AiWorkerClient? ai;
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -68,13 +68,10 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                         startup.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
                         var engine = new RiskDecisionEngine(risk.Value);
                         var lastProgress = DateTime.UtcNow;
-                        // PHASE 1 — phân tích nhanh (infer thôi, không paint/encode/capture): AI chạy
-                        // trước video (nhanh hơn real-time), nên box/cảnh báo khi phát song song không trễ.
-                        // Snapshot (ảnh minh họa cảnh báo) tách sang PHASE 3 (SNAPSHOT) — offline,
-                        // không còn chặn realtime.
+                        // PHASE 1 — infer; chỉ capture khi có chuyển trạng thái để stage ảnh bất biến.
+                        // Upload Cloudinary và ghi cảnh báo chạy ở outbox worker, không chặn inference.
                         var frameIndex = 0;
                         var recorded = new HashSet<(string Track, string Episode, string Severity)>();
-                        var snapshotQueue = new List<(Guid AlertId, SmartPool.Application.Features.SafetyMonitoring.RiskDecision Decision, int FrameIndex)>();
                         analysisState.Prepare(job.Id, info.Fps, info.FrameCount ?? 0);
                         using var opened = await ai.SendAsync(new { op = "open", input, output = (string?)null, fps = info.Fps, frames = info.FrameCount }, startup.Token);
                         while (true)
@@ -95,17 +92,19 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                             // với render và (b) phase 2 vẽ khung đúng như video kết quả.
                             analysisState.SetFrame(job.Id, frameIndex, decisions);
                             stage = "SAVE_ALERT";
+                            byte[]? sourceSnapshot = null;
                             foreach (var decision in decisions)
                             {
-                                // UPLOAD cannot re-arm a handled episode. Persist each severity transition
-                                // once instead of waiting on a DB transaction for every video frame.
-                                if (!recorded.Add((decision.TrackId, decision.Episode, decision.Severity))) continue;
-                                var write = await scope.ServiceProvider.GetRequiredService<ISender>().Send(new RecordRiskCommand("UPLOAD", job.Id, decision,
-                                    detections.First(x => x.TrackId == decision.TrackId).Confidence, job.CreatedAt.AddSeconds(timestamp)), step.Token);
-                                // Chỉ ghi nhớ cảnh báo cần snapshot (hàng đã tạo với SnapshotStatus=CAPTURING).
-                                // Chụp frame + ghi file + đặt PENDING thực hiện ở phase 3 (offline), không chặn realtime.
-                                if (write.SnapshotRequired)
-                                    snapshotQueue.Add((write.Alert.Id, decision, frameIndex));
+                                var key = (decision.TrackId, decision.Episode, decision.Severity);
+                                if (recorded.Contains(key)) continue;
+                                if (sourceSnapshot == null)
+                                {
+                                    using var captured = await ai.SendAsync(new { op = "capture" }, step.Token);
+                                    sourceSnapshot = Convert.FromBase64String(captured.RootElement.GetProperty("jpeg").GetString()!);
+                                }
+                                if (await snapshots.StageAsync(new RecordRiskCommand("UPLOAD", job.Id, decision,
+                                    detections.First(x => x.TrackId == decision.TrackId).Confidence, job.CreatedAt.AddSeconds(timestamp)), sourceSnapshot, step.Token))
+                                    recorded.Add(key);
                             }
                             frameIndex++;
                             if (DateTime.UtcNow - lastProgress > TimeSpan.FromSeconds(2))
@@ -121,10 +120,6 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                         // với cảnh báo phase 1), encode video kết quả. Không chặn realtime nữa.
                         stage = "PAINT";
                         using var rendered = await ai.SendAsync(new { op = "reopen_render", input, output = intermediate, fps = info.Fps, frames = frameIndex }, ct);
-                        // Snapshot tách riêng: khi render qua đúng frame cảnh báo, chụp frame gốc (image
-                        // chưa vẽ) + ghi file + đặt PENDING — offline, không ảnh hưởng pha phân tích.
-                        // GroupBy (không ToDictionary) để 2+ cảnh báo cùng frame đều được chụp.
-                        var snapshotByFrame = snapshotQueue.GroupBy(x => x.FrameIndex).ToDictionary(g => g.Key, g => (IReadOnlyList<(Guid AlertId, RiskDecision Decision)>)g.Select(x => (x.AlertId, x.Decision)).ToList());
                         var renderIndex = 0;
                         while (true)
                         {
@@ -132,20 +127,6 @@ public sealed class VideoAnalysisWorker(IServiceScopeFactory scopes, MonitoringF
                             step.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
                             using var s = await ai.SendAsync(new { op = "step" }, step.Token);
                             if (s.RootElement.TryGetProperty("done", out _)) break;
-                            if (snapshotByFrame.TryGetValue(renderIndex, out var snaps))
-                            {
-                                stage = "SAVE_SNAPSHOT";
-                                // image hiện tại = frame gốc (chưa paint); capture chỉ encode JPEG, rẻ.
-                                using var captured = await ai.SendAsync(new { op = "capture" }, step.Token);
-                                var sourceBytes = Convert.FromBase64String(captured.RootElement.GetProperty("jpeg").GetString()!);
-                                foreach (var (alertId, decision) in snaps)
-                                {
-                                    await File.WriteAllBytesAsync(files.PathFor($"{alertId:N}-source.jpg"), sourceBytes, step.Token);
-                                    await File.WriteAllTextAsync(files.PathFor($"{alertId:N}-boxes.json"), System.Text.Json.JsonSerializer.Serialize(new[] { decision },
-                                        new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)), step.Token);
-                                    await db.Warnings.Where(x => x.Id == alertId).ExecuteUpdateAsync(set => set.SetProperty(x => x.SnapshotStatus, "PENDING"), step.Token);
-                                }
-                            }
                             stage = "PAINT";
                             using var painted = await ai.SendAsync(new { op = "paint", decisions = analysisState.FrameAt(job.Id, renderIndex) }, step.Token);
                             renderIndex++;

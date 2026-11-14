@@ -342,10 +342,6 @@ export default function AdminLayout() {
               key: "/admin/safety/list-camera",
               label: <Link to="/admin/safety/list-camera">Danh sách camera</Link>,
             },
-            isAdmin && {
-              key: "/admin/safety/video-analysis",
-              label: <Link to="/admin/safety/video-analysis">Phân tích video</Link>,
-            },
             {
               key: "/admin/safety/thresholds",
               label: <Link to="/admin/safety/thresholds">Ngưỡng cảnh báo AI</Link>,

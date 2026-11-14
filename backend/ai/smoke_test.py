@@ -19,6 +19,39 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class WorkerSmokeTests(unittest.TestCase):
+    def test_binary_live_frames_interleave_with_json_without_losing_image_alignment(self):
+        image = cv2.imread(str(ROOT / "frontend/thanh-minh-smart-pool/src/assets/anh-be-boi.jpg"))
+        image = cv2.resize(image, (1280, 720))
+        ok, jpeg = cv2.imencode(".jpg", image)
+        self.assertTrue(ok)
+        process = subprocess.Popen([sys.executable, "-u", str(ROOT / "backend/ai/worker.py"), str(ROOT / "model/best.onnx"),
+                                   "C:/Windows/Fonts/arial.ttf"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        def receive():
+            response = json.loads(process.stdout.readline())
+            self.assertNotIn("error", response)
+            return response
+        def send(request, data=b""):
+            process.stdin.write(json.dumps(request).encode() + b"\n" + data)
+            process.stdin.flush()
+            return receive()
+        try:
+            self.assertTrue(receive()["ready"])
+            for index in range(3):
+                payload = jpeg.tobytes()
+                detected = send({"op": "infer", "key": "binary-camera", "jpegLength": len(payload), "resetTracker": index == 0}, payload)
+                self.assertIn("detections", detected)
+                result = send({"op": "render", "binary": True, "decisions": [{"trackId": "binary", "severity": "CRITICAL", "box": [.1, .1, .5, .8]}]})
+                raw = process.stdout.read(result["jpegLength"])
+                self.assertEqual(result["jpegLength"], len(raw))
+                decoded = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
+                self.assertEqual(image.shape, decoded.shape)
+                self.assertGreater(int(decoded[72, 128, 2]), int(decoded[72, 128, 0]))
+                self.assertIn("jpeg", send({"op": "capture"}))
+            self.assertTrue(send({"op": "close"})["closed"])
+        finally:
+            process.kill(); process.wait(timeout=10)
+            process.stdin.close(); process.stdout.close()
+
     def test_interleaved_cameras_keep_distinct_and_stable_track_ids(self):
         from worker import CameraTracker
         from ultralytics.engine.results import Boxes

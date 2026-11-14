@@ -13,49 +13,38 @@ public sealed class SafetyIncidentFlowTests
     private readonly Mock<ISafetyAlertOperations> operations = new();
     private readonly Mock<INotificationService> notifications = new();
 
-    private GetSafetyIncidentsHandler History(params Incident[] rows)
+    [Fact]
+    public async Task History_DelegatesValidatedFiltersAndPagingToTheDatabaseReader()
     {
-        operations.Setup(x => x.GetAllIncidentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rows.ToList());
-        operations.Setup(x => x.GetAllUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        operations.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
-        return new(operations.Object);
+        var reader = new Mock<ISafetyIncidentReader>();
+        var query = new GetSafetyIncidentsQuery { SourceType = "camera", PageSize = 1, Status = "Resolved" };
+        var expected = new GetSafetyIncidentsResult { TotalIncidents = 3, CameraCount = 3, TotalCount = 3 };
+        reader.Setup(x => x.SearchAsync(query, It.IsAny<CancellationToken>())).ReturnsAsync(expected);
+        Assert.Same(expected, await new GetSafetyIncidentsHandler(reader.Object).Handle(query, default));
+        reader.Verify(x => x.SearchAsync(query, It.IsAny<CancellationToken>()), Times.Once);
+        await Assert.ThrowsAsync<ArgumentException>(() => new GetSafetyIncidentsHandler(reader.Object).Handle(new() { PageSize = 101 }, default));
+        reader.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task EmptyHistory_ReturnsEmptyRealData()
-    {
-        var result = await History().Handle(new(), default);
-        Assert.Empty(result.Items);
-        Assert.Equal(0, result.TotalIncidents);
-        Assert.Equal(0, result.TotalCount);
-    }
-
-    [Fact]
-    public async Task CameraWithoutSnapshot_StaysPendingAndKeepsLocation()
+    public void CameraWithoutSnapshot_StaysPendingAndKeepsLocation()
     {
         var row = new Incident { Id = Guid.NewGuid(), Title = "Camera A", WarningId = Guid.NewGuid(),
             Location = "Khu vực A", Status = "Pending", SeverityLevel = "EMERGENCY" };
-        var result = await History(row).Handle(new(), default);
-        var dto = Assert.Single(result.Items);
+        var dto = SafetyIncidentMapper.ToDto(row, null, null);
         Assert.Equal("Pending", dto.Status);
         Assert.Equal("Khu vực A", dto.Zone);
         Assert.Equal("Camera AI giám sát", dto.SourceType);
-        Assert.Equal(1, result.PendingCount);
-        Assert.Equal(1, result.CameraCount);
     }
 
     [Fact]
-    public async Task SourceFilter_AppliesBeforePaginationAndStatistics_ManualPhotoDoesNotBecomeAi()
+    public void ManualPhotoDoesNotBecomeCameraAi_AndLegacyStatusIsNormalized()
     {
-        var rows = Enumerable.Range(0, 3).Select(i => new Incident { Id = Guid.NewGuid(), Title = "Manual",
-            Status = "Pending", ImageIncidents = "photo.jpg", SeverityLevel = "WARNING" }).ToList();
-        rows.Add(new() { Id = Guid.NewGuid(), Title = "AI", CameraId = Guid.NewGuid(), Status = "Resolved", SeverityLevel = "EMERGENCY" });
-        var result = await History(rows.ToArray()).Handle(new() { SourceType = "camera", PageSize = 1 }, default);
-        Assert.Single(result.Items);
-        Assert.Equal(1, result.TotalCount);
-        Assert.Equal(1, result.TotalIncidents);
-        Assert.Equal(1, result.CameraCount);
-        Assert.Equal(0, result.LifeguardCount);
+        var dto = SafetyIncidentMapper.ToDto(new Incident { Id = Guid.NewGuid(), Title = "Bể trẻ em",
+            Status = "completed", ImageIncidents = "photo.jpg", SeverityLevel = "WARNING" }, null, null);
+        Assert.Equal("Cứu hộ viên phát hiện thực tế", dto.SourceType);
+        Assert.Equal("Resolved", dto.Status);
+        Assert.Equal("Bể trẻ em", dto.Zone);
     }
 
     [Fact]

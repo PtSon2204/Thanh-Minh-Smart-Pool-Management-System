@@ -8,6 +8,23 @@ public sealed class RiskDecisionEngineTests
         new(track, label, confidence, [.1, .1, .3, .5]);
 
     [Fact]
+    public void ActiveTrackIds_KeepSkippedObservationsDistinctFromConfirmedRecovery()
+    {
+        var engine = new RiskDecisionEngine(new() { WindowSeconds = 1, MinObservations = 2,
+            CriticalHoldSeconds = .2, RecoveryHoldSeconds = .3 });
+        Assert.Empty(engine.ActiveTrackIds());
+        engine.Observe(0, [Detection()]); engine.Observe(.1, [Detection()]);
+        Assert.Equal("CRITICAL", Assert.Single(engine.Observe(.4, [Detection()])).Severity);
+        Assert.Empty(engine.Observe(.5, [Detection(confidence: .4)]));
+        Assert.Equal(new[] { "1" }, engine.ActiveTrackIds());
+        Assert.Empty(engine.Observe(.6, []));
+        Assert.Equal(new[] { "1" }, engine.ActiveTrackIds());
+        engine.Observe(1.6, [Detection("normal")]); engine.Observe(1.7, [Detection("normal")]);
+        Assert.Empty(engine.Observe(2.1, [Detection("normal")]));
+        Assert.Empty(engine.ActiveTrackIds());
+    }
+
+    [Fact]
     public void SingleFrameAndLowConfidence_DoNotTrigger()
     {
         var engine = new RiskDecisionEngine(new());
@@ -29,6 +46,42 @@ public sealed class RiskDecisionEngineTests
         Assert.Equal("CRITICAL", critical.Severity);
         Assert.Equal(warning.Episode, critical.Episode);
         Assert.Equal("CRITICAL", Assert.Single(engine.Observe(6, [Detection("normal")])).Severity);
+    }
+
+    [Fact]
+    public void Critical_RemainsLatchedInWarningBand_AndAfterShortObservationGap()
+    {
+        var engine = new RiskDecisionEngine(new());
+        RiskDecision? critical = null;
+        for (var t = 0; t <= 5; t++) critical = engine.Observe(t, [Detection()]).SingleOrDefault() ?? critical;
+        Assert.Equal("CRITICAL", critical!.Severity);
+        for (var t = 6; t <= 40; t++)
+        {
+            var result = Assert.Single(engine.Observe(t, [Detection(t % 2 == 0 ? "normal" : "drowning")]));
+            Assert.Equal("CRITICAL", result.Severity);
+            Assert.Equal(critical.Episode, result.Episode);
+        }
+        Assert.Empty(engine.Observe(41, []));
+        Assert.Empty(engine.Observe(45, [Detection()]));
+        Assert.Empty(engine.Observe(46, [Detection()]));
+        var resumed = Assert.Single(engine.Observe(47, [Detection()]));
+        Assert.Equal("CRITICAL", resumed.Severity);
+        Assert.Equal(critical.Episode, resumed.Episode);
+    }
+
+    [Fact]
+    public void ChangedTrack_StartsItsOwnWarning_WhileOriginalTrackKeepsCritical()
+    {
+        var engine = new RiskDecisionEngine(new());
+        for (var t = 0; t <= 5; t++) engine.Observe(t, [Detection(track: "original")]);
+        engine.Observe(6, [Detection(track: "new")]);
+        engine.Observe(7, [Detection(track: "new")]);
+        var decisions = engine.Observe(8, [Detection(track: "new"), Detection(track: "original")]);
+        var warning = Assert.Single(decisions, decision => decision.TrackId == "new");
+        Assert.Equal("WARNING", warning.Severity);
+        var original = Assert.Single(decisions, decision => decision.TrackId == "original");
+        Assert.Equal("CRITICAL", original.Severity);
+        Assert.NotEqual(warning.Episode, original.Episode);
     }
 
     [Fact]

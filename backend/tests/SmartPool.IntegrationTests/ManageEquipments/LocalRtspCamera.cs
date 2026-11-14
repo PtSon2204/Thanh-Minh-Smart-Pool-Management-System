@@ -14,6 +14,8 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
     private readonly ConcurrentBag<TcpClient> clients = [];
     private readonly byte[][] nals;
     private readonly bool hevc;
+    private readonly byte[][][]? numbered;
+    public bool CorruptNumberedFrames { get; set; }
     public bool FragmentVideo { get; set; }
     public bool AggregateParameters { get; set; }
     public bool OmitSdpParameters { get; set; }
@@ -25,10 +27,11 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
     public int Port => ((IPEndPoint)listener.LocalEndpoint).Port;
     public string Url => $"rtsp://127.0.0.1:{Port}/live";
 
-    private LocalRtspCamera(byte[][] nals, bool hevc)
+    private LocalRtspCamera(byte[][] nals, bool hevc, byte[][][]? numbered = null)
     {
         this.nals = nals;
         this.hevc = hevc;
+        this.numbered = numbered;
         listener.Start();
         accepting = Task.Run(async () =>
         {
@@ -46,13 +49,39 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
         });
     }
 
-    public static async Task<LocalRtspCamera> StartAsync(string ffmpeg, bool hevc = false, string color = "blue")
+    // Encode a 4-bit frame number as uniform image luminance. Its identity can
+    // be recovered from decoded pixels independently of the timestamp metadata.
+    public static async Task<LocalRtspCamera> StartNumberedAsync(string ffmpeg)
+    {
+        var file = Path.Combine(Path.GetTempPath(), "smartpool-numbered-" + Guid.NewGuid().ToString("N") + ".h264");
+        try
+        {
+            var start = new ProcessStartInfo(ffmpeg) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
+            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=black:s=64x64:r=10",
+                "-vf", "geq=lum='16+12*mod(N,16)':cb=128:cr=128", "-frames:v", "16", "-c:v", "libx264", "-profile:v", "baseline",
+                "-preset", "ultrafast", "-tune", "zerolatency", "-x264-params", "keyint=1:repeat-headers=1:slices=1", "-f", "h264", file }) start.ArgumentList.Add(arg);
+            using var process = Process.Start(start)!;
+            var error = process.StandardError.ReadToEndAsync();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            using var cancel = deadline.Token.Register(() => { try { process.Kill(true); } catch { } });
+            await process.WaitForExitAsync(deadline.Token);
+            if (process.ExitCode != 0) throw new IOException(await error);
+            var units = SplitNals(await File.ReadAllBytesAsync(file));
+            var parameters = units.Where(n => (n[0] & 31) is 7 or 8).Take(2).ToArray();
+            var pictures = units.Where(n => (n[0] & 31) == 5).Select(n => parameters.Append(n).ToArray()).ToArray();
+            if (pictures.Length != 16) throw new IOException("Numbered fixture must have exactly 16 independently decodable pictures.");
+            return new LocalRtspCamera(pictures[0], false, pictures);
+        }
+        finally { File.Delete(file); }
+    }
+
+    public static async Task<LocalRtspCamera> StartAsync(string ffmpeg, bool hevc = false, string color = "blue", int width = 64, int height = 64)
     {
         var file = Path.Combine(Path.GetTempPath(), "smartpool-camera-" + Guid.NewGuid().ToString("N") + ".h264");
         try
         {
             var start = new ProcessStartInfo(ffmpeg) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
-            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", $"color=c={color}:s=64x64:r=1", "-frames:v", "1", "-c:v", hevc ? "libx265" : "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-f", hevc ? "hevc" : "h264", file }) start.ArgumentList.Add(arg);
+            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", $"color=c={color}:s={width}x{height}:r=1", "-frames:v", "1", "-c:v", hevc ? "libx265" : "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-f", hevc ? "hevc" : "h264", file }) start.ArgumentList.Add(arg);
             using var process = Process.Start(start)!;
             var error = process.StandardError.ReadToEndAsync();
             try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)); }
@@ -110,9 +139,11 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
     {
         ushort sequence = 0;
         uint timestamp = 0;
+        var pictureIndex = 0;
         while (!stop.IsCancellationRequested)
         {
-            var parameters = nals.Where(x => hevc ? NalType(x) is 32 or 33 or 34 : NalType(x) is 7 or 8).ToArray();
+            var current = numbered == null ? nals : numbered[pictureIndex % numbered.Length];
+            var parameters = current.Where(x => hevc ? NalType(x) is 32 or 33 or 34 : NalType(x) is 7 or 8).ToArray();
             var payloads = new List<(byte[] Data, bool Marker)>();
             if (hevc && AggregateParameters)
             {
@@ -122,9 +153,10 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
                 payloads.Add((ap.ToArray(), false));
             }
             else payloads.AddRange(parameters.Select(x => (x, false)));
-            foreach (var original in nals.Where(x => hevc ? NalType(x) is >= 16 and <= 21 : NalType(x) == 5))
+            foreach (var original in current.Where(x => hevc ? NalType(x) is >= 16 and <= 21 : NalType(x) == 5))
             {
-                var nal = InvalidVideo ? hevc ? new byte[] { 38, 1, 0 } : new byte[] { 0x65, 0 } : original;
+                var corrupt = InvalidVideo || numbered != null && CorruptNumberedFrames && pictureIndex % numbered.Length == 7;
+                var nal = corrupt ? hevc ? new byte[] { 38, 1, 0 } : new byte[] { 0x65, 0 } : original;
                 if (hevc && FragmentVideo)
                 {
                     for (var offset = 2; offset < nal.Length; offset += 8)
@@ -152,8 +184,9 @@ internal sealed class LocalRtspCamera : IAsyncDisposable
                 Buffer.BlockCopy(nal, 0, packet, 16, nal.Length);
                 await stream.WriteAsync(packet, stop.Token);
             }
-            timestamp += 90000;
-            await Task.Delay(200, stop.Token);
+            pictureIndex++;
+            timestamp += numbered == null ? 90000u : 9000u;
+            await Task.Delay(numbered == null ? 200 : 100, stop.Token);
         }
     }
 
