@@ -21,6 +21,7 @@ public sealed class GetMyClassRegistrationHandler(
             ?? throw new KeyNotFoundException("Bạn chưa đăng ký lớp này.");
         return new MyClassRegistrationResponse(registration.Id, registration.ClassId,
             registration.Status, registration.RegisteredAt, registration.ConfirmedAt,
-            registration.CancelledAt);
+            registration.CancelledAt, registration.ReviewedAt,
+            registration.ReviewNote, registration.CancelReason);
     }
 }

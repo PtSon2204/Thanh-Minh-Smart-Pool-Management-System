@@ -16,23 +16,29 @@ public sealed partial class SwimClassOperations
         var registration = await context.ClassRegistrations.SingleOrDefaultAsync(
             item => item.ClassId == classId && item.CustomerUserId == customerUserId,
             cancellationToken) ?? throw new KeyNotFoundException("Bạn chưa đăng ký lớp này.");
-        if (registration.Status != "Confirmed")
-            throw new SwimClassStateConflictException("Đăng ký lớp không còn ở trạng thái Confirmed.");
+        if (registration.Status is not ("Confirmed" or "PendingApproval"))
+            throw new SwimClassStateConflictException("Chỉ có thể rút yêu cầu đang chờ hoặc hủy đăng ký đã xác nhận.");
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var firstScheduledStart = await context.ClassSessions.AsNoTracking()
-            .Where(item => item.ClassId == classId && item.Status == "Scheduled")
-            .OrderBy(item => item.StartsAt)
-            .Select(item => (DateTime?)item.StartsAt)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (!ClassRegistrationCancellationPolicy.CanSelfCancel(firstScheduledStart, now))
+        var wasPending = registration.Status == "PendingApproval";
+        DateTime? firstScheduledStart = null;
+        if (!wasPending)
+        {
+            firstScheduledStart = await context.ClassSessions.AsNoTracking()
+                .Where(item => item.ClassId == classId && item.Status == "Scheduled")
+                .OrderBy(item => item.StartsAt)
+                .Select(item => (DateTime?)item.StartsAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+        if (!ClassRegistrationCancellationPolicy.CanWithdraw(
+                registration.Status, firstScheduledStart, now))
             throw new SwimClassStateConflictException(
                 "Đã đến giờ bắt đầu buổi học đầu tiên; vui lòng liên hệ Coach để hủy đăng ký.");
 
         registration.Status = "Cancelled";
         registration.CancelledAt = now;
         registration.CancelledByUserId = customerUserId;
-        registration.CancelReason = null;
+        registration.CancelReason = wasPending ? "Customer đã rút yêu cầu tham gia lớp." : null;
         registration.UpdatedAt = NextVersionTimestamp(now, registration.UpdatedAt);
         var coachUserId = await context.SwimClasses.AsNoTracking()
             .Where(item => item.Id == classId)
@@ -42,8 +48,10 @@ public sealed partial class SwimClassOperations
             .Select(userId => new Notification
             {
                 Id = Guid.NewGuid(), UserId = userId,
-                Title = "Đăng ký lớp đã được hủy",
-                Content = "Một đăng ký lớp dạy bơi đã được Customer hủy.",
+                Title = wasPending ? "Yêu cầu tham gia lớp đã được rút" : "Đăng ký lớp đã được hủy",
+                Content = wasPending
+                    ? "Một yêu cầu tham gia lớp đã được Customer rút lại."
+                    : "Một đăng ký lớp dạy bơi đã được Customer hủy.",
                 Type = "swim_class_registration_cancelled",
                 IsRead = false, CreatedAt = now
             }).ToList();

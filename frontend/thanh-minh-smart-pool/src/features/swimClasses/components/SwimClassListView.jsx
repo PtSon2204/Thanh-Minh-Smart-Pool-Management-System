@@ -12,13 +12,10 @@ export default function SwimClassListView() {
   const session = useAuthStore(state => state.session)
   const navigate = useNavigate()
   const location = useLocation()
-  const roles = (session?.roles?.length ? session.roles : [session?.role])
-    .filter(Boolean).map(item => item.toUpperCase())
-  const role = location.pathname.startsWith('/coach/classes') && roles.includes('COACH')
-    ? 'COACH' : session?.role?.toUpperCase()
+  const role = location.pathname.startsWith('/coach/classes') ? 'COACH' : 'CUSTOMER'
   const [search, setSearch] = useState('')
   const [params, setParams] = useState({ searchTerm: '', status: undefined, pageIndex: 1, pageSize: 10 })
-  const list = useSwimClasses({ ...params, scope: role === 'COACH' ? 'coach' : undefined }, session?.id)
+  const list = useSwimClasses({ ...params, scope: role.toLowerCase(), registrationOpenNow: role === 'CUSTOMER' }, session?.id)
   const filtered = Boolean(params.searchTerm || params.status)
 
   useEffect(() => {
@@ -36,7 +33,7 @@ export default function SwimClassListView() {
 
   const title = role === 'COACH' ? 'Lớp dạy của tôi' : 'Lớp dạy bơi'
   const intro = role === 'COACH' ? 'Tạo lớp, sắp lịch và theo dõi các lớp bạn phụ trách.'
-    : 'Khám phá các lớp học bơi đang hoạt động.'
+    : 'Khám phá các lớp học bơi đang nhận đăng ký.'
 
   return <ConfigProvider theme={{ token: { colorPrimary: '#0077b6', colorInfo: '#0077b6', borderRadius: 8 } }}>
     <div className={`swim-class-list-page${role === 'CUSTOMER' ? ' swim-class-list-page--customer' : ' swim-class-list-page--coach'}`}>
@@ -49,12 +46,11 @@ export default function SwimClassListView() {
         {role === 'CUSTOMER' && <Button icon={<ScheduleOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Lớp học của tôi</Button>}
       </header>
 
-      <SwimClassListFilters search={search} status={params.status} showStatus={role === 'COACH'}
-        onSearchChange={setSearch}
-        onStatusChange={status => setParams(previous => ({ ...previous, status, pageIndex: 1 }))}
-        onReset={resetFilters} />
-
       <section className="swim-class-list-panel" aria-label="Danh sách lớp dạy bơi" aria-busy={list.isFetching}>
+        <SwimClassListFilters search={search} status={params.status} showStatus={role === 'COACH'}
+          onSearchChange={setSearch}
+          onStatusChange={status => setParams(previous => ({ ...previous, status, pageIndex: 1 }))}
+          onReset={resetFilters} />
         <div className="swim-class-list-panel-heading">
           <h2>Danh sách lớp {list.data && !list.isError && <span className="swim-class-list-count">{list.data.totalCount.toLocaleString('vi-VN')}</span>}</h2>
           <Button type="text" icon={<ReloadOutlined spin={list.isFetching} />} disabled={list.isFetching} onClick={() => list.refetch()}>Làm mới</Button>
@@ -62,6 +58,7 @@ export default function SwimClassListView() {
         {list.isError ? <Alert type="error" showIcon title={list.error?.response?.status === 403 ? 'Bạn không có quyền xem danh sách lớp.' : 'Không thể tải danh sách lớp.'} action={<Button onClick={() => list.refetch()}>Thử lại</Button>} />
           : <>
             <SwimClassListTable items={list.data?.items || []} loading={list.isFetching} filtered={filtered}
+              emptyDescription={role === 'CUSTOMER' ? 'Hiện chưa có lớp nào đang nhận đăng ký.' : undefined}
               onView={classId => navigate(role === 'COACH' ? `/coach/classes/${classId}` : `/lop-hoc/${classId}`)} />
             <div className="swim-class-list-pagination">
               <Pagination current={params.pageIndex} pageSize={params.pageSize} total={list.data?.totalCount || 0} showSizeChanger pageSizeOptions={[10, 20, 50, 100]}

@@ -4,19 +4,20 @@
 .swim-class-detail-back { justify-self: start; color: #006da4; padding-left: 0; }
 .swim-class-detail-loading { align-items: center; display: flex; justify-content: center; min-height: 260px; }
 .swim-class-detail-header, .swim-class-detail-panel { background: #fff; border: 1px solid #dce8ef; border-radius: 12px; box-shadow: 0 2px 8px rgba(16, 49, 74, .045); }
-.swim-class-detail-header { align-items: center; display: flex; gap: 18px; justify-content: space-between; padding: 24px 30px; }
+.swim-class-detail-header { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; padding: 26px 30px; }
 .swim-class-detail-heading { align-items: center; display: flex; gap: 16px; min-width: 0; }
 .swim-class-detail-icon { align-items: center; background: #e6f5fb; border: 1px solid #c4e7f4; border-radius: 13px; color: #0077b6; display: inline-flex; flex: 0 0 50px; font-size: 23px; height: 50px; justify-content: center; }
 .swim-class-detail-heading small { color: #0077b6; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
 .swim-class-detail-heading h1 { color: #12344b; font-size: 25px; line-height: 1.25; margin: 4px 0 0; }
-.swim-class-detail-header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; }
+.swim-class-detail-heading h1 + .ant-tag { margin: 10px 0 0; }
+.swim-class-detail-header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .swim-class-detail-panel { min-width: 0; padding: 24px 28px; }
 .swim-class-detail-section-title { align-items: center; color: #0077b6; display: flex; gap: 10px; margin-bottom: 18px; }
 .swim-class-detail-section-title h2 { color: #173c55; font-size: 17px; margin: 0; }
 .swim-class-detail-section-title > span { background: #e6f5fb; border-radius: 14px; color: #006da4; font-size: 12px; margin-left: auto; padding: 3px 9px; }
 .swim-class-detail-description { color: #425e70; line-height: 1.6; margin: 0 0 22px; white-space: pre-wrap; }
 .swim-class-detail-facts { display: grid; gap: 0 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
-.swim-class-detail-facts > div { border-top: 1px solid #edf2f5; display: flex; gap: 12px; justify-content: space-between; padding: 14px 0; }
+.swim-class-detail-facts > div { border-top: 1px solid #edf2f5; display: flex; gap: 12px; justify-content: space-between; padding: 16px 0; }
 .swim-class-detail-facts dt { color: #61758a; font-size: 13px; }
 .swim-class-detail-facts dt .anticon { color: #0077b6; margin-right: 6px; }
 .swim-class-detail-facts dd { color: #173c55; font-size: 13px; font-weight: 700; margin: 0; text-align: right; overflow-wrap: anywhere; }
@@ -48,9 +49,11 @@
 .swim-class-detail-session-editor .swim-class-form-card { box-shadow: none; }
 .swim-class-edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .swim-class-registration-panel { display: grid; justify-items: start; gap: 14px; }
+.swim-class-registration-panel--enrolled { background: #f5fbff; border-color: #bee4f3; }
 .swim-class-registration-panel .swim-class-detail-section-title { margin-bottom: 0; }
 .swim-class-registration-panel > .ant-alert { width: 100%; }
 .swim-class-registration-panel > p { color: #425e70; margin: 0; }
+.swim-class-registration-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .swim-class-registration-loading { align-items: center; color: #61758a; display: flex; gap: 10px; }
 .swim-class-registration-error { margin-top: 4px; }
 .swim-class-students-toolbar { align-items: center; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
@@ -62,6 +65,7 @@
 .swim-class-student-main span { color: #61758a; font-size: 12px; }
 .swim-class-student-main .swim-class-student-reason { color: #a33b2b; overflow-wrap: anywhere; }
 .swim-class-student .ant-tag { margin: 0; }
+.swim-class-student-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .swim-class-students-pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
 @media (max-width: 640px) {
   .swim-class-detail-page { gap: 12px; }
@@ -70,6 +74,8 @@
   .swim-class-detail-header { align-items: flex-start; flex-direction: column; padding: 19px; }
   .swim-class-detail-heading h1 { font-size: 20px; }
   .swim-class-detail-panel { padding: 19px 16px; }
+  .swim-class-registration-actions { width: 100%; }
+  .swim-class-registration-actions .ant-btn { flex: 1 1 100%; }
   .swim-class-detail-facts { grid-template-columns: 1fr; }
   .swim-class-timetable-nav { justify-content: center; width: 100%; }
   .swim-class-timetable-shortcuts { justify-content: center; width: 100%; }
@@ -82,3 +88,22 @@
 .swim-class-session-list-content strong { color: #173c55; }
 .swim-class-session-list-content span { color: #61758a; font-size: 13px; }
 .swim-class-session-list-row .ant-tag { margin: 0; }
+@media (max-width: 900px) {
+  .swim-class-detail-header-actions { justify-content: flex-start; width: 100%; }
+}
+@media (max-width: 640px) {
+  .swim-class-detail-heading { align-items: flex-start; gap: 12px; }
+  .swim-class-detail-icon { flex-basis: 42px; height: 42px; font-size: 20px; }
+  .swim-class-detail-heading > div { min-width: 0; }
+  .swim-class-detail-heading h1 { overflow-wrap: anywhere; }
+  .swim-class-detail-header-actions .ant-btn { flex: 1 1 100%; }
+  .swim-class-detail-facts > div { gap: 8px; }
+  .swim-class-detail-facts dt, .swim-class-detail-facts dd { max-width: 50%; }
+  .swim-class-detail-action-buttons .ant-btn { flex: 1 1 100%; }
+  .swim-class-students-toolbar .ant-segmented { max-width: 100%; }
+  .swim-class-students-toolbar .ant-btn { margin-left: auto; }
+  .swim-class-student > .ant-btn { flex: 1 1 100%; }
+  .swim-class-student-actions { width: 100%; }
+  .swim-class-schedule-view-switch .ant-btn { flex: 1 1 100%; }
+  .swim-class-session-list-row > .ant-btn { flex: 1 1 100%; }
+}
