@@ -26,6 +26,8 @@ import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatistics
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatisticsPage";
+import RevenueStatisticsPage from "../pages/admin/statistics/RevenueStatisticsPage";
+import RentalStatisticsPage from "../pages/admin/statistics/RentalStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
 import StaffOnboardingPage from "../pages/staff/StaffOnboardingPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
@@ -61,6 +63,7 @@ import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPag
 import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
 import CoachListPage from "../pages/admin/coaches/CoachListPage";
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
+import NotificationPage from "../pages/admin/notifications/NotificationPage";
 
 const router = createBrowserRouter([
   { path: "/staff/onboarding", element: <StaffOnboardingPage /> },
@@ -174,10 +177,7 @@ const router = createBrowserRouter([
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              {
-                path: "notifications",
-                element: <Navigate to="/admin" replace />,
-              },
+              { path: "notifications", element: <NotificationPage /> },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,
@@ -185,6 +185,14 @@ const router = createBrowserRouter([
               {
                 path: "statistics/ticket-revenue",
                 element: <TicketRevenueStatisticsPage />,
+              },
+              {
+                path: "statistics/revenue",
+                element: <RevenueStatisticsPage />,
+              },
+              {
+                path: "statistics/rentals",
+                element: <RentalStatisticsPage />,
               },
               {
                 path: "statistics/monthly-tickets",

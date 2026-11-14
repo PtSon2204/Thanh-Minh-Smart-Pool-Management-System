@@ -83,10 +83,8 @@ public sealed class GetCustomerStatisticsHandler : IRequestHandler<GetCustomerSt
 
         var segments = new List<CustomerSegmentDto>
         {
-            new() { Name = "Vé lượt (Vãng lai)", Value = Math.Max(dayTicketsCount, 15), Color = "#0284c7" },
-            new() { Name = "Hội viên vé tháng", Value = Math.Max(monthTicketsCount, 8), Color = "#8b5cf6" },
-            new() { Name = "Khách thuê đồ / dịch vụ", Value = 12, Color = "#10b981" },
-            new() { Name = "Học viên lớp bơi", Value = 6, Color = "#f59e0b" },
+            new() { Name = "Vé lượt (Vãng lai)", Value = dayTicketsCount, Color = "#0284c7" },
+            new() { Name = "Hội viên vé tháng", Value = monthTicketsCount, Color = "#8b5cf6" },
         };
 
         // 5. Top khách hàng tiêu biểu
@@ -110,14 +108,11 @@ public sealed class GetCustomerStatisticsHandler : IRequestHandler<GetCustomerSt
                 Email = u.Email,
                 Phone = u.Phone,
                 TicketType = ticketTypeDesc,
-                TotalEntries = Math.Max(userEntries, 1),
-                TotalSpending = totalSpent > 0 ? totalSpent : 50000m,
-                LastVisit = u.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? DateTime.Now.ToString("dd/MM/yyyy 16:30")
+                TotalEntries = userEntries,
+                TotalSpending = totalSpent,
+                LastVisit = u.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—"
             });
         }
-
-        // Bổ sung mẫu minh họa cho đồ thị nếu DB chưa có phát sinh lượt quét bơi nào
-        EnsureRealisticDemoCharts(dailyTrends, hourlyDistribution, topCustomers);
 
         return new CustomerStatisticsResponse
         {
@@ -146,105 +141,4 @@ public sealed class GetCustomerStatisticsHandler : IRequestHandler<GetCustomerSt
         };
     }
 
-    private static void EnsureRealisticDemoCharts(
-        List<CustomerDailyTrendDto> dailyTrends,
-        List<HourlyEntryDistributionDto> hourlyDistribution,
-        List<TopCustomerDto> topCustomers)
-    {
-
-        // Tạo xu hướng ngày mẫu nếu dữ liệu thật trong DB đang trống
-        if (dailyTrends.All(d => d.SwimEntries == 0))
-        {
-            var mockEntries = new[] { 28, 35, 42, 39, 58, 72, 65, 30, 45, 52, 60, 48, 70, 85 };
-            var mockNewUsers = new[] { 3, 2, 4, 3, 6, 8, 7, 2, 3, 5, 4, 3, 6, 9 };
-
-            for (var i = 0; i < dailyTrends.Count; i++)
-            {
-                dailyTrends[i].SwimEntries = mockEntries[i % mockEntries.Length];
-                dailyTrends[i].NewUsers = mockNewUsers[i % mockNewUsers.Length];
-            }
-        }
-
-        // Tạo phân bổ khung giờ mẫu (giờ cao điểm 6h-8h sáng & 17h-19h chiều)
-        if (hourlyDistribution.All(h => h.Count == 0))
-        {
-            var hourlyPattern = new Dictionary<string, int>
-            {
-                ["05:00"] = 8, ["06:00"] = 24, ["07:00"] = 38, ["08:00"] = 20,
-                ["09:00"] = 12, ["10:00"] = 9, ["11:00"] = 5, ["12:00"] = 3,
-                ["13:00"] = 4, ["14:00"] = 8, ["15:00"] = 15, ["16:00"] = 32,
-                ["17:00"] = 54, ["18:00"] = 62, ["19:00"] = 45, ["20:00"] = 25, ["21:00"] = 10
-            };
-
-            foreach (var item in hourlyDistribution)
-            {
-                if (hourlyPattern.TryGetValue(item.Hour, out var count))
-                    item.Count = count;
-            }
-        }
-
-        // Tạo danh sách Top khách hàng mẫu nếu chưa có
-        if (topCustomers.Count < 3)
-        {
-            topCustomers.Clear();
-            topCustomers.AddRange(new[]
-            {
-                new TopCustomerDto
-                {
-                    Id = Guid.NewGuid(),
-                    FullName = "Nguyễn Văn Tuấn",
-                    Email = "tuan.nguyen@gmail.com",
-                    Phone = "0988.223.111",
-                    TicketType = "Hội viên tháng VIP",
-                    TotalEntries = 26,
-                    TotalSpending = 1250000m,
-                    LastVisit = "Hôm nay 17:45"
-                },
-                new TopCustomerDto
-                {
-                    Id = Guid.NewGuid(),
-                    FullName = "Lê Thị Bích Hạnh",
-                    Email = "hanh.le@gmail.com",
-                    Phone = "0912.445.678",
-                    TicketType = "Hội viên tháng chuẩn",
-                    TotalEntries = 22,
-                    TotalSpending = 950000m,
-                    LastVisit = "Hôm nay 06:30"
-                },
-                new TopCustomerDto
-                {
-                    Id = Guid.NewGuid(),
-                    FullName = "Trần Đình Khang",
-                    Email = "khang.tran@outlook.com",
-                    Phone = "0976.889.900",
-                    TicketType = "Vé lượt cuối tuần",
-                    TotalEntries = 18,
-                    TotalSpending = 720000m,
-                    LastVisit = "Hôm qua 18:20"
-                },
-                new TopCustomerDto
-                {
-                    Id = Guid.NewGuid(),
-                    FullName = "Phạm Mai Anh",
-                    Email = "maianh.pham@gmail.com",
-                    Phone = "0934.556.778",
-                    TicketType = "Hội viên tháng chuẩn",
-                    TotalEntries = 16,
-                    TotalSpending = 950000m,
-                    LastVisit = "04/10/2026 17:15"
-                },
-                new TopCustomerDto
-                {
-                    Id = Guid.NewGuid(),
-                    FullName = "Đặng Hoàng Long",
-                    Email = "long.dang@yahoo.com",
-                    Phone = "0909.112.233",
-                    TicketType = "Vé lượt",
-                    TotalEntries = 12,
-                    TotalSpending = 480000m,
-                    LastVisit = "03/10/2026 19:00"
-                }
-            });
-        }
-    }
 }
