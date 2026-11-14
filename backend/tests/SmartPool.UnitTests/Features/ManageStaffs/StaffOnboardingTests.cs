@@ -128,9 +128,48 @@ public sealed class StaffOnboardingTests
     {
         StaffOnboardingValidation.ValidatePassword("Synthetic123!", "Synthetic123!");
         Assert.Throws<StaffOnboardingException>(() => StaffOnboardingValidation.ValidatePassword("short", "short"));
-        Assert.Throws<StaffOnboardingException>(() => StaffOnboardingValidation.ValidatePassword(new string('é', 40) + "1", new string('é', 40) + "1"));
+        StaffOnboardingValidation.ValidatePassword(new string('é', 40) + "1", new string('é', 40) + "1");
         Assert.Throws<StaffOnboardingException>(() => StaffOnboardingValidation.CheckVersion(2, 1));
         Assert.Equal("0901234567", StaffOnboardingValidation.Phone(" +84901234567 "));
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", "")]
+    [InlineData("Abc1234", "Abc1234")]
+    [InlineData("abcdefgh", "abcdefgh")]
+    [InlineData("12345678", "12345678")]
+    [InlineData("Password1", "Password2")]
+    [InlineData(" Password1 ", "Password1")]
+    [InlineData("Password1", null)]
+    public void PasswordRejectsMissingRequirementsOrDifferentConfirmation(string? password, string? confirmation)
+    {
+        var error = Assert.Throws<StaffOnboardingException>(() => StaffOnboardingValidation.ValidatePassword(password, confirmation));
+        Assert.Equal("INVALID_PASSWORD", error.Code);
+    }
+
+    [Theory]
+    [InlineData(8, true)]
+    [InlineData(72, true)]
+    [InlineData(128, true)]
+    [InlineData(129, false)]
+    public void PasswordLengthAndUnicodeRulesMatchSignup(int length, bool valid)
+    {
+        var password = new string('é', length - 1) + "\u0661";
+        var signup = new SmartPool.Application.Features.Authentication.Commands.Register.RegisterValidator();
+        var signupResult = signup.Validate(new SmartPool.Application.Features.Authentication.Commands.Register.RegisterCommand { Password = password });
+        Assert.Equal(valid, !signupResult.Errors.Any(error => error.PropertyName == "Password"));
+        if (valid)
+            StaffOnboardingValidation.ValidatePassword(password, password);
+        else
+            Assert.Throws<StaffOnboardingException>(() => StaffOnboardingValidation.ValidatePassword(password, password));
+    }
+
+    [Fact]
+    public void PasswordPreservesLeadingAndTrailingSpaces()
+    {
+        StaffOnboardingValidation.ValidatePassword(" Abc123 ", " Abc123 ");
+        Assert.Throws<StaffOnboardingException>(() => StaffOnboardingValidation.ValidatePassword(" Abc123 ", "Abc123"));
     }
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
