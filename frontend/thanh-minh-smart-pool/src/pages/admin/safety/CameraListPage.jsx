@@ -11,7 +11,7 @@ import { monitoringService } from '../../../features/safety/services/monitoringS
 import { startSignalRConnection } from '../../../services/signalrClient'
 import '../../../features/equipments/styles/equipmentManagement.css'
 import './Monitoring.css'
-function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
+function CameraCard({ camera, onEnlarge, highlighted, onRetry }) {
   const element = useRef(null)
   const [visible, setVisible] = useState(false)
   const { ai, fresh, risks, sampleRisks, getPlayoutDelay } = useCameraRisks(camera.id, visible && camera.source === 'RTSP')
@@ -42,7 +42,10 @@ function CameraCard({ camera, enlarged, onEnlarge, highlighted, onRetry }) {
           camera.status !== 'Active' ? <Alert type="warning" title="Camera hiện không khả dụng" /> :
             <>
               {camera.connectionStatus !== 'Connected' && <Alert type="warning" title="Đang chờ camera kết nối lại" action={<Button onClick={onRetry}>Tải lại trạng thái</Button>} />}
-              {visible && !enlarged ? <CameraVideoPlayer equipment={camera} analysis smooth={camera.smoothPlayback} sampleRisks={sampleRisks} getPlayoutDelay={getPlayoutDelay} /> : <div className="monitor-video-placeholder">Camera AI tạm dừng</div>}
+              // Player của card giữ chạy luôn khi mở modal phóng to (backend chia
+              // một nguồn RTSP cho nhiều viewer WebRTC) để luồng phân tích không
+              // bị cắt và box trong modal không biến mất.
+              {visible ? <CameraVideoPlayer equipment={camera} analysis smooth={camera.smoothPlayback} sampleRisks={sampleRisks} getPlayoutDelay={getPlayoutDelay} /> : <div className="monitor-video-placeholder">Camera AI tạm dừng</div>}
             </>}
       </div>
       <div className="camera-card-foot" />
@@ -89,7 +92,7 @@ function CameraListContent() {
     {cameras.isPending ? <Spin /> : cameras.isError ? <Alert type="error" title="Không tải được danh sách camera" action={<Button onClick={() => cameras.refetch()}>Thử lại</Button>} /> : <>
       {!cameras.data.items.length && <Empty description={filters.search || filters.status || filters.area || filters.cameraId ? 'Không tìm thấy camera phù hợp' : 'Chưa có camera'} />}
       <div className="camera-grid">{cameras.data.items.map(camera => <CameraCard key={camera.id} camera={camera}
-        enlarged={enlarged?.id === camera.id} onEnlarge={setEnlarged} onRetry={() => cameras.refetch()} highlighted={highlight?.cameraId === camera.id ? highlight.severity : null} />)}</div>
+        onEnlarge={setEnlarged} onRetry={() => cameras.refetch()} highlighted={highlight?.cameraId === camera.id ? highlight.severity : null} />)}</div>
       <Pagination current={filters.page} total={cameras.data.totalCount} pageSize={filters.pageSize} showSizeChanger={false}
         onChange={page => setFilters(current => ({ ...current, page }))} />
     </>}
