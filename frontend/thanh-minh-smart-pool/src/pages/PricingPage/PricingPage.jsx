@@ -26,8 +26,7 @@ const categoryMeta = {
   },
 }
 
-const getInfoGrid = (ticket) => {
-  const isThang = ticket.ticketCategory === 'VE_THANG'
+const getInfoGrid = () => {
   return [
     {
       icon: (
