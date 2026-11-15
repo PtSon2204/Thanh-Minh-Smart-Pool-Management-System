@@ -31,12 +31,10 @@ public sealed class DailyInspectionTests
         var inspectorId = Guid.NewGuid();
         var eqId = Guid.NewGuid();
 
-        var unitOfWork = new Mock<IUnitOfWork>();
         var currentUser = new Mock<ICurrentUser>();
         currentUser.Setup(user => user.UserId).Returns(inspectorId);
         var inspectionOps = new Mock<IDailyInspectionOperations>();
         var eqOps = new Mock<IEquipmentOperations>();
-        var notifOps = new Mock<INotificationOperations>();
         var userOps = new Mock<IUserOperations>();
 
         userOps.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
@@ -48,10 +46,8 @@ public sealed class DailyInspectionTests
         var handler = new SubmitDailyInspectionHandler(
             inspectionOps.Object,
             eqOps.Object,
-            notifOps.Object,
             userOps.Object,
             new Mock<IWaterQualityOperations>().Object,
-            unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(MorningTestTimeUtc),
             currentUser.Object);
@@ -79,7 +75,11 @@ public sealed class DailyInspectionTests
         Assert.Equal(0, result.IssuesCount);
         Assert.Equal("Ca sáng", result.ShiftName);
 
-        inspectionOps.Verify(r => r.AddAsync(It.IsAny<DailyInspection>(), It.IsAny<CancellationToken>()), Times.Once);
+        inspectionOps.Verify(r => r.SubmitAsync(
+            It.Is<DailyInspection>(inspection => inspection.OverallStatus == "Passed"),
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 0),
+            It.Is<IReadOnlyCollection<Notification>>(notifications => notifications.Count == 0),
+            null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -99,17 +99,10 @@ public sealed class DailyInspectionTests
         var currentUser = new Mock<ICurrentUser>();
         currentUser.Setup(user => user.UserId).Returns(adminId);
         currentUser.Setup(user => user.IsInRole("ADMIN")).Returns(true);
-        var taskTransaction = new Mock<IUnitOfWorkTransaction>();
-        var unitOfWork = new Mock<IUnitOfWork>();
-        unitOfWork.Setup(work => work.BeginTransactionAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(taskTransaction.Object);
         var inspectionOperations = new Mock<IDailyInspectionOperations>();
         var operations = new Mock<IWaterQualityOperations>();
         operations.Setup(repository => repository.GetOperationalTaskByIdAsync(taskId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(task);
-        operations.Setup(repository => repository.CompleteOperationalChecklistTaskAsync(
-                It.IsAny<DailyInspection>(), It.IsAny<OperationalTaskExecutionAuthorization>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
         var userRepository = new Mock<IUserOperations>();
         userRepository.Setup(repository => repository.GetByIdAsync(adminId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = adminId, Username = "admin" });
@@ -117,10 +110,8 @@ public sealed class DailyInspectionTests
         var handler = new SubmitDailyInspectionHandler(
             inspectionOperations.Object,
             new Mock<IEquipmentOperations>().Object,
-            new Mock<INotificationOperations>().Object,
             userRepository.Object,
             operations.Object,
-            unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(MorningTestTimeUtc),
             currentUser.Object);
@@ -138,32 +129,46 @@ public sealed class DailyInspectionTests
         var result = await handler.Handle(command, CancellationToken.None);
 
         Assert.Equal(adminId, result.InspectorId);
-        operations.Verify(repository => repository.CompleteOperationalChecklistTaskAsync(
+        inspectionOperations.Verify(repository => repository.SubmitAsync(
             It.Is<DailyInspection>(inspection => inspection.InspectorId == adminId && inspection.OperationalTaskId == taskId),
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 0),
+            It.Is<IReadOnlyCollection<Notification>>(notifications => notifications.Count == 0),
             It.Is<OperationalTaskExecutionAuthorization>(authorization => authorization.IsAdmin &&
                 authorization.AdminExecutionConfirmed && authorization.ExpectedTaskRevision == 4 &&
                 authorization.ExpectedAssigneeId == null), It.IsAny<CancellationToken>()), Times.Once);
-        taskTransaction.Verify(transaction => transaction.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(DisplayName = "Submit inspection có thiết bị hỏng -> Lưu trạng thái HasIssues và thông báo Admin")]
-    public async Task SubmitInspection_HasBrokenEquipment_SavesIssuesAndNotifiesAdmin()
+    [Theory(DisplayName = "Submit inspection có thiết bị hỏng -> Lưu trạng thái HasIssues và chỉ gửi email sau khi lưu thành công")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SubmitInspection_HasBrokenEquipment_SavesIssuesAndNotifiesAdmin(bool submissionFails)
     {
         var inspectorId = Guid.NewGuid();
         var eqId = Guid.NewGuid();
 
-        var unitOfWork = new Mock<IUnitOfWork>();
         var currentUser = new Mock<ICurrentUser>();
         currentUser.Setup(user => user.UserId).Returns(inspectorId);
         var inspectionOps = new Mock<IDailyInspectionOperations>();
         var eqOps = new Mock<IEquipmentOperations>();
-        var notifOps = new Mock<INotificationOperations>();
         var userOps = new Mock<IUserOperations>();
+        var emailService = new Mock<IEmailService>();
+        var calls = new List<string>();
+        inspectionOps.Setup(operations => operations.SubmitAsync(It.IsAny<DailyInspection>(),
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<IReadOnlyCollection<Notification>>(),
+                It.IsAny<OperationalTaskExecutionAuthorization?>(), It.IsAny<CancellationToken>()))
+            .Callback(() => calls.Add("submit"))
+            .Returns(submissionFails
+                ? Task.FromException(new InvalidOperationException("Inspection save failed."))
+                : Task.CompletedTask);
+        emailService.Setup(service => service.SendAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback(() => calls.Add("email"))
+            .Returns(Task.CompletedTask);
 
         userOps.Setup(r => r.GetByIdAsync(inspectorId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = inspectorId, Username = "lifeguard1" });
         userOps.Setup(r => r.GetUsersByRoleAsync("ADMIN", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<User> { new() { Id = Guid.NewGuid(), Username = "admin" } });
+            .ReturnsAsync(new List<User> { new() { Id = Guid.NewGuid(), Username = "admin", Email = "admin@example.test" } });
 
         inspectionOps.Setup(r => r.GetByDateAndShiftAsync(It.IsAny<DateOnly>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DailyInspection?)null);
@@ -171,13 +176,12 @@ public sealed class DailyInspectionTests
         var handler = new SubmitDailyInspectionHandler(
             inspectionOps.Object,
             eqOps.Object,
-            notifOps.Object,
             userOps.Object,
             new Mock<IWaterQualityOperations>().Object,
-            unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(MorningTestTimeUtc),
-            currentUser.Object);
+            currentUser.Object,
+            emailService.Object);
 
         var command = new SubmitDailyInspectionCommand
         {
@@ -196,34 +200,44 @@ public sealed class DailyInspectionTests
             ]
         };
 
-        var result = await handler.Handle(command, CancellationToken.None);
+        if (submissionFails)
+        {
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                handler.Handle(command, CancellationToken.None));
+            Assert.Equal("Inspection save failed.", exception.Message);
+            Assert.Equal(new[] { "submit" }, calls);
+        }
+        else
+        {
+            var result = await handler.Handle(command, CancellationToken.None);
+            Assert.Equal("HasIssues", result.OverallStatus);
+            Assert.Equal(1, result.IssuesCount);
+            Assert.Equal(new[] { "submit", "email" }, calls);
+        }
 
-        Assert.Equal("HasIssues", result.OverallStatus);
-        Assert.Equal(1, result.IssuesCount);
-
-        notifOps.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<Notification>>(), It.IsAny<CancellationToken>()), Times.Once);
+        inspectionOps.Verify(operations => operations.SubmitAsync(
+            It.Is<DailyInspection>(inspection => inspection.OverallStatus == "HasIssues"),
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(eqId)),
+            It.Is<IReadOnlyCollection<Notification>>(notifications => notifications.Count == 1),
+            null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "Từ chối nộp biên bản khi chưa đến giờ mở (trước ca 30 phút)")]
     public async Task SubmitInspection_TooEarly_ThrowsValidationException()
     {
-        var unitOfWork = new Mock<IUnitOfWork>();
         var inspectorId = Guid.NewGuid();
         var currentUser = new Mock<ICurrentUser>();
         currentUser.Setup(user => user.UserId).Returns(inspectorId);
 
         var inspectionOps = new Mock<IDailyInspectionOperations>();
         var eqOps = new Mock<IEquipmentOperations>();
-        var notifOps = new Mock<INotificationOperations>();
         var userOps = new Mock<IUserOperations>();
 
         var handler = new SubmitDailyInspectionHandler(
             inspectionOps.Object,
             eqOps.Object,
-            notifOps.Object,
             userOps.Object,
             new Mock<IWaterQualityOperations>().Object,
-            unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(TooEarlyTestTimeUtc), // 04:00 sáng
             currentUser.Object);
@@ -255,12 +269,10 @@ public sealed class DailyInspectionTests
         var inspectorId = Guid.NewGuid();
         var shiftId = FixedShifts.Morning.Id;
 
-        var unitOfWork = new Mock<IUnitOfWork>();
         var currentUser = new Mock<ICurrentUser>();
         currentUser.Setup(user => user.UserId).Returns(inspectorId);
         var inspectionOps = new Mock<IDailyInspectionOperations>();
         var eqOps = new Mock<IEquipmentOperations>();
-        var notifOps = new Mock<INotificationOperations>();
         var userOps = new Mock<IUserOperations>();
 
         // Giả lập đã có bản ghi trong DB cho ca sáng hôm nay
@@ -280,10 +292,8 @@ public sealed class DailyInspectionTests
         var handler = new SubmitDailyInspectionHandler(
             inspectionOps.Object,
             eqOps.Object,
-            notifOps.Object,
             userOps.Object,
             new Mock<IWaterQualityOperations>().Object,
-            unitOfWork.Object,
             new SubmitDailyInspectionValidator(),
             new TestTimeProvider(MorningTestTimeUtc),
             currentUser.Object);

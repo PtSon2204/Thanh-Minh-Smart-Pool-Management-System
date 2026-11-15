@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 
-public sealed class DailyInspectionOperations(SmartPoolDbContext db) : IDailyInspectionOperations
+public sealed class DailyInspectionOperations(SmartPoolDbContext db, IWaterQualityOperations waterQualityOperations)
+    : IDailyInspectionOperations
 {
     public async Task<DailyInspection?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -25,10 +28,38 @@ public sealed class DailyInspectionOperations(SmartPoolDbContext db) : IDailyIns
             .ToListAsync(cancellationToken);
     }
 
-    public async Task AddAsync(DailyInspection inspection, CancellationToken cancellationToken)
+    public async Task SubmitAsync(DailyInspection inspection, IReadOnlyCollection<Guid> failedEquipmentIds,
+        IReadOnlyCollection<Notification> notifications, OperationalTaskExecutionAuthorization? taskExecution,
+        CancellationToken cancellationToken)
     {
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         await db.DailyInspections.AddAsync(inspection, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (inspection.OperationalTaskId.HasValue)
+            await waterQualityOperations.CompleteOperationalChecklistTaskAsync(inspection,
+                taskExecution ?? throw new InvalidOperationException("Thiếu xác nhận thực hiện công việc kiểm tra thiết bị."),
+                cancellationToken);
+
+        if (failedEquipmentIds.Count > 0)
+        {
+            var equipments = await db.Equipments
+                .Where(equipment => failedEquipmentIds.Contains(equipment.Id))
+                .ToListAsync(cancellationToken);
+            foreach (var equipment in equipments)
+            {
+                equipment.Status = EquipmentStatuses.Maintenance;
+                equipment.UpdatedAt = inspection.InspectionTime;
+            }
+        }
+
+        await db.Notifications.AddRangeAsync(notifications, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(DailyInspection inspection, CancellationToken cancellationToken)

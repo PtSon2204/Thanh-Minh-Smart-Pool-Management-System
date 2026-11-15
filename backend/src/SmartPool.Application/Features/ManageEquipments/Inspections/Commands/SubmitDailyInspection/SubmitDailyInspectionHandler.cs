@@ -12,17 +12,14 @@ using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
-using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 
 public sealed class SubmitDailyInspectionHandler(
     IDailyInspectionOperations inspectionOperations,
     IEquipmentOperations equipmentOperations,
-    INotificationOperations notificationOperations,
     IUserOperations userOperations,
     IWaterQualityOperations waterQualityOperations,
-    IUnitOfWork unitOfWork,
     IValidator<SubmitDailyInspectionCommand> validator,
     TimeProvider timeProvider,
     ICurrentUser currentUser,
@@ -46,10 +43,6 @@ public sealed class SubmitDailyInspectionHandler(
             throw new UnauthorizedAccessException("Chỉ Admin hoặc nhân viên cứu hộ mới có thể thực hiện công việc.");
         if (isLifeguard && !command.OperationalTaskId.HasValue)
             throw new ValidationException("Nhân viên cứu hộ chỉ có thể nộp biên bản từ công việc đã được phân công.");
-        await using var taskTransaction = command.OperationalTaskId.HasValue
-            ? await unitOfWork.BeginTransactionAsync(cancellationToken)
-            : null;
-
         var today = VietnamTimeBoundary.GetDate(timeProvider);
         var currentTime = VietnamTimeBoundary.GetTime(timeProvider);
 
@@ -151,7 +144,6 @@ public sealed class SubmitDailyInspectionHandler(
             ?? inspector?.Username
             ?? "Cứu hộ";
 
-        // 1. Create and persist DailyInspection record
         var inspection = new DailyInspection
         {
             Id = Guid.NewGuid(),
@@ -167,24 +159,10 @@ public sealed class SubmitDailyInspectionHandler(
             UpdatedAt = nowUtc
         };
 
-        await inspectionOperations.AddAsync(inspection, cancellationToken);
-        if (operationalTask is not null && taskExecution is not null)
-            await waterQualityOperations.CompleteOperationalChecklistTaskAsync(inspection, taskExecution, cancellationToken);
-
-        // 2. Tự động chuyển các thiết bị gặp sự cố sang trạng thái Bảo trì (Maintenance)
+        var notifications = new List<Notification>();
+        var adminEmails = new List<string>();
         if (hasIssues)
         {
-            foreach (var failedItem in failedItems)
-            {
-                var equipment = await equipmentOperations.GetByIdAsync(failedItem.EquipmentId, cancellationToken);
-                if (equipment != null)
-                {
-                    equipment.Status = EquipmentStatuses.Maintenance;
-                    equipment.UpdatedAt = nowUtc;
-                    await equipmentOperations.UpdateAsync(equipment, cancellationToken);
-                }
-            }
-
             // 3. Notify Admins if there are failed items
             var admins = await userOperations.GetUsersByRoleAsync("ADMIN", cancellationToken);
 
@@ -196,7 +174,7 @@ public sealed class SubmitDailyInspectionHandler(
                 ? $"{inspectorName} ghi nhận {criticalFailed.Count} thiết bị cốt lõi ({string.Join(", ", criticalFailed.Select(c => c.EquipmentName))}) bị hư hỏng, vi phạm an toàn pháp lý! Đề xuất Admin kiểm tra và xác nhận tạm dừng hồ bơi."
                 : $"{inspectorName} đã kiểm tra đầu {shiftDef.Name.ToLower()} ngày {today:dd/MM/yyyy} và ghi nhận {failedItems.Count} thiết bị gặp sự cố.";
 
-            var notifications = admins.Select(admin => new Notification
+            notifications = admins.Select(admin => new Notification
             {
                 Id = Guid.NewGuid(),
                 UserId = admin.Id,
@@ -207,18 +185,19 @@ public sealed class SubmitDailyInspectionHandler(
                 CreatedAt = nowUtc
             }).ToList();
 
-            if (notifications.Count > 0)
-            {
-                await notificationOperations.AddRangeAsync(notifications, cancellationToken);
-            }
-
             // 4. Gửi email cảnh báo kèm ảnh chụp trực tiếp cho tất cả Admin
-            var adminEmails = admins
+            adminEmails = admins
                 .Where(a => !string.IsNullOrWhiteSpace(a.Email))
                 .Select(a => a.Email!.Trim())
                 .Distinct()
                 .ToList();
+        }
 
+        await inspectionOperations.SubmitAsync(inspection,
+            failedItems.Select(item => item.EquipmentId).ToArray(), notifications, taskExecution, cancellationToken);
+
+        if (hasIssues)
+        {
             if (adminEmails.Count > 0 && emailService != null)
             {
                 try
@@ -300,10 +279,6 @@ public sealed class SubmitDailyInspectionHandler(
                 }
             }
         }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        if (taskTransaction is not null)
-            await taskTransaction.CommitAsync(cancellationToken);
 
         return new DailyInspectionDto
         {

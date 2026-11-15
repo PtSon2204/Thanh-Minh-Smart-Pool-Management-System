@@ -18,7 +18,6 @@ using SmartPool.Infrastructure.AttendanceQr;
 using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Infrastructure.Caching;
-using SmartPool.Infrastructure.Persistence;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Persistence.Repositories.Payments;
@@ -184,7 +183,6 @@ namespace SmartPool.Infrastructure
             services.AddScoped<IStaffAttendanceSessionStore, RedisStaffAttendanceSessionStore>();
 
             // Operations
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IUserOperations, UserOperations>();
             services.AddScoped<IRolePermissionOperations, RolePermissionOperations>();
             services.AddScoped<ServiceOperations>();
