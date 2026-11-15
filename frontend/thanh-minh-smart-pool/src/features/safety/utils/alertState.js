@@ -1,6 +1,6 @@
 export function isRecentLiveAlert(alert, now) {
   const observed = Date.parse(alert.observedAt || alert.createdAt)
-  return alert.sourceType === 'LIVE' && Number.isFinite(observed) && now - observed >= 0 && now - observed <= 120000
+  return Number.isFinite(observed) && now - observed >= 0 && now - observed <= 120000
 }
 
 // Closing a warning must not dismiss a later escalation of the same DB row.
@@ -22,7 +22,7 @@ export function reconcilePendingAlerts(active, pending, dismissed, now) {
   for (const alert of pending) merged.set(alert.id, mergeAlertUpdate(existing.get(alert.id), alert))
   // Absence from a list snapshot is not a terminal status. Keep visible popups
   // on their original timer; callers verify missing rows using the detail API.
-  return [...merged.values()].filter(a => a.sourceType === 'LIVE' && a.status?.toUpperCase() === 'PENDING'
+  return [...merged.values()].filter(a => a.status?.toUpperCase() === 'PENDING'
     && !dismissed.has(popupIdentity(a)) && (existing.has(a.id) || isRecentLiveAlert(a, now)))
 }
 

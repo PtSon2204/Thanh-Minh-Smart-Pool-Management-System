@@ -2,8 +2,6 @@ import { ALERT_POPUP_LIFETIME_MS } from './popupLifetime.js'
 
 export function canHandleAlert(alert, now = Date.now()) {
   if (alert?.status?.toUpperCase() !== 'PENDING') return false
-  // Offline video analysis is reviewed independently of the LIVE response window.
-  if (alert.sourceType !== 'LIVE') return true
   const observed = Date.parse(alert.observedAt || alert.createdAt)
   const age = now - observed
   return Number.isFinite(age) && age >= 0 && age < ALERT_POPUP_LIFETIME_MS

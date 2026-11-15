@@ -34,7 +34,6 @@ export function useGlobalSafetyAlerts(enabled) {
     const onCameraFrame = payload => {
       if (disposed || !payload) return
       for (const alert of active) {
-        if (alert.sourceType !== 'LIVE') continue
         const version = popupIdentity(alert)
         if (dismissed.has(version)) continue
         const state = cameraRiskState(payload, alert)
@@ -50,7 +49,7 @@ export function useGlobalSafetyAlerts(enabled) {
       }
     }
     const syncCameraSubscriptions = () => {
-      const wanted = new Set(active.filter(alert => alert.sourceType === 'LIVE' && alert.cameraId)
+      const wanted = new Set(active.filter(alert => alert.cameraId)
         .map(alert => String(alert.cameraId).toLowerCase()))
       for (const id of [...cameraSubs.keys()]) if (!wanted.has(id)) { cameraSubs.get(id)(); cameraSubs.delete(id) }
       for (const id of wanted) if (!cameraSubs.has(id)) cameraSubs.set(id, subscribeCameraAnalysis(id, onCameraFrame))
@@ -86,7 +85,7 @@ export function useGlobalSafetyAlerts(enabled) {
         let page = 1
         let total
         do {
-          const data = await monitoringService.alerts({ sourceType: 'LIVE', status: 'PENDING', page, pageSize: 100 }, abort.signal)
+          const data = await monitoringService.alerts({ status: 'PENDING', page, pageSize: 100 }, abort.signal)
           pending.push(...(data.items || []))
           total = data.totalCount || 0
           page++
@@ -112,7 +111,7 @@ export function useGlobalSafetyAlerts(enabled) {
     }
     const connection = getSignalRConnection()
     const handle = alert => {
-      if (disposed || !alert?.id || alert.sourceType !== 'LIVE') return
+      if (disposed || !alert?.id) return
       const current = active.find(a => a.id === alert.id)
       if (mergeAlertUpdate(current, alert) !== alert) return
       if (alert.status?.toUpperCase() === 'PENDING' && dismissed.has(popupIdentity(alert))) return

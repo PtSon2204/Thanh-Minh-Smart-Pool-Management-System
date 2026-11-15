@@ -6,9 +6,9 @@ import { currentVideoRisks } from './videoFrameState.js'
 const now = Date.parse('2026-11-10T03:00:00Z')
 const alert = (id, fields = {}) => ({ id, sourceType: 'LIVE', status: 'PENDING', severity: 'WARNING', createdAt: new Date(now - 1000).toISOString(), ...fields })
 
-test('resync removes handled alerts, preserves active older alerts and excludes upload/dismissed/old newcomers', () => {
+test('resync removes handled alerts, preserves active older alerts and excludes dismissed/stale newcomers', () => {
   const old = alert('old', { createdAt: new Date(now - 180000).toISOString() })
-  const pending = [old, alert('fresh'), alert('handled', { status: 'ACKNOWLEDGED' }), alert('dismissed'), alert('upload', { sourceType: 'UPLOAD' }), alert('stale', { createdAt: old.createdAt })]
+  const pending = [old, alert('fresh'), alert('handled', { status: 'ACKNOWLEDGED' }), alert('dismissed'), alert('stale', { createdAt: old.createdAt })]
   assert.deepEqual(reconcilePendingAlerts([old, alert('handled')], pending, new Set([popupIdentity(alert('dismissed'))]), now).map(a => a.id), ['old', 'fresh'])
 })
 
