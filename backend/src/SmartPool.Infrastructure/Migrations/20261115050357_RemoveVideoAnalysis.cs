@@ -11,6 +11,9 @@ namespace SmartPool.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Dữ liệu UPLOAD bị xóa vĩnh viễn (được đồng ý 15/11/2026) — chạy trước khi drop cột.
+            migrationBuilder.Sql("DELETE FROM smart_pool.warnings WHERE source_type = 'UPLOAD'");
+
             migrationBuilder.DropForeignKey(
                 name: "FK_warnings_video_analysis_jobs_video_job_id",
                 schema: "smart_pool",
