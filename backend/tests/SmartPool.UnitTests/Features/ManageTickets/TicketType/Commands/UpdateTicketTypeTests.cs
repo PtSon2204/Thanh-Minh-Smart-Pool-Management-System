@@ -422,6 +422,50 @@ public class UpdateTicketTypeTests
         Assert.Equal(expectedDays, result.DurationDays);
     }
 
+    [Fact(DisplayName = "ValidateAsync - Tên trùng với loại vé khác -> Báo lỗi")]
+    public async Task ValidateAsync_DuplicateNameOnOtherEntity_ShouldFail()
+    {
+        var command = ValidCommand();
+        var ops = new Mock<ITicketTypeOperations>();
+        ops.Setup(o => o.ExistsByNameAsync(command.Name, command.Id, It.IsAny<CancellationToken>()))
+           .ReturnsAsync(true);
+
+        var validator = new UpdateTicketTypeValidator(ops.Object);
+        var result = await validator.ValidateAsync(command);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == "Name" && e.ErrorMessage.Contains("đã tồn tại"));
+    }
+
+    [Fact(DisplayName = "ValidateAsync - Giữ nguyên tên của chính loại vé đó -> Hợp lệ")]
+    public async Task ValidateAsync_SameNameOnCurrentEntity_ShouldPass()
+    {
+        var command = ValidCommand();
+        var ops = new Mock<ITicketTypeOperations>();
+        ops.Setup(o => o.ExistsByNameAsync(command.Name, command.Id, It.IsAny<CancellationToken>()))
+           .ReturnsAsync(false);
+
+        var validator = new UpdateTicketTypeValidator(ops.Object);
+        var result = await validator.ValidateAsync(command);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact(DisplayName = "Handle - Có Validator và tên bị trùng với loại vé khác -> Ném ValidationException")]
+    public async Task Handle_WithValidator_DuplicateName_ThrowsValidationException()
+    {
+        var command = ValidCommand();
+        var ops = new Mock<ITicketTypeOperations>();
+        ops.Setup(o => o.ExistsByNameAsync(command.Name, command.Id, It.IsAny<CancellationToken>()))
+           .ReturnsAsync(true);
+
+        var validator = new UpdateTicketTypeValidator(ops.Object);
+        var handler = new UpdateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper(), validator);
+
+        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+            handler.Handle(command, CancellationToken.None));
+    }
+
     private static UpdateTicketTypeCommand ValidCommand() => new()
     {
         Id = Guid.NewGuid(), Name = "Vé lượt mới", TicketCategory = TicketCategoryEnum.VE_LUOT,

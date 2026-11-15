@@ -17,6 +17,7 @@ namespace SmartPool.Application.Interfaces.Repositories
         Task<TicketType?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<List<TicketType>> GetAllAsync(CancellationToken cancellationToken = default);
         Task<List<TicketType>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
+        Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken cancellationToken = default);
         Task AddAsync(TicketType ticketType, CancellationToken cancellationToken = default);
         Task UpdateAsync(TicketType ticketType, CancellationToken cancellationToken = default);
         Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);

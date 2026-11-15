@@ -4,6 +4,10 @@ using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
+using Microsoft.Extensions.Logging;
+using SmartPool.Application.Features.Notifications.Models;
+using SmartPool.Application.Features.Notifications.Services;
+using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOfflineTicket
 {
@@ -14,19 +18,28 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
         private readonly IUserOperations _userOperations;
         private readonly IVoucherOperations _voucherOperations;
         private readonly TimeProvider _timeProvider;
+        private readonly IEmailService? _emailService;
+        private readonly IEmailHistoryStore? _historyStore;
+        private readonly ILogger<SellOfflineTicketHandler>? _logger;
 
         public SellOfflineTicketHandler(
             ITicketOrderOperations ticketOrderOperations,
             ITicketTypeOperations ticketTypeOperations,
             IUserOperations userOperations,
             IVoucherOperations voucherOperations,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            IEmailService? emailService = null,
+            IEmailHistoryStore? historyStore = null,
+            ILogger<SellOfflineTicketHandler>? logger = null)
         {
             _ticketOrderOperations = ticketOrderOperations;
             _ticketTypeOperations = ticketTypeOperations;
             _userOperations = userOperations;
             _voucherOperations = voucherOperations;
             _timeProvider = timeProvider;
+            _emailService = emailService;
+            _historyStore = historyStore;
+            _logger = logger;
         }
 
         public async Task<SellOfflineTicketResponse> Handle(SellOfflineTicketCommand request, CancellationToken cancellationToken)
@@ -220,7 +233,101 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOffli
 
             await _ticketOrderOperations.CreateOfflineSaleAsync(order, orderDetails, payment, tickets, cancellationToken);
 
+            // Gửi email xác nhận kèm mã vé cho khách hàng nếu có email (non-blocking / fault-tolerant)
+            await TrySendConfirmationEmailAsync(order, tickets, ticketTypesCache, cancellationToken);
+
             return response;
+        }
+
+        private async Task TrySendConfirmationEmailAsync(
+            Order order,
+            IReadOnlyList<Domain.Entities.Ticket> tickets,
+            Dictionary<Guid, Domain.Entities.TicketType> ticketTypes,
+            CancellationToken cancellationToken)
+        {
+            if (_emailService == null || tickets.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                User? user = null;
+                if (order.UserId.HasValue)
+                {
+                    user = await _userOperations.GetByIdAsync(order.UserId.Value, cancellationToken);
+                }
+                else if (!string.IsNullOrWhiteSpace(order.CustomerPhone))
+                {
+                    user = await _userOperations.GetByPhoneOrUsernameAsync(order.CustomerPhone, cancellationToken);
+                }
+
+                if (user == null || string.IsNullOrWhiteSpace(user.Email))
+                {
+                    return;
+                }
+
+                var emailTickets = new List<TicketEmailItemDto>();
+                foreach (var ticket in tickets)
+                {
+                    ticketTypes.TryGetValue(ticket.TicketTypeId, out var tt);
+                    var isVeLuot = string.Equals(tt?.TicketCategory, nameof(TicketCategoryEnum.VE_LUOT), StringComparison.OrdinalIgnoreCase);
+
+                    string details = isVeLuot
+                        ? $"Số lượt: {ticket.RemainingEntries ?? 1} lượt" + (ticket.ExpiryDate.HasValue ? $" | Hạn dùng: {ticket.ExpiryDate.Value.AddHours(7):dd/MM/yyyy}" : "")
+                        : $"Hạn sử dụng: {(ticket.ExpiryDate.HasValue ? ticket.ExpiryDate.Value.AddHours(7).ToString("dd/MM/yyyy") : "30 ngày")}";
+
+                    emailTickets.Add(new TicketEmailItemDto
+                    {
+                        TicketCode = ticket.QrCode,
+                        TicketTypeName = tt?.Name ?? "Vé bơi",
+                        Category = tt?.TicketCategory ?? (isVeLuot ? "VE_LUOT" : "VE_THANG"),
+                        RemainingEntries = ticket.RemainingEntries,
+                        ExpiryDate = ticket.ExpiryDate,
+                        Details = details
+                    });
+                }
+
+                var recipientName = user.UserProfile?.FullName;
+                if (string.IsNullOrWhiteSpace(recipientName))
+                {
+                    recipientName = !string.IsNullOrWhiteSpace(order.CustomerName) ? order.CustomerName : (user.Username ?? "Quý khách");
+                }
+
+                var shortOrderRef = order.Id.ToString("N")[..8].ToUpperInvariant();
+                var subject = $"[Bể bơi Thanh Minh] Xác nhận đặt vé thành công - Đơn hàng #{shortOrderRef}";
+                var orderRef = $"#{shortOrderRef}";
+
+                var htmlBody = EmailTemplateBuilder.BuildOrderTicketConfirmationHtml(
+                    recipientName,
+                    subject,
+                    orderRef,
+                    order.TotalAmount,
+                    order.DiscountAmount ?? 0,
+                    order.FinalAmount,
+                    order.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime,
+                    emailTickets);
+
+                await _emailService.SendAsync(user.Email, subject, htmlBody, cancellationToken);
+
+                if (_historyStore != null)
+                {
+                    await _historyStore.AddLogAsync(new EmailHistoryItem
+                    {
+                        Recipient = user.Email,
+                        RecipientName = recipientName,
+                        Subject = subject,
+                        TemplateType = "ticket_confirmation",
+                        Status = "Thành công",
+                        SentAt = _timeProvider.GetUtcNow().UtcDateTime,
+                        HtmlBody = htmlBody
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Không thể gửi email xác nhận vé cho đơn hàng POS {OrderId}. Lỗi: {Message}", order.Id, ex.Message);
+            }
         }
 
         /// <summary>Sinh mã 6 chữ số duy nhất, retry tối đa 10 lần nếu trùng.</summary>

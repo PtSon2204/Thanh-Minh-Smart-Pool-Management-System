@@ -136,14 +136,14 @@ public class CreateVoucherHandlerTests
         operations.Verify(x => x.CreateVoucherAsync(command, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(DisplayName = "UTCID10 (A) - Operation ném VoucherConflictException -> Handler truyền tiếp exception")]
+    [Fact(DisplayName = "UTCID10 (A) - Operation ném InvalidOperationException -> Handler truyền tiếp exception")]
     public async Task UTCID10_OperationConflict_IsPropagated()
     {
         var command = ValidCommand();
-        var expected = new VoucherConflictException("Voucher with code 'WELCOME' already exists.");
+        var expected = new InvalidOperationException("Voucher with code 'WELCOME' already exists.");
         operations.Setup(x => x.CreateVoucherAsync(command, It.IsAny<CancellationToken>())).ThrowsAsync(expected);
 
-        var actual = await Assert.ThrowsAsync<VoucherConflictException>(() => CreateHandler().Handle(command, default));
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateHandler().Handle(command, default));
 
         Assert.Same(expected, actual);
         operations.Verify(x => x.CreateVoucherAsync(command, It.IsAny<CancellationToken>()), Times.Once);

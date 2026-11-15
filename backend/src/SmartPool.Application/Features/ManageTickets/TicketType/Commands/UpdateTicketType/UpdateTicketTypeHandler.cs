@@ -1,4 +1,5 @@
 using AutoMapper;
+using FluentValidation;
 using MediatR;
 using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
@@ -12,19 +13,27 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Updat
     {
         private readonly ITicketTypeOperations _operations;
         private readonly IMapper _mapper;
+        private readonly IValidator<UpdateTicketTypeCommand>? _validator;
 
         public UpdateTicketTypeHandler(
             ITicketTypeOperations operations,
-            IMapper mapper)
+            IMapper mapper,
+            IValidator<UpdateTicketTypeCommand>? validator = null)
         {
             _operations = operations;
             _mapper = mapper;
+            _validator = validator;
         }
 
         public async Task<UpdateTicketTypeResponse> Handle(
             UpdateTicketTypeCommand request,
             CancellationToken cancellationToken)
         {
+            if (_validator != null)
+            {
+                await _validator.ValidateAndThrowAsync(request, cancellationToken);
+            }
+
             var entity = await _operations.GetByIdAsync(request.Id, cancellationToken)
                 ?? throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {request.Id}");
 
