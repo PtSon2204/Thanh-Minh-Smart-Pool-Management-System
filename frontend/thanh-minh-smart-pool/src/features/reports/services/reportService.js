@@ -30,4 +30,18 @@ export const reportService = {
    */
   getIncidentStatistics: (params = {}) =>
     apiClient.get(`${BASE}/incidents`, { params }).then((res) => res.data),
+
+  /**
+   * Thống kê doanh thu tổng hợp (vé + cho thuê đồ)
+   * @param {Object} params - { period, fromDate, toDate }
+   */
+  getRevenueStatistics: (params = {}) =>
+    apiClient.get(`${BASE}/revenue`, { params }).then((res) => res.data),
+
+  /**
+   * Thống kê chi phí / hoạt động thuê đồ
+   * @param {Object} params - { period, fromDate, toDate }
+   */
+  getRentalStatistics: (params = {}) =>
+    apiClient.get(`${BASE}/rentals`, { params }).then((res) => res.data),
 };

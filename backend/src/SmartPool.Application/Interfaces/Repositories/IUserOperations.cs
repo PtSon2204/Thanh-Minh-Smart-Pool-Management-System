@@ -15,6 +15,7 @@ public interface IUserOperations
     Task AddUserAsync(User user, CancellationToken cancellationToken);
     Task<UserProfile?> GetUserProfileByUserIdAsync(Guid userId, CancellationToken cancellationToken);
     Task<List<User>> GetUsersByRoleAsync(string roleName, CancellationToken cancellationToken);
+    Task<List<User>> GetAllUsersAsync(CancellationToken cancellationToken = default);
     Task<List<User>> GetUsersByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken);
 
     // Atomic compare-and-swap: the password, email and account eligibility must still match.

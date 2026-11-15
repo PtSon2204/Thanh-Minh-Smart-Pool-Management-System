@@ -1,17 +1,30 @@
 using FluentValidation;
 using SmartPool.Application.Common.Helpers;
+using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.CreateTicketType
 {
     public class CreateTicketTypeValidator : AbstractValidator<CreateTicketTypeCommand>
     {
-        public CreateTicketTypeValidator()
+        public CreateTicketTypeValidator(ITicketTypeOperations? operations = null)
         {
             RuleFor(x => x.Name)
                 .NotEmpty().WithMessage("Tên loại vé không được để trống.")
                 .MaximumLength(30).WithMessage("Tên loại vé không được vượt quá 30 ký tự.")
                 .Matches(@"\A[\p{L}\p{M}\p{Nd} ()]+\z").WithMessage("Tên loại vé chỉ được chứa chữ, số, khoảng trắng và dấu ngoặc ().");
+
+            if (operations != null)
+            {
+                RuleFor(x => x.Name)
+                    .MustAsync(async (name, cancellationToken) =>
+                    {
+                        if (string.IsNullOrWhiteSpace(name)) return true;
+                        var exists = await operations.ExistsByNameAsync(name, null, cancellationToken);
+                        return !exists;
+                    })
+                    .WithMessage("Tên loại vé đã tồn tại trong hệ thống.");
+            }
 
             RuleFor(x => x.TicketCategory)
                 .IsInEnum().WithMessage("Phân loại vé không hợp lệ. Chấp nhận: VE_THANG, VE_LUOT.");

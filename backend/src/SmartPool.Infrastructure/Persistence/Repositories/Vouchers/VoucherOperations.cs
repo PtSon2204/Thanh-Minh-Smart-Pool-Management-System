@@ -75,7 +75,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Vouchers
             var exists = await context.Vouchers.AnyAsync(v => v.Code == request.Code && v.IsDeleted != true, cancellationToken);
             if (exists)
             {
-                throw new VoucherConflictException($"Voucher with code '{request.Code}' already exists.");
+                throw new InvalidOperationException($"Voucher with code '{request.Code}' already exists.");
             }
 
             var voucher = new Voucher
