@@ -197,13 +197,19 @@ public sealed partial class SafetyMonitoringTests
         await app.StopAsync();
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("ADMIN")]
+    [InlineData("Admin")]
+    [InlineData("admin")]
+    [InlineData("LIFEGUARD")]
+    [InlineData("Lifeguard")]
+    [InlineData("lifeguard")]
     [Trait("TestCaseId", "MSA-HI-01")]
-    public async Task SafetyOperatorCanViewFilteredIncidentHistory()
+    public async Task SafetyOperatorCanViewFilteredIncidentHistory(string role)
     {
         await using var app = await ApiAsync();
         using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
-        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, role));
 
         var matchingId = Guid.NewGuid();
         var occurredAt = DateTime.UtcNow.AddMinutes(-5);

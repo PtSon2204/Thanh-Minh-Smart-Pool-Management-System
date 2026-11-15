@@ -10,12 +10,13 @@ using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSafetyA
 using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ConfirmSafetyIncident;
 using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidentById;
 using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidents;
+using SmartPool.API.Authorization;
 
 namespace SmartPool.API.Controllers;
 
 [ApiController]
 [Route("api/safety-alerts")]
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
 public sealed class SafetyAlertsController : ControllerBase
 {
     private readonly ISender _sender;
@@ -31,7 +32,6 @@ public sealed class SafetyAlertsController : ControllerBase
     /// Chỉ ADMIN và LIFEGUARD mới có quyền.
     /// </summary>
     [HttpPost("activate")]
-    [Authorize(Roles = "ADMIN,LIFEGUARD")]
     [ProducesResponseType(typeof(ActivateSafetyAlertResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ActivateAlert(
@@ -69,7 +69,6 @@ public sealed class SafetyAlertsController : ControllerBase
     /// Lấy danh sách lịch sử sự cố và cảnh báo cứu hộ.
     /// </summary>
     [HttpGet("incidents")]
-    [Authorize(Roles = "ADMIN,LIFEGUARD")]
     [ProducesResponseType(typeof(GetSafetyIncidentsResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIncidents(
         [FromQuery] string? search,
@@ -104,7 +103,6 @@ public sealed class SafetyAlertsController : ControllerBase
     /// Lấy chi tiết một sự cố trong lịch sử.
     /// </summary>
     [HttpGet("incidents/{id:guid}")]
-    [Authorize(Roles = "ADMIN,LIFEGUARD")]
     [ProducesResponseType(typeof(SafetyIncidentDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetIncidentById(
@@ -119,7 +117,6 @@ public sealed class SafetyAlertsController : ControllerBase
     /// Xác nhận xử lý sự cố cứu hộ.
     /// </summary>
     [HttpPut("incidents/{id:guid}/confirm")]
-    [Authorize(Roles = "ADMIN,LIFEGUARD")]
     [ProducesResponseType(typeof(ConfirmSafetyIncidentResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> ConfirmIncident(
         [FromRoute] Guid id,
