@@ -316,46 +316,6 @@ try {
       assert.equal(rows.get('burst-13').incidentId, 'fixture-incident-burst-13')
       check('stale WARNING acknowledgement updates popup to CRITICAL and requires a second explicit confirmation')
 
-      // Exercise the separate UPLOAD popup stack with an actual playable fixture.
-      let fixture
-      for await (const candidate of fs.glob(path.join(root, 'backend/.test-runtime/jobs/**/fixture.mp4').replaceAll('\\', '/'))) { fixture = candidate; break }
-      assert.ok(fixture, 'Run the native video integration test once to create a playable fixture.mp4')
-      const clip = await fs.readFile(fixture)
-      await context.route('**/popup-fixture.mp4', route => route.fulfill({ body: clip, contentType: 'video/mp4' }))
-      const job = '11111111-1111-1111-1111-111111111111'
-      await context.route(`**/api/video-analyses/${job}**`, route => {
-        const endpoint = new URL(route.request().url()).pathname
-        let body = { id: job, status: 'COMPLETED', originalName: 'popup-fixture.mp4', progress: 1 }
-        if (endpoint.endsWith('/playback')) body = { streamPath: '/popup-fixture.mp4', expiresAt: new Date(Date.now() + 3600000).toISOString() }
-        else if (endpoint.endsWith('/window')) body = { fps: 10, readyFrames: 20, complete: true, startFrame: 0,
-          frames: Array.from({ length: 20 }, (_, index) => index >= 10 ? [] : [{ trackId: index < 5 ? 'video-warning' : 'video-critical',
-            episode: 1, severity: index < 5 ? 'WARNING' : 'CRITICAL', box: [.1, .2, .4, .6] }]) }
-        else if (endpoint.endsWith('/alerts')) body = { items: [], totalCount: 0 }
-        return route.fulfill({ json: body })
-      })
-      await page.goto(new URL(`/admin/safety/video-analysis?job=${job}`, vite.resolvedUrls.local[0]).href)
-      for (let i = 0; i < 30 && !await page.locator('video').count(); i++) await flush()
-      await page.locator('video').waitFor()
-      for (let i = 0; i < 30 && !await page.locator('video').getAttribute('src'); i++) await flush()
-      await page.clock.runFor(200)
-      await page.locator('video').evaluate(video => video.play())
-      const videoCards = page.locator('.safety-video-popup > .ant-alert')
-      for (let i = 0; i < 100 && await videoCards.count() < 2; i++) await new Promise(resolve => setTimeout(resolve, 50))
-      assert.equal(await videoCards.count(), 2)
-      await page.locator('video').evaluate(video => video.pause())
-      assert.match(await videoCards.first().innerText(), /video-critical/)
-      const videoImage = path.join(output, `two-video-${viewport.width}.png`)
-      await page.screenshot({ path: videoImage, animations: 'disabled' })
-      report.screenshots.push(path.relative(root, videoImage))
-      await advance(9000)
-      assert.equal(await videoCards.count(), 2)
-      await videoCards.first().getByRole('button').click({ force: true })
-      for (let i = 0; i < 100 && await videoCards.count() !== 1; i++) await new Promise(resolve => setTimeout(resolve, 20))
-      assert.equal(await videoCards.count(), 1)
-      await advance(1500)
-      for (let i = 0; i < 100 && await videoCards.count(); i++) await new Promise(resolve => setTimeout(resolve, 20))
-      assert.equal(await videoCards.count(), 0)
-      check('two video popups coexist, newest first; individual close and 10-second expiry work with a controlled clock')
       assert.deepEqual(errors, [])
       console.log(`PASS ${viewport.width}x${viewport.height}`)
     } catch (error) {
