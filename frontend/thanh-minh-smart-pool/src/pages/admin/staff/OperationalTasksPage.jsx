@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -402,7 +402,7 @@ export default function OperationalTasksPage() {
       : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có công việc" />,
   }))
 
-  const retryEnsureWeek = () => ensureWeekMutate(weekStartKey)
+  const retryEnsureWeek = () => ensureWeek.mutate(weekStartKey)
   const deepLinkMissing = Boolean(taskId && taskLookup.isSuccess && !linkedTask)
 
   if (!isAdmin && session?.role?.toUpperCase() !== 'LIFEGUARD') {
