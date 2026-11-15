@@ -109,7 +109,7 @@ public class UpdateVoucherHandlerTests
         ops.Verify(r => r.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact(DisplayName = "UTCID06 (A) - Code thuộc voucher khác chưa xóa -> VoucherConflictException và không lưu")]
+    [Fact(DisplayName = "UTCID06 (A) - Code thuộc voucher khác chưa xóa -> InvalidOperationException và không lưu")]
     public async Task UTCID06_DuplicateCode_ThrowsConflict()
     {
         var entity = ExistingVoucher();
@@ -118,7 +118,7 @@ public class UpdateVoucherHandlerTests
         var command = ValidCommand(entity.Id);
         command.Code = "NEWCODE";
 
-        var exception = await Assert.ThrowsAsync<VoucherConflictException>(() =>
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Handler(ops.Object).Handle(command, default));
 
         Assert.Equal("Mã voucher 'NEWCODE' đã tồn tại.", exception.Message);

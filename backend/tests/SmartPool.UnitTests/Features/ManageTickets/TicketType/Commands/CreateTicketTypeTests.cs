@@ -397,6 +397,53 @@ namespace SmartPool.UnitTests.Features.ManageTickets.TicketType.Commands
             Assert.Equal(expectedDays, result.DurationDays);
         }
 
+        [Fact(DisplayName = "ValidateAsync - Tên loại vé bị trùng -> Báo lỗi Tên loại vé đã tồn tại")]
+        public async Task ValidateAsync_DuplicateName_ShouldFail()
+        {
+            var ops = new Mock<ITicketTypeOperations>();
+            ops.Setup(o => o.ExistsByNameAsync("Vé tháng VIP", null, It.IsAny<CancellationToken>()))
+               .ReturnsAsync(true);
+
+            var validator = new CreateTicketTypeValidator(ops.Object);
+            var command = ValidCommand();
+
+            var result = await validator.ValidateAsync(command);
+
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Errors, e => e.PropertyName == "Name" && e.ErrorMessage.Contains("đã tồn tại"));
+        }
+
+        [Fact(DisplayName = "ValidateAsync - Tên loại vé chưa tồn tại -> Hợp lệ")]
+        public async Task ValidateAsync_UniqueName_ShouldPass()
+        {
+            var ops = new Mock<ITicketTypeOperations>();
+            ops.Setup(o => o.ExistsByNameAsync("Vé tháng VIP", null, It.IsAny<CancellationToken>()))
+               .ReturnsAsync(false);
+
+            var validator = new CreateTicketTypeValidator(ops.Object);
+            var command = ValidCommand();
+
+            var result = await validator.ValidateAsync(command);
+
+            Assert.True(result.IsValid);
+        }
+
+        [Fact(DisplayName = "Handle - Có Validator và tên bị trùng -> Ném ValidationException")]
+        public async Task Handle_WithValidator_DuplicateName_ThrowsValidationException()
+        {
+            var ops = new Mock<ITicketTypeOperations>();
+            ops.Setup(o => o.ExistsByNameAsync("Vé tháng VIP", null, It.IsAny<CancellationToken>()))
+               .ReturnsAsync(true);
+
+            var validator = new CreateTicketTypeValidator(ops.Object);
+            var handler = new CreateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper(), validator);
+
+            var command = ValidCommand();
+
+            await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+                handler.Handle(command, CancellationToken.None));
+        }
+
         private static CreateTicketTypeCommand ValidCommand() => new()
         {
             Name = "Vé tháng VIP",
