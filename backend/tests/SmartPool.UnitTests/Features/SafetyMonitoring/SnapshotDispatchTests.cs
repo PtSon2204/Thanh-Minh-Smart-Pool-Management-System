@@ -27,7 +27,7 @@ public sealed class SnapshotDispatchTests
         var repository = new Mock<ISafetyMonitoringService>();
         repository.Setup(x => x.PrepareSnapshotAsync(It.IsAny<RecordRiskCommand>(), It.IsAny<CancellationToken>()))
             .Returns(async (RecordRiskCommand command, CancellationToken ct) => {
-                if (command.SourceId == slow) {
+                if (command.CameraId == slow) {
                     Interlocked.Increment(ref slowCalls); entered.TrySetResult();
                     await release.Task.WaitAsync(ct);
                 }
@@ -35,10 +35,10 @@ public sealed class SnapshotDispatchTests
             });
         repository.Setup(x => x.RecordAsync(It.IsAny<RecordRiskCommand>(), It.IsAny<CancellationToken>()))
             .Returns((RecordRiskCommand command, CancellationToken ct) => {
-                recorded.Add(command.SourceId);
+                recorded.Add(command.CameraId);
                 if (recorded.Contains(fast1) && recorded.Contains(fast2)) finished.TrySetResult();
-                return Task.FromResult(new RiskWriteResult(new AlertDto(command.AlertId!.Value, "LIVE", command.SourceId,
-                    null, "Camera", "Pool", "1", "episode", "CRITICAL", "PENDING", null, command.ImageUrl,
+                return Task.FromResult(new RiskWriteResult(new AlertDto(command.AlertId!.Value, command.CameraId,
+                    "Camera", "Pool", "1", "episode", "CRITICAL", "PENDING", command.ImageUrl,
                     "COMPLETED", null, null, null, DateTime.UtcNow)));
             });
         using var services = new ServiceCollection().AddSingleton(repository.Object).BuildServiceProvider();
@@ -46,7 +46,7 @@ public sealed class SnapshotDispatchTests
             new Cloudinary(new Account("unused", "unused", "unused")), options, NullLogger<SnapshotUploadWorker>.Instance);
         Task Add(Guid camera) {
             var id = Guid.NewGuid();
-            return queue.SaveAsync(new(id, new("LIVE", camera,
+            return queue.SaveAsync(new(id, new(camera,
                 new("1", "episode", "CRITICAL", .9, 1, [.1, .1, .3, .3]), .9, DateTime.UtcNow,
                 "https://example.test/already-uploaded.jpg", id)), default);
         }

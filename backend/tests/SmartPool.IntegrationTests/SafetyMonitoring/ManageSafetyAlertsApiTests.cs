@@ -135,7 +135,6 @@ public sealed partial class SafetyMonitoringTests
         {
             Assert.Equal(alertId, body.RootElement.GetProperty("id").GetGuid());
             Assert.Equal("WARNING", body.RootElement.GetProperty("severity").GetString());
-            Assert.Equal("LIVE", body.RootElement.GetProperty("sourceType").GetString());
         }
 
         Assert.Equal(HttpStatusCode.NotFound,

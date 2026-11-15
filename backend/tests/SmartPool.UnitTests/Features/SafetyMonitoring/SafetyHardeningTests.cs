@@ -59,7 +59,7 @@ public sealed class SafetyHardeningTests
         var options = Options.Create(new MonitoringOptions { StoragePath = root, MaxPendingAlertSnapshots = 16 });
         var files = new MonitoringFiles(options, Mock.Of<IHostEnvironment>());
         var queue = new AlertSnapshotQueue(files, options, NullLogger<AlertSnapshotQueue>.Instance);
-        RecordRiskCommand Command(string episode, string severity = "WARNING") => new("LIVE", Guid.NewGuid(),
+        RecordRiskCommand Command(string episode, string severity = "WARNING") => new(Guid.NewGuid(),
             new("1", episode, severity, .9, 1, [.1, .1, .3, .3]), .9, DateTime.UtcNow);
         byte[] jpeg = [0xff, 0xd8, 0xff, 0xd9];
         using var worker = new AlertSnapshotStagingWorker(queue, NullLogger<AlertSnapshotStagingWorker>.Instance);

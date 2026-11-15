@@ -42,7 +42,7 @@ public sealed class AlertSnapshotQueue(MonitoringFiles files, IOptions<Monitorin
     public bool TryStage(RecordRiskCommand command, byte[] jpeg, byte[]? renderedJpeg = null)
     {
         if (!ValidRendered(jpeg) || renderedJpeg != null && !ValidRendered(renderedJpeg)) return false;
-        var key = $"{command.SourceType}:{command.SourceId}:{command.Decision.TrackId}:{command.Decision.Episode}:{command.Decision.Severity}";
+        var key = $"LIVE:{command.CameraId}:{command.Decision.TrackId}:{command.Decision.Episode}:{command.Decision.Severity}";
         var slot = new DateTimeOffset(DateTime.SpecifyKind(command.ObservedAt, DateTimeKind.Utc)).ToUnixTimeSeconds();
         lock (stagingGate)
         {
@@ -68,9 +68,9 @@ public sealed class AlertSnapshotQueue(MonitoringFiles files, IOptions<Monitorin
     {
         if (jpeg.Length < 4 || jpeg[0] != 0xff || jpeg[1] != 0xd8) throw new ArgumentException("Snapshot phải là JPEG thực tế.");
         if (renderedJpeg != null && !ValidRendered(renderedJpeg)) throw new ArgumentException("Ảnh đã vẽ phải là JPEG hợp lệ.");
-        var key = $"{command.SourceType}:{command.SourceId}:{command.Decision.TrackId}:{command.Decision.Episode}:{command.Decision.Severity}";
+        var key = $"LIVE:{command.CameraId}:{command.Decision.TrackId}:{command.Decision.Episode}:{command.Decision.Severity}";
         var second = new DateTimeOffset(DateTime.SpecifyKind(command.ObservedAt, DateTimeKind.Utc)).ToUnixTimeSeconds();
-        var slot = command.SourceType == "LIVE" ? second : 0;
+        var slot = second;
         await gate.WaitAsync(ct);
         try
         {
@@ -99,7 +99,7 @@ public sealed class AlertSnapshotQueue(MonitoringFiles files, IOptions<Monitorin
         finally { gate.Release(); }
     }
 
-    private static bool IsLiveCritical(RecordRiskCommand command) => command.SourceType == "LIVE" && command.Decision.Severity == "CRITICAL";
+    private static bool IsLiveCritical(RecordRiskCommand command) => command.Decision.Severity == "CRITICAL";
 
     public IEnumerable<string> PendingFiles()
     {
@@ -110,8 +110,7 @@ public sealed class AlertSnapshotQueue(MonitoringFiles files, IOptions<Monitorin
         return paths.OrderBy(Priority).ThenByDescending(File.GetCreationTimeUtc).ToArray();
     }
 
-    private static int Priority(PendingAlertSnapshot job) => (job.Command.SourceType == "LIVE" ? 0 : 2)
-        + (job.Command.Decision.Severity == "CRITICAL" ? 0 : 1);
+    private static int Priority(PendingAlertSnapshot job) => job.Command.Decision.Severity == "CRITICAL" ? 0 : 1;
     private int Priority(string path) => priorities.GetOrAdd(path, file => {
         try { return Priority(JsonSerializer.Deserialize<PendingAlertSnapshot>(File.ReadAllText(file), Json)!); }
         catch { return 4; }

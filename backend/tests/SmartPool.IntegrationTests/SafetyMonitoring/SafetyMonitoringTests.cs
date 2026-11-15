@@ -57,8 +57,8 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
     }
     private SafetyMonitoringService Repo(SmartPoolDbContext db) => new(new MonitoringRepository(db), events,
         Options.Create(new RiskOptions()), TimeProvider.System, NullLogger<SafetyMonitoringService>.Instance);
-    private RecordRiskCommand Event(string severity = "WARNING", string source = "LIVE", Guid? id = null, string? episode = null) =>
-        new(source, id ?? cameraId, new("1", episode ?? "episode", severity, .9, 5, [.1, .1, .3, .5]), .9, DateTime.UtcNow, "https://example.test/verified-snapshot.jpg");
+    private RecordRiskCommand Event(string severity = "WARNING", Guid? id = null, string? episode = null) =>
+        new(id ?? cameraId, new("1", episode ?? "episode", severity, .9, 5, [.1, .1, .3, .5]), .9, DateTime.UtcNow, "https://example.test/verified-snapshot.jpg");
 
     [Fact]
     public async Task Migration_PreservesExistingWarningsAndIncidents()
@@ -132,20 +132,6 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         await Repo(db).HandleAsync(alert.Alert.Id, action, userId, true, default);
         Assert.Empty(await db.Incidents.ToListAsync());
         await Assert.ThrowsAsync<MonitoringConflictException>(() => Repo(db).HandleAsync(alert.Alert.Id, action, userId, true, default));
-    }
-
-    [Fact]
-    public async Task UploadedVideo_RespectsOwner_AndNeverBroadcastsOrCreatesOperationalIncident()
-    {
-        var jobId = Guid.NewGuid();
-        await using var db = new SmartPoolDbContext(options);
-        db.VideoAnalysisJobs.Add(new() { Id = jobId, UploadedBy = userId, InputFile = "test.mp4", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
-        await db.SaveChangesAsync();
-        var alert = await Repo(db).RecordAsync(Event("CRITICAL", "UPLOAD", jobId), default);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => Repo(db).GetAsync(alert.Alert.Id, Guid.NewGuid(), false, default));
-        await Repo(db).HandleAsync(alert.Alert.Id, "ACKNOWLEDGED", userId, false, default);
-        await Repo(db).CompleteSnapshotAsync(alert.Alert.Id, "https://example.test/snapshot.jpg", default);
-        Assert.Empty(await db.Incidents.ToListAsync()); Assert.Empty(events.Names); Assert.Equal("COMPLETED", alert.Alert.SnapshotStatus);
     }
 
     [Fact]

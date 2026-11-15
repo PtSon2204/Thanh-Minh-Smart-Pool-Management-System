@@ -117,9 +117,7 @@ public sealed partial class SafetyMonitoringTests
             }
             Assert.True(frames.Count >= 3, $"Chỉ nhận {frames.Count} frame AI thực tế.");
             await using var db = new SmartPoolDbContext(options);
-            Assert.Empty(await db.VideoAnalysisJobs.ToListAsync());
             var alerts = await db.Warnings.AsNoTracking().Where(x => x.CamId == id).ToListAsync();
-            Assert.All(alerts, alert => Assert.Equal("LIVE", alert.SourceType));
             if (alerts.Count > 0) Assert.Contains("alert_created", hubEvents);
             var critical = alerts.FirstOrDefault(x => x.SeverityLevel == "CRITICAL" && x.Status == "PENDING");
             if (critical != null)
@@ -147,7 +145,7 @@ public sealed partial class SafetyMonitoringTests
                 thresholdSource = "DATABASE", aiFramesObserved = frames.Count, tracksObserved = tracks.Count,
                 observedFramesPerSecond = frames.Count / 25.0, meanInferenceMs = inference.Count == 0 ? (double?)null : inference.Average(),
                 maxObservationAgeMs = latencies.Count == 0 ? (double?)null : latencies.Max(),
-                alerts = alerts.Select(x => new { x.Id, x.SourceType, x.SeverityLevel, x.SnapshotStatus }),
+                alerts = alerts.Select(x => new { x.Id, x.SeverityLevel, x.SnapshotStatus }),
                 criticalAcknowledgementTested = critical != null, cancellationTested = cancelId != null,
                 signalrEvents = hubEvents.ToArray(), cloudinarySuccessTested = false, browserPopupAndTtsTested = false };
             var reportPath = Path.Combine(RepositoryRoot(), "tools", "camera-simulator", ".runtime", "live-acceptance.json");

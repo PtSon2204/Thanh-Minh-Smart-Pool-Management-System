@@ -18,7 +18,7 @@ public sealed class AlertSnapshotQueueTests : IDisposable
         files = new MonitoringFiles(options, Mock.Of<IHostEnvironment>());
     }
     private AlertSnapshotQueue Queue() => new(files, options, NullLogger<AlertSnapshotQueue>.Instance);
-    private static RecordRiskCommand Command(string source = "LIVE", string episode = "episode") => new(source, Guid.NewGuid(),
+    private static RecordRiskCommand Command(string episode = "episode") => new(Guid.NewGuid(),
         new("1", episode, "WARNING", .8, 1, [.1, .1, .4, .5]), .9, DateTime.UtcNow);
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class AlertSnapshotQueueTests : IDisposable
         var recovered = Queue();
         var job = await recovered.ReadAsync(path, default);
         Assert.Null(job.Command.ImageUrl);
-        Assert.Equal(command.SourceId, job.Command.SourceId);
+        Assert.Equal(command.CameraId, job.Command.CameraId);
         Assert.Equal(command.Decision, job.Command.Decision with { Box = command.Decision.Box });
         Assert.Equal(jpeg, await File.ReadAllBytesAsync(files.PathFor($"{job.Id:N}-source.jpg")));
         await recovered.SaveAsync(job with { Command = job.Command with { ImageUrl = "https://example.test/uploaded.jpg" } }, default);
@@ -66,14 +66,13 @@ public sealed class AlertSnapshotQueueTests : IDisposable
         byte[] source = [0xff, 0xd8, 1, 0xff, 0xd9], rendered = [0xff, 0xd8, 2, 0xff, 0xd9];
         var warning = Command();
         var critical = Command() with { Decision = Command().Decision with { Severity = "CRITICAL" } };
-        await queue.StageAsync(Command("UPLOAD"), source, default);
+        await queue.StageAsync(Command("stale-episode"), source, default);
         Assert.True(queue.TryStage(warning, source, rendered));
         Assert.True(queue.TryStage(critical, source, rendered));
         using var worker = new AlertSnapshotStagingWorker(queue, NullLogger<AlertSnapshotStagingWorker>.Instance);
         await worker.StartAsync(default); await worker.StopAsync(default);
         var recovered = Queue();
         var first = await recovered.ReadAsync(recovered.PendingFiles().First(), default);
-        Assert.Equal("LIVE", first.Command.SourceType);
         Assert.Equal("CRITICAL", first.Command.Decision.Severity);
         Assert.Equal(rendered, await File.ReadAllBytesAsync(files.PathFor($"{first.Id:N}.jpg")));
         Assert.Equal(source, await File.ReadAllBytesAsync(files.PathFor($"{first.Id:N}-source.jpg")));

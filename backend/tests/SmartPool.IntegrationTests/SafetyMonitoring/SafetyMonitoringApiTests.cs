@@ -33,8 +33,7 @@ public sealed partial class SafetyMonitoringTests
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = simulator == null ? null : "Testing" });
         builder.Logging.ClearProviders(); builder.WebHost.UseUrls("http://127.0.0.1:0");
         if (native) builder.Logging.AddConsole().AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>(
-            (category, level) => (category == typeof(SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisWorker).FullName ||
-                category == typeof(SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker).FullName ||
+            (category, level) => (category == typeof(SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker).FullName ||
                 category == typeof(SmartPool.Infrastructure.SafetyMonitoring.CameraFrameSource).FullName) && level >= LogLevel.Warning);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -93,23 +92,20 @@ public sealed partial class SafetyMonitoringTests
     {
         await using var app = await ApiAsync();
         using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
-        foreach (var path in new[] { "/api/cameras", "/api/alerts", "/api/video-analyses/status" })
+        foreach (var path in new[] { "/api/cameras", "/api/alerts" })
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "SALES"));
-        foreach (var path in new[] { "/api/cameras", "/api/alerts", "/api/video-analyses/status" })
+        foreach (var path in new[] { "/api/cameras", "/api/alerts" })
             Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(path)).StatusCode);
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/alerts")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/cameras")).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/video-analyses", null)).StatusCode);
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "ADMIN"));
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/cameras")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/cameras?page=0")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/alerts?status=invalid")).StatusCode);
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "Admin"));
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/alerts")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/video-analyses/status")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/video-analyses/{Guid.NewGuid()}")).StatusCode);
         var uiScript = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_UI_SCRIPT");
         if (!string.IsNullOrWhiteSpace(uiScript) && File.Exists(uiScript))
         {
@@ -193,151 +189,6 @@ public sealed partial class SafetyMonitoringTests
             minObservations = 3,
         });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
-        await app.StopAsync();
-    }
-
-    [NativeSafetyFact]
-    public async Task VideoUpload_RealOnnxBackgroundJob_RendersPlayableH264AndSupportsRangeRequests()
-    {
-        await using var app = await ApiAsync(native: true);
-        using var client = new HttpClient { BaseAddress = new(app.Urls.Single()), Timeout = TimeSpan.FromSeconds(30) };
-        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "Admin"));
-        var root = Path.Combine(RepositoryRoot(), "backend", ".test-runtime", "jobs", database);
-        Directory.CreateDirectory(root); var input = Path.Combine(root, "fixture.mp4");
-        var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")!) { CreateNoWindow = true, UseShellExecute = false, RedirectStandardError = true };
-        foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y", "-loop", "1", "-framerate", "10", "-i", Path.Combine(RepositoryRoot(), "frontend/thanh-minh-smart-pool/src/assets/anh-be-boi.jpg"),
-            "-f", "lavfi", "-i", "sine=frequency=440", "-t", "2", "-vf", "scale=640:360", "-c:v", "libx264", "-bf", "0", "-c:a", "alac", input + ".mp4" }) start.ArgumentList.Add(arg);
-        var suppliedVideo = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_VIDEO");
-        if (!string.IsNullOrWhiteSpace(suppliedVideo)) File.Copy(suppliedVideo, input);
-        else
-        {
-            using (var fixture = Process.Start(start)!) { var error = fixture.StandardError.ReadToEndAsync(); await fixture.WaitForExitAsync(); Assert.True(fixture.ExitCode == 0, await error); }
-            // Fragmented MP4 with slightly longer audio: OpenCV reports 22 frames, but video has 20.
-            // This must finish normally using the decoded timeline, rather than failing at EOF.
-            var remux = new ProcessStartInfo(Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")!)
-            { CreateNoWindow = true, UseShellExecute = false, RedirectStandardError = true };
-            foreach (var arg in new[] { "-v", "error", "-y", "-i", input + ".mp4", "-af", "apad=pad_dur=0.2",
-                "-c:v", "copy", "-c:a", "alac", "-movflags", "frag_keyframe+empty_moov", input }) remux.ArgumentList.Add(arg);
-            using var mux = Process.Start(remux)!;
-            var muxError = mux.StandardError.ReadToEndAsync(); await mux.WaitForExitAsync(); Assert.True(mux.ExitCode == 0, await muxError);
-        }
-        using var body = new MultipartFormDataContent();
-        var content = new ByteArrayContent(await File.ReadAllBytesAsync(input)); content.Headers.ContentType = new("video/mp4"); body.Add(content, "file", "pool.mp4");
-        var startupRuns = new List<object>();
-        async Task<object> MeasureStartup(Guid id, Stopwatch clock, double acceptedMs)
-        {
-            double? firstFramesMs = null;
-            VideoFrameAnalysisWindowDto sample;
-            var measurementDeadline = DateTime.UtcNow.AddMinutes(3);
-            do
-            {
-                sample = (await client.GetFromJsonAsync<VideoFrameAnalysisWindowDto>($"/api/video-analyses/{id}/frame-analysis/window?from=0&duration=1"))!;
-                if (sample.ReadyFrames >= 2) firstFramesMs ??= clock.Elapsed.TotalMilliseconds;
-                if (sample.Complete) break;
-                var currentJob = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{id}"))!;
-                Assert.NotEqual("FAILED", currentJob.Status);
-                await Task.Delay(25);
-            } while (DateTime.UtcNow < measurementDeadline);
-            Assert.True(sample.Complete);
-            Assert.NotNull(firstFramesMs);
-            var analysisMs = clock.Elapsed.TotalMilliseconds - acceptedMs;
-            return new { uploadAndValidationMs = acceptedMs, firstSynchronizedFramesAfterAcceptedMs = firstFramesMs - acceptedMs,
-                analysisCompleteAfterAcceptedMs = analysisMs, frames = sample.ReadyFrames, fps = sample.Fps,
-                speedIncludingProbeAndDb = sample.ReadyFrames / sample.Fps / (analysisMs / 1000) };
-        }
-        var startupClock = Stopwatch.StartNew();
-        var response = await client.PostAsync("/api/video-analyses", body);
-        Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
-        var job = (await response.Content.ReadFromJsonAsync<VideoJobDto>())!;
-        startupRuns.Add(await MeasureStartup(job.Id, startupClock, startupClock.Elapsed.TotalMilliseconds));
-        var deadline = DateTime.UtcNow.AddMinutes(5);
-        while (DateTime.UtcNow < deadline && job.Status is not ("COMPLETED" or "FAILED"))
-        { await Task.Delay(500); job = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{job.Id}"))!; }
-        Assert.True(job.Status == "COMPLETED", job.Error ?? job.Status);
-        var window = (await client.GetFromJsonAsync<VideoFrameAnalysisWindowDto>($"/api/video-analyses/{job.Id}/frame-analysis/window?from=0&duration=1"))!;
-        Assert.True(window.Complete);
-        Assert.False(window.Legacy);
-        Assert.True(window.Fps > 0);
-        Assert.NotEmpty(window.Frames);
-        Assert.True(File.Exists(Path.Combine(root, $"{job.Id:N}-timeline.json")));
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"/api/video-analyses/{job.Id}/frame-analysis/window?duration=99")).StatusCode);
-        // Legacy role names use title case. An admin must also be able to review another uploader's result.
-        await using (var ownership = new SmartPoolDbContext(options))
-            await ownership.VideoAnalysisJobs.Where(x => x.Id == job.Id).ExecuteUpdateAsync(set => set.SetProperty(x => x.UploadedBy, userId));
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/alerts?sourceType=UPLOAD&jobId={job.Id}&page=1&pageSize=10")).StatusCode);
-        var request = new HttpRequestMessage(HttpMethod.Get, $"/api/video-analyses/{job.Id}/video"); request.Headers.Range = new RangeHeaderValue(0, 127);
-        var video = await client.SendAsync(request);
-        Assert.Equal(HttpStatusCode.PartialContent, video.StatusCode); Assert.Equal(128, (await video.Content.ReadAsByteArrayAsync()).Length);
-        Assert.Equal("video/mp4", video.Content.Headers.ContentType!.MediaType);
-        var entireVideo = await client.GetAsync($"/api/video-analyses/{job.Id}/video");
-        Assert.Equal(HttpStatusCode.OK, entireVideo.StatusCode);
-        Assert.True((await entireVideo.Content.ReadAsByteArrayAsync()).Length > 128);
-        var playback = (await client.GetFromJsonAsync<VideoPlaybackDto>($"/api/video-analyses/{job.Id}/playback"))!;
-        using var mediaClient = new HttpClient { BaseAddress = client.BaseAddress };
-        var originalPlayback = (await client.GetFromJsonAsync<VideoPlaybackDto>($"/api/video-analyses/{job.Id}/playback?original=true"))!;
-        Assert.Contains("original=true", originalPlayback.StreamPath);
-        using (var originalRequest = new HttpRequestMessage(HttpMethod.Get, originalPlayback.StreamPath))
-        {
-            originalRequest.Headers.Range = new RangeHeaderValue(0, 127);
-            var originalResponse = await mediaClient.SendAsync(originalRequest);
-            Assert.Equal(HttpStatusCode.PartialContent, originalResponse.StatusCode);
-            Assert.Equal((await File.ReadAllBytesAsync(input))[..128], await originalResponse.Content.ReadAsByteArrayAsync());
-        }
-        Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync($"/api/video-analyses/{job.Id}/playback")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync($"/api/video-analyses/{job.Id}/stream")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await mediaClient.GetAsync(playback.StreamPath.Replace(job.Id.ToString(), Guid.NewGuid().ToString()))).StatusCode);
-        using var mediaRequest = new HttpRequestMessage(HttpMethod.Get, playback.StreamPath);
-        mediaRequest.Headers.Range = new RangeHeaderValue(128, 255);
-        var media = await mediaClient.SendAsync(mediaRequest);
-        Assert.Equal(HttpStatusCode.PartialContent, media.StatusCode);
-        Assert.Equal(128, (await media.Content.ReadAsByteArrayAsync()).Length);
-        Assert.Equal(HttpStatusCode.RequestedRangeNotSatisfiable, (await mediaClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, playback.StreamPath)
-            { Headers = { Range = new RangeHeaderValue(long.MaxValue - 1, long.MaxValue) } })).StatusCode);
-        var download = await mediaClient.GetAsync(playback.StreamPath + "&download=true");
-        Assert.Equal("attachment", download.Content.Headers.ContentDisposition!.DispositionType);
-        var playbackUiScript = Environment.GetEnvironmentVariable("SMARTPOOL_VIDEO_PLAYBACK_UI_SCRIPT");
-        if (!string.IsNullOrWhiteSpace(playbackUiScript))
-        {
-            var browser = new ProcessStartInfo("node") { CreateNoWindow = true, UseShellExecute = false,
-                RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
-            browser.ArgumentList.Add(playbackUiScript);
-            using var process = Process.Start(browser)!;
-            var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
-            await process.StandardInput.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(new { apiBase = app.Urls.Single(),
-                token = client.DefaultRequestHeaders.Authorization!.Parameter, userId = apiUserIds["Admin"], jobId = job.Id, root = RepositoryRoot(), input }));
-            process.StandardInput.Close();
-            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(90));
-            Assert.True(process.ExitCode == 0, (await stdout) + (await stderr));
-        }
-        await using var db = new SmartPoolDbContext(options); Assert.Empty(await db.Incidents.ToListAsync());
-        var generated = Path.Combine(root, $"{job.Id:N}-result.mp4");
-        var probe = new ProcessStartInfo(Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_FFPROBE")!) { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true };
-        foreach (var arg in new[] { "-v", "error", "-show_entries", "stream=codec_name,codec_type:format=duration", "-of", "json", generated }) probe.ArgumentList.Add(arg);
-        using (var check = Process.Start(probe)!)
-        { var output = await check.StandardOutput.ReadToEndAsync(); await check.WaitForExitAsync(); Assert.Contains("h264", output); Assert.Contains("aac", output); }
-        // A second native upload exercises the retained model and reset tracker/decoder.
-        using var secondBody = new MultipartFormDataContent();
-        secondBody.Add(new ByteArrayContent(await File.ReadAllBytesAsync(input)), "file", "second.mp4");
-        startupClock.Restart();
-        var secondResponse = await client.PostAsync("/api/video-analyses", secondBody);
-        Assert.Equal(HttpStatusCode.Accepted, secondResponse.StatusCode);
-        var secondJob = (await secondResponse.Content.ReadFromJsonAsync<VideoJobDto>())!;
-        startupRuns.Add(await MeasureStartup(secondJob.Id, startupClock, startupClock.Elapsed.TotalMilliseconds));
-        var report = JsonSerializer.Serialize(new { fixture = "native ONNX, 640x360, 10 FPS, 2 seconds; HTTP and timeline included", runs = startupRuns }, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(Path.Combine(RepositoryRoot(), "backend", ".test-runtime", "video-startup-results.json"), report);
-        while (DateTime.UtcNow < deadline && secondJob.Status is not ("COMPLETED" or "FAILED"))
-        { await Task.Delay(100); secondJob = (await client.GetFromJsonAsync<VideoJobDto>($"/api/video-analyses/{secondJob.Id}"))!; }
-        Assert.Equal("COMPLETED", secondJob.Status);
-        var vfrFile = Path.Combine(root, "variable-rate.mp4");
-        var variableRate = new ProcessStartInfo(Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")!)
-        { CreateNoWindow = true, UseShellExecute = false, RedirectStandardError = true };
-        foreach (var arg in new[] { "-v", "error", "-y", "-i", input, "-vf", "setpts=if(lt(N\\,5)\\,N/(10*TB)\\,(N+2)/(10*TB))", "-fps_mode", "vfr", "-an", vfrFile }) variableRate.ArgumentList.Add(arg);
-        using (var variable = Process.Start(variableRate)!)
-        { var error = variable.StandardError.ReadToEndAsync(); await variable.WaitForExitAsync(); Assert.True(variable.ExitCode == 0, await error); }
-        var videoProbe = app.Services.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
-        var vfrInfo = await videoProbe.InspectAsync(vfrFile, false, default);
-        await using (var timeline = videoProbe.OpenTimeline(vfrFile, vfrInfo))
-            await Assert.ThrowsAsync<ArgumentException>(async () => { while (await timeline.ReadAsync(default)) { } });
         await app.StopAsync();
     }
 

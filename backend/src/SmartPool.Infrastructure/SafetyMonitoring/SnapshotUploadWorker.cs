@@ -47,11 +47,7 @@ public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, Monitoring
                 using var scope = scopes.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
                 var stale = DateTime.UtcNow.AddMinutes(-2);
-                var activeSince = DateTime.UtcNow.AddHours(-2);
                 var interrupted = await db.Warnings.AsNoTracking().Where(x => x.SnapshotStatus == "CAPTURING" && x.UpdatedAt < stale)
-                    // Video đang phân tích/render chưa tới frame snapshot không phải tác vụ chụp bị gián đoạn.
-                    .Where(x => x.SourceType != "UPLOAD" || !db.VideoAnalysisJobs.Any(j => j.Id == x.VideoJobId &&
-                        (j.Status == "PROCESSING" || j.Status == "RENDERING" || j.Status == "QUEUED") && j.UpdatedAt >= activeSince))
                     .Select(x => x.Id).ToListAsync(stoppingToken);
                 foreach (var id in interrupted)
                 {
@@ -111,7 +107,7 @@ public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, Monitoring
                 lease = new FileStream(path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
                 job = await outbox.ReadAsync(path, ct);
                 if (job.NextAttemptAt > DateTimeOffset.UtcNow) continue;
-                var key = $"{job.Command.SourceType}:{job.Command.SourceId}:{job.Command.Decision.TrackId}:{job.Command.Decision.Episode}";
+                var key = $"LIVE:{job.Command.CameraId}:{job.Command.Decision.TrackId}:{job.Command.Decision.Episode}";
                 if (!activeEpisodes.TryAdd(key, 0)) continue;
                 episodeKey = key;
                 claimed = true;
@@ -141,7 +137,7 @@ public sealed class SnapshotUploadWorker(IServiceScopeFactory scopes, Monitoring
                 // Application commits the image-backed alert and decides which events to publish.
                 var recorded = await repository.RecordAsync(job.Command, timeout.Token);
                 logger.LogInformation("Alert {AlertId} saved with image: source {Source}, processing {ProcessingMs:F0} ms, observation age {ObservationAgeMs:F0} ms.",
-                    recorded.Alert.Id, job.Command.SourceType, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                    recorded.Alert.Id, job.Command.CameraId, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
                     (DateTime.UtcNow - DateTime.SpecifyKind(job.Command.ObservedAt, DateTimeKind.Utc)).TotalMilliseconds);
                 outbox.Complete(job.Id);
             }

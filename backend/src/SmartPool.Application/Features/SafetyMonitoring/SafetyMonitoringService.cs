@@ -24,8 +24,6 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
         if (expectedSeverity is not (null or "WARNING" or "CRITICAL" or "EMERGENCY")) throw new ArgumentException("Mức cảnh báo không hợp lệ.");
         var result = await repository.WithAlertAsync(id, async (session, token) => {
             var warning = session.Current ?? throw new KeyNotFoundException();
-            if (warning.SourceType == "UPLOAD" && !admin &&
-                (warning.VideoJobId is not Guid jobId || !await session.IsVideoOwnerAsync(jobId, userId, token))) throw new KeyNotFoundException();
             if (!string.Equals(warning.Status, "PENDING", StringComparison.OrdinalIgnoreCase))
                 throw new MonitoringConflictException("Cảnh báo đã được xử lý. Vui lòng tải lại.");
             if (expectedSeverity != null && !string.Equals(warning.SeverityLevel, expectedSeverity, StringComparison.OrdinalIgnoreCase))
@@ -35,22 +33,20 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
             var now = Now;
             warning.Status = action; warning.VerifiedBy = userId; warning.VerifiedAt = now; warning.UpdatedAt = now;
             var createdIncident = false;
-            if (action == "ACKNOWLEDGED" && warning.SourceType == "LIVE" && warning.IncidentId == null &&
-                warning.SeverityLevel.ToUpperInvariant() is "CRITICAL" or "EMERGENCY") {
-                var camera = await session.GetCameraAsync(warning.CamId!.Value, token);
+            if (action == "ACKNOWLEDGED" && warning.IncidentId == null &&
+                warning.SeverityLevel.ToUpperInvariant() is "CRITICAL" or "EMERGENCY" && warning.CamId is Guid cameraId) {
+                var camera = await session.GetCameraAsync(cameraId, token);
                 var incident = new Incident { Id = Guid.NewGuid(), WarningId = warning.Id, CameraId = camera.Id, Location = camera.Location,
                     Title = $"Cảnh báo cứu hộ: {camera.Name}", Description = $"AI phát hiện nguy cơ tại {camera.Location}. Track {warning.TrackId}.",
                     SeverityLevel = "EMERGENCY", ReportedBy = userId, IncidentTime = warning.WarningTime, Status = "Pending",
                     ImageIncidents = warning.ImageUrl, CreatedAt = now, UpdatedAt = now };
                 session.AddIncident(incident); warning.IncidentId = incident.Id; createdIncident = true;
             }
-            return (Live: warning.SourceType == "LIVE", CreatedIncident: createdIncident);
+            return createdIncident;
         }, ct);
         var dto = await repository.GetAsync(id, userId, admin, ct);
-        if (result.Live) {
-            await PublishAsync("alert_updated", dto);
-            if (result.CreatedIncident) await PublishAsync("incident_created", dto);
-        }
+        await PublishAsync("alert_updated", dto);
+        if (result) await PublishAsync("incident_created", dto);
         return dto;
     }
 
@@ -59,7 +55,7 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
         Validate(command);
         RequireImage(command.ImageUrl);
         var prefix = EpisodePrefix(command);
-        var result = await repository.WithEpisodeAsync(command.SourceType, prefix, (session, _) => {
+        var result = await repository.WithEpisodeAsync(prefix, (session, _) => {
             var current = session.Current;
             var now = Now;
             var action = Decide(current, command, now);
@@ -68,10 +64,9 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
             Warning warning;
             if (action == WriteAction.Create) {
                 warning = new Warning { Id = command.AlertId.HasValue && command.AlertId != current?.Id ? command.AlertId.Value : Guid.NewGuid(),
-                    SourceType = command.SourceType, CamId = command.SourceType == "LIVE" ? command.SourceId : null,
-                    VideoJobId = command.SourceType == "UPLOAD" ? command.SourceId : null, TrackId = d.TrackId,
+                    CamId = command.CameraId, TrackId = d.TrackId,
                     RiskEpisode = prefix + Guid.NewGuid().ToString("N"), WarningTime = command.ObservedAt,
-                    VideoTimestamp = command.SourceType == "UPLOAD" ? d.Timestamp : null, SeverityLevel = d.Severity,
+                    SeverityLevel = d.Severity,
                     Status = "PENDING", Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1), Box = d.Box,
                     ImageUrl = command.ImageUrl!, SnapshotStatus = "COMPLETED", CreatedAt = now, UpdatedAt = now };
                 session.AddWarning(warning);
@@ -79,20 +74,19 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
                 warning = current!;
                 warning.SeverityLevel = "CRITICAL"; warning.UpdatedAt = now; warning.WarningTime = command.ObservedAt;
                 warning.Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1); warning.Box = d.Box;
-                if (command.SourceType == "UPLOAD") warning.VideoTimestamp = d.Timestamp;
                 warning.ImageUrl = command.ImageUrl!; warning.SnapshotStatus = "COMPLETED";
             }
             return Task.FromResult((Id: warning.Id, Event: (string?)(action == WriteAction.Create ? "alert_created" : "alert_escalated")));
         }, ct);
         var dto = await repository.GetAsync(result.Id, Guid.Empty, true, ct);
-        if (command.SourceType == "LIVE" && result.Event != null) await PublishAsync(result.Event, dto);
+        if (result.Event != null) await PublishAsync(result.Event, dto);
         return new(dto);
     }
 
     public async Task<Guid?> PrepareSnapshotAsync(RecordRiskCommand command, CancellationToken ct)
     {
         Validate(command);
-        var current = await repository.FindEpisodeAsync(command.SourceType, EpisodePrefix(command), ct);
+        var current = await repository.FindEpisodeAsync(EpisodePrefix(command), ct);
         return Decide(current, command, Now) switch {
             WriteAction.Ignore => null,
             WriteAction.Escalate => current!.Id,
@@ -103,13 +97,13 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
     public async Task CompleteSnapshotAsync(Guid id, string url, CancellationToken ct)
     {
         RequireImage(url);
-        var live = await repository.WithAlertAsync(id, async (session, token) => {
+        await repository.WithAlertAsync(id, async (session, token) => {
             var warning = session.Current ?? throw new KeyNotFoundException();
             warning.ImageUrl = url; warning.SnapshotStatus = "COMPLETED"; warning.UpdatedAt = Now;
             if (warning.IncidentId is Guid incidentId) await session.UpdateIncidentImageAsync(incidentId, url, token);
-            return warning.SourceType == "LIVE";
+            return true;
         }, ct);
-        if (live) await PublishAsync("alert_updated", await repository.GetAsync(id, Guid.Empty, true, ct));
+        await PublishAsync("alert_updated", await repository.GetAsync(id, Guid.Empty, true, ct));
     }
 
     private WriteAction Decide(Warning? current, RecordRiskCommand command, DateTime now)
@@ -117,14 +111,14 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
         if (current == null) return WriteAction.Create;
         var critical = current.SeverityLevel == "WARNING" && command.Decision.Severity == "CRITICAL";
         if (current.Status == "PENDING") return critical ? WriteAction.Escalate : WriteAction.Ignore;
-        return critical || current.Status == "CANCELLED" && command.SourceType == "LIVE" &&
+        return critical || current.Status == "CANCELLED" &&
             now - current.VerifiedAt >= TimeSpan.FromSeconds(options.Value.Clone().CooldownSeconds)
             ? WriteAction.Create : WriteAction.Ignore;
     }
 
     private static void Validate(RecordRiskCommand command)
     {
-        if (command.SourceType is not ("LIVE" or "UPLOAD") || command.Decision.Severity is not ("WARNING" or "CRITICAL"))
+        if (command.Decision.Severity is not ("WARNING" or "CRITICAL"))
             throw new ArgumentException("Invalid risk event.");
     }
     private static void RequireImage(string? url)
@@ -133,7 +127,7 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
             throw new ArgumentException("Cảnh báo phải có ảnh đã upload thành công trước khi lưu.");
     }
     private static string EpisodePrefix(RecordRiskCommand command) =>
-        Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes($"{command.SourceType}:{command.SourceId}:{command.Decision.TrackId}:{command.Decision.Episode}")))
+        Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes($"{command.CameraId}:{command.Decision.TrackId}:{command.Decision.Episode}")))
             .TrimEnd('=').Replace('/', '_').Replace('+', '-') + ":";
     private async Task PublishAsync(string name, AlertDto dto)
     {

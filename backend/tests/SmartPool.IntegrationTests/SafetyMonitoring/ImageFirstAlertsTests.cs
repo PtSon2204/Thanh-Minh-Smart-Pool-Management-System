@@ -45,14 +45,13 @@ public sealed partial class SafetyMonitoringTests
     }
 
     [Theory]
-    [InlineData("LIVE", null)]
-    [InlineData("LIVE", "")]
-    [InlineData("UPLOAD", null)]
-    [InlineData("UPLOAD", "http://example.test/snapshot.jpg")]
-    public async Task MissingOrUnverifiedImage_IsRejectedBeforeAnyAlertInsert(string source, string? image)
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("http://example.test/snapshot.jpg")]
+    public async Task MissingOrUnverifiedImage_IsRejectedBeforeAnyAlertInsert(string? image)
     {
         await using var db = new SmartPoolDbContext(options);
-        var command = Event(source: source) with { ImageUrl = image };
+        var command = Event() with { ImageUrl = image };
         await Assert.ThrowsAsync<ArgumentException>(() => Repo(db).RecordAsync(command, default));
         Assert.Empty(await db.Warnings.ToListAsync());
         Assert.Empty(events.Names);

@@ -147,7 +147,7 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
                     {
                         try
                         {
-                            var accepted = snapshots.TryStage(new RecordRiskCommand("LIVE", id, decision,
+                            var accepted = snapshots.TryStage(new RecordRiskCommand(id, decision,
                                 detections.First(x => x.TrackId == decision.TrackId).Confidence, timestamp.UtcDateTime), captured.Jpeg, annotated);
                             if (!accepted && DateTimeOffset.UtcNow >= nextQueueWarning)
                             {

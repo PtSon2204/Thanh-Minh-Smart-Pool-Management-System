@@ -20,7 +20,7 @@ public sealed class OutboxRegressionTests
         var queue = new AlertSnapshotQueue(files, options, NullLogger<AlertSnapshotQueue>.Instance);
         byte[] jpeg = [0xff, 0xd8, 0xff, 0xd9];
         var camera = Guid.NewGuid();
-        RecordRiskCommand Event(string episode, string severity) => new("LIVE", camera,
+        RecordRiskCommand Event(string episode, string severity) => new(camera,
             new("1", episode, severity, .9, 1, [.1, .1, .3, .3]), .9, DateTime.UtcNow);
         try
         {

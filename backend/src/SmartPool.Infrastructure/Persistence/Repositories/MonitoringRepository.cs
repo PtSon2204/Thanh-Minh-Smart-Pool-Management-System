@@ -10,20 +10,17 @@ namespace SmartPool.Infrastructure.Persistence.Repositories;
 
 public sealed class MonitoringRepository(SmartPoolDbContext db) : IMonitoringRepository
 {
-    private IQueryable<Warning> Visible(Guid userId, bool admin) => db.Warnings.AsNoTracking()
-        .Where(x => x.SourceType == "LIVE" || admin || x.VideoJob!.UploadedBy == userId);
+    private IQueryable<Warning> Visible() => db.Warnings.AsNoTracking();
     private static readonly System.Linq.Expressions.Expression<Func<Warning, AlertDto>> Projection = x => new AlertDto(
-        x.Id, x.SourceType, x.CamId, x.VideoJobId, x.Cam == null ? null : x.Cam.Name, x.Cam == null ? null : x.Cam.Location,
-        x.TrackId, x.RiskEpisode, x.SeverityLevel.ToUpper(), x.Status.ToUpper(), x.VideoTimestamp, x.ImageUrl, x.SnapshotStatus,
+        x.Id, x.CamId, x.Cam == null ? null : x.Cam.Name, x.Cam == null ? null : x.Cam.Location,
+        x.TrackId, x.RiskEpisode, x.SeverityLevel.ToUpper(), x.Status.ToUpper(), x.ImageUrl, x.SnapshotStatus,
         x.IncidentId, x.VerifiedBy, x.VerifiedAt, x.CreatedAt, x.Box)
         { ObservedAt = DateTime.SpecifyKind(x.WarningTime, DateTimeKind.Utc) };
 
     public async Task<PagedResponse<AlertDto>> ListAsync(GetAlertsQuery request, Guid userId, bool admin, CancellationToken ct)
     {
-        var query = Visible(userId, admin);
-        if (request.SourceType != null) query = query.Where(x => x.SourceType == request.SourceType);
+        var query = Visible();
         if (request.CameraId.HasValue) query = query.Where(x => x.CamId == request.CameraId);
-        if (request.JobId.HasValue) query = query.Where(x => x.VideoJobId == request.JobId);
         if (request.Status != null) query = query.Where(x => x.Status.ToUpper() == request.Status);
         return new() { Items = await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
             .Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).Select(Projection).ToListAsync(ct),
@@ -31,10 +28,10 @@ public sealed class MonitoringRepository(SmartPoolDbContext db) : IMonitoringRep
     }
 
     public async Task<AlertDto> GetAsync(Guid id, Guid userId, bool admin, CancellationToken ct) =>
-        await Visible(userId, admin).Where(x => x.Id == id).Select(Projection).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        await Visible().Where(x => x.Id == id).Select(Projection).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
 
-    public Task<Warning?> FindEpisodeAsync(string source, string prefix, CancellationToken ct) =>
-        db.Warnings.AsNoTracking().Where(x => x.SourceType == source && x.RiskEpisode != null && x.RiskEpisode.StartsWith(prefix))
+    public Task<Warning?> FindEpisodeAsync(string prefix, CancellationToken ct) =>
+        db.Warnings.AsNoTracking().Where(x => x.RiskEpisode != null && x.RiskEpisode.StartsWith(prefix))
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync(ct);
 
     public async Task<T> WithAlertAsync<T>(Guid id, Func<IMonitoringWriteSession, CancellationToken, Task<T>> change, CancellationToken ct)
@@ -51,11 +48,11 @@ public sealed class MonitoringRepository(SmartPoolDbContext db) : IMonitoringRep
         return result;
     }
 
-    public async Task<T> WithEpisodeAsync<T>(string source, string prefix, Func<IMonitoringWriteSession, CancellationToken, Task<T>> change, CancellationToken ct)
+    public async Task<T> WithEpisodeAsync<T>(string prefix, Func<IMonitoringWriteSession, CancellationToken, Task<T>> change, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await LockAsync(prefix, ct);
-        var warning = await db.Warnings.Where(x => x.SourceType == source && x.RiskEpisode != null && x.RiskEpisode.StartsWith(prefix))
+        var warning = await db.Warnings.Where(x => x.RiskEpisode != null && x.RiskEpisode.StartsWith(prefix))
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync(ct);
         if (warning != null) await db.Entry(warning).ReloadAsync(ct);
         var result = await change(new WriteSession(db, warning), ct);
@@ -74,8 +71,6 @@ public sealed class MonitoringRepository(SmartPoolDbContext db) : IMonitoringRep
     private sealed class WriteSession(SmartPoolDbContext db, Warning? current) : IMonitoringWriteSession
     {
         public Warning? Current => current;
-        public Task<bool> IsVideoOwnerAsync(Guid jobId, Guid userId, CancellationToken ct) =>
-            db.VideoAnalysisJobs.AnyAsync(x => x.Id == jobId && x.UploadedBy == userId, ct);
         public Task<Equipment> GetCameraAsync(Guid id, CancellationToken ct) => db.Equipments.AsNoTracking().SingleAsync(x => x.Id == id, ct);
         public void AddWarning(Warning warning) => db.Warnings.Add(warning);
         public void AddIncident(Incident incident) => db.Incidents.Add(incident);
