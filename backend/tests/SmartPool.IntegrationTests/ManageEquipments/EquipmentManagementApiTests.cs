@@ -34,6 +34,25 @@ public sealed class EquipmentManagementApiTests
             .Where(x => x is not null).Cast<Role>().ToList();
         var admin = TestUser(adminRole.Role, "eqadmin" + suffix);
         var lifeguard = TestUser(lifeguardRole.Role, "eqlifeguard" + suffix);
+        var inspectionDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
+        var employee = new Employee
+        {
+            UserId = lifeguard.Id, User = lifeguard, JoinDate = inspectionDate, Status = "Working"
+        };
+        var assignment = new EmployeeShift
+        {
+            Id = Guid.NewGuid(), EmployeeId = lifeguard.Id, ShiftId = FixedShifts.Morning.Id,
+            WorkDate = inspectionDate, Status = "Scheduled"
+        };
+        var operationalTask = new PoolDutySchedule
+        {
+            Id = Guid.NewGuid(), TaskType = PoolDutyTaskTypes.EquipmentChecklist,
+            InspectionWindow = PoolDutyInspectionWindows.Morning, DutyDate = inspectionDate,
+            ShiftId = assignment.ShiftId, EmployeeShiftId = assignment.Id, AssignedEmployeeId = lifeguard.Id,
+            ScheduledAtUtc = inspectionDate.ToDateTime(FixedShifts.Morning.StartTime, DateTimeKind.Utc).AddHours(-7),
+            DueAtUtc = inspectionDate.ToDateTime(FixedShifts.Morning.EndTime, DateTimeKind.Utc).AddHours(-7),
+            Status = "Scheduled", AssignmentType = "Manual", Revision = 1, CreatedBy = admin.Id
+        };
         var pump = new Equipment
         {
             Id = Guid.NewGuid(), Name = "Pump " + suffix, Category = "Pump", Location = "Pool A",
@@ -45,6 +64,9 @@ public sealed class EquipmentManagementApiTests
             Status = "Active", IsDeleted = false
         };
         db.Users.AddRange(admin, lifeguard);
+        db.Employees.Add(employee);
+        db.EmployeeShifts.Add(assignment);
+        db.PoolDutySchedules.Add(operationalTask);
         db.Equipments.AddRange(pump, filter);
         await db.SaveChangesAsync();
 
@@ -68,7 +90,6 @@ public sealed class EquipmentManagementApiTests
         builder.Services.AddApiAuthorization();
         builder.Services.AddControllers().AddApplicationPart(typeof(EquipmentsController).Assembly);
         builder.Services.RemoveAll<TimeProvider>();
-        var inspectionDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
         builder.Services.AddSingleton<TimeProvider>(new FixedTimeProvider(
             new DateTimeOffset(inspectionDate.ToDateTime(new TimeOnly(1, 0)), TimeSpan.Zero)));
         builder.Services.RemoveAll<IEmailService>();
@@ -157,11 +178,13 @@ public sealed class EquipmentManagementApiTests
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", lifeguardToken);
             var invalidInspection = await client.PostAsJsonAsync("/api/equipment-inspections", new
             {
+                operationalTaskId = operationalTask.Id,
                 shiftId = form.CurrentShiftId, notes = "empty", items = Array.Empty<object>()
             });
             Assert.Equal(HttpStatusCode.BadRequest, invalidInspection.StatusCode);
             var submitResponse = await client.PostAsJsonAsync("/api/equipment-inspections", new
             {
+                operationalTaskId = operationalTask.Id,
                 shiftId = form.CurrentShiftId,
                 notes = "Start of shift " + suffix,
                 items = new[]
@@ -217,14 +240,20 @@ public sealed class EquipmentManagementApiTests
         finally
         {
             await app.StopAsync();
+            await db.PoolDutySchedules.Where(x => x.Id == operationalTask.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.DailyInspectionId, (Guid?)null));
             await db.DailyInspections.Where(x => inspectionIds.Contains(x.Id)).ExecuteDeleteAsync();
+            await db.PoolDutySchedules.Where(x => x.Id == operationalTask.Id).ExecuteDeleteAsync();
+            await db.EmployeeShifts.Where(x => x.Id == assignment.Id).ExecuteDeleteAsync();
+            await db.StaffScheduleDeliveries.Where(x => x.EmployeeId == lifeguard.Id ||
+                x.RecipientId == admin.Id || x.RecipientId == lifeguard.Id).ExecuteDeleteAsync();
+            await db.Employees.Where(x => x.UserId == lifeguard.Id).ExecuteDeleteAsync();
             await db.Notifications.Where(x => x.UserId == admin.Id || x.UserId == lifeguard.Id).ExecuteDeleteAsync();
             var equipmentIds = new[] { pump.Id, filter.Id }.Concat(createdEquipmentIds)
                 .Concat(deletedEquipmentId.HasValue ? [deletedEquipmentId.Value] : []).ToArray();
             await db.Equipments.Where(x => equipmentIds.Contains(x.Id) || x.Name.EndsWith(suffix)).ExecuteDeleteAsync();
-            db.Users.RemoveRange(admin, lifeguard);
-            db.Roles.RemoveRange(addedRoles);
-            await db.SaveChangesAsync();
+            await db.Users.Where(x => x.Id == admin.Id || x.Id == lifeguard.Id).ExecuteDeleteAsync();
+            await db.Roles.Where(x => addedRoles.Select(role => role.Id).Contains(x.Id)).ExecuteDeleteAsync();
         }
     }
 
