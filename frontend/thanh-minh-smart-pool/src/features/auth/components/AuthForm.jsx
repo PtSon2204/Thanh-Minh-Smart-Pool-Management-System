@@ -278,7 +278,7 @@ export default function AuthForm({ isRegister }) {
         <AuthField
           id="inp-email"
           label={
-            isRegister ? "Email" : "Tên đăng nhập, email hoặc số điện thoại"
+            isRegister ? "Email" : "Email hoặc số điện thoại"
           }
           error={errorFor(isRegister ? "email" : "identifier")}
         >

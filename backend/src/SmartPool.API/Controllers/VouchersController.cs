@@ -83,7 +83,7 @@ namespace SmartPool.API.Controllers
             {
                 return NotFound(new { message = exception.Message });
             }
-            catch (VoucherConflictException exception)
+            catch (InvalidOperationException exception)
             {
                 return Conflict(new { message = exception.Message });
             }

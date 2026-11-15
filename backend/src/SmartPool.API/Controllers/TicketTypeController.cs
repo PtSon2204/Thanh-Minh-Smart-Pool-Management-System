@@ -55,8 +55,15 @@ namespace SmartPool.API.Controllers
             [FromBody] CreateTicketTypeCommand command,
             CancellationToken cancellationToken)
         {
-            var result = await _sender.Send(command, cancellationToken);
-            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+            try
+            {
+                var result = await _sender.Send(command, cancellationToken);
+                return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+            }
+            catch (FluentValidation.ValidationException ex)
+            {
+                return BadRequest(new { message = ex.Errors.FirstOrDefault()?.ErrorMessage ?? "Dữ liệu không hợp lệ." });
+            }
         }
 
         /// <summary>Cập nhật loại vé.</summary>
@@ -75,6 +82,10 @@ namespace SmartPool.API.Controllers
             {
                 var result = await _sender.Send(command, cancellationToken);
                 return Ok(result);
+            }
+            catch (FluentValidation.ValidationException ex)
+            {
+                return BadRequest(new { message = ex.Errors.FirstOrDefault()?.ErrorMessage ?? "Dữ liệu không hợp lệ." });
             }
             catch (KeyNotFoundException ex)
             {

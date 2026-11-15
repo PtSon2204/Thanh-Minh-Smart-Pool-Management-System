@@ -35,7 +35,7 @@ namespace SmartPool.Application.Features.ManageVouchers.Commands.UpdateVoucher
             // Kiểm tra trùng Code nếu Code thay đổi
             var codeConflict = await _operations.ExistsByCodeAsync(request.Code, request.Id, cancellationToken);
             if (codeConflict)
-                throw new VoucherConflictException($"Mã voucher '{request.Code}' đã tồn tại.");
+                throw new InvalidOperationException($"Mã voucher '{request.Code}' đã tồn tại.");
 
             entity.Code = request.Code.Trim().ToUpper();
             entity.DiscountType = request.DiscountType;
