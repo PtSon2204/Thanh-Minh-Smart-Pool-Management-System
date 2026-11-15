@@ -42,9 +42,6 @@ function CameraCard({ camera, onEnlarge, highlighted, onRetry }) {
           camera.status !== 'Active' ? <Alert type="warning" title="Camera hiện không khả dụng" /> :
             <>
               {camera.connectionStatus !== 'Connected' && <Alert type="warning" title="Đang chờ camera kết nối lại" action={<Button onClick={onRetry}>Tải lại trạng thái</Button>} />}
-              // Player của card giữ chạy luôn khi mở modal phóng to (backend chia
-              // một nguồn RTSP cho nhiều viewer WebRTC) để luồng phân tích không
-              // bị cắt và box trong modal không biến mất.
               {visible ? <CameraVideoPlayer equipment={camera} analysis smooth={camera.smoothPlayback} sampleRisks={sampleRisks} getPlayoutDelay={getPlayoutDelay} /> : <div className="monitor-video-placeholder">Camera AI tạm dừng</div>}
             </>}
       </div>

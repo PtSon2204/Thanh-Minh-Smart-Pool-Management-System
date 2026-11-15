@@ -19,7 +19,7 @@ export default function GlobalSafetyAlertsHost() {
   const role = useAuthStore(state => state.session?.role?.toUpperCase())
   const identity = useAuthStore(state => signalRIdentity(state.session))
   const [selection, setSelection] = useState(null)
-  const selectedAlert = selection?.identity === identity ? selection.alert : null
+  const selectedAlert = selection && selection.identity === identity ? selection.alert : null
   const enabled = role === 'ADMIN' || role === 'LIFEGUARD'
   const { alerts, top, dismiss, isCritical } = useGlobalSafetyAlerts(enabled)
   const alarmAlert = alerts.find(isCritical) || top
@@ -39,9 +39,9 @@ export default function GlobalSafetyAlertsHost() {
   if (!enabled) return null
   return <>
     {top && <div className="safety-global-popup" role="alertdialog" aria-label="Cảnh báo an toàn">
-    <div className="safety-popup-stack" style={{ width: 'min(560px, 100%)' }}>
-      {alerts.map(alert => <GlobalAlertPopup key={alert.id} alert={alert} isCritical={isCritical} onDismiss={dismiss} onViewLive={viewLive} />)}
-    </div>
+      <div className="safety-popup-stack" style={{ width: 'min(560px, 100%)' }}>
+        {alerts.map(alert => <GlobalAlertPopup key={alert.id} alert={alert} isCritical={isCritical} onDismiss={dismiss} onViewLive={viewLive} />)}
+      </div>
     </div>}
     {selectedAlert && <LiveAlertDetailsModal key={selectedAlert.id} alert={selectedAlert} onClose={() => setSelection(null)} />}
   </>
