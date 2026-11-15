@@ -147,11 +147,13 @@ public sealed class CameraContinuousAnalysisTests
         Assert.NotEqual(session, cameras.GetStatus(first).AnalysisSession);
     }
 
-    [CameraFact]
-    public async Task AnalysisCapture_ReceivesContinuousFramesFromSharedRtsp_WithoutTwoSecondSampling()
+    [CameraTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnalysisCapture_ReceivesContinuousFramesFromSharedRtsp_WithoutTwoSecondSampling(bool hevc)
     {
         var ffmpeg = CameraTestEnvironment.GetRequiredFfmpeg();
-        await using var rtsp = await LocalRtspCamera.StartAsync(ffmpeg);
+        await using var rtsp = await LocalRtspCamera.StartAsync(ffmpeg, hevc: hevc);
         var options = Options.Create(new CameraOptions { FfmpegPath = ffmpeg,
             AllowedEndpoints = [new() { Host = "127.0.0.1", Port = rtsp.Port }] });
         await using var cameras = new CameraService(new CameraAddressPolicy(options), new CameraFrameDecoder(options),

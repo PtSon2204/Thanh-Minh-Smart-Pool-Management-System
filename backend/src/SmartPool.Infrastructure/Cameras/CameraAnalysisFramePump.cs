@@ -60,10 +60,12 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
                     var height = Math.Clamp(options.AnalysisMaxHeight, 32, 2160);
                     var scale = $"scale=w='min({width},iw)':h='min({height},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2";
                     foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "pipe",
-                        // Disable AVIO read-ahead: a 32 KB read can span hundreds of
-                        // milliseconds on low-bitrate pool footage. Keep every frame/PTS.
-                        "-avioflags", "direct", "-blocksize", "4096",
-                        "-analyzeduration", "1", "-probesize", "32768", "-fpsprobesize", "0", "-threads", "1", "-filter_threads", "1", "-flags", "low_delay",
+                        // Keep AVIO buffering: direct mode loses H.264 probe/header
+                        // bytes on older FFmpeg builds, causing SPS/PPS errors and restarts.
+                        // The codec is explicit and keyframes include parameter sets;
+                        // use the minimum probe budget so tiny streams also restart promptly.
+                        "-blocksize", "4096",
+                        "-analyzeduration", "1", "-probesize", "32", "-fpsprobesize", "0", "-threads", "1", "-filter_threads", "1", "-flags", "low_delay",
                         "-f", item.Frame.Format, "-i", "pipe:0", "-an", "-vf", scale, "-fps_mode", "passthrough",
                         "-c:v", "mjpeg", "-q:v", Math.Clamp(options.AnalysisJpegQscale, 2, 31).ToString(), "-threads", "1", "-flush_packets", "1", "-f", "image2pipe", "pipe:1" })
                         start.ArgumentList.Add(arg);
