@@ -521,7 +521,11 @@ public sealed class TicketManagementApiTests
 
         public SmartPoolDbContext CreateContext() => new(options);
         public Guid UserId(string key) => users[key].Id;
-        public string Name(string prefix) => $"{prefix}_{Guid.NewGuid():N}";
+        public string Name(string prefix)
+        {
+            var raw = $"{prefix} {Guid.NewGuid():N}";
+            return raw.Length > 28 ? raw[..28] : raw;
+        }
         public string VoucherCode() => $"QA_{Guid.NewGuid():N}"[..23];
         public void TrackTicketType(Guid id) => ticketTypeIds.Add(id);
         public void TrackTicket(Guid id) => ticketIds.Add(id);
