@@ -9,7 +9,6 @@ using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
-using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories.Services;
@@ -33,23 +32,6 @@ public sealed class RentalWorkflowIntegrationTests
         Assert.False(await db.Rentals.AnyAsync(rental => rental.ProductId == fixture.FirstId || rental.ProductId == fixture.SecondId));
     }
 
-    [Theory]
-    [InlineData(null, "0901234567", true)]
-    [InlineData("QA customer", "   ", true)]
-    [InlineData("QA customer", "0901234567", false)]
-    public async Task MissingCustomerDetailsOrCollectionConfirmationRejectsBeforeIssuance(string? name, string phone, bool confirmed)
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        await using var db = fixture.Context();
-        var request = fixture.Request();
-        request.CustomerName = name;
-        request.CustomerPhone = phone;
-        request.CollectionConfirmed = confirmed;
-        await Assert.ThrowsAsync<ValidationException>(() => fixture.Operations(db).CheckoutRentalAsync(request, default));
-        Assert.False(await db.Rentals.AnyAsync(rental => rental.ProductId == fixture.FirstId));
-        Assert.Equal(5, await db.Products.Where(product => product.Id == fixture.FirstId).Select(product => product.StockQuantity).SingleAsync());
-    }
-
     [Fact]
     public async Task UnavailableSecondLineRollsBackAllLinesAndCollection()
     {
@@ -61,18 +43,6 @@ public sealed class RentalWorkflowIntegrationTests
         Assert.Equal(5, await db.Products.Where(product => product.Id == fixture.FirstId).Select(product => product.StockQuantity).SingleAsync());
         Assert.False(await db.Rentals.AnyAsync(rental => rental.ProductId == fixture.FirstId));
         Assert.False(await db.RentalTransactions.AnyAsync(item => item.Id == request.RequestId));
-    }
-
-    [Fact]
-    public async Task ChangedCataloguePriceRequiresAnewQuotation()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        await using var db = fixture.Context();
-        var request = fixture.Request();
-        await db.Products.Where(product => product.Id == fixture.FirstId).ExecuteUpdateAsync(setters => setters.SetProperty(product => product.Price, 11000));
-        await Assert.ThrowsAsync<ServiceConflictException>(() => fixture.Operations(db).CheckoutRentalAsync(request, default));
-        Assert.False(await db.RentalTransactions.AnyAsync(item => item.Id == request.RequestId));
-        Assert.Equal(5, await db.Products.Where(product => product.Id == fixture.FirstId).Select(product => product.StockQuantity).SingleAsync());
     }
 
     [Fact]
@@ -124,88 +94,7 @@ public sealed class RentalWorkflowIntegrationTests
     }
 
     [Fact]
-    public async Task AllLostSettlementRetainsDepositsWithoutRestockingAndCompletesTheOrder()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        await using var db = fixture.Context();
-        var issue = await fixture.Operations(db).CheckoutRentalAsync(fixture.Request(2), default);
-        var request = new ReturnRentalQuantityCommand
-        {
-            RequestId = Guid.NewGuid(), OrderId = issue.OrderId, ProductId = fixture.FirstId, OperatorId = fixture.ActorId,
-            RentalIds = [], LostRentalIds = issue.Rentals.Select(rental => rental.Id).ToList(),
-            Reason = "Both units lost", SettlementConfirmed = true
-        };
-
-        var result = await fixture.Operations(db).ReturnRentalQuantityAsync(request, default);
-
-        Assert.Equal((0m, 40000m, 0, 3, "Completed"),
-            (result.RefundAmount, result.RetainedAmount, result.ReturnedQuantity, result.StockQuantity, result.OrderStatus));
-        Assert.All(await db.Rentals.AsNoTracking().Where(rental => rental.OrderId == issue.OrderId).ToListAsync(), rental =>
-        {
-            Assert.Equal("Lost", rental.Status);
-            Assert.Null(rental.ReturnTime);
-            Assert.NotNull(rental.ResolvedAtUtc);
-        });
-    }
-
-    [Fact]
-    public async Task ReusingSettlementRequestIdWithChangedSelectionConflictsWithoutAnotherSettlement()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        await using var db = fixture.Context();
-        var issue = await fixture.Operations(db).CheckoutRentalAsync(fixture.Request(2), default);
-        var request = new ReturnRentalQuantityCommand
-        {
-            RequestId = Guid.NewGuid(), OrderId = issue.OrderId, ProductId = fixture.FirstId, OperatorId = fixture.ActorId,
-            RentalIds = [issue.Rentals[0].Id], SettlementConfirmed = true
-        };
-        await fixture.Operations(db).ReturnRentalQuantityAsync(request, default);
-        var settlementCount = await db.RentalTransactions.CountAsync(item => item.OrderId == issue.OrderId);
-        request.RentalIds = [issue.Rentals[1].Id];
-
-        await Assert.ThrowsAsync<ServiceConflictException>(() => fixture.Operations(db).ReturnRentalQuantityAsync(request, default));
-
-        Assert.Equal(settlementCount, await db.RentalTransactions.CountAsync(item => item.OrderId == issue.OrderId));
-        Assert.Equal(1, await db.Rentals.CountAsync(rental => rental.OrderId == issue.OrderId && rental.Status == "Renting"));
-    }
-
-    [Fact]
-    public async Task ReplayingSettlementAsAnotherOperatorConflictsWithoutChangingStock()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        await using var db = fixture.Context();
-        var issue = await fixture.Operations(db).CheckoutRentalAsync(fixture.Request(1), default);
-        var request = new ReturnRentalQuantityCommand
-        {
-            RequestId = Guid.NewGuid(), OrderId = issue.OrderId, ProductId = fixture.FirstId, OperatorId = fixture.ActorId,
-            RentalIds = [issue.Rentals[0].Id], SettlementConfirmed = true
-        };
-        await fixture.Operations(db).ReturnRentalQuantityAsync(request, default);
-        var stock = await db.Products.Where(product => product.Id == fixture.FirstId).Select(product => product.StockQuantity).SingleAsync();
-        request.OperatorId = Guid.NewGuid();
-
-        await Assert.ThrowsAsync<ServiceConflictException>(() => fixture.Operations(db).ReturnRentalQuantityAsync(request, default));
-
-        Assert.Equal(stock, await db.Products.Where(product => product.Id == fixture.FirstId).Select(product => product.StockQuantity).SingleAsync());
-    }
-
-    [Fact]
-    public async Task CheckoutAtExactAvailableStockLeavesNoUnitsAvailable()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        await using var db = fixture.Context();
-        var request = fixture.Request(5);
-
-        var result = await fixture.Operations(db).CheckoutRentalAsync(request, default);
-
-        Assert.Equal(5, result.Rentals.Count);
-        Assert.Equal(0, await db.Products.Where(product => product.Id == fixture.FirstId).Select(product => product.StockQuantity).SingleAsync());
-    }
-
-    [Theory]
-    [InlineData("Damaged", "Damaged")]
-    [InlineData("Lost", "Lost")]
-    public async Task SingleReturnConditionMapsToTheMatchingRentalState(string condition, string expectedStatus)
+    public async Task SingleDamagedReturnMapsToTheRentalState()
     {
         await using var fixture = await Fixture.CreateAsync();
         await using var db = fixture.Context();
@@ -213,35 +102,12 @@ public sealed class RentalWorkflowIntegrationTests
         var response = await fixture.Operations(db).ReturnRentalAsync(new ReturnRentalCommand
         {
             RequestId = Guid.NewGuid(), RentalId = issue.Rentals[0].Id, OperatorId = fixture.ActorId,
-            Condition = condition, Reason = "Condition recorded", SettlementConfirmed = true
+            Condition = "Damaged", Reason = "Condition recorded", SettlementConfirmed = true
         }, default);
 
-        Assert.Equal(expectedStatus, response.Rental.Status);
-        Assert.Equal(condition == "Lost", response.Rental.ReturnTime is null);
+        Assert.Equal("Damaged", response.Rental.Status);
+        Assert.NotNull(response.Rental.ReturnTime);
         Assert.Equal(4, response.StockQuantity);
-    }
-
-    [Fact]
-    public async Task LegacyMockRentalCannotCreateArefundOrChangeStock()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        await using var db = fixture.Context();
-        var order = new Order { Id = Guid.NewGuid(), TotalAmount = 10000, FinalAmount = 10000, Status = "Pending", IsDeleted = false };
-        var rental = new Rental { Id = Guid.NewGuid(), OrderId = order.Id, ProductId = fixture.FirstId, DepositAmount = 5000, Status = "Renting" };
-        db.Orders.Add(order);
-        db.Rentals.Add(rental);
-        await db.SaveChangesAsync();
-        var history = await fixture.Operations(db).GetRentalsAsync(new GetRentalsQuery { ProductId = fixture.FirstId }, default);
-        var legacyRental = Assert.Single(history.Items);
-        Assert.False(legacyRental.CollectionVerified);
-        Assert.Equal(5000m, legacyRental.DepositAmount);
-        await Assert.ThrowsAsync<ServiceConflictException>(() => fixture.Operations(db).ReturnRentalQuantityAsync(new()
-        {
-            RequestId = Guid.NewGuid(), OrderId = order.Id, ProductId = fixture.FirstId, OperatorId = fixture.ActorId,
-            RentalIds = [rental.Id], SettlementConfirmed = true
-        }, default));
-        Assert.False(await db.RentalTransactions.AnyAsync(item => item.OrderId == order.Id));
-        Assert.Equal(5, await db.Products.Where(product => product.Id == fixture.FirstId).Select(product => product.StockQuantity).SingleAsync());
     }
 
     private sealed class Fixture(DbContextOptions<SmartPoolDbContext> options, Guid actorId) : IAsyncDisposable

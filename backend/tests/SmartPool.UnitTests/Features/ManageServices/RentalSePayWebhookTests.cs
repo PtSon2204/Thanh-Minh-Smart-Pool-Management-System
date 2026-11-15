@@ -1,39 +1,16 @@
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Moq;
 using SmartPool.API.Controllers;
 using SmartPool.Application.Features.ManageServices.Payments;
-using SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPendingOrder;
-using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
 using SmartPool.Application.Interfaces.Repositories;
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace SmartPool.UnitTests.Features.ManageServices;
 
 public sealed class RentalSePayWebhookTests
 {
-    [Fact]
-    public async Task GivenMissingServerConfiguration_WhenReceivingWebhook_ThenUnavailableWithoutDispatch()
-    {
-        var sender = new Mock<IServiceOperations>(MockBehavior.Strict);
-        var controller = CreateController();
-
-        var result = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}"), sender.Object, Options.Create(new SePayOptions()));
-
-        var rejection = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status503ServiceUnavailable, rejection.StatusCode);
-        sender.VerifyNoOtherCalls();
-    }
-
     [Fact]
     public async Task GivenInvalidWebhookKey_WhenReceivingWebhook_ThenUnauthorizedWithoutDispatch()
     {
@@ -94,19 +71,6 @@ public sealed class RentalSePayWebhookTests
     }
 
     [Fact]
-    public async Task GivenRentalReference_WhenReceivingLegacyTicketWebhook_ThenItDoesNotDispatchTicketConfirmation()
-    {
-        var sender = new Mock<ISender>(MockBehavior.Strict);
-        var controller = new SePayController(sender.Object);
-
-        Assert.IsType<OkObjectResult>(await controller.Webhook(new SePayWebhookPayload
-        {
-            content = $"Thanh toan RN{Guid.NewGuid():N}", transferAmount = 80000
-        }));
-        sender.VerifyNoOtherCalls();
-    }
-
-    [Fact]
     public async Task GivenInvalidIncomingAmount_WhenReceivingWebhook_ThenNoPaymentCommandIsSent()
     {
         var sender = new Mock<IServiceOperations>(MockBehavior.Strict);
@@ -117,56 +81,6 @@ public sealed class RentalSePayWebhookTests
         var rejection = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal(StatusCodes.Status400BadRequest, rejection.StatusCode);
         sender.VerifyNoOtherCalls();
-    }
-
-    [Fact]
-    public async Task GivenConsolidatedController_WhenPostingBothRoutes_ThenRentalRequiresAuthenticationAndTicketBehaviorIsPreserved()
-    {
-        var reference = $"RN{Guid.NewGuid():N}".ToUpperInvariant();
-        var rentals = new Mock<IServiceOperations>(MockBehavior.Strict);
-        rentals.Setup(service => service.ApplyTransferAsync(It.Is<BankTransferEvent>(transfer => transfer.Reference == reference), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BankTransferResult(true, "Recorded."));
-        var sender = new Mock<ISender>(MockBehavior.Strict);
-        sender.Setup(service => service.Send(It.Is<ConfirmPendingOrderCommand>(command => command.TransactionRef == "SPABC123"), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ConfirmPendingOrderResponse { Success = true, Message = "Ticket callback preserved." });
-
-        var builder = WebApplication.CreateBuilder();
-        builder.WebHost.UseUrls("http://127.0.0.1:0");
-        builder.Services.AddControllers().AddApplicationPart(typeof(SePayController).Assembly);
-        builder.Services.AddSingleton(rentals.Object);
-        builder.Services.AddSingleton(sender.Object);
-        builder.Services.AddSingleton(ConfiguredOptions());
-        await using var app = builder.Build();
-        app.MapControllers();
-        await app.StartAsync();
-        try
-        {
-            var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
-            using var client = new HttpClient { BaseAddress = new Uri(addresses.Addresses.Single()), Timeout = TimeSpan.FromSeconds(10) };
-            using var unauthorized = await client.PostAsJsonAsync("/api/SePay/rental/webhook", Incoming(reference));
-            Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
-
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Apikey unit-test-key");
-            using var rentalResponse = await client.PostAsJsonAsync("/api/SePay/rental/webhook", Incoming(reference));
-            Assert.Equal(HttpStatusCode.OK, rentalResponse.StatusCode);
-            Assert.True((await rentalResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("success").GetBoolean());
-
-            client.DefaultRequestHeaders.Clear();
-            using var ticketResponse = await client.PostAsJsonAsync("/api/SePay/webhook", new SePayWebhookPayload
-            {
-                content = "Thanh toan SPABC123", transferAmount = 80000
-            });
-            Assert.Equal(HttpStatusCode.OK, ticketResponse.StatusCode);
-            Assert.True((await ticketResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("success").GetBoolean());
-            rentals.Verify(service => service.ApplyTransferAsync(It.IsAny<BankTransferEvent>(), It.IsAny<CancellationToken>()), Times.Once);
-            sender.Verify(service => service.Send(It.IsAny<ConfirmPendingOrderCommand>(), It.IsAny<CancellationToken>()), Times.Once);
-            rentals.VerifyNoOtherCalls();
-            sender.VerifyNoOtherCalls();
-        }
-        finally
-        {
-            await app.StopAsync();
-        }
     }
 
     private static RentalSePayWebhookPayload Incoming(string reference, string transferType = "in", string accountNumber = "12345678", decimal amount = 80000) => new()

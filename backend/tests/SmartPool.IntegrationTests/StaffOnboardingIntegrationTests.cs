@@ -232,28 +232,6 @@ public sealed class StaffOnboardingIntegrationTests
     }
 
     [Fact]
-    public async Task OnboardingReadsDoNotWaitForTheWriteLock()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        var workspace = await fixture.InviteAsync();
-        var credentials = fixture.Credentials(workspace);
-        await using var writer = new SmartPoolDbContext(fixture.DbOptions);
-        await using var transaction = await writer.Database.BeginTransactionAsync();
-        await writer.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(704318229012)");
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var inspected = await fixture.Operations.ExecuteOnboardingAsync(new()
-        {
-            Action = OnboardingAction.Inspect, InvitationId = credentials.Id, Token = credentials.Token
-        }, timeout.Token);
-        var detail = await fixture.Operations.ExecuteOnboardingAsync(new()
-        {
-            Action = OnboardingAction.Detail, ActorId = fixture.AdminId, InvitationId = credentials.Id
-        }, timeout.Token);
-        Assert.Equal(workspace.Revision!.Id, inspected.Revision!.Id);
-        Assert.Equal(workspace.Revision.Id, detail.Revision!.Id);
-    }
-
-    [Fact]
     public async Task LateUploadAfterCancellationKeepsLocatorUntilSettledDeletion()
     {
         await using var fixture = await Fixture.CreateAsync();

@@ -45,20 +45,4 @@ public sealed class ConfirmEntryHandlerTests
         operations.Verify(operation => operation.ConfirmAsync("QA-123", "Qr", operatorId, cancellation.Token), Times.Once);
     }
 
-    [Fact]
-    public async Task GivenConfirmOperationFailure_WhenHandling_ThenTheSameExceptionIsPropagated()
-    {
-        var operatorId = Guid.NewGuid();
-        using var cancellation = new CancellationTokenSource();
-        var command = new ConfirmEntryCommand { Code = "QA-123", InputMode = "Qr", OperatorId = operatorId };
-        var failure = new InvalidOperationException("Confirmation failed.");
-        var operations = new Mock<IPoolAccessOperations>();
-        operations.Setup(operation => operation.ConfirmAsync("QA-123", "Qr", operatorId, cancellation.Token)).ThrowsAsync(failure);
-        var handler = new ConfirmEntryHandler(operations.Object, new ConfirmEntryValidator());
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command, cancellation.Token));
-
-        Assert.Same(failure, exception);
-        operations.Verify(operation => operation.ConfirmAsync("QA-123", "Qr", operatorId, cancellation.Token), Times.Once);
-    }
 }

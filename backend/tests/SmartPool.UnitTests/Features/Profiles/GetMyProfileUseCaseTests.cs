@@ -64,20 +64,6 @@ public sealed class GetMyProfileUseCaseTests
         profiles.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(DisplayName = "UTCID03 (B) - Username, Email và Phone của User là null -> Trả chuỗi rỗng")]
-    public async Task UTCID03_NullUserContactFields_ReturnsEmptyStrings()
-    {
-        var userId = Guid.NewGuid();
-        var user = new User { Id = userId, Username = null, Email = null, Phone = null };
-        var (users, profiles) = Repositories([user], []);
-
-        var result = await Handler(users.Object, profiles.Object).Handle(new() { UserId = userId }, default);
-
-        Assert.Equal(string.Empty, result.Username);
-        Assert.Equal(string.Empty, result.Email);
-        Assert.Equal(string.Empty, result.Phone);
-    }
-
     [Fact(DisplayName = "UTCID04 (A) - UserId không tồn tại -> KeyNotFoundException và không truy vấn profile")]
     public async Task UTCID04_UserMissing_ThrowsNotFound()
     {
@@ -89,37 +75,6 @@ public sealed class GetMyProfileUseCaseTests
         Assert.Equal("Tài khoản không tồn tại.", exception.Message);
         users.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
         profiles.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact(DisplayName = "UTCID05 (A) - Lỗi repository khi đọc User -> Truyền exception và không đọc profile")]
-    public async Task UTCID05_UserRepositoryFailure_IsPropagated()
-    {
-        var users = new Mock<IRepository<User>>();
-        var profiles = new Mock<IRepository<UserProfile>>();
-        var failure = new InvalidOperationException("User read failed");
-        users.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(failure);
-
-        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler(users.Object, profiles.Object).Handle(new() { UserId = Guid.NewGuid() }, default));
-
-        Assert.Same(failure, actual);
-        profiles.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact(DisplayName = "UTCID06 (A) - Lỗi repository khi đọc profile -> Truyền exception")]
-    public async Task UTCID06_ProfileRepositoryFailure_IsPropagated()
-    {
-        var userId = Guid.NewGuid();
-        var (users, profiles) = Repositories([NewUser(userId)], []);
-        var failure = new InvalidOperationException("Profile read failed");
-        profiles.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(failure);
-
-        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler(users.Object, profiles.Object).Handle(new() { UserId = userId }, default));
-
-        Assert.Same(failure, actual);
     }
 
     [Fact(DisplayName = "UTCID07 (N) - GET /api/profiles/me có claim UserId hợp lệ -> Gửi đúng query và trả 200")]

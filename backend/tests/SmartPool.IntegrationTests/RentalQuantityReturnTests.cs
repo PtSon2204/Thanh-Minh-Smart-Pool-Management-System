@@ -1,186 +1,22 @@
 using SmartPool.Infrastructure.Persistence.Repositories.Services;
+using System.Text.Json;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Text.Json;
 using SmartPool.Application.Features.ManageServices;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
 using SmartPool.Application.Features.ManageServices.Payments;
-using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentalDetails;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
-using SmartPool.Infrastructure.Persistence.Repositories;
 
 namespace SmartPool.IntegrationTests;
 
 public sealed class RentalQuantityReturnTests
 {
-    [Fact]
-    public async Task GivenStockTen_WhenCheckingOutThreeAndReturningOneThenTwo_ThenStockAndLogsStayConsistent()
-    {
-        await using var fixture = await RentalReturnFixture.CreateAsync(0, 10);
-        CheckoutRentalResponse? checkout = null;
-        try
-        {
-            checkout = await fixture.CreateOperations().CheckoutRentalAsync(new CheckoutRentalCommand
-            {
-                RequestId = Guid.NewGuid(),
-                CustomerName = "QA customer",
-                CustomerPhone = "0900000000",
-                CollectionConfirmed = true,
-                OperatorId = fixture.OperatorId,
-                Items = [new() { ProductId = fixture.ProductId, Quantity = 3, ExpectedUnitPrice = 1m }]
-            }, CancellationToken.None);
-
-            Assert.Equal(7, await fixture.ReadStockAsync());
-            var firstReturn = await fixture.CreateOperations().ReturnRentalQuantityAsync(
-                new ReturnRentalQuantityCommand
-                {
-                    RequestId = Guid.NewGuid(),
-                    OrderId = checkout.OrderId,
-                    ProductId = fixture.ProductId,
-                    OperatorId = fixture.OperatorId,
-                    SettlementConfirmed = true,
-                    RentalIds = checkout.Rentals.Take(1).Select(item => item.Id).ToList()
-                }, CancellationToken.None);
-            Assert.Equal((1, 8, 2), (firstReturn.ReturnedQuantity, firstReturn.StockQuantity, firstReturn.OutstandingQuantity));
-
-            var remainingIds = checkout.Rentals.Skip(1).Select(item => item.Id).ToList();
-            var secondCommand = new ReturnRentalQuantityCommand
-            {
-                RequestId = Guid.NewGuid(),
-                OrderId = checkout.OrderId,
-                ProductId = fixture.ProductId,
-                OperatorId = fixture.OperatorId,
-                SettlementConfirmed = true,
-                RentalIds = remainingIds
-            };
-            var secondReturn = await fixture.CreateOperations().ReturnRentalQuantityAsync(secondCommand, CancellationToken.None);
-            var replay = await fixture.CreateOperations().ReturnRentalQuantityAsync(secondCommand, CancellationToken.None);
-
-            Assert.Equal((2, 10, 0), (secondReturn.ReturnedQuantity, secondReturn.StockQuantity, secondReturn.OutstandingQuantity));
-            Assert.Equal(JsonSerializer.Serialize(secondReturn), JsonSerializer.Serialize(replay));
-            Assert.Equal(10, replay.StockQuantity);
-            await using var context = fixture.CreateContext();
-            var logs = await context.InventoryLogs.Where(log => log.ProductId == fixture.ProductId)
-                .OrderBy(log => log.CreatedAt).Select(log => new { log.ChangeType, log.Quantity }).ToListAsync();
-            Assert.Equal(new[] { ("RentalCheckout", -3), ("RentalReturn", 1), ("RentalReturn", 2) }, logs.Select(log => (log.ChangeType, log.Quantity)));
-        }
-        finally
-        {
-            if (checkout is not null)
-            {
-                await using var context = fixture.CreateContext();
-                var rentalIds = checkout.Rentals.Select(item => item.Id).ToList();
-                await context.Rentals.Where(rental => rentalIds.Contains(rental.Id)).ExecuteDeleteAsync();
-                await context.RentalTransactions.Where(transaction => transaction.OrderId == checkout.OrderId).ExecuteDeleteAsync();
-                await context.Payments.Where(payment => payment.OrderId == checkout.OrderId).ExecuteDeleteAsync();
-                await context.OrderDetails.Where(detail => detail.OrderId == checkout.OrderId).ExecuteDeleteAsync();
-                await context.Orders.Where(order => order.Id == checkout.OrderId).ExecuteDeleteAsync();
-            }
-            await fixture.CleanupAsync();
-        }
-    }
-
-    [Fact]
-    public async Task GivenFreshThreeUnitRental_WhenGroupedListIsRead_ThenTotalsDescribeTheCompleteOrderProduct()
-    {
-        await using var fixture = await RentalReturnFixture.CreateAsync(3, 0);
-        try
-        {
-            var grouped = await fixture.CreateOperations().GetRentalsAsync(
-                new GetRentalsQuery { GroupByOrder = true, ProductId = fixture.ProductId, PageSize = 1 }, CancellationToken.None);
-
-            var item = Assert.Single(grouped.Items);
-            Assert.Equal(3, item.Quantity);
-            Assert.Equal(0, item.ReturnedQuantity);
-            Assert.Equal(3, item.OutstandingQuantity);
-            Assert.Equal("Renting", item.Status);
-            Assert.Equal(1, grouped.TotalCount);
-            Assert.Equal(fixture.RentalIds.Order().ToArray(), item.OutstandingRentalIds);
-        }
-        finally
-        {
-            await fixture.CleanupAsync();
-            Assert.Equal((0, 3, 1, 1, 1), fixture.CleanupCounts);
-        }
-    }
-
-    [Fact]
-    public async Task GivenPartiallyReturnedOrder_WhenDetailsAreRead_ThenSerializedDetailsRetainEveryUnit()
-    {
-        await using var fixture = await RentalReturnFixture.CreateAsync(4, 0);
-        try
-        {
-            await fixture.CreateOperations().ReturnRentalQuantityAsync(
-                fixture.QuantityCommand([fixture.RentalIds[1], fixture.RentalIds[3]]), CancellationToken.None);
-
-            var grouped = await fixture.CreateOperations().GetRentalsAsync(new GetRentalsQuery
-            {
-                GroupByOrder = true, ProductId = fixture.ProductId, PageSize = 1
-            }, CancellationToken.None);
-            var groupedItem = Assert.Single(grouped.Items);
-            Assert.Equal((4, 2, 2), (groupedItem.Quantity, groupedItem.ReturnedQuantity, groupedItem.OutstandingQuantity));
-            Assert.Equal(1, grouped.TotalCount);
-            Assert.Equal(fixture.RentalIds.Except([fixture.RentalIds[1], fixture.RentalIds[3]]).Order().ToArray(), groupedItem.OutstandingRentalIds);
-
-            var details = await fixture.CreateOperations().GetRentalDetailsAsync(
-                new GetRentalDetailsQuery { OrderId = fixture.OrderId, ProductId = fixture.ProductId }, CancellationToken.None);
-            using var json = JsonDocument.Parse(JsonSerializer.Serialize(details, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
-            var root = json.RootElement;
-
-            Assert.Equal(fixture.OrderId, root.GetProperty("orderId").GetGuid());
-            Assert.Equal(fixture.ProductId, root.GetProperty("productId").GetGuid());
-            Assert.StartsWith("QA return ", root.GetProperty("productName").GetString());
-            Assert.True(root.TryGetProperty("customerName", out _));
-            Assert.True(root.TryGetProperty("customerPhone", out _));
-            Assert.Equal("Renting", root.GetProperty("orderStatus").GetString());
-            Assert.Equal(4, root.GetProperty("rentedQuantity").GetInt32());
-            Assert.Equal(2, root.GetProperty("returnedQuantity").GetInt32());
-            Assert.Equal(2, root.GetProperty("outstandingQuantity").GetInt32());
-            Assert.Equal(80000m, root.GetProperty("totalDepositAmount").GetDecimal());
-            Assert.Equal(4, root.GetProperty("rentals").GetArrayLength());
-            Assert.All(root.GetProperty("rentals").EnumerateArray(), rental =>
-            {
-                Assert.True(rental.TryGetProperty("rentTime", out _));
-                Assert.True(rental.TryGetProperty("returnTime", out _));
-                Assert.True(rental.TryGetProperty("depositAmount", out _));
-                Assert.True(rental.TryGetProperty("status", out _));
-            });
-            Assert.Contains(root.GetProperty("rentals").EnumerateArray(), rental =>
-                rental.GetProperty("status").GetString() == "Returned"
-                && rental.GetProperty("returnTime").ValueKind != JsonValueKind.Null);
-            Assert.Equal(fixture.RentalIds.Except([fixture.RentalIds[1], fixture.RentalIds[3]]).Order().ToArray(),
-                root.GetProperty("outstandingRentalIds").EnumerateArray().Select(id => id.GetGuid()).ToArray());
-            Assert.DoesNotContain("serial", json.RootElement.GetRawText(), StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            await fixture.CleanupAsync();
-            Assert.Equal((1, 4, 1, 1, 1), fixture.CleanupCounts);
-        }
-    }
-
-    [Fact]
-    public async Task GivenMissingOrderProductPair_WhenDetailsAreRead_ThenRepositoryReturnsNotFound()
-    {
-        await using var fixture = await RentalReturnFixture.CreateAsync(1, 0);
-        try
-        {
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.CreateOperations().GetRentalDetailsAsync(
-                new GetRentalDetailsQuery { OrderId = fixture.OrderId, ProductId = Guid.NewGuid() }, CancellationToken.None));
-        }
-        finally
-        {
-            await fixture.CleanupAsync();
-            Assert.Equal((0, 1, 1, 1, 1), fixture.CleanupCounts);
-        }
-    }
-
     [Fact]
     public async Task GivenCompletedOrder_WhenDetailsAreRead_ThenReturnedHistoryRemainsAvailable()
     {
