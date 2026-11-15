@@ -102,5 +102,53 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Vouchers
                 Message = "Tạo voucher thành công."
             };
         }
+
+        public async Task<Voucher?> GetVoucherByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await context.Vouchers
+                .FirstOrDefaultAsync(v => v.Id == id && v.IsDeleted != true, cancellationToken);
+        }
+
+        public async Task<Voucher?> GetUsableVoucherByCodeAsync(string code, DateTime nowUtc, CancellationToken cancellationToken = default)
+        {
+            return await context.Vouchers.FirstOrDefaultAsync(
+                SmartPool.Application.Common.Helpers.VoucherValidityPolicy.UsableCodeAt(code, nowUtc),
+                cancellationToken);
+        }
+
+        public async Task<bool> ExistsByCodeAsync(string code, Guid excludeId, CancellationToken cancellationToken = default)
+        {
+            return await context.Vouchers
+                .AnyAsync(v => v.Code == code && v.Id != excludeId && v.IsDeleted != true, cancellationToken);
+        }
+
+        public async Task UpdateVoucherAsync(Voucher voucher, CancellationToken cancellationToken = default)
+        {
+            context.Vouchers.Update(voucher);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<bool> DeleteVoucherAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var entity = await context.Vouchers
+                .FirstOrDefaultAsync(v => v.Id == id && v.IsDeleted != true, cancellationToken)
+                ?? throw new KeyNotFoundException($"Không tìm thấy voucher với Id: {id}");
+
+            entity.IsDeleted = true;
+            entity.IsActive = false;
+            await context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        public async Task<bool> ToggleLockVoucherAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var entity = await context.Vouchers
+                .FirstOrDefaultAsync(v => v.Id == id && v.IsDeleted != true, cancellationToken)
+                ?? throw new KeyNotFoundException($"Không tìm thấy voucher với Id: {id}");
+
+            entity.IsActive = !(entity.IsActive ?? true);
+            await context.SaveChangesAsync(cancellationToken);
+            return entity.IsActive.Value;
+        }
     }
 }

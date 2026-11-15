@@ -1,0 +1,90 @@
+/* Shared by safety pages and their portaled dialogs. Keep tables scrollable
+   inside their cards instead of widening the page on small screens. */
+.monitoring-page,
+.safety-live-alerts,
+.incident-history-page { min-width: 0; max-width: 100%; }
+.monitoring-page > *,
+.monitoring-page .ant-space-item,
+.safety-live-alerts .ant-card-body,
+.safety-alert-table,
+.incident-history-page .ant-card-body { min-width: 0; }
+.monitoring-page .ant-card-head-title,
+.safety-live-alerts .ant-card-head-title { white-space: normal; overflow-wrap: anywhere; padding-block: 12px; }
+.monitoring-page .ant-card-head-wrapper { gap: 12px; }
+.monitoring-page .ant-alert-content,
+.safety-live-alerts .ant-alert-content,
+.safety-modal,
+.safety-global-popup,
+.safety-video-popup { overflow-wrap: anywhere; }
+.monitoring-page .ant-alert,
+.safety-live-alerts .ant-alert { flex-wrap: wrap; row-gap: 8px; }
+.monitoring-page .ant-alert-content,
+.safety-live-alerts .ant-alert-content { flex: 1; min-width: 120px; }
+.monitoring-page .ant-pagination,
+.safety-live-alerts .ant-pagination,
+.incident-history-page .ant-pagination { flex-wrap: wrap; row-gap: 8px; }
+.safety-form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.safety-video-stage { position: relative; width: 100%; max-width: 800px; background: #000; }
+.safety-popup-stack,
+.safety-video-popup { display: flex; flex-direction: column; gap: 12px; }
+.safety-popup-stack > *,
+.safety-video-popup > * { flex-shrink: 0; }
+.safety-global-popup { position: fixed; inset-inline: 0; top: max(64px, env(safe-area-inset-top)); z-index: 1050; display: flex; justify-content: center; padding-inline: 16px; }
+.safety-global-popup > div,
+.safety-video-popup { max-height: calc(100dvh - 88px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+.safety-video-popup { position: fixed; right: max(24px, env(safe-area-inset-right)); top: max(80px, env(safe-area-inset-top)); z-index: 1050; width: min(360px, calc(100vw - 32px)); }
+.safety-global-popup .ant-space-item,
+.safety-video-popup .ant-space-item { min-width: 0; max-width: 100%; }
+.safety-modal .ant-modal-title { padding-right: 24px; overflow-wrap: anywhere; }
+.safety-modal .ant-space-item,
+.safety-modal .ant-descriptions-item-content { min-width: 0; overflow-wrap: anywhere; }
+.safety-modal .ant-image { max-width: 100%; }
+.safety-modal .ant-modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.safety-modal .ant-modal-footer > .ant-btn + .ant-btn { margin-inline-start: 0; }
+
+@media (max-width: 767px) {
+  .monitoring-page { gap: 16px; }
+  .monitoring-page h2.ant-typography { font-size: 24px; margin-bottom: 0; }
+  .monitoring-page .ant-card-body,
+  .safety-live-alerts .ant-card-body { padding: 16px; }
+  .monitoring-page .ant-card-head,
+  .safety-live-alerts .ant-card-head { padding-inline: 16px; }
+  .monitoring-filters.ant-space { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .monitoring-filters > .ant-space-item:first-child { grid-column: 1 / -1; }
+  .monitoring-page .monitoring-filters .ant-input-affix-wrapper,
+  .monitoring-page .monitoring-filters .ant-select,
+  .monitoring-page .monitoring-filters .ant-btn { width: 100%; min-width: 0; }
+  .monitoring-page .ant-upload-list-item-name { overflow-wrap: anywhere; }
+  .monitoring-page p { overflow-wrap: anywhere; }
+  .monitoring-page .ant-btn,
+  .safety-live-alerts .ant-btn,
+  .safety-modal .ant-btn,
+  .safety-global-popup .ant-btn,
+  .safety-video-popup .ant-btn { min-height: 40px; }
+  .monitoring-page .ant-input-affix-wrapper,
+  .monitoring-page .ant-select,
+  .monitoring-page .ant-input-number { min-height: 40px; }
+  .monitoring-page .ant-space-compact { flex-wrap: wrap; gap: 8px; }
+  .monitoring-page .ant-space-compact > .ant-input { flex-basis: 100%; border-radius: 6px; min-height: 40px; }
+  .monitoring-page .ant-space-compact > .ant-btn { width: 100%; border-radius: 6px; }
+  .safety-form-actions > .ant-btn { flex: 1; }
+  .safety-video-popup { right: max(16px, env(safe-area-inset-right)); }
+  .safety-modal { top: 16px; padding-bottom: 16px; }
+  .safety-modal .ant-modal-container { padding: 20px 16px; display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }
+  .safety-modal .ant-modal-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .safety-modal .ant-modal-header,
+  .safety-modal .ant-modal-footer { flex-shrink: 0; }
+  .safety-modal .ant-modal-footer > .ant-btn { flex: 1 1 auto; white-space: normal; height: auto; }
+}
+
+@media (max-width: 374px) {
+  .monitoring-filters.ant-space { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-height: 600px) {
+  .safety-modal { top: 8px; padding-bottom: 8px; }
+  .safety-modal .ant-modal-container { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+  .safety-modal .ant-modal-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .safety-modal .ant-modal-header,
+  .safety-modal .ant-modal-footer { flex-shrink: 0; }
+}

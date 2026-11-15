@@ -17,7 +17,7 @@ public sealed class RequestPasswordResetHandler : IRequestHandler<RequestPasswor
 {
     internal const string EmailSubject = "[Thanh Minh Smart Pool] Mã khôi phục mật khẩu";
 
-    private readonly IRepository<User> _users;
+    private readonly IUserOperations _userOperations;
     private readonly IPasswordResetStore _store;
     private readonly PasswordResetCodeService _codes;
     private readonly IEmailService _email;
@@ -26,7 +26,7 @@ public sealed class RequestPasswordResetHandler : IRequestHandler<RequestPasswor
     private readonly ILogger<RequestPasswordResetHandler> _logger;
 
     public RequestPasswordResetHandler(
-        IRepository<User> users,
+        IUserOperations userOperations,
         IPasswordResetStore store,
         PasswordResetCodeService codes,
         IEmailService email,
@@ -34,7 +34,7 @@ public sealed class RequestPasswordResetHandler : IRequestHandler<RequestPasswor
         IValidator<RequestPasswordResetCommand> validator,
         ILogger<RequestPasswordResetHandler> logger)
     {
-        _users = users;
+        _userOperations = userOperations;
         _store = store;
         _codes = codes;
         _email = email;
@@ -87,12 +87,7 @@ public sealed class RequestPasswordResetHandler : IRequestHandler<RequestPasswor
         User? user;
         try
         {
-            user = await _users.FirstOrDefaultAsync(candidate =>
-                candidate.Email != null && candidate.Email.ToLower() == email &&
-                candidate.IsDeleted != true && candidate.Status != null &&
-                candidate.Status.ToLower() == "active" &&
-                candidate.PasswordHash != null && candidate.PasswordHash != "",
-                cancellationToken);
+            user = await _userOperations.FindActiveUserByEmailWithPasswordAsync(email, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

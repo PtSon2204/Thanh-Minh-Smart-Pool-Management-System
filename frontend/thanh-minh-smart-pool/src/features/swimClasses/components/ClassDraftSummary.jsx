@@ -11,7 +11,7 @@ export default function ClassDraftSummary({ draft, coaches }) {
     <div className="swim-class-summary-row"><span>Sức chứa</span><strong>{draft.capacity} học viên</strong></div>
     <div className="swim-class-summary-row"><span>Học phí</span><strong>{Number(draft.fee).toLocaleString('vi-VN')} VNĐ</strong></div>
     <div className="swim-class-summary-row"><span>Nhận đăng ký</span><strong>{formatVietnamTime(draft.registrationStartAt)}<br />đến {formatVietnamTime(draft.registrationEndAt)}</strong></div>
-    <div className="swim-class-summary-row"><span>Buổi đã lưu</span><strong>{draft.sessions.length}</strong></div>
+    <div className="swim-class-summary-row"><span>Buổi trong bản nháp</span><strong>{draft.sessions.length}</strong></div>
     <Text type="secondary" className="swim-class-draft-id">Mã lớp: {draft.id}</Text>
   </Card>
 }

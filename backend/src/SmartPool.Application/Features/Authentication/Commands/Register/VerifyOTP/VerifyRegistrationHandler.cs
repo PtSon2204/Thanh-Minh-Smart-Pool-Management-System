@@ -16,12 +16,8 @@ namespace SmartPool.Application.Features.Authentication.Commands.Register.Verify
 
 public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrationCommand, IActionResult>
 {
-    private readonly IRepository<User> _users;
-    private readonly IRepository<UserProfile> _profiles;
-    private readonly IRepository<Role> _roles;
-    private readonly IRepository<Notification> _notifications;
+    private readonly IUserOperations _userOperations;
     private readonly INotificationService _notificationService;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IRegistrationOtpStore _otpStore;
     private readonly RegistrationOtpCodeService _otpCodes;
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -29,24 +25,16 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
     private readonly ILogger<VerifyRegistrationHandler> _logger;
 
     public VerifyRegistrationHandler(
-        IRepository<User> users,
-        IRepository<UserProfile> profiles,
-        IRepository<Role> roles,
-        IRepository<Notification> notifications,
+        IUserOperations userOperations,
         INotificationService notificationService,
-        IUnitOfWork unitOfWork,
         IRegistrationOtpStore otpStore,
         RegistrationOtpCodeService otpCodes,
         IHttpContextAccessor httpContextAccessor,
         IValidator<VerifyRegistrationCommand> validator,
         ILogger<VerifyRegistrationHandler> logger)
     {
-        _users = users;
-        _profiles = profiles;
-        _roles = roles;
-        _notifications = notifications;
+        _userOperations = userOperations;
         _notificationService = notificationService;
-        _unitOfWork = unitOfWork;
         _otpStore = otpStore;
         _otpCodes = otpCodes;
         _httpContextAccessor = httpContextAccessor;
@@ -100,13 +88,13 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
         User? user = null;
         try
         {
-            var conflict = await RegisterHandler.FindConflictAsync(_users, registration.Username,
+            var conflict = await RegisterHandler.FindConflictAsync(_userOperations, registration.Username,
                 registration.Email, registration.Phone, cancellationToken);
             if (conflict is not null)
                 return RegisterHandler.CreateConflictResult(conflict);
 
-            var customerRole = await _roles.FirstOrDefaultAsync(
-                role => role.Name.ToUpper() == nameof(RoleEnum.CUSTOMER) && role.IsDeleted != true,
+            var customerRole = await _userOperations.GetRoleByNameAsync(
+                nameof(RoleEnum.CUSTOMER),
                 cancellationToken);
             if (customerRole is null)
                 return RegisterHandler.CreateProblemResult(StatusCodes.Status500InternalServerError,
@@ -134,10 +122,7 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
             };
             user.UserProfile = profile;
 
-            await _users.AddAsync(user, cancellationToken);
-            await _profiles.AddAsync(profile, cancellationToken);
-
-            var adminUser = await _users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == "admin", cancellationToken);
+            var adminUser = await _userOperations.GetUserByUsernameAsync("admin", cancellationToken);
             var notification = new Notification
             {
                 Id = Guid.NewGuid(),
@@ -148,9 +133,8 @@ public sealed class VerifyRegistrationHandler : IRequestHandler<VerifyRegistrati
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             };
-            await _notifications.AddAsync(notification, cancellationToken);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userOperations.CreateUserWithProfileAsync(user, profile, notification, cancellationToken);
             saved = true;
 
             try

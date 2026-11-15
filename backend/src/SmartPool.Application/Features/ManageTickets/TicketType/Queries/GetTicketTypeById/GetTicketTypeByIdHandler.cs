@@ -8,12 +8,12 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetTic
     public class GetTicketTypeByIdHandler
         : IRequestHandler<GetTicketTypeByIdQuery, GetTicketTypeByIdResponse>
     {
-        private readonly IRepository<TicketTypeEntity> _repo;
+        private readonly ITicketTypeOperations _operations;
         private readonly IMapper _mapper;
 
-        public GetTicketTypeByIdHandler(IRepository<TicketTypeEntity> repo, IMapper mapper)
+        public GetTicketTypeByIdHandler(ITicketTypeOperations operations, IMapper mapper)
         {
-            _repo = repo;
+            _operations = operations;
             _mapper = mapper;
         }
 
@@ -21,9 +21,7 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Queries.GetTic
             GetTicketTypeByIdQuery request,
             CancellationToken cancellationToken)
         {
-            var entity = await _repo.FirstOrDefaultAsync(
-                t => t.Id == request.Id && t.IsDeleted != true,
-                cancellationToken)
+            var entity = await _operations.GetByIdAsync(request.Id, cancellationToken)
                 ?? throw new KeyNotFoundException($"Không tìm thấy loại vé với Id: {request.Id}");
 
             return _mapper.Map<GetTicketTypeByIdResponse>(entity);

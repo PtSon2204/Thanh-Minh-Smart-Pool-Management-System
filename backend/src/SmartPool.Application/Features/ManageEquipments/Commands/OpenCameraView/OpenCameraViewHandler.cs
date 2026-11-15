@@ -7,13 +7,13 @@ using SmartPool.Domain.Entities;
 namespace SmartPool.Application.Features.ManageEquipments.Commands.OpenCameraView;
 
 public sealed class OpenCameraViewHandler(
-    IRepository<Equipment> repository,
+    IEquipmentOperations equipmentOperations,
     ICameraStreamService streams)
     : IRequestHandler<OpenCameraViewCommand, CameraView>
 {
     public async Task<CameraView> Handle(OpenCameraViewCommand command, CancellationToken cancellationToken)
     {
-        var equipment = await repository.GetByIdAsync(command.EquipmentId, cancellationToken);
+        var equipment = await equipmentOperations.GetByIdAsync(command.EquipmentId, cancellationToken);
         if (equipment == null || equipment.IsDeleted == true)
             throw new KeyNotFoundException("Không tìm thấy camera");
         if (!CameraMetadata.IsCamera(equipment.Category))

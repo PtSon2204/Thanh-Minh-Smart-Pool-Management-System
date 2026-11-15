@@ -12,12 +12,10 @@ using SmartPool.Application.Interfaces.Services;
 namespace SmartPool.Application.Features.ManageEquipments.Commands.CreateEquipment;
 
 public sealed class CreateEquipmentHandler(
-    IRepository<Equipment> repository,
-    IUnitOfWork unitOfWork,
+    IEquipmentOperations equipmentOperations,
     IValidator<CreateEquipmentCommand> validator,
     TimeProvider timeProvider,
-    ICameraService? cameras = null,
-    IEquipmentOperations? equipmentOperations = null) : IRequestHandler<CreateEquipmentCommand, EquipmentListItem>
+    ICameraService? cameras = null) : IRequestHandler<CreateEquipmentCommand, EquipmentListItem>
 {
     public async Task<EquipmentListItem> Handle(CreateEquipmentCommand request, CancellationToken cancellationToken)
     {
@@ -42,7 +40,7 @@ public sealed class CreateEquipmentHandler(
         };
         if (CameraMetadata.IsCamera(category) && !browser)
         {
-            if (cameras == null || equipmentOperations == null)
+            if (cameras == null)
                 throw new CameraConnectionException("NotConfigured", "Dịch vụ camera chưa được cấu hình.");
             var identity = await cameras.GetIdentityAsync(request.CameraConnection!, cancellationToken);
             if (await equipmentOperations.CameraExistsAsync(identity, cancellationToken))
@@ -56,8 +54,7 @@ public sealed class CreateEquipmentHandler(
         else
         {
             if (browser) equipment.Metadata = CameraMetadata.PackBrowser(equipment.Metadata);
-            await repository.AddAsync(equipment, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await equipmentOperations.AddAsync(equipment, cancellationToken);
         }
         return new EquipmentListItem
         {

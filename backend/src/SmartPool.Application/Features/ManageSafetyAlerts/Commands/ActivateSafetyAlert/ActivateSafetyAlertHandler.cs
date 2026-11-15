@@ -14,29 +14,30 @@ namespace SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSaf
 public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyAlertCommand, ActivateSafetyAlertResult>
 {
     private readonly INotificationService _notificationService;
-    private readonly IRepository<Incident> _incidentRepo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ISafetyAlertOperations _operations;
 
     public ActivateSafetyAlertHandler(
         INotificationService notificationService,
-        IRepository<Incident> incidentRepo,
-        IUnitOfWork unitOfWork)
+        ISafetyAlertOperations operations)
     {
         _notificationService = notificationService;
-        _incidentRepo = incidentRepo;
-        _unitOfWork = unitOfWork;
+        _operations = operations;
     }
 
     public async Task<ActivateSafetyAlertResult> Handle(
         ActivateSafetyAlertCommand request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Zone) || request.Zone.Trim().Length > 200 ||
+            request.Level is not ("WARNING" or "EMERGENCY"))
+            throw new ArgumentException("Khu vực hoặc mức độ cảnh báo không hợp lệ.");
         var alertId = Guid.NewGuid();
         var triggeredAt = DateTime.UtcNow;
 
         var result = new ActivateSafetyAlertResult
         {
             AlertId = alertId,
+            ClientRequestId = request.ClientRequestId,
             Zone = request.Zone,
             Level = request.Level,
             Description = request.Description,
@@ -45,36 +46,25 @@ public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyA
         };
 
         // 1. Lưu bản ghi sự cố vào DB
-        try
+        var incident = new Incident
         {
-            var incident = new Incident
-            {
-                Id = alertId,
-                Title = $"Cảnh báo cứu hộ: {request.Zone}",
-                Description = request.Description,
-                SeverityLevel = request.Level,
-                IncidentTime = triggeredAt,
-                ReportedBy = Guid.TryParse(request.TriggeredByUserId, out var uid) ? uid : null,
-                ImageIncidents = request.ImageIncidents,
-                Status = "Resolved",
-                CreatedAt = triggeredAt,
-                UpdatedAt = triggeredAt,
-            };
+            Id = alertId,
+            Title = $"Cảnh báo cứu hộ: {request.Zone}",
+            Location = request.Zone.Trim(),
+            Description = request.Description,
+            SeverityLevel = request.Level,
+            IncidentTime = triggeredAt,
+            ReportedBy = Guid.TryParse(request.TriggeredByUserId, out var uid) ? uid : null,
+            Status = "Pending",
+        };
 
-            await _incidentRepo.AddAsync(incident, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ActivateSafetyAlertHandler] Warning saving incident to DB: {ex.Message}");
-        }
+        await _operations.AddIncidentAsync(incident, cancellationToken);
 
-        // 2. Broadcast tới tất cả clients kết nối SignalR
+        // 2. Broadcast realtime qua SignalR Hub tới tất cả Lifeguards/Staff đang mở trang giám sát
         await _notificationService.SendToAllAsync(
-            eventName: "safety_alert",
-            payload: result,
-            cancellationToken: cancellationToken
-        );
+            "safety_alert",
+            result,
+            cancellationToken);
 
         return result;
     }

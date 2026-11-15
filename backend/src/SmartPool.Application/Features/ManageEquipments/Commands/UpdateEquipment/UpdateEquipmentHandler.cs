@@ -7,13 +7,15 @@ using SmartPool.Domain.Enums;
 
 namespace SmartPool.Application.Features.ManageEquipments.Commands.UpdateEquipment;
 
-public sealed class UpdateEquipmentHandler(IRepository<Equipment> repository, IUnitOfWork unitOfWork,
-    IValidator<UpdateEquipmentCommand> validator, TimeProvider timeProvider) : IRequestHandler<UpdateEquipmentCommand, bool>
+public sealed class UpdateEquipmentHandler(
+    IEquipmentOperations equipmentOperations,
+    IValidator<UpdateEquipmentCommand> validator,
+    TimeProvider timeProvider) : IRequestHandler<UpdateEquipmentCommand, bool>
 {
     public async Task<bool> Handle(UpdateEquipmentCommand request, CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
-        var equipment = await repository.GetByIdAsync(request.Id, cancellationToken);
+        var equipment = await equipmentOperations.GetByIdAsync(request.Id, cancellationToken);
         if (equipment == null || equipment.IsDeleted == true) return false;
 
         var category = request.Category.Trim();
@@ -34,8 +36,7 @@ public sealed class UpdateEquipmentHandler(IRepository<Equipment> repository, IU
         }
         equipment.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
         // Updating public specifications preserves protected camera configuration and maintenance records.
-        repository.Update(equipment);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await equipmentOperations.UpdateAsync(equipment, cancellationToken);
         return true;
     }
 }

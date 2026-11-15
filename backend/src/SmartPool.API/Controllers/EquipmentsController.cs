@@ -13,6 +13,7 @@ using SmartPool.Application.Features.ManageEquipments.Commands.CloseCameraView;
 using SmartPool.Application.Features.ManageEquipments.DTOs;
 using SmartPool.Application.Features.ManageEquipments.Cameras;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipments;
+using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipmentById;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetEquipmentFilters;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetCameraViewConfig;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetCameraViewStatus;
@@ -171,6 +172,14 @@ public sealed class EquipmentsController : ControllerBase
     [ProducesResponseType(typeof(EquipmentFilterOptions), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFilters(CancellationToken cancellationToken) =>
         Ok(await _sender.Send(new GetEquipmentFiltersQuery(), cancellationToken));
+
+    [HttpGet("{equipmentId:guid}")]
+    [ProducesResponseType(typeof(EquipmentListItem), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetById(Guid equipmentId, CancellationToken cancellationToken)
+    {
+        var equipment = await _sender.Send(new GetEquipmentByIdQuery(equipmentId), cancellationToken);
+        return equipment is null ? NotFound(new { message = "Không tìm thấy thiết bị." }) : Ok(equipment);
+    }
 
     // -------------------------------------------------------------------------
     // Helpers

@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Moq;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.UpdateTicketCode;
 using SmartPool.Application.Interfaces.Repositories;
@@ -15,18 +14,14 @@ public sealed class UpdateTicketCodeTests
         var ticket = MakeTicket(ownerId);
         var oldUpdatedAt = new DateTime(2025, 1, 1);
         ticket.UpdatedAt = oldUpdatedAt;
-        var repo = new Mock<IRepository<TicketEntity>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var operations = new Mock<ITicketOrderOperations>(MockBehavior.Strict);
         using var cts = new CancellationTokenSource();
-        repo.Setup(r => r.GetByIdAsync(ticket.Id, cts.Token)).ReturnsAsync(ticket);
-        Expression<Func<TicketEntity, bool>>? duplicatePredicate = null;
-        repo.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), cts.Token))
-            .Callback<Expression<Func<TicketEntity, bool>>, CancellationToken>((filter, _) => duplicatePredicate = filter)
-            .ReturnsAsync((TicketEntity?)null);
-        uow.Setup(u => u.SaveChangesAsync(cts.Token)).ReturnsAsync(1);
+        operations.Setup(r => r.GetTicketByIdAsync(ticket.Id, cts.Token)).ReturnsAsync(ticket);
+        operations.Setup(r => r.TicketCodeExistsAsync("012345", ticket.Id, cts.Token)).ReturnsAsync(false);
+        operations.Setup(r => r.UpdateTicketAsync(ticket, cts.Token)).Returns(Task.CompletedTask);
         var before = DateTime.UtcNow;
 
-        var result = await new UpdateTicketCodeHandler(repo.Object, uow.Object)
+        var result = await new UpdateTicketCodeHandler(operations.Object)
             .Handle(new UpdateTicketCodeCommand { TicketId = ticket.Id, UserId = ownerId, Code = "012345" }, cts.Token);
 
         Assert.True(result.Success);
@@ -35,53 +30,44 @@ public sealed class UpdateTicketCodeTests
         Assert.Equal("012345", ticket.QrCode);
         Assert.NotEqual(oldUpdatedAt, ticket.UpdatedAt);
         Assert.InRange(ticket.UpdatedAt!.Value, before, DateTime.UtcNow);
-        Assert.NotNull(duplicatePredicate);
-        Assert.False(duplicatePredicate!.Compile()(ticket));
-        var otherTicketWithCode = new TicketEntity { Id = Guid.NewGuid(), QrCode = "012345" };
-        Assert.True(duplicatePredicate.Compile()(otherTicketWithCode));
-        repo.Verify(r => r.GetByIdAsync(ticket.Id, cts.Token), Times.Once);
-        repo.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), cts.Token), Times.Once);
-        uow.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetTicketByIdAsync(ticket.Id, cts.Token), Times.Once);
+        operations.Verify(r => r.TicketCodeExistsAsync("012345", ticket.Id, cts.Token), Times.Once);
+        operations.Verify(r => r.UpdateTicketAsync(ticket, cts.Token), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID02 (A) - TicketId không tồn tại -> Trả lỗi và không truy vấn trùng/lưu")]
     public async Task UTCID02_TicketMissing_ReturnsFailureWithoutSaving()
     {
         var ticketId = Guid.NewGuid();
-        var repo = new Mock<IRepository<TicketEntity>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(ticketId, CancellationToken.None)).ReturnsAsync((TicketEntity?)null);
+        var operations = new Mock<ITicketOrderOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetTicketByIdAsync(ticketId, CancellationToken.None)).ReturnsAsync((TicketEntity?)null);
 
-        var result = await new UpdateTicketCodeHandler(repo.Object, uow.Object)
+        var result = await new UpdateTicketCodeHandler(operations.Object)
             .Handle(new UpdateTicketCodeCommand { TicketId = ticketId, UserId = Guid.NewGuid(), Code = "123456" }, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal("Không tìm thấy vé.", result.Message);
         Assert.Null(result.NewCode);
-        repo.Verify(r => r.GetByIdAsync(ticketId, CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetTicketByIdAsync(ticketId, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID03 (A) - Người dùng không phải chủ vé -> Từ chối và không lưu")]
     public async Task UTCID03_WrongOwner_ReturnsFailureWithoutSaving()
     {
         var ticket = MakeTicket(Guid.NewGuid());
-        var repo = new Mock<IRepository<TicketEntity>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(ticket.Id, CancellationToken.None)).ReturnsAsync(ticket);
+        var operations = new Mock<ITicketOrderOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetTicketByIdAsync(ticket.Id, CancellationToken.None)).ReturnsAsync(ticket);
 
-        var result = await new UpdateTicketCodeHandler(repo.Object, uow.Object)
+        var result = await new UpdateTicketCodeHandler(operations.Object)
             .Handle(new UpdateTicketCodeCommand { TicketId = ticket.Id, UserId = Guid.NewGuid(), Code = "123456" }, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal("Bạn không có quyền chỉnh sửa vé này.", result.Message);
         Assert.Equal("OLD123", ticket.QrCode);
-        repo.Verify(r => r.GetByIdAsync(ticket.Id, CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetTicketByIdAsync(ticket.Id, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID04 (A) - Vé không ở trạng thái ACTIVE -> Từ chối cập nhật")]
@@ -90,19 +76,17 @@ public sealed class UpdateTicketCodeTests
         var ownerId = Guid.NewGuid();
         var ticket = MakeTicket(ownerId);
         ticket.Status = "EXPIRED";
-        var repo = new Mock<IRepository<TicketEntity>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(ticket.Id, CancellationToken.None)).ReturnsAsync(ticket);
+        var operations = new Mock<ITicketOrderOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetTicketByIdAsync(ticket.Id, CancellationToken.None)).ReturnsAsync(ticket);
 
-        var result = await new UpdateTicketCodeHandler(repo.Object, uow.Object)
+        var result = await new UpdateTicketCodeHandler(operations.Object)
             .Handle(new UpdateTicketCodeCommand { TicketId = ticket.Id, UserId = ownerId, Code = "123456" }, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal("Chỉ có thể chỉnh sửa mã khi vé đang ở trạng thái ACTIVE.", result.Message);
         Assert.Equal("OLD123", ticket.QrCode);
-        repo.Verify(r => r.GetByIdAsync(ticket.Id, CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetTicketByIdAsync(ticket.Id, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID05 (A) - Mã mới đã được vé khác sử dụng -> Từ chối và không lưu")]
@@ -110,23 +94,20 @@ public sealed class UpdateTicketCodeTests
     {
         var ownerId = Guid.NewGuid();
         var ticket = MakeTicket(ownerId);
-        var duplicate = new TicketEntity { Id = Guid.NewGuid(), QrCode = "123456" };
-        var repo = new Mock<IRepository<TicketEntity>>(MockBehavior.Strict);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        repo.Setup(r => r.GetByIdAsync(ticket.Id, CancellationToken.None)).ReturnsAsync(ticket);
-        repo.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), CancellationToken.None))
-            .ReturnsAsync(duplicate);
+        var operations = new Mock<ITicketOrderOperations>(MockBehavior.Strict);
+        operations.Setup(r => r.GetTicketByIdAsync(ticket.Id, CancellationToken.None)).ReturnsAsync(ticket);
+        operations.Setup(r => r.TicketCodeExistsAsync("123456", ticket.Id, CancellationToken.None))
+            .ReturnsAsync(true);
 
-        var result = await new UpdateTicketCodeHandler(repo.Object, uow.Object)
+        var result = await new UpdateTicketCodeHandler(operations.Object)
             .Handle(new UpdateTicketCodeCommand { TicketId = ticket.Id, UserId = ownerId, Code = "123456" }, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal("Mã này đã được dùng bởi vé khác. Vui lòng chọn mã khác.", result.Message);
         Assert.Equal("OLD123", ticket.QrCode);
-        repo.Verify(r => r.GetByIdAsync(ticket.Id, CancellationToken.None), Times.Once);
-        repo.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), CancellationToken.None), Times.Once);
-        repo.VerifyNoOtherCalls();
-        uow.VerifyNoOtherCalls();
+        operations.Verify(r => r.GetTicketByIdAsync(ticket.Id, CancellationToken.None), Times.Once);
+        operations.Verify(r => r.TicketCodeExistsAsync("123456", ticket.Id, CancellationToken.None), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID06 (N) - Code đúng 6 chữ số -> Validator chấp nhận")]

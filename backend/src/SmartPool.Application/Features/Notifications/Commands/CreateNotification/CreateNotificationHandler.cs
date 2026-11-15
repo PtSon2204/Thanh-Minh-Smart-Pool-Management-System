@@ -7,19 +7,16 @@ namespace SmartPool.Application.Features.Notifications.Commands.CreateNotificati
 
 public sealed class CreateNotificationHandler : IRequestHandler<CreateNotificationCommand, Guid>
 {
-    private readonly IRepository<Notification> _repo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationOperations _notificationOperations;
     private readonly INotificationService _notificationService;
     private readonly ICurrentUser _currentUser;
 
     public CreateNotificationHandler(
-        IRepository<Notification> repo, 
-        IUnitOfWork unitOfWork,
+        INotificationOperations notificationOperations, 
         INotificationService notificationService,
         ICurrentUser currentUser)
     {
-        _repo = repo;
-        _unitOfWork = unitOfWork;
+        _notificationOperations = notificationOperations;
         _notificationService = notificationService;
         _currentUser = currentUser;
     }
@@ -41,8 +38,7 @@ public sealed class CreateNotificationHandler : IRequestHandler<CreateNotificati
             CreatedAt = DateTime.UtcNow,
         };
 
-        await _repo.AddAsync(notification, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _notificationOperations.AddAsync(notification, cancellationToken);
 
         try
         {
@@ -61,10 +57,9 @@ public sealed class CreateNotificationHandler : IRequestHandler<CreateNotificati
         }
         catch
         {
-            // Transient broadcast errors should not fail database persistence
+            // Log if needed
         }
 
         return notification.Id;
     }
 }
-

@@ -8,7 +8,7 @@ const statusOptions = [
 ]
 
 export default function SwimClassListFilters({ search, status, showStatus, onSearchChange, onStatusChange, onReset }) {
-  return <section className="swim-class-list-panel swim-class-list-filters" aria-label="Tìm kiếm và lọc lớp dạy bơi">
+  return <section className="swim-class-list-filters" aria-label="Tìm kiếm và lọc lớp dạy bơi">
     <div className="swim-class-list-panel-heading">
       <h2>Tìm kiếm lớp học</h2>
       <Button type="text" icon={<ClearOutlined />} onClick={onReset} disabled={!search && !status}>Đặt lại</Button>

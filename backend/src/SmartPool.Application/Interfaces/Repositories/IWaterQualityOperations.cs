@@ -24,6 +24,7 @@ public interface IWaterQualityOperations
     Task<AutoAssignPoolDutyResultDto> AutoAssignPoolDutySchedulesAsync(AutoAssignPoolDutyCommand command, CancellationToken cancellationToken);
     Task<PoolDutyScheduleDto> SavePoolDutyScheduleAsync(UpdatePoolDutyScheduleCommand command, CancellationToken cancellationToken);
     Task<PagedResponse<PoolDutyScheduleDto>> GetOperationalTasksAsync(GetOperationalTasksQuery query, CancellationToken cancellationToken);
+    Task<PoolDutySchedule?> GetOperationalTaskByIdAsync(Guid taskId, CancellationToken cancellationToken);
     Task<IReadOnlyList<PoolDutyEligibleEmployeeDto>> GetOperationalTaskAssigneesAsync(Guid taskId, CancellationToken cancellationToken);
     Task<PoolDutyMeasurementRecurrenceDto> CreateMeasurementRecurrenceAsync(CreateMeasurementRecurrenceCommand command, CancellationToken cancellationToken);
     Task<IReadOnlyList<PoolDutyMeasurementRecurrenceDto>> GetMeasurementRecurrencesAsync(CancellationToken cancellationToken);

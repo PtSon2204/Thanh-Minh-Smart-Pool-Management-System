@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <None Update="appsettings.IntegrationTests.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -10,17 +10,14 @@ namespace SmartPool.Application.Features.ManageSafetyAlerts.Commands.ConfirmSafe
 
 public sealed class ConfirmSafetyIncidentHandler : IRequestHandler<ConfirmSafetyIncidentCommand, ConfirmSafetyIncidentResult>
 {
-    private readonly IRepository<Incident> _incidentRepo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ISafetyAlertOperations _operations;
     private readonly INotificationService _notificationService;
 
     public ConfirmSafetyIncidentHandler(
-        IRepository<Incident> incidentRepo,
-        IUnitOfWork unitOfWork,
+        ISafetyAlertOperations operations,
         INotificationService notificationService)
     {
-        _incidentRepo = incidentRepo;
-        _unitOfWork = unitOfWork;
+        _operations = operations;
         _notificationService = notificationService;
     }
 
@@ -28,25 +25,24 @@ public sealed class ConfirmSafetyIncidentHandler : IRequestHandler<ConfirmSafety
         ConfirmSafetyIncidentCommand request,
         CancellationToken cancellationToken)
     {
-        var incident = await _incidentRepo.GetByIdAsync(request.IncidentId, cancellationToken);
+        if (request.Status is not ("Pending" or "In Progress" or "Resolved"))
+            throw new ArgumentException("Trạng thái sự cố không hợp lệ.");
+        var incident = await _operations.GetIncidentByIdAsync(request.IncidentId, cancellationToken);
+        if (incident is null) throw new KeyNotFoundException("Không tìm thấy sự cố.");
         var now = DateTime.UtcNow;
 
-        if (incident is not null)
+        incident.Status = request.Status;
+        incident.UpdatedAt = now;
+
+        if (!string.IsNullOrWhiteSpace(request.ResolutionNote))
         {
-            incident.Status = request.Status;
-            incident.UpdatedAt = now;
-
-            if (!string.IsNullOrWhiteSpace(request.ResolutionNote))
-            {
-                var noteText = $"[Xử lý bởi {request.ConfirmedByName} lúc {now:HH:mm dd/MM/yyyy}]: {request.ResolutionNote}";
-                incident.Description = string.IsNullOrWhiteSpace(incident.Description)
-                    ? noteText
-                    : $"{incident.Description}\n{noteText}";
-            }
-
-            _incidentRepo.Update(incident);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var noteText = $"[Xử lý bởi {request.ConfirmedByName} lúc {now:HH:mm dd/MM/yyyy}]: {request.ResolutionNote}";
+            incident.Description = string.IsNullOrWhiteSpace(incident.Description)
+                ? noteText
+                : $"{incident.Description}\n{noteText}";
         }
+
+        await _operations.UpdateIncidentAsync(incident, cancellationToken);
 
         var result = new ConfirmSafetyIncidentResult
         {
@@ -58,14 +54,10 @@ public sealed class ConfirmSafetyIncidentHandler : IRequestHandler<ConfirmSafety
         };
 
         // Broadcast realtime để tất cả thiết bị cập nhật lại danh sách sự cố
-        try
-        {
-            await _notificationService.SendToAllAsync("incident_updated", result, cancellationToken);
-        }
-        catch
-        {
-            // ignore broadcast error
-        }
+        await _notificationService.SendToAllAsync(
+            "safety_incident_confirmed",
+            result,
+            cancellationToken);
 
         return result;
     }

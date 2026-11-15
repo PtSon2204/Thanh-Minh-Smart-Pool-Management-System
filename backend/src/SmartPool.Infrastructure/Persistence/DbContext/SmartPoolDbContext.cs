@@ -45,6 +45,7 @@ public class SmartPoolDbContext : EfDbContext
     public virtual DbSet<UserProfile> UserProfiles { get; set; }
     public virtual DbSet<Voucher> Vouchers { get; set; }
     public DbSet<Warning> Warnings { get; set; }
+    public DbSet<VideoAnalysisJob> VideoAnalysisJobs { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<WaterQualityLog> WaterQualityLogs { get; set; }
     public DbSet<PoolDutySchedule> PoolDutySchedules { get; set; }
@@ -55,6 +56,7 @@ public class SmartPoolDbContext : EfDbContext
     public DbSet<ClassAttendance> ClassAttendances { get; set; }
     public DbSet<CoachApplication> CoachApplications { get; set; }
     public DbSet<PoolOperationalConfig> PoolOperationalConfigs { get; set; }
+    public DbSet<SafetyMonitoringThreshold> SafetyMonitoringThresholds { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +73,7 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new AttendanceLogConfiguration());
         modelBuilder.ApplyConfiguration(new EntryLogConfiguration());
         modelBuilder.ApplyConfiguration(new EquipmentConfiguration());
+        modelBuilder.ApplyConfiguration(new VideoAnalysisJobConfiguration());
         modelBuilder.ApplyConfiguration(new IncidentConfiguration());
         modelBuilder.ApplyConfiguration(new InventoryLogConfiguration());
         modelBuilder.ApplyConfiguration(new DailyInspectionConfiguration());
@@ -103,5 +106,6 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new ClassAttendanceConfiguration());
         modelBuilder.ApplyConfiguration(new CoachApplicationConfiguration());
         modelBuilder.ApplyConfiguration(new PoolOperationalConfigConfiguration());
+        modelBuilder.ApplyConfiguration(new SafetyMonitoringThresholdConfiguration());
     }
 }

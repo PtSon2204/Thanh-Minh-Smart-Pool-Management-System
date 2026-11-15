@@ -29,10 +29,10 @@ public sealed class GetMyProfileUseCaseTests
             Address = "Ha Noi",
             DateOfBirth = new DateOnly(2000, 1, 2)
         };
-        var (users, profiles) = Repositories([user], [profile]);
+        var ops = Operations([user], [profile]);
         using var cts = new CancellationTokenSource();
 
-        var result = await Handler(users.Object, profiles.Object).Handle(new() { UserId = userId }, cts.Token);
+        var result = await Handler(ops.Object).Handle(new() { UserId = userId }, cts.Token);
 
         Assert.Equal(userId, result.Id);
         Assert.Equal(user.Username, result.Username);
@@ -42,8 +42,8 @@ public sealed class GetMyProfileUseCaseTests
         Assert.Equal(profile.AvatarUrl, result.AvatarUrl);
         Assert.Equal(profile.Address, result.Address);
         Assert.Equal(profile.DateOfBirth, result.DateOfBirth);
-        users.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), cts.Token), Times.Once);
-        profiles.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), cts.Token), Times.Once);
+        ops.Verify(r => r.GetByIdAsync(userId, cts.Token), Times.Once);
+        ops.Verify(r => r.GetUserProfileByUserIdAsync(userId, cts.Token), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID02 (B) - User có nhưng chưa có profile -> Trả FullName rỗng và các trường profile null")]
@@ -51,9 +51,9 @@ public sealed class GetMyProfileUseCaseTests
     {
         var userId = Guid.NewGuid();
         var user = NewUser(userId);
-        var (users, profiles) = Repositories([user], []);
+        var ops = Operations([user], []);
 
-        var result = await Handler(users.Object, profiles.Object).Handle(new() { UserId = userId }, default);
+        var result = await Handler(ops.Object).Handle(new() { UserId = userId }, default);
 
         Assert.Equal(userId, result.Id);
         Assert.Equal(user.Username, result.Username);
@@ -61,20 +61,64 @@ public sealed class GetMyProfileUseCaseTests
         Assert.Null(result.AvatarUrl);
         Assert.Null(result.Address);
         Assert.Null(result.DateOfBirth);
-        profiles.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.GetUserProfileByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "UTCID03 (B) - Username, Email và Phone của User là null -> Trả chuỗi rỗng")]
+    public async Task UTCID03_NullUserContactFields_ReturnsEmptyStrings()
+    {
+        var userId = Guid.NewGuid();
+        var user = new User { Id = userId, Username = null, Email = null, Phone = null };
+        var ops = Operations([user], []);
+
+        var result = await Handler(ops.Object).Handle(new() { UserId = userId }, default);
+
+        Assert.Equal(string.Empty, result.Username);
+        Assert.Equal(string.Empty, result.Email);
+        Assert.Equal(string.Empty, result.Phone);
     }
 
     [Fact(DisplayName = "UTCID04 (A) - UserId không tồn tại -> KeyNotFoundException và không truy vấn profile")]
     public async Task UTCID04_UserMissing_ThrowsNotFound()
     {
-        var (users, profiles) = Repositories([], []);
+        var ops = Operations([], []);
 
         var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            Handler(users.Object, profiles.Object).Handle(new() { UserId = Guid.NewGuid() }, default));
+            Handler(ops.Object).Handle(new() { UserId = Guid.NewGuid() }, default));
 
         Assert.Equal("Tài khoản không tồn tại.", exception.Message);
-        users.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
-        profiles.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.GetUserProfileByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UTCID05 (A) - Lỗi repository khi đọc User -> Truyền exception và không đọc profile")]
+    public async Task UTCID05_UserRepositoryFailure_IsPropagated()
+    {
+        var ops = new Mock<IUserOperations>();
+        var failure = new InvalidOperationException("User read failed");
+        ops.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(failure);
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Handler(ops.Object).Handle(new() { UserId = Guid.NewGuid() }, default));
+
+        Assert.Same(failure, actual);
+        ops.Verify(r => r.GetUserProfileByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UTCID06 (A) - Lỗi repository khi đọc profile -> Truyền exception")]
+    public async Task UTCID06_ProfileRepositoryFailure_IsPropagated()
+    {
+        var userId = Guid.NewGuid();
+        var ops = Operations([NewUser(userId)], []);
+        var failure = new InvalidOperationException("Profile read failed");
+        ops.Setup(r => r.GetUserProfileByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(failure);
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Handler(ops.Object).Handle(new() { UserId = userId }, default));
+
+        Assert.Same(failure, actual);
     }
 
     [Fact(DisplayName = "UTCID07 (N) - GET /api/profiles/me có claim UserId hợp lệ -> Gửi đúng query và trả 200")]
@@ -135,20 +179,18 @@ public sealed class GetMyProfileUseCaseTests
         Assert.Equal(PermissionCatalog.Policy("profiles", "read"), permission.Policy);
     }
 
-    private static GetMyProfileHandler Handler(IRepository<User> users, IRepository<UserProfile> profiles) => new(users, profiles);
+    private static GetMyProfileHandler Handler(IUserOperations userOperations) => new(userOperations);
 
-    private static (Mock<IRepository<User>> Users, Mock<IRepository<UserProfile>> Profiles) Repositories(
-        User[] userRows, UserProfile[] profileRows)
+    private static Mock<IUserOperations> Operations(User[] userRows, UserProfile[] profileRows)
     {
-        var users = new Mock<IRepository<User>>();
-        users.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<User, bool>> predicate, CancellationToken _) =>
-                Task.FromResult(userRows.FirstOrDefault(predicate.Compile())));
-        var profiles = new Mock<IRepository<UserProfile>>();
-        profiles.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<UserProfile, bool>> predicate, CancellationToken _) =>
-                Task.FromResult(profileRows.FirstOrDefault(predicate.Compile())));
-        return (users, profiles);
+        var ops = new Mock<IUserOperations>();
+        ops.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid id, CancellationToken _) =>
+                Task.FromResult(userRows.FirstOrDefault(u => u.Id == id)));
+        ops.Setup(r => r.GetUserProfileByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid userId, CancellationToken _) =>
+                Task.FromResult(profileRows.FirstOrDefault(p => p.UserId == userId)));
+        return ops;
     }
 
     private static User NewUser(Guid id) => new()

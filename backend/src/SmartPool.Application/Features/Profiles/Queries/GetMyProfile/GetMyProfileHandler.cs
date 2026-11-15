@@ -6,21 +6,19 @@ namespace SmartPool.Application.Features.Profiles.Queries.GetMyProfile;
 
 public sealed class GetMyProfileHandler : IRequestHandler<GetMyProfileQuery, GetMyProfileResponse>
 {
-    private readonly IRepository<User> _users;
-    private readonly IRepository<UserProfile> _profiles;
+    private readonly IUserOperations _userOperations;
     
-    public GetMyProfileHandler(IRepository<User> users, IRepository<UserProfile> profiles)
+    public GetMyProfileHandler(IUserOperations userOperations)
     {
-        _users = users;
-        _profiles = profiles;
+        _userOperations = userOperations;
     }
 
     public async Task<GetMyProfileResponse> Handle(GetMyProfileQuery request, CancellationToken cancellationToken)
     {
-        var user = await _users.FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        var user = await _userOperations.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null) throw new KeyNotFoundException("Tài khoản không tồn tại.");
 
-        var profile = await _profiles.FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
+        var profile = await _userOperations.GetUserProfileByUserIdAsync(request.UserId, cancellationToken);
 
         return new GetMyProfileResponse
         {

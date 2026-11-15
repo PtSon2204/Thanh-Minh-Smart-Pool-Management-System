@@ -10,37 +10,29 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetMyEntry
 {
     public class GetMyEntryHistoryHandler : IRequestHandler<GetMyEntryHistoryQuery, List<MyEntryHistoryDto>>
     {
-        private readonly IRepository<Domain.Entities.Ticket> _ticketRepo;
-        private readonly IRepository<Domain.Entities.TicketType> _ticketTypeRepo;
-        private readonly IRepository<Domain.Entities.EntryLog> _entryLogRepo;
+        private readonly ITicketOrderOperations _ticketOrderOperations;
+        private readonly ITicketTypeOperations _ticketTypeOperations;
 
         public GetMyEntryHistoryHandler(
-            IRepository<Domain.Entities.Ticket> ticketRepo,
-            IRepository<Domain.Entities.TicketType> ticketTypeRepo,
-            IRepository<Domain.Entities.EntryLog> entryLogRepo)
+            ITicketOrderOperations ticketOrderOperations,
+            ITicketTypeOperations ticketTypeOperations)
         {
-            _ticketRepo = ticketRepo;
-            _ticketTypeRepo = ticketTypeRepo;
-            _entryLogRepo = entryLogRepo;
+            _ticketOrderOperations = ticketOrderOperations;
+            _ticketTypeOperations = ticketTypeOperations;
         }
 
         public async Task<List<MyEntryHistoryDto>> Handle(GetMyEntryHistoryQuery request, CancellationToken cancellationToken)
         {
-            var myTicketsEnum = await _ticketRepo.FindAsync(t => t.UserId == request.UserId && t.IsDeleted != true, cancellationToken);
-            var myTickets = myTicketsEnum?.ToList() ?? new List<Domain.Entities.Ticket>();
+            var myTickets = await _ticketOrderOperations.GetTicketsByUserIdAsync(request.UserId, cancellationToken);
             if (myTickets.Count == 0) return new List<MyEntryHistoryDto>();
 
             var ticketDict = myTickets.ToDictionary(t => t.Id);
             var ticketIds = ticketDict.Keys.ToList();
 
-            var ticketTypesEnum = await _ticketTypeRepo.GetAllAsync(cancellationToken);
-            var ticketTypes = ticketTypesEnum?.ToList() ?? new List<Domain.Entities.TicketType>();
+            var ticketTypes = await _ticketTypeOperations.GetAllAsync(cancellationToken);
             var typeDict = ticketTypes.ToDictionary(t => t.Id);
 
-            var entryLogsEnum = await _entryLogRepo.FindAsync(
-                e => e.TicketId.HasValue && ticketIds.Contains(e.TicketId.Value),
-                cancellationToken);
-            var entryLogs = entryLogsEnum?.ToList() ?? new List<Domain.Entities.EntryLog>();
+            var entryLogs = await _ticketOrderOperations.GetEntryLogsByTicketIdsAsync(ticketIds, cancellationToken);
 
             var result = new List<MyEntryHistoryDto>();
             foreach (var log in entryLogs.OrderByDescending(e => e.ScanTime))

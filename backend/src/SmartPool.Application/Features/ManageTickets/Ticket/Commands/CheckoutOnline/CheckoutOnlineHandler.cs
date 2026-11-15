@@ -15,34 +15,25 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
 {
     public class CheckoutOnlineHandler : IRequestHandler<CheckoutOnlineCommand, CheckoutOnlineResponse>
     {
-        private readonly IRepository<Domain.Entities.TicketType> _ticketTypeRepo;
-        private readonly IRepository<Domain.Entities.Order> _orderRepo;
-        private readonly IRepository<Domain.Entities.OrderDetail> _orderDetailRepo;
-        private readonly IRepository<Domain.Entities.Payment> _paymentRepo;
-        private readonly IRepository<Domain.Entities.Voucher> _voucherRepo;
-        private readonly IRepository<Domain.Entities.UserProfile> _userProfileRepo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ITicketTypeOperations _ticketTypeOperations;
+        private readonly ITicketOrderOperations _ticketOrderOperations;
+        private readonly IVoucherOperations _voucherOperations;
+        private readonly IUserOperations _userOperations;
         private readonly TimeProvider _timeProvider;
         private readonly ISender _sender;
 
         public CheckoutOnlineHandler(
-            IRepository<Domain.Entities.TicketType> ticketTypeRepo,
-            IRepository<Domain.Entities.Order> orderRepo,
-            IRepository<Domain.Entities.OrderDetail> orderDetailRepo,
-            IRepository<Domain.Entities.Payment> paymentRepo,
-            IRepository<Domain.Entities.Voucher> voucherRepo,
-            IRepository<Domain.Entities.UserProfile> userProfileRepo,
-            IUnitOfWork unitOfWork,
+            ITicketTypeOperations ticketTypeOperations,
+            ITicketOrderOperations ticketOrderOperations,
+            IVoucherOperations voucherOperations,
+            IUserOperations userOperations,
             TimeProvider timeProvider,
             ISender sender)
         {
-            _ticketTypeRepo = ticketTypeRepo;
-            _orderRepo = orderRepo;
-            _orderDetailRepo = orderDetailRepo;
-            _paymentRepo = paymentRepo;
-            _voucherRepo = voucherRepo;
-            _userProfileRepo = userProfileRepo;
-            _unitOfWork = unitOfWork;
+            _ticketTypeOperations = ticketTypeOperations;
+            _ticketOrderOperations = ticketOrderOperations;
+            _voucherOperations = voucherOperations;
+            _userOperations = userOperations;
             _timeProvider = timeProvider;
             _sender = sender;
         }
@@ -56,7 +47,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
 
             foreach (var item in request.Items)
             {
-                var ticketType = await _ticketTypeRepo.GetByIdAsync(item.TicketTypeId, cancellationToken);
+                var ticketType = await _ticketTypeOperations.GetByIdAsync(item.TicketTypeId, cancellationToken);
                 if (ticketType == null)
                     throw new KeyNotFoundException($"Loại vé không tồn tại: {item.TicketTypeId}");
 
@@ -76,7 +67,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
 
             if (hasMonthlyTicket)
             {
-                var profile = await _userProfileRepo.FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
+                var profile = await _userOperations.GetUserProfileByUserIdAsync(request.UserId, cancellationToken);
                 if (profile == null || string.IsNullOrWhiteSpace(profile.FullName?.Trim()))
                 {
                     throw new InvalidOperationException("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.");
@@ -89,9 +80,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
             if (!string.IsNullOrWhiteSpace(request.VoucherCode))
             {
                 var now = _timeProvider.GetUtcNow().UtcDateTime;
-                var voucher = await _voucherRepo.FirstOrDefaultAsync(
-                    VoucherValidityPolicy.UsableCodeAt(request.VoucherCode, now),
-                    cancellationToken)
+                var voucher = await _voucherOperations.GetUsableVoucherByCodeAsync(request.VoucherCode, now, cancellationToken)
                     ?? throw new InvalidOperationException($"Mã giảm giá '{request.VoucherCode}' không hợp lệ hoặc đã hết hạn.");
 
                 if (voucher.MinOrderValue.HasValue && totalAmount < voucher.MinOrderValue.Value)
@@ -126,23 +115,17 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                 IsDeleted = false
             };
 
-            await _orderRepo.AddAsync(order, cancellationToken);
-
-            foreach (var vItem in validatedItems)
+            var orderDetails = validatedItems.Select(vItem => new Domain.Entities.OrderDetail
             {
-                var detail = new Domain.Entities.OrderDetail
-                {
-                    Id = Guid.NewGuid(),
-                    OrderId = order.Id,
-                    ItemType = "TICKET",
-                    ItemId = vItem.Type.Id,
-                    Quantity = vItem.Quantity,
-                    UnitPrice = vItem.Type.Price * (vItem.CustomEntries ?? 1),
-                    CustomEntries = vItem.CustomEntries,
-                    CreatedAt = createdAt
-                };
-                await _orderDetailRepo.AddAsync(detail, cancellationToken);
-            }
+                Id = Guid.NewGuid(),
+                OrderId = order.Id,
+                ItemType = "TICKET",
+                ItemId = vItem.Type.Id,
+                Quantity = vItem.Quantity,
+                UnitPrice = vItem.Type.Price * (vItem.CustomEntries ?? 1),
+                CustomEntries = vItem.CustomEntries,
+                CreatedAt = createdAt
+            }).ToList();
 
             var payment = new Domain.Entities.Payment
             {
@@ -155,8 +138,7 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.CheckoutO
                 CreatedAt = createdAt
             };
 
-            await _paymentRepo.AddAsync(payment, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _ticketOrderOperations.CreateOrderAsync(order, orderDetails, payment, cancellationToken);
 
             // A fully discounted order needs no bank transfer or QR waiting period.
             ConfirmPendingOrderResponse? confirmation = null;

@@ -22,15 +22,13 @@ public sealed class CreateEquipmentTests
     [InlineData("Pump", null)]
     public async Task MissingRequiredData_DoesNotInsertOrSave(string? name, string? category)
     {
-        var repository = new Mock<IRepository<Equipment>>(MockBehavior.Strict);
-        var work = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        var handler = new CreateEquipmentHandler(repository.Object, work.Object, new CreateEquipmentValidator(), TimeProvider.System);
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
+        var handler = new CreateEquipmentHandler(operations.Object, new CreateEquipmentValidator(), TimeProvider.System);
         await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new CreateEquipmentCommand
         {
             Name = name!, Category = category!
         }, CancellationToken.None));
-        repository.VerifyNoOtherCalls();
-        work.VerifyNoOtherCalls();
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -57,14 +55,11 @@ public sealed class CreateEquipmentTests
     [InlineData("{\"power\":\"2kW\",\"sensors\":[1,2],\"dimensions\":{\"width\":20}}")]
     public async Task Create_TrimsFieldsAndSetsSystemDefaultsWithoutCreatingMaintenance(string? json)
     {
-        var repository = new Mock<IRepository<Equipment>>();
-        var work = new Mock<IUnitOfWork>();
-        repository.Setup(x => x.ExistsAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Equipment, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var operations = new Mock<IEquipmentOperations>();
         Equipment? saved = null;
-        repository.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()))
+        operations.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()))
             .Callback<Equipment, CancellationToken>((entity, _) => saved = entity).Returns(Task.CompletedTask);
-        work.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        var handler = new CreateEquipmentHandler(repository.Object, work.Object, new CreateEquipmentValidator(), new FixedTime());
+        var handler = new CreateEquipmentHandler(operations.Object, new CreateEquipmentValidator(), new FixedTime());
         var result = await handler.Handle(new CreateEquipmentCommand
         {
             Name = "  Máy bơm  ", Category = "  Pump  ", Location = "   ",
@@ -81,22 +76,17 @@ public sealed class CreateEquipmentTests
         Assert.Equal(new FixedTime().GetUtcNow().UtcDateTime, saved.CreatedAt);
         Assert.Equal(saved.CreatedAt, saved.UpdatedAt);
         Assert.Equal(saved.Id, result.Id);
-        work.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        operations.Verify(x => x.AddAsync(saved, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task NewCategory_IsInsertedAndSaved()
     {
-        var repository = new Mock<IRepository<Equipment>>();
-        repository.Setup(x => x.ExistsAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Equipment, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((System.Linq.Expressions.Expression<Func<Equipment, bool>> predicate, CancellationToken _) =>
-                new[] { new Equipment { Category = "Existing", IsDeleted = false } }.Any(predicate.Compile()));
+        var operations = new Mock<IEquipmentOperations>(MockBehavior.Strict);
         Equipment? saved = null;
-        repository.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()))
+        operations.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()))
             .Callback<Equipment, CancellationToken>((entity, _) => saved = entity).Returns(Task.CompletedTask);
-        var work = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        work.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        var handler = new CreateEquipmentHandler(repository.Object, work.Object, new CreateEquipmentValidator(), TimeProvider.System);
+        var handler = new CreateEquipmentHandler(operations.Object, new CreateEquipmentValidator(), TimeProvider.System);
         var result = await handler.Handle(new CreateEquipmentCommand
         {
             Name = "Pump", Category = "  New group  "
@@ -106,22 +96,19 @@ public sealed class CreateEquipmentTests
         Assert.Equal("New group", saved.Category);
         Assert.Equal(saved.Id, result.Id);
         Assert.Equal(saved.Category, result.Category);
-        repository.Verify(x => x.AddAsync(saved, It.IsAny<CancellationToken>()), Times.Once);
-        work.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        work.VerifyNoOtherCalls();
+        operations.Verify(x => x.AddAsync(saved, It.IsAny<CancellationToken>()), Times.Once);
+        operations.VerifyNoOtherCalls();
     }
 
     [Fact]
     public async Task FirstEquipment_AllowsEnteringFirstCategory()
     {
-        var repository = new Mock<IRepository<Equipment>>();
-        var work = new Mock<IUnitOfWork>();
-        repository.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        work.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        var handler = new CreateEquipmentHandler(repository.Object, work.Object, new CreateEquipmentValidator(), TimeProvider.System);
+        var operations = new Mock<IEquipmentOperations>();
+        operations.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var handler = new CreateEquipmentHandler(operations.Object, new CreateEquipmentValidator(), TimeProvider.System);
         var result = await handler.Handle(new CreateEquipmentCommand { Name = "Pump", Category = "  First group  " }, CancellationToken.None);
         Assert.Equal("First group", result.Category);
-        work.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        operations.Verify(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -140,12 +127,9 @@ public sealed class CreateEquipmentTests
     [Fact]
     public async Task SaveFailure_DoesNotReturnSuccess()
     {
-        var repository = new Mock<IRepository<Equipment>>();
-        var work = new Mock<IUnitOfWork>();
-        repository.Setup(x => x.ExistsAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Equipment, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        repository.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        work.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("storage unavailable"));
-        var handler = new CreateEquipmentHandler(repository.Object, work.Object, new CreateEquipmentValidator(), TimeProvider.System);
+        var operations = new Mock<IEquipmentOperations>();
+        operations.Setup(x => x.AddAsync(It.IsAny<Equipment>(), It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("storage unavailable"));
+        var handler = new CreateEquipmentHandler(operations.Object, new CreateEquipmentValidator(), TimeProvider.System);
         await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(new CreateEquipmentCommand
         {
             Name = "Pump", Category = "Pump"

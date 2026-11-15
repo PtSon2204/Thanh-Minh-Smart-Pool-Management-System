@@ -26,6 +26,8 @@ import CustomerStatisticsPage from "../pages/admin/statistics/CustomerStatistics
 import TicketRevenueStatisticsPage from "../pages/admin/statistics/TicketRevenueStatisticsPage";
 import MonthlyTicketsPage from "../pages/admin/statistics/MonthlyTicketsPage";
 import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatisticsPage";
+import RevenueStatisticsPage from "../pages/admin/statistics/RevenueStatisticsPage";
+import RentalStatisticsPage from "../pages/admin/statistics/RentalStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
 import StaffOnboardingPage from "../pages/staff/StaffOnboardingPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
@@ -45,6 +47,10 @@ import InvoicePrintPage from "../pages/admin/payments/InvoicePrintPage";
 import WaitingInvoicesPage from "../pages/admin/payments/WaitingInvoicesPage";
 import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
+import CameraListPage from "../pages/admin/safety/CameraListPage";
+import MonitoringAlertsPage from "../pages/admin/safety/MonitoringAlertsPage";
+import VideoAnalysisPage from "../pages/admin/safety/VideoAnalysisPage";
+import ThresholdsPage from "../pages/admin/safety/ThresholdsPage";
 import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
 import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
 import SwimClassCatalogPage from "../pages/classes/SwimClassCatalogPage";
@@ -52,10 +58,13 @@ import SwimClassDetailPage from "../pages/coach/classes/SwimClassDetailPage";
 import SwimClassStudentsPage from "../pages/coach/classes/SwimClassStudentsPage";
 import SwimClassCatalogDetailPage from "../pages/classes/SwimClassCatalogDetailPage";
 import MySwimClassesPage from "../pages/classes/MySwimClassesPage";
+import MyClassAttendancesPage from "../pages/classes/MyClassAttendancesPage";
+import CoachSessionAttendancesPage from "../pages/coach/classes/CoachSessionAttendancesPage";
 import CoachApplicationPage from "../pages/coachApplications/CoachApplicationPage";
 import CoachApplicationsPage from "../pages/admin/coachApplications/CoachApplicationsPage";
 import CoachListPage from "../pages/admin/coaches/CoachListPage";
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
+import NotificationPage from "../pages/admin/notifications/NotificationPage";
 
 const router = createBrowserRouter([
   { path: "/staff/onboarding", element: <StaffOnboardingPage /> },
@@ -88,6 +97,7 @@ const router = createBrowserRouter([
           { path: "/don-hang", element: <MyOrdersPage /> },
           { path: "/lop-hoc", element: <SwimClassCatalogPage /> },
           { path: "/lop-hoc-cua-toi", element: <MySwimClassesPage /> },
+          { path: "/lop-hoc-cua-toi/:classId/diem-danh", element: <MyClassAttendancesPage /> },
           { path: "/tro-thanh-coach", element: <CoachApplicationPage /> },
           {
             path: "/lop-hoc/:classId",
@@ -101,6 +111,7 @@ const router = createBrowserRouter([
           { path: "/coach/classes", element: <SwimClassListPage /> },
           { path: "/coach/classes/create", element: <CreateSwimClassPage /> },
           { path: "/coach/classes/:classId/students", element: <SwimClassStudentsPage /> },
+          { path: "/coach/classes/:classId/sessions/:sessionId/attendances", element: <CoachSessionAttendancesPage /> },
           { path: "/coach/classes/:classId", element: <SwimClassDetailPage /> },
         ],
       },
@@ -173,10 +184,7 @@ const router = createBrowserRouter([
                 ),
               },
               { path: "staff/shifts", element: <ShiftManagementPage /> },
-              {
-                path: "notifications",
-                element: <Navigate to="/admin" replace />,
-              },
+              { path: "notifications", element: <NotificationPage /> },
               {
                 path: "statistics/user-count",
                 element: <CustomerStatisticsPage />,
@@ -184,6 +192,14 @@ const router = createBrowserRouter([
               {
                 path: "statistics/ticket-revenue",
                 element: <TicketRevenueStatisticsPage />,
+              },
+              {
+                path: "statistics/revenue",
+                element: <RevenueStatisticsPage />,
+              },
+              {
+                path: "statistics/rentals",
+                element: <RentalStatisticsPage />,
               },
               {
                 path: "statistics/monthly-tickets",
@@ -215,7 +231,16 @@ const router = createBrowserRouter([
                 path: "safety/activate-alerts",
                 element: <ActivateAlertPage />,
               },
+              { path: "safety/alerts", element: <MonitoringAlertsPage /> },
+              { path: "safety/thresholds", element: <ThresholdsPage /> },
               { path: "safety/incidents", element: <IncidentHistoryPage /> },
+              {
+                element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+                children: [
+                  { path: "safety/list-camera", element: <CameraListPage /> },
+                  { path: "safety/video-analysis", element: <VideoAnalysisPage /> },
+                ],
+              },
               {
                 path: "safety/incident-history",
                 element: <IncidentHistoryPage />,

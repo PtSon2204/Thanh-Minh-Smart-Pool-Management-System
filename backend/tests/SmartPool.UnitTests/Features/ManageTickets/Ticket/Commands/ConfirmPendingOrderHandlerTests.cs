@@ -38,7 +38,7 @@ public sealed class ConfirmPendingOrderHandlerTests
 
         Assert.False(result.Success);
         Assert.Equal("Order not found.", result.Message);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.ConfirmOrderAndAddTicketsAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID03 (A) - Không đọc lại được payment trong lock -> Trả TransactionRef not found")]
@@ -46,14 +46,14 @@ public sealed class ConfirmPendingOrderHandlerTests
     {
         var h = new Harness();
         h.Payments.Add(h.PendingPayment);
-        h.PaymentRepo.SetupSequence(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<PaymentEntity, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(h.PendingPayment).ReturnsAsync((PaymentEntity?)null);
+        h.TicketOrderOperations.Setup(o => o.GetPaymentByOrderAndRefAsync(h.Order.Id, h.PendingPayment.TransactionRef!, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PaymentEntity?)null);
 
         var result = await h.Handle(h.Command(amount: 100));
 
         Assert.False(result.Success);
         Assert.Equal("TransactionRef not found.", result.Message);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.ConfirmOrderAndAddTicketsAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID04 (A) - ActualAmount âm -> Trả lỗi số tiền và không lưu")]
@@ -65,8 +65,8 @@ public sealed class ConfirmPendingOrderHandlerTests
 
         Assert.False(result.Success);
         Assert.Equal("Invalid incoming amount.", result.Message);
-        h.PaymentRepo.Verify(r => r.AddAsync(It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.UpdateOrderWithPaymentAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.ConfirmOrderAndAddTicketsAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID05 (B) - ActualAmount bằng 0 khi FinalAmount lớn hơn 0 -> Trả lỗi số tiền")]
@@ -78,8 +78,8 @@ public sealed class ConfirmPendingOrderHandlerTests
 
         Assert.False(result.Success);
         Assert.Equal("Invalid incoming amount.", result.Message);
-        h.PaymentRepo.Verify(r => r.AddAsync(It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.UpdateOrderWithPaymentAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.ConfirmOrderAndAddTicketsAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID06 (N) - BankReferenceCode đã xử lý -> Trả idempotent, không ghi nhận lặp")]
@@ -93,8 +93,8 @@ public sealed class ConfirmPendingOrderHandlerTests
         Assert.True(result.Success);
         Assert.Equal("Already processed (idempotent).", result.Message);
         Assert.Equal(h.Order.Id, result.OrderId);
-        h.PaymentRepo.Verify(r => r.AddAsync(It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.UpdateOrderWithPaymentAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
+        h.TicketOrderOperations.Verify(o => o.ConfirmOrderAndAddTicketsAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID07 (N) - Tiền nhận thấp hơn số phải trả -> Đơn PARTIAL và lưu khoản nhận")]
@@ -111,7 +111,7 @@ public sealed class ConfirmPendingOrderHandlerTests
         Assert.Equal(40, receipt.Amount);
         Assert.Equal("BANK-UNDER", receipt.TransactionRef);
         Assert.Equal("COMPLETED", receipt.Status);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        h.TicketOrderOperations.Verify(o => o.UpdateOrderWithPaymentAsync(h.Order, It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID08 (N) - Nhận đủ tiền -> Hoàn tất đơn, cập nhật payment và phát hành vé")]
@@ -130,7 +130,6 @@ public sealed class ConfirmPendingOrderHandlerTests
         Assert.Equal("COMPLETED", h.Order.Status);
         Assert.Equal("Confirmed and tickets generated.", result.Message);
         Assert.Equal("COMPLETED", h.PendingPayment.Status);
-        h.Operations.Verify(o => o.UpdatePayment(h.PendingPayment), Times.Once);
         var receipt = Assert.Single(h.AddedPayments);
         Assert.Equal("BANK-FULL", receipt.TransactionRef);
         var issued = Assert.Single(h.AddedTickets);
@@ -140,7 +139,7 @@ public sealed class ConfirmPendingOrderHandlerTests
         Assert.Equal(Now, issued.IssueDate);
         Assert.Equal(Now.AddHours(24), issued.ExpiryDate);
         Assert.Single(result.Tickets);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        h.TicketOrderOperations.Verify(o => o.ConfirmOrderAndAddTicketsAsync(h.Order, h.PendingPayment, It.IsAny<PaymentEntity>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID09 (N) - Đơn đã hoàn tất nhưng nhận thêm tiền -> Ghi nhận đối soát, không phát hành thêm vé")]
@@ -155,7 +154,7 @@ public sealed class ConfirmPendingOrderHandlerTests
         Assert.Single(h.AddedPayments);
         Assert.Empty(h.AddedTickets);
         Assert.Empty(result.Tickets);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        h.TicketOrderOperations.Verify(o => o.SaveIncomingPaymentAsync(It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID10 (N) - Đơn đã hủy nhưng nhận tiền -> Lưu đối soát, không phát hành vé")]
@@ -169,7 +168,7 @@ public sealed class ConfirmPendingOrderHandlerTests
         Assert.Equal("Order cancelled. Incoming payment recorded for reconciliation; no tickets issued.", result.Message);
         Assert.Single(h.AddedPayments);
         Assert.Empty(h.AddedTickets);
-        h.UnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        h.TicketOrderOperations.Verify(o => o.SaveIncomingPaymentAsync(It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private sealed class Harness
@@ -179,12 +178,9 @@ public sealed class ConfirmPendingOrderHandlerTests
         public readonly List<PaymentEntity> Payments = [];
         public readonly List<PaymentEntity> AddedPayments = [];
         public readonly List<TicketEntity> AddedTickets = [];
-        public readonly Mock<IRepository<PaymentEntity>> PaymentRepo = new();
-        public readonly Mock<IUnitOfWork> UnitOfWork = new();
+        public readonly Mock<ITicketOrderOperations> TicketOrderOperations = new();
         public readonly Mock<IOrderPaymentOperations> Operations = new();
-        private readonly Mock<IRepository<TicketTypeEntity>> _ticketTypes = new();
-        private readonly Mock<IRepository<OrderDetailEntity>> _details = new();
-        private readonly Mock<IRepository<TicketEntity>> _tickets = new();
+        private readonly Mock<ITicketTypeOperations> _ticketTypes = new();
         private readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions());
         private readonly TimeProvider _time = new FixedTimeProvider(Now);
 
@@ -197,29 +193,43 @@ public sealed class ConfirmPendingOrderHandlerTests
             _missingOrder = missingOrder;
             Order = order ?? new OrderEntity { Id = Guid.NewGuid(), UserId = userId ?? Guid.NewGuid(), FinalAmount = 100, Status = orderStatus, CreatedAt = Now };
             PendingPayment = new PaymentEntity { Id = Guid.NewGuid(), OrderId = Order.Id, TransactionRef = "SP123456", PaymentMethod = "TRANSFER", Amount = Order.FinalAmount, Status = "PENDING", CreatedAt = Now };
-            var detailRows = (details ?? []).ToArray();
-            var typeRows = (ticketTypes ?? []).ToArray();
+            var detailRows = (details ?? []).ToList();
+            var typeRows = (ticketTypes ?? []).ToList();
 
-            PaymentRepo.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<PaymentEntity, bool>>>(), It.IsAny<CancellationToken>()))
-                .Returns((Expression<Func<PaymentEntity, bool>> predicate, CancellationToken _) => Task.FromResult(Payments.FirstOrDefault(predicate.Compile())));
-            PaymentRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<PaymentEntity, bool>>>(), It.IsAny<CancellationToken>()))
-                .Returns((Expression<Func<PaymentEntity, bool>> predicate, CancellationToken _) => Task.FromResult<IEnumerable<PaymentEntity>>(Payments.Where(predicate.Compile()).ToArray()));
-            PaymentRepo.Setup(r => r.AddAsync(It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()))
-                .Callback<PaymentEntity, CancellationToken>((p, _) => AddedPayments.Add(p)).Returns(Task.CompletedTask);
-            UnitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            TicketOrderOperations.Setup(o => o.GetPaymentByTransactionRefAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string txRef, CancellationToken _) => Task.FromResult(Payments.FirstOrDefault(p => p.TransactionRef == txRef)));
+            TicketOrderOperations.Setup(o => o.GetPaymentByOrderAndRefAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((Guid orderId, string txRef, CancellationToken _) => Task.FromResult(Payments.FirstOrDefault(p => p.OrderId == orderId && p.TransactionRef == txRef)));
+            TicketOrderOperations.Setup(o => o.GetCompletedPaymentsByOrderIdAsync(It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .Returns((Guid orderId, Guid? excludeId, CancellationToken _) => Task.FromResult(Payments.Where(p => p.OrderId == orderId && p.Id != excludeId && p.Status == "COMPLETED").ToList()));
+            TicketOrderOperations.Setup(o => o.GetOrderDetailsByOrderIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns((Guid orderId, CancellationToken _) => Task.FromResult(detailRows.Where(d => d.OrderId == orderId).ToList()));
+            TicketOrderOperations.Setup(o => o.TicketCodeExistsAsync(It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            TicketOrderOperations.Setup(o => o.SaveIncomingPaymentAsync(It.IsAny<PaymentEntity?>(), It.IsAny<CancellationToken>()))
+                .Callback((PaymentEntity? p, CancellationToken _) => { if (p != null) AddedPayments.Add(p); })
+                .Returns(Task.CompletedTask);
+            TicketOrderOperations.Setup(o => o.UpdateOrderWithPaymentAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity?>(), It.IsAny<CancellationToken>()))
+                .Callback((OrderEntity _, PaymentEntity? p, CancellationToken _) => { if (p != null) AddedPayments.Add(p); })
+                .Returns(Task.CompletedTask);
+            TicketOrderOperations.Setup(o => o.ConfirmOrderAndAddTicketsAsync(It.IsAny<OrderEntity>(), It.IsAny<PaymentEntity>(), It.IsAny<PaymentEntity?>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()))
+                .Callback((OrderEntity _, PaymentEntity _, PaymentEntity? bankPayment, IEnumerable<TicketEntity> tickets, CancellationToken _) =>
+                {
+                    if (bankPayment != null) AddedPayments.Add(bankPayment);
+                    AddedTickets.AddRange(tickets);
+                })
+                .Returns(Task.CompletedTask);
+            TicketOrderOperations.Setup(o => o.SaveChangesAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
             Operations.Setup(o => o.ExecuteLockedAsync(It.IsAny<Guid>(), It.IsAny<Func<OrderEntity?, CancellationToken, Task<ConfirmPendingOrderResponse>>>(), It.IsAny<CancellationToken>()))
                 .Returns((Guid _, Func<OrderEntity?, CancellationToken, Task<ConfirmPendingOrderResponse>> action, CancellationToken token) => action(_missingOrder ? null : Order, token));
-            _details.Setup(r => r.FindAsync(It.IsAny<Expression<Func<OrderDetailEntity, bool>>>(), It.IsAny<CancellationToken>()))
-                .Returns((Expression<Func<OrderDetailEntity, bool>> predicate, CancellationToken _) => Task.FromResult<IEnumerable<OrderDetailEntity>>(detailRows.Where(predicate.Compile()).ToArray()));
+
             _ticketTypes.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns((Guid id, CancellationToken _) => Task.FromResult(typeRows.FirstOrDefault(t => t.Id == id)));
-            _tickets.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketEntity, bool>>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((TicketEntity?)null);
-            _tickets.Setup(r => r.AddAsync(It.IsAny<TicketEntity>(), It.IsAny<CancellationToken>()))
-                .Callback<TicketEntity, CancellationToken>((t, _) => AddedTickets.Add(t)).Returns(Task.CompletedTask);
 
-            Handler = new ConfirmPendingOrderHandler(_ticketTypes.Object, Operations.Object, _details.Object,
-                PaymentRepo.Object, _tickets.Object, UnitOfWork.Object, _cache, _time);
+            Handler = new ConfirmPendingOrderHandler(_ticketTypes.Object, TicketOrderOperations.Object, Operations.Object, _cache, _time);
         }
 
         public ConfirmPendingOrderHandler Handler { get; }

@@ -10,27 +10,21 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderSt
     public class GetOrderStatusHandler : IRequestHandler<GetOrderStatusQuery, GetOrderStatusResponse>
     {
         private readonly IOrderPaymentOperations _orderPayments;
-        private readonly IRepository<Payment> _paymentRepo;
-        private readonly IRepository<OrderDetail> _detailRepo;
-        private readonly IRepository<Domain.Entities.TicketType> _ticketTypeRepo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ITicketOrderOperations _ticketOrderOperations;
+        private readonly ITicketTypeOperations _ticketTypeOperations;
         private readonly TimeProvider _timeProvider;
         private readonly IMemoryCache _memoryCache;
 
         public GetOrderStatusHandler(
             IOrderPaymentOperations orderPayments,
-            IRepository<Payment> paymentRepo,
-            IRepository<OrderDetail> detailRepo,
-            IRepository<Domain.Entities.TicketType> ticketTypeRepo,
-            IUnitOfWork unitOfWork,
+            ITicketOrderOperations ticketOrderOperations,
+            ITicketTypeOperations ticketTypeOperations,
             TimeProvider timeProvider,
             IMemoryCache memoryCache)
         {
             _orderPayments = orderPayments;
-            _paymentRepo = paymentRepo;
-            _detailRepo = detailRepo;
-            _ticketTypeRepo = ticketTypeRepo;
-            _unitOfWork = unitOfWork;
+            _ticketOrderOperations = ticketOrderOperations;
+            _ticketTypeOperations = ticketTypeOperations;
             _timeProvider = timeProvider;
             _memoryCache = memoryCache;
         }
@@ -48,16 +42,14 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderSt
                 (request.UserId.HasValue && order.UserId != request.UserId))
                 throw new KeyNotFoundException("Order not found.");
 
-            var payments = await _paymentRepo.FindAsync(
-                p => p.OrderId == order.Id,
-                cancellationToken);
+            var payments = await _ticketOrderOperations.GetPaymentsByOrderIdAsync(order.Id, cancellationToken);
             var originalPayment = payments.OrderBy(p => p.CreatedAt)
                 .FirstOrDefault(p => OnlineOrderPaymentPolicy.IsCheckoutReference(p.TransactionRef));
             var now = _timeProvider.GetUtcNow().UtcDateTime;
             if (OnlineOrderPaymentPolicy.TryExpire(order, originalPayment, now))
             {
                 if (originalPayment != null) _orderPayments.UpdatePayment(originalPayment);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _ticketOrderOperations.SaveChangesAsync(cancellationToken);
             }
 
             decimal paidAmount = payments.Where(p => p.Id != originalPayment?.Id && p.Status == "COMPLETED")
@@ -80,10 +72,10 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Queries.GetOrderSt
 
             if (request.UserId.HasValue)
             {
-                var details = await _detailRepo.FindAsync(d => d.OrderId == order.Id && d.ItemType == "TICKET", cancellationToken);
+                var details = await _ticketOrderOperations.GetTicketOrderDetailsByOrderIdAsync(order.Id, cancellationToken);
                 foreach (var detail in details)
                 {
-                    var type = await _ticketTypeRepo.GetByIdAsync(detail.ItemId, cancellationToken);
+                    var type = await _ticketTypeOperations.GetByIdAsync(detail.ItemId, cancellationToken);
                     response.Items.Add(new OnlineOrderItemDto
                     {
                         TicketTypeId = detail.ItemId,

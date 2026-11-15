@@ -1,6 +1,7 @@
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
 namespace SmartPool.IntegrationTests;
@@ -135,6 +136,18 @@ internal static class IntegrationTestDatabase
                 LIMIT 1
                 """);
 
+            foreach (var shift in FixedShifts.All)
+            {
+                await context.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO smart_pool.shifts (id, name, start_time, end_time, is_active)
+                    SELECT {shift.Id}, {shift.Name}, {shift.StartTime}, {shift.EndTime}, true
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM smart_pool.shifts
+                        WHERE id = {shift.Id}
+                    )
+                    """);
+            }
+
             initialized = true;
         }
         finally
@@ -142,4 +155,9 @@ internal static class IntegrationTestDatabase
             InitializationGate.Release();
         }
     }
+}
+
+internal sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => instant;
 }

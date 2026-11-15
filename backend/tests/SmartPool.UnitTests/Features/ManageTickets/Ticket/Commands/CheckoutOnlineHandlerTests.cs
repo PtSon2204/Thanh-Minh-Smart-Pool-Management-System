@@ -29,8 +29,7 @@ public class CheckoutOnlineHandlerTests
         Assert.All(new[] { emptyError, nullError, zeroError, negativeError }, error =>
             Assert.Equal("Giỏ hàng phải có vé với số lượng lớn hơn 0.", error.Message));
         harness.TicketTypes.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID02 (N) - Khách đặt 1 vé online không voucher -> Tạo đơn chờ chuyển khoản")]
@@ -58,7 +57,7 @@ public class CheckoutOnlineHandlerTests
         Assert.Equal("PENDING", harness.CreatedPayments[0].Status);
         Assert.Equal(response.OrderId, harness.CreatedPayments[0].OrderId);
         harness.Sender.Verify(s => s.Send(It.IsAny<ConfirmPendingOrderCommand>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID03 (N) - Giỏ hàng có nhiều loại vé -> Tính tổng và tạo chi tiết đúng số lượng")]
@@ -89,7 +88,7 @@ public class CheckoutOnlineHandlerTests
 
         Assert.Empty(harness.CreatedOrders);
         Assert.Empty(harness.CreatedPayments);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID05 (A) - Loại vé bị khóa -> Báo lỗi và không tạo đơn")]
@@ -101,7 +100,7 @@ public class CheckoutOnlineHandlerTests
 
         Assert.Contains("đang bị khóa", error.Message);
         Assert.Empty(harness.CreatedOrders);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID06 (A) - Voucher không hợp lệ hoặc hết hạn -> Báo lỗi và không lưu")]
@@ -114,7 +113,7 @@ public class CheckoutOnlineHandlerTests
 
         Assert.Contains("không hợp lệ hoặc đã hết hạn", error.Message);
         Assert.Empty(harness.CreatedOrders);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID07 (A) - Tổng đơn thấp hơn MinOrderValue -> Báo lỗi và không lưu")]
@@ -129,7 +128,7 @@ public class CheckoutOnlineHandlerTests
 
         Assert.Contains("Đơn hàng tối thiểu", error.Message);
         Assert.Empty(harness.CreatedOrders);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID08 (N) - Voucher phần trăm hợp lệ -> Cập nhật đúng số tiền giảm và còn phải thanh toán")]
@@ -183,7 +182,7 @@ public class CheckoutOnlineHandlerTests
         Assert.Equal(0m, Assert.Single(harness.CreatedPayments).Amount);
         harness.Sender.Verify(s => s.Send(It.Is<ConfirmPendingOrderCommand>(c =>
             c.ActualAmount == 0 && c.TransactionRef == response.TransactionRef), It.IsAny<CancellationToken>()), Times.Once);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID11 (A) - Xác nhận đơn 0đ thất bại -> Ném lỗi sau khi lưu đơn chờ")]
@@ -198,7 +197,7 @@ public class CheckoutOnlineHandlerTests
         Assert.Equal("Confirmation rejected.", error.Message);
         Assert.Single(harness.CreatedOrders);
         Assert.Single(harness.CreatedPayments);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
         harness.Sender.Verify(s => s.Send(It.IsAny<ConfirmPendingOrderCommand>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -220,7 +219,7 @@ public class CheckoutOnlineHandlerTests
         Assert.True(response.Success);
         Assert.Equal("PENDING", response.Status);
         Assert.Equal(50_000m, response.FinalAmount);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Once);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID10 (B) - Vé tháng nhưng hồ sơ không tồn tại -> Chặn tạo đơn")]
@@ -231,9 +230,7 @@ public class CheckoutOnlineHandlerTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Checkout(harness.Command()));
 
         Assert.Equal("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.", error.Message);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.Payments.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID11 (B) - Vé tháng với họ tên chỉ có khoảng trắng -> Chặn tạo đơn")]
@@ -245,8 +242,7 @@ public class CheckoutOnlineHandlerTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Checkout(harness.Command()));
 
         Assert.Equal("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.", error.Message);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.Payments.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID12 (N) - Vé tháng với họ tên hợp lệ -> Cho phép tạo đơn")]
@@ -259,7 +255,7 @@ public class CheckoutOnlineHandlerTests
 
         Assert.True(response.Success);
         Assert.Equal("PENDING", response.Status);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Once);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID13 (B) - Giỏ hỗn hợp vé lượt + vé tháng khi thiếu họ tên -> Chặn tạo đơn, không ghi database")]
@@ -288,10 +284,7 @@ public class CheckoutOnlineHandlerTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Checkout(command));
 
         Assert.Equal("Vui lòng cập nhật họ và tên trong hồ sơ cá nhân để mua vé tháng.", error.Message);
-        harness.Orders.Verify(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.OrderDetails.Verify(r => r.AddAsync(It.IsAny<OrderDetail>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.Payments.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
-        harness.UnitOfWork.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        harness.TicketOrderOperations.Verify(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID14 (N) - Giỏ hỗn hợp vé lượt + vé tháng có họ tên hợp lệ -> Tạo đúng 1 đơn chung")]
@@ -342,20 +335,11 @@ public class CheckoutOnlineHandlerTests
     private sealed class Harness
     {
         private readonly Dictionary<Guid, TicketTypeEntity> ticketTypesById = [];
-        private readonly Mock<IRepository<TicketTypeEntity>> ticketTypes = new();
-        private readonly Mock<IRepository<Voucher>> vouchers = new();
-        private readonly Mock<IRepository<OrderDetail>> orderDetails = new();
-        private readonly Mock<IRepository<Payment>> payments = new();
-        private readonly Mock<ISender> sender = new();
-        private readonly Mock<IRepository<UserProfile>> userProfiles = new();
-
-        public Mock<IRepository<Order>> Orders { get; } = new();
-        public Mock<IRepository<OrderDetail>> OrderDetails => orderDetails;
-        public Mock<IRepository<Payment>> Payments => payments;
-        public Mock<IRepository<UserProfile>> UserProfiles => userProfiles;
-        public Mock<IRepository<TicketTypeEntity>> TicketTypes => ticketTypes;
-        public Mock<ISender> Sender => sender;
-        public Mock<IUnitOfWork> UnitOfWork { get; } = new();
+        public Mock<ITicketTypeOperations> TicketTypes { get; } = new();
+        public Mock<IVoucherOperations> Vouchers { get; } = new();
+        public Mock<ITicketOrderOperations> TicketOrderOperations { get; } = new();
+        public Mock<IUserOperations> UserOperations { get; } = new();
+        public Mock<ISender> Sender { get; } = new();
         public List<Order> CreatedOrders { get; } = [];
         public List<OrderDetail> CreatedDetails { get; } = [];
         public List<Payment> CreatedPayments { get; } = [];
@@ -374,22 +358,23 @@ public class CheckoutOnlineHandlerTests
             SecondTicketTypeId = secondTicketType?.Id ?? Guid.Empty;
             VoucherId = voucher?.Id;
 
-            ticketTypes.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            TicketTypes.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns((Guid id, CancellationToken _) => Task.FromResult(ticketTypesById.GetValueOrDefault(id)));
-            vouchers.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()))
-                .Returns((Expression<Func<Voucher, bool>> predicate, CancellationToken _) =>
-                    Task.FromResult(voucher != null && predicate.Compile()(voucher) ? voucher : null));
-            userProfiles.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserProfile, bool>>>(), It.IsAny<CancellationToken>()))
+            Vouchers.Setup(r => r.GetUsableVoucherByCodeAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                .Returns((string code, DateTime _, CancellationToken _) =>
+                    Task.FromResult(voucher != null && string.Equals(voucher.Code, code.Trim(), StringComparison.OrdinalIgnoreCase) && voucher.IsActive == true && voucher.IsDeleted != true ? voucher : null));
+            UserOperations.Setup(r => r.GetUserProfileByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(userProfileMissing ? null : userProfile ?? new UserProfile { FullName = "Nguyễn Văn Test" });
-            Orders.Setup(r => r.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
-                .Callback((Order order, CancellationToken _) => CreatedOrders.Add(order)).Returns(Task.CompletedTask);
-            orderDetails.Setup(r => r.AddAsync(It.IsAny<OrderDetail>(), It.IsAny<CancellationToken>()))
-                .Callback((OrderDetail detail, CancellationToken _) => CreatedDetails.Add(detail)).Returns(Task.CompletedTask);
-            payments.Setup(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()))
-                .Callback((Payment payment, CancellationToken _) => CreatedPayments.Add(payment)).Returns(Task.CompletedTask);
-            UnitOfWork.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            TicketOrderOperations.Setup(r => r.CreateOrderAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<CancellationToken>()))
+                .Callback((Order order, IEnumerable<OrderDetail> details, Payment payment, CancellationToken _) =>
+                {
+                    CreatedOrders.Add(order);
+                    CreatedDetails.AddRange(details);
+                    CreatedPayments.Add(payment);
+                }).Returns(Task.CompletedTask);
+
             if (confirmation != null)
-                sender.Setup(s => s.Send(It.IsAny<ConfirmPendingOrderCommand>(), It.IsAny<CancellationToken>()))
+                Sender.Setup(s => s.Send(It.IsAny<ConfirmPendingOrderCommand>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(confirmation);
         }
 
@@ -400,8 +385,8 @@ public class CheckoutOnlineHandlerTests
         };
 
         public Task<CheckoutOnlineResponse> Checkout(CheckoutOnlineCommand command) =>
-            new CheckoutOnlineHandler(ticketTypes.Object, Orders.Object, orderDetails.Object, payments.Object,
-                vouchers.Object, userProfiles.Object, UnitOfWork.Object, new FixedTimeProvider(Now), sender.Object)
+            new CheckoutOnlineHandler(TicketTypes.Object, TicketOrderOperations.Object,
+                Vouchers.Object, UserOperations.Object, new FixedTimeProvider(Now), Sender.Object)
                 .Handle(command, CancellationToken.None);
     }
 

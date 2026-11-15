@@ -10,20 +10,14 @@ namespace SmartPool.Application.Features.Profiles.Commands.UpdateMyProfile;
 
 public sealed class UpdateMyProfileHandler : IRequestHandler<UpdateMyProfileCommand, IActionResult>
 {
-    private readonly IRepository<User> _users;
-    private readonly IRepository<UserProfile> _profiles;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserOperations _userOperations;
     private readonly IValidator<UpdateMyProfileCommand> _validator;
 
     public UpdateMyProfileHandler(
-        IRepository<User> users,
-        IRepository<UserProfile> profiles,
-        IUnitOfWork unitOfWork,
+        IUserOperations userOperations,
         IValidator<UpdateMyProfileCommand> validator)
     {
-        _users = users;
-        _profiles = profiles;
-        _unitOfWork = unitOfWork;
+        _userOperations = userOperations;
         _validator = validator;
     }
 
@@ -33,11 +27,11 @@ public sealed class UpdateMyProfileHandler : IRequestHandler<UpdateMyProfileComm
         {
             await _validator.ValidateAndThrowAsync(request, cancellationToken);
             
-            var profile = await _profiles.FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
+            var profile = await _userOperations.GetUserProfileByUserIdAsync(request.UserId, cancellationToken);
             if (profile == null) 
             {
                 // Create profile if missing
-                var user = await _users.FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+                var user = await _userOperations.GetByIdAsync(request.UserId, cancellationToken);
                 if (user == null) return new NotFoundObjectResult(new { message = "Tài khoản không tồn tại." });
 
                 profile = new UserProfile
@@ -48,7 +42,7 @@ public sealed class UpdateMyProfileHandler : IRequestHandler<UpdateMyProfileComm
                     DateOfBirth = request.DateOfBirth,
                     UpdatedAt = DateTime.UtcNow
                 };
-                await _profiles.AddAsync(profile, cancellationToken);
+                await _userOperations.AddUserProfileAsync(profile, cancellationToken);
             }
             else
             {
@@ -56,10 +50,8 @@ public sealed class UpdateMyProfileHandler : IRequestHandler<UpdateMyProfileComm
                 profile.Address = request.Address;
                 profile.DateOfBirth = request.DateOfBirth;
                 profile.UpdatedAt = DateTime.UtcNow;
-                _profiles.Update(profile);
+                await _userOperations.UpdateUserProfileAsync(profile, cancellationToken);
             }
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new OkObjectResult(new { message = "Cập nhật hồ sơ thành công." });
         }

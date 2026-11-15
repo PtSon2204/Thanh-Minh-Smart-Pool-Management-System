@@ -30,8 +30,7 @@ public sealed class RegisterHandlerRoleTests
         string roleName, bool? isDeleted, int expectedStatus)
     {
         var role = new Role { Id = Guid.NewGuid(), Name = roleName, IsDeleted = isDeleted };
-        var users = new Mock<IRepository<User>>();
-        var roles = new Mock<IRepository<Role>>();
+        var userOperations = new Mock<IUserOperations>();
         var passwordHasher = new Mock<IPasswordHasher>();
         var otpStore = new Mock<IRegistrationOtpStore>();
         var emailService = new Mock<IEmailService>();
@@ -41,13 +40,19 @@ public sealed class RegisterHandlerRoleTests
         var codeService = new RegistrationOtpCodeService(new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?> { ["RegistrationOtp:HmacKey"] = Convert.ToBase64String(new byte[32]) }).Build());
 
-        users.Setup(repository => repository.ExistsAsync(
-                It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<CancellationToken>()))
+        userOperations.Setup(ops => ops.ExistsByUsernameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        roles.Setup(repository => repository.FirstOrDefaultAsync(
-                It.IsAny<Expression<Func<Role, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<Role, bool>> predicate, CancellationToken _) =>
-                Task.FromResult<Role?>(predicate.Compile()(role) ? role : null));
+        userOperations.Setup(ops => ops.ExistsByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        userOperations.Setup(ops => ops.ExistsByPhoneAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        userOperations.Setup(ops => ops.GetRoleByNameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string name, CancellationToken _) =>
+            {
+                if (string.Equals(roleName, name, StringComparison.OrdinalIgnoreCase) && isDeleted != true)
+                    return role;
+                return null;
+            });
         passwordHasher.Setup(hasher => hasher.HashPassword(It.IsAny<User>(), It.IsAny<string>()))
             .Returns("test-password-hash");
         otpStore.Setup(store => store.TryConsumeStartQuotaAsync(It.IsAny<string>(), It.IsAny<string>(),
@@ -61,7 +66,7 @@ public sealed class RegisterHandlerRoleTests
         emailService.Setup(service => service.SendAsync(It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        var handler = new RegisterHandler(users.Object, roles.Object, passwordHasher.Object,
+        var handler = new RegisterHandler(userOperations.Object, passwordHasher.Object,
             otpStore.Object, codeService, emailService.Object, accessor, new RegisterValidator(),
             NullLogger<RegisterHandler>.Instance);
         var request = new RegisterCommand
@@ -84,7 +89,6 @@ public sealed class RegisterHandlerRoleTests
                 It.IsAny<string>(), It.Is<string>(body => body.Contains("Mã xác minh")),
                 It.IsAny<CancellationToken>()), Times.Once());
         }
-        users.Verify(repository => repository.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never());
         otpStore.Verify(store => store.TryStartAsync(It.IsAny<PendingRegistration>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), expectedStatus == 202 ? Times.Once() : Times.Never());
     }

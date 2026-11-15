@@ -18,7 +18,6 @@ public sealed class CompletePasswordResetHandler : IRequestHandler<CompletePassw
 {
     private readonly IPasswordResetStore _store;
     private readonly PasswordResetCodeService _codes;
-    private readonly IRepository<User> _users;
     private readonly IUserOperations _userOperations;
     private readonly IPasswordHasher _hasher;
     private readonly IHttpContextAccessor _http;
@@ -28,7 +27,6 @@ public sealed class CompletePasswordResetHandler : IRequestHandler<CompletePassw
     public CompletePasswordResetHandler(
         IPasswordResetStore store,
         PasswordResetCodeService codes,
-        IRepository<User> users,
         IUserOperations userOperations,
         IPasswordHasher hasher,
         IHttpContextAccessor http,
@@ -37,7 +35,6 @@ public sealed class CompletePasswordResetHandler : IRequestHandler<CompletePassw
     {
         _store = store;
         _codes = codes;
-        _users = users;
         _userOperations = userOperations;
         _hasher = hasher;
         _http = http;
@@ -90,12 +87,8 @@ public sealed class CompletePasswordResetHandler : IRequestHandler<CompletePassw
         var saved = false;
         try
         {
-            var user = await _users.FirstOrDefaultAsync(
-                candidate => candidate.Id == identity.UserId && candidate.IsDeleted != true &&
-                    candidate.Status != null && candidate.Status.ToLower() == "active" &&
-                    candidate.Email != null && candidate.Email.ToLower() == identity.Email &&
-                    candidate.PasswordHash != null && candidate.PasswordHash != "",
-                cancellationToken);
+            var user = await _userOperations.GetActiveUserWithPasswordAsync(
+                identity.UserId, identity.Email, cancellationToken);
             if (user is null || string.IsNullOrWhiteSpace(user.PasswordHash) ||
                 !FingerprintMatches(identity.PasswordFingerprint,
                     _codes.ComputePasswordFingerprint(user.Id, user.PasswordHash)))

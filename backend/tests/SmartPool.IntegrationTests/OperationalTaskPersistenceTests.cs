@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Migrations;
 using SmartPool.Infrastructure.Persistence.DbContext;
+using SmartPool.IntegrationTests.ManageStaffs;
 
 namespace SmartPool.IntegrationTests;
 

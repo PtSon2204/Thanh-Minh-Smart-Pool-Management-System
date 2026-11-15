@@ -7,13 +7,13 @@ using SmartPool.Domain.Entities;
 namespace SmartPool.Application.Features.ManageEquipments.Queries.GetCameraViewConfig;
 
 public sealed class GetCameraViewConfigHandler(
-    IRepository<Equipment> repository,
+    IEquipmentOperations equipmentOperations,
     ICameraStreamService streams)
     : IRequestHandler<GetCameraViewConfigQuery, CameraWebRtcConfiguration>
 {
     public async Task<CameraWebRtcConfiguration> Handle(GetCameraViewConfigQuery query, CancellationToken cancellationToken)
     {
-        var equipment = await repository.GetByIdAsync(query.EquipmentId, cancellationToken);
+        var equipment = await equipmentOperations.GetByIdAsync(query.EquipmentId, cancellationToken);
         if (equipment == null || equipment.IsDeleted == true)
             throw new KeyNotFoundException("Không tìm thấy camera");
         if (!CameraMetadata.IsCamera(equipment.Category))

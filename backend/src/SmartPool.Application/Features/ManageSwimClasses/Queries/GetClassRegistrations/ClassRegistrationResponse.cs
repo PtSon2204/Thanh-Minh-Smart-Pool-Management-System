@@ -10,4 +10,7 @@ public sealed record ClassRegistrationResponse(
     DateTime? CancelledAt,
     Guid? CancelledByUserId,
     string? CancelReason,
+    Guid? ReviewedByUserId,
+    DateTime? ReviewedAt,
+    string? ReviewNote,
     DateTime UpdatedAt);

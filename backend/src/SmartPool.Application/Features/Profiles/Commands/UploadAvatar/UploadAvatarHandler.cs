@@ -9,20 +9,14 @@ namespace SmartPool.Application.Features.Profiles.Commands.UploadAvatar;
 
 public sealed class UploadAvatarHandler : IRequestHandler<UploadAvatarCommand, IActionResult>
 {
-    private readonly IRepository<User> _users;
-    private readonly IRepository<UserProfile> _profiles;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserOperations _userOperations;
     private readonly IStorageService _storageService;
 
     public UploadAvatarHandler(
-        IRepository<User> users,
-        IRepository<UserProfile> profiles,
-        IUnitOfWork unitOfWork,
+        IUserOperations userOperations,
         IStorageService storageService)
     {
-        _users = users;
-        _profiles = profiles;
-        _unitOfWork = unitOfWork;
+        _userOperations = userOperations;
         _storageService = storageService;
     }
 
@@ -44,8 +38,8 @@ public sealed class UploadAvatarHandler : IRequestHandler<UploadAvatarCommand, I
             return new BadRequestObjectResult(new { message = "Dung lượng ảnh không được vượt quá 5MB." });
         }
 
-        var profile = await _profiles.FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
-        var user = await _users.FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        var profile = await _userOperations.GetUserProfileByUserIdAsync(request.UserId, cancellationToken);
+        var user = await _userOperations.GetByIdAsync(request.UserId, cancellationToken);
 
         if (user == null)
         {
@@ -65,19 +59,14 @@ public sealed class UploadAvatarHandler : IRequestHandler<UploadAvatarCommand, I
                 AvatarUrl = avatarUrl,
                 UpdatedAt = DateTime.UtcNow
             };
-            await _profiles.AddAsync(profile, cancellationToken);
+            await _userOperations.AddUserProfileAsync(profile, cancellationToken);
         }
         else
         {
-            // Optional: delete old avatar from Cloudinary
-            // if (!string.IsNullOrEmpty(profile.AvatarUrl)) await _storageService.DeleteAsync(profile.AvatarUrl);
-
             profile.AvatarUrl = avatarUrl;
             profile.UpdatedAt = DateTime.UtcNow;
-            _profiles.Update(profile);
+            await _userOperations.UpdateUserProfileAsync(profile, cancellationToken);
         }
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new OkObjectResult(new { message = "Cập nhật ảnh đại diện thành công.", avatarUrl });
     }

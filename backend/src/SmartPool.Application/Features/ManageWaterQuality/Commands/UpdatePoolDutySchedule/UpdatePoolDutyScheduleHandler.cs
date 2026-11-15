@@ -11,23 +11,20 @@ public sealed class UpdatePoolDutyScheduleHandler : IRequestHandler<UpdatePoolDu
 {
     private readonly IWaterQualityOperations _operations;
     private readonly IValidator<UpdatePoolDutyScheduleCommand> _validator;
-    private readonly IRepository<Notification> _notificationRepo;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationOperations _notificationOperations;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<UpdatePoolDutyScheduleHandler> _logger;
 
     public UpdatePoolDutyScheduleHandler(
         IWaterQualityOperations operations,
         IValidator<UpdatePoolDutyScheduleCommand> validator,
-        IRepository<Notification> notificationRepo,
-        IUnitOfWork unitOfWork,
+        INotificationOperations notificationOperations,
         TimeProvider timeProvider,
         ILogger<UpdatePoolDutyScheduleHandler> logger)
     {
         _operations = operations;
         _validator = validator;
-        _notificationRepo = notificationRepo;
-        _unitOfWork = unitOfWork;
+        _notificationOperations = notificationOperations;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -52,8 +49,7 @@ public sealed class UpdatePoolDutyScheduleHandler : IRequestHandler<UpdatePoolDu
                 IsRead = false,
                 CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
             };
-            await _notificationRepo.AddAsync(notif, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _notificationOperations.AddAsync(notif, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -63,4 +59,3 @@ public sealed class UpdatePoolDutyScheduleHandler : IRequestHandler<UpdatePoolDu
         return updated;
     }
 }
-

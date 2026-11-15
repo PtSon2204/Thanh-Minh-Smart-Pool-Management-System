@@ -8,6 +8,7 @@ using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using Microsoft.Extensions.Logging;
+using CloudinaryDotNet;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
@@ -15,7 +16,8 @@ public sealed partial class SwimClassOperations(
     SmartPoolDbContext context,
     TimeProvider timeProvider,
     INotificationService notificationService,
-    ILogger<SwimClassOperations> logger)
+    ILogger<SwimClassOperations> logger,
+    Cloudinary cloudinary)
     : ISwimClassOperations
 {
     public async Task<CreateSwimClassResponse> CreateAsync(

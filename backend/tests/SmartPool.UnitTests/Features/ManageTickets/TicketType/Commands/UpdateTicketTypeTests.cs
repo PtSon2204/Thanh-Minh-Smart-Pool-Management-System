@@ -14,16 +14,13 @@ public class UpdateTicketTypeTests
     {
         var entity = TicketTypeTestSupport.Entity(active: false);
         var createdAt = entity.CreatedAt;
-        var repo = TicketTypeTestSupport.Repository(entity);
-        repo.Setup(r => r.Update(entity));
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var ops = TicketTypeTestSupport.Operations(entity);
         using var cts = new CancellationTokenSource();
-        uow.Setup(u => u.SaveChangesAsync(cts.Token)).ReturnsAsync(1);
         var command = ValidCommand();
         command.Id = entity.Id;
         var before = DateTime.UtcNow;
 
-        var result = await new UpdateTicketTypeHandler(repo.Object, uow.Object, TicketTypeTestSupport.Mapper())
+        var result = await new UpdateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper())
             .Handle(command, cts.Token);
 
         Assert.Equal(entity.Id, result.Id);
@@ -41,23 +38,19 @@ public class UpdateTicketTypeTests
         Assert.Equal(command.DurationDays, result.DurationDays);
         Assert.Equal(entity.UpdatedAt, result.UpdatedAt);
         Assert.False(result.IsActive);
-        repo.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketTypeEntity, bool>>>(), cts.Token), Times.Once);
-        repo.Verify(r => r.Update(entity), Times.Once);
-        uow.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
+        ops.Verify(r => r.GetByIdAsync(entity.Id, cts.Token), Times.Once);
+        ops.Verify(r => r.UpdateAsync(entity, cts.Token), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID02 (N) - Hiệu lực null -> Tự đặt vé lượt 1 ngày và giữ trạng thái mặc định hoạt động")]
     public async Task Handle_NullDuration_SetsFixedDuration()
     {
         var entity = TicketTypeTestSupport.Entity(active: null, deleted: null);
-        var repo = TicketTypeTestSupport.Repository(entity);
-        repo.Setup(r => r.Update(entity));
-        var uow = new Mock<IUnitOfWork>();
-        uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        var ops = TicketTypeTestSupport.Operations(entity);
         var command = ValidCommand();
         command.Id = entity.Id;
         command.DurationDays = null;
-        var result = await new UpdateTicketTypeHandler(repo.Object, uow.Object, TicketTypeTestSupport.Mapper())
+        var result = await new UpdateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper())
             .Handle(command, CancellationToken.None);
         Assert.Equal(1, entity.DurationDays);
         Assert.Equal(1, result.DurationDays);
@@ -76,49 +69,42 @@ public class UpdateTicketTypeTests
 
     private static async Task AssertNotFound(TicketTypeEntity entity, Guid id)
     {
-        var repo = TicketTypeTestSupport.Repository(entity);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var ops = TicketTypeTestSupport.Operations(entity);
         var command = ValidCommand();
         command.Id = id;
         var error = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            new UpdateTicketTypeHandler(repo.Object, uow.Object, TicketTypeTestSupport.Mapper())
+            new UpdateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper())
                 .Handle(command, CancellationToken.None));
         Assert.Equal($"Không tìm thấy loại vé với Id: {id}", error.Message);
-        repo.Verify(r => r.Update(It.IsAny<TicketTypeEntity>()), Times.Never);
-        uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID05 (A) - Lỗi đọc repository -> Truyền lỗi và không cập nhật hoặc lưu")]
     public async Task Handle_ReadFailure_DoesNotSave()
     {
         var failure = new InvalidOperationException("Read failed");
-        var repo = TicketTypeTestSupport.Repository();
-        repo.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<TicketTypeEntity, bool>>>(), It.IsAny<CancellationToken>()))
+        var ops = TicketTypeTestSupport.Operations();
+        ops.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(failure);
-        var uow = new Mock<IUnitOfWork>(MockBehavior.Strict);
         Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new UpdateTicketTypeHandler(repo.Object, uow.Object, TicketTypeTestSupport.Mapper())
+            new UpdateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper())
                 .Handle(ValidCommand(), CancellationToken.None)));
-        repo.Verify(r => r.Update(It.IsAny<TicketTypeEntity>()), Times.Never);
-        uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID06 (A) - Lỗi lưu thay đổi -> Truyền lỗi và không trả response thành công")]
     public async Task Handle_SaveFailure_PropagatesException()
     {
         var entity = TicketTypeTestSupport.Entity();
-        var repo = TicketTypeTestSupport.Repository(entity);
-        repo.Setup(r => r.Update(entity));
-        var uow = new Mock<IUnitOfWork>();
+        var ops = TicketTypeTestSupport.Operations(entity);
         var failure = new InvalidOperationException("Save failed");
-        uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+        ops.Setup(u => u.UpdateAsync(It.IsAny<TicketTypeEntity>(), It.IsAny<CancellationToken>())).ThrowsAsync(failure);
         var command = ValidCommand();
         command.Id = entity.Id;
         Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new UpdateTicketTypeHandler(repo.Object, uow.Object, TicketTypeTestSupport.Mapper())
+            new UpdateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper())
                 .Handle(command, CancellationToken.None)));
-        repo.Verify(r => r.Update(entity), Times.Once);
-        uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.UpdateAsync(entity, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID07 (N) - Tên tiếng Việt có dấu và số -> Hợp lệ")]
@@ -425,13 +411,12 @@ public class UpdateTicketTypeTests
     public async Task Handle_DerivesDurationFromCategory(TicketCategoryEnum category, int? suppliedDays, int expectedDays)
     {
         var entity = TicketTypeTestSupport.Entity();
-        var repo = TicketTypeTestSupport.Repository(entity);
-        repo.Setup(r => r.Update(entity));
+        var ops = TicketTypeTestSupport.Operations(entity);
         var command = ValidCommand();
         command.Id = entity.Id;
         command.TicketCategory = category;
         command.DurationDays = suppliedDays;
-        var result = await new UpdateTicketTypeHandler(repo.Object, new Mock<IUnitOfWork>().Object, TicketTypeTestSupport.Mapper())
+        var result = await new UpdateTicketTypeHandler(ops.Object, TicketTypeTestSupport.Mapper())
             .Handle(command, CancellationToken.None);
         Assert.Equal(expectedDays, entity.DurationDays);
         Assert.Equal(expectedDays, result.DurationDays);

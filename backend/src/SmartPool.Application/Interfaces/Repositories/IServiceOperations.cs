@@ -1,6 +1,7 @@
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageServices.Commands.AdjustStock;
 using SmartPool.Application.Features.ManageServices.Commands.CheckoutRental;
+using SmartPool.Application.Features.ManageServices.Commands.CreateService;
 using SmartPool.Application.Features.ManageServices.Commands.QuoteRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRental;
 using SmartPool.Application.Features.ManageServices.Commands.ReturnRentalQuantity;
@@ -9,6 +10,7 @@ using SmartPool.Application.Features.ManageServices.Commands.UpdateService;
 using SmartPool.Application.Features.ManageServices.Queries.GetInventoryHistory;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentals;
 using SmartPool.Application.Features.ManageServices.Queries.GetRentalDetails;
+using SmartPool.Application.Features.ManageServices.Queries.GetServices;
 using SmartPool.Application.Features.ManageServices.Payments;
 
 namespace SmartPool.Application.Interfaces.Repositories
@@ -16,6 +18,8 @@ namespace SmartPool.Application.Interfaces.Repositories
 
 public interface IServiceOperations
 {
+    Task<CreateServiceResponse> CreateServiceAsync(CreateServiceCommand command, CancellationToken cancellationToken);
+    Task<PagedResponse<GetServicesResponse>> GetServicesAsync(GetServicesQuery query, CancellationToken cancellationToken);
     Task<UpdateServiceResponse> UpdateServiceAsync(UpdateServiceCommand command, CancellationToken cancellationToken);
     Task<SetServiceStatusResponse> SetServiceStatusAsync(SetServiceStatusCommand command, CancellationToken cancellationToken);
     Task<AdjustStockResponse> AdjustStockAsync(AdjustStockCommand command, CancellationToken cancellationToken);

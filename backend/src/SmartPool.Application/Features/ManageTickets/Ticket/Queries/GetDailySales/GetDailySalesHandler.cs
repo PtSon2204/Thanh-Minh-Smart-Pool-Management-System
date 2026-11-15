@@ -14,47 +14,28 @@ public sealed class GetDailySalesHandler : IRequestHandler<GetDailySalesQuery, D
     private const string CombinedPaymentLabel = "Thanh toán kết hợp";
     private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
 
-    private readonly IRepository<Order> _orderRepository;
-    private readonly IRepository<OrderDetail> _orderDetailRepository;
-    private readonly IRepository<Payment> _paymentRepository;
-    private readonly IRepository<TicketTypeEntity> _ticketTypeRepository;
-    private readonly IRepository<EntryLog> _entryLogRepository;
+    private readonly ITicketOrderOperations _ticketOrderOperations;
+    private readonly ITicketTypeOperations _ticketTypeOperations;
 
     public GetDailySalesHandler(
-        IRepository<Order> orderRepository,
-        IRepository<OrderDetail> orderDetailRepository,
-        IRepository<Payment> paymentRepository,
-        IRepository<TicketTypeEntity> ticketTypeRepository,
-        IRepository<EntryLog> entryLogRepository)
+        ITicketOrderOperations ticketOrderOperations,
+        ITicketTypeOperations ticketTypeOperations)
     {
-        _orderRepository = orderRepository;
-        _orderDetailRepository = orderDetailRepository;
-        _paymentRepository = paymentRepository;
-        _ticketTypeRepository = ticketTypeRepository;
-        _entryLogRepository = entryLogRepository;
+        _ticketOrderOperations = ticketOrderOperations;
+        _ticketTypeOperations = ticketTypeOperations;
     }
 
     public async Task<DailySalesResponse> Handle(GetDailySalesQuery request, CancellationToken cancellationToken)
     {
         var (startUtc, endUtc) = VietnamTimeBoundary.GetUtcDayBounds(request.Date);
-        var dailyPayments = await _paymentRepository.FindAsync(
-            payment => payment.Status != null && payment.Status.ToUpper() == "COMPLETED"
-                && payment.PaymentTime >= startUtc && payment.PaymentTime < endUtc,
-            cancellationToken);
+        var dailyPayments = await _ticketOrderOperations.GetDailySalesPaymentsAsync(startUtc, endUtc, cancellationToken);
         var candidateOrderIds = dailyPayments.Select(payment => payment.OrderId).Distinct().ToList();
         var completedOrders = candidateOrderIds.Count == 0
             ? new List<Order>()
-            : (await _orderRepository.FindAsync(
-                order => candidateOrderIds.Contains(order.Id) && order.IsDeleted != true
-                    && order.Status != null && order.Status.ToUpper() == "COMPLETED",
-                cancellationToken)).ToList();
+            : await _ticketOrderOperations.GetOrdersByIdsAsync(candidateOrderIds, cancellationToken);
         List<Payment> completedPayments = candidateOrderIds.Count == 0
             ? new List<Payment>()
-            : (await _paymentRepository.FindAsync(
-                payment => candidateOrderIds.Contains(payment.OrderId)
-                    && payment.Status != null
-                    && payment.Status.ToUpper() == PaymentStatusEnum.COMPLETED.ToString(),
-                cancellationToken)).ToList();
+            : await _ticketOrderOperations.GetPaymentsByOrderIdsAsync(candidateOrderIds, cancellationToken);
         var paymentsByOrder = completedPayments.GroupBy(payment => payment.OrderId)
             .ToDictionary(group => group.Key, group => group.ToList());
 
@@ -83,10 +64,7 @@ public sealed class GetDailySalesHandler : IRequestHandler<GetDailySalesQuery, D
         var saleOrderIds = saleOrders.Select(sale => sale.Order.Id).ToList();
         List<OrderDetail> ticketDetails = saleOrderIds.Count == 0
             ? new List<OrderDetail>()
-            : (await _orderDetailRepository.FindAsync(
-                detail => saleOrderIds.Contains(detail.OrderId)
-                    && detail.ItemType.ToUpper() == TicketItemType,
-                cancellationToken)).ToList();
+            : await _ticketOrderOperations.GetTicketOrderDetailsByOrderIdsAsync(saleOrderIds, cancellationToken);
         var ticketOrderIds = ticketDetails.Select(detail => detail.OrderId).ToHashSet();
         saleOrders = saleOrders.Where(sale => ticketOrderIds.Contains(sale.Order.Id)).ToList();
         var countedOrderIds = saleOrders.Select(sale => sale.Order.Id).ToHashSet();
@@ -95,7 +73,7 @@ public sealed class GetDailySalesHandler : IRequestHandler<GetDailySalesQuery, D
         var typeIds = ticketDetails.Select(detail => detail.ItemId).Distinct().ToList();
         Dictionary<Guid, TicketTypeEntity> ticketTypes = typeIds.Count == 0
             ? new Dictionary<Guid, TicketTypeEntity>()
-            : (await _ticketTypeRepository.FindAsync(type => typeIds.Contains(type.Id), cancellationToken))
+            : (await _ticketTypeOperations.GetByIdsAsync(typeIds, cancellationToken))
                 .ToDictionary(type => type.Id);
 
         var hourlyCounts = Enumerable.Range(0, 24).ToDictionary(hour => hour, _ => 0);
@@ -121,12 +99,7 @@ public sealed class GetDailySalesHandler : IRequestHandler<GetDailySalesQuery, D
         KeyValuePair<int, int>? peak = totalTickets == 0
             ? null
             : hourlyCounts.OrderByDescending(pair => pair.Value).ThenBy(pair => pair.Key).First();
-        var allowedEntries = await _entryLogRepository.FindAsync(
-            entry => entry.TicketId.HasValue
-                && entry.ScanTime >= startUtc
-                && entry.ScanTime < endUtc
-                && entry.Status.ToUpper() == PoolAccessValues.Allowed.ToUpper(),
-            cancellationToken);
+        var allowedEntries = await _ticketOrderOperations.GetAllowedEntryLogsAsync(startUtc, endUtc, cancellationToken);
 
         var ticketsByType = ticketDetails
             .GroupBy(detail => ticketTypes.TryGetValue(detail.ItemId, out var type) ? type.Name : "Khác")
@@ -143,7 +116,7 @@ public sealed class GetDailySalesHandler : IRequestHandler<GetDailySalesQuery, D
             AverageTicketsPerOrder = saleOrders.Count == 0 ? 0 : Math.Round((decimal)totalTickets / saleOrders.Count, 2),
             PeakHour = peak?.Key,
             PeakHourTickets = peak?.Value ?? 0,
-            AdmissionCount = allowedEntries.Count(),
+            AdmissionCount = allowedEntries.Count,
             HourlySales = hourlyCounts.Select(pair => new DailySalesHour { Hour = pair.Key, TicketCount = pair.Value }).ToList(),
             TicketTypes = ticketsByType,
             PaymentMethods = paymentMethodTickets

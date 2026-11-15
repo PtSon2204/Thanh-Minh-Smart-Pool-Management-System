@@ -158,3 +158,5 @@
 .camera-video { width: 100%; height: 100%; object-fit: contain; }
 .camera-video-hidden { visibility: hidden; }
 .camera-video-loading { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; color: #fff; }
+/* Bounding box AI đè lên video camera (toạ độ đã hiệu chỉnh letterbox). */
+.camera-analysis-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }

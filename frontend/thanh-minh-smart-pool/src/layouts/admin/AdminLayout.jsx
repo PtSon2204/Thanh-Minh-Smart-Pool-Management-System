@@ -26,6 +26,7 @@ import {
   TransactionOutlined,
   BarChartOutlined,
   BellOutlined,
+  MailOutlined,
   LogoutOutlined,
   LockOutlined,
   SecurityScanOutlined,
@@ -33,6 +34,8 @@ import {
   ScheduleOutlined,
   // BookOutlined,
   ExperimentOutlined,
+  PlusCircleOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/store/authStore";
@@ -45,14 +48,13 @@ import authService from "../../features/auth/services/authService";
 import { getSessionRoles } from "../../features/auth/utils/sessionRoles";
 import { useAlarmSound } from "../../features/safety/hooks/useAlarmSound";
 import { useSafetyAlertSignalR } from "../../features/safety/hooks/useSafetyAlertSignalR";
+import GlobalSafetyAlertsHost from "../../features/safety/components/GlobalSafetyAlertsHost";
 import logoImg from "../../assets/logo-be-boi-thanh-minh.png";
 import "./AdminLayout.css";
 
 const { Header, Sider, Content } = Layout;
 
 function openKeysForPath(pathname) {
-  if (pathname === "/admin/coaches" || pathname === "/admin/coach-applications")
-    return ["coaches"];
   if (pathname.startsWith("/admin/tickets/")) return ["/admin/tickets"];
   if (pathname === "/admin/staff/attendance/scan") return ["staff"];
   if (pathname.startsWith("/admin/staff/attendance"))
@@ -183,7 +185,7 @@ export default function AdminLayout() {
     [startAlarm, stopAlarm, notifApi],
   );
 
-  useSafetyAlertSignalR({ onAlert: handleGlobalAlert, enabled: true });
+  useSafetyAlertSignalR({ onAlert: handleGlobalAlert, enabled: location.pathname !== '/admin/safety/activate-alerts' });
 
   useEffect(() => {
     return () => {
@@ -253,7 +255,7 @@ export default function AdminLayout() {
     {
       type: "group",
       key: "grp-users-classes",
-      label: "Người dùng & HLV",
+      label: "Đào tạo & Người dùng",
       children: [
         isAdmin && {
           key: "/admin/users",
@@ -266,19 +268,23 @@ export default function AdminLayout() {
           label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,
         },
         isAdmin && {
-          key: "coaches",
+          key: "/admin/coach-applications",
           icon: <AuditOutlined />,
-          label: "Quản lý HLV",
-          children: [
-            {
-              key: "/admin/coaches",
-              label: <Link to="/admin/coaches">Danh sách HLV</Link>,
-            },
-            {
-              key: "/admin/coach-applications",
-              label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
-            },
-          ],
+          label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
+        },
+        isAdmin && {
+          key: "/admin/classes/create",
+          icon: <PlusCircleOutlined />,
+          label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
+        },
+        (isAdmin || isCoach) && {
+          key: "/admin/classes",
+          icon: <UnorderedListOutlined />,
+          label: (
+            <Link to="/admin/classes">
+              {isAdmin ? "Danh sách lớp dạy bơi" : "Lớp được phân công"}
+            </Link>
+          ),
         },
       ].filter(Boolean),
     },
@@ -343,6 +349,18 @@ export default function AdminLayout() {
             isAdmin && {
               key: "/admin/safety/list-camera",
               label: <Link to="/admin/safety/list-camera">Danh sách camera</Link>,
+            },
+            isAdmin && {
+              key: "/admin/safety/video-analysis",
+              label: <Link to="/admin/safety/video-analysis">Phân tích video</Link>,
+            },
+            {
+              key: "/admin/safety/thresholds",
+              label: <Link to="/admin/safety/thresholds">Ngưỡng cảnh báo AI</Link>,
+            },
+            {
+              key: "/admin/safety/alerts",
+              label: <Link to="/admin/safety/alerts">Cảnh báo camera</Link>,
             },
             {
               key: "/admin/safety/activate-alerts",
@@ -466,6 +484,11 @@ export default function AdminLayout() {
             },
           ],
         },
+        isAdmin && {
+          key: "/admin/notifications",
+          icon: <MailOutlined />,
+          label: <Link to="/admin/notifications">Thông báo & Email</Link>,
+        },
       ].filter(Boolean),
     },
     {
@@ -479,18 +502,18 @@ export default function AdminLayout() {
           label: "Thống kê",
           children: [
             {
+              key: "/admin/statistics/rentals",
+              label: <Link to="/admin/statistics/rentals">Thống kê chi phí thuê đồ</Link>,
+            },
+            {
+              key: "/admin/statistics/revenue",
+              label: <Link to="/admin/statistics/revenue">Thống kê doanh thu</Link>,
+            },
+            {
               key: "/admin/statistics/ticket-revenue",
               label: (
                 <Link to="/admin/statistics/ticket-revenue">
-                  Thống kê số tiền vé
-                </Link>
-              ),
-            },
-            {
-              key: "/admin/statistics/monthly-tickets",
-              label: (
-                <Link to="/admin/statistics/monthly-tickets">
-                  Thống kê vé tháng
+                  Thống kê bán vé
                 </Link>
               ),
             },
@@ -498,7 +521,7 @@ export default function AdminLayout() {
               key: "/admin/statistics/user-count",
               label: (
                 <Link to="/admin/statistics/user-count">
-                  Thống kê số lượng người dùng
+                  Thống kê số lượng khách
                 </Link>
               ),
             },
@@ -555,6 +578,7 @@ export default function AdminLayout() {
   return (
     <>
       {notifContextHolder}
+      <GlobalSafetyAlertsHost />
       <Layout
         className="admin-layout"
         style={{ minHeight: "100vh", background: "#e2e8f0" }}
@@ -613,7 +637,7 @@ export default function AdminLayout() {
                   <img src={logoImg} alt="Logo" className="admin-logo-img" />
                   <div className="admin-logo-text-group">
                     <span className="admin-logo-text">Bể bơi Thanh Minh</span>
-                  </div>
+                    </div>
                 </div>
               )}
             </div>

@@ -22,6 +22,28 @@ public sealed class EquipmentOperations(SmartPoolDbContext db) : IEquipmentOpera
         return db.Equipments.AsNoTracking().AnyAsync(x => x.IsDeleted != true && x.Metadata != null && EF.Functions.JsonContains(x.Metadata, marker), cancellationToken);
     }
 
+    public async Task<Equipment?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await db.Equipments.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public async Task<List<Equipment>> GetAllActiveAsync(CancellationToken cancellationToken)
+    {
+        return await db.Equipments.AsNoTracking().Where(x => x.IsDeleted != true).ToListAsync(cancellationToken);
+    }
+
+    public async Task AddAsync(Equipment equipment, CancellationToken cancellationToken)
+    {
+        await db.Equipments.AddAsync(equipment, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Equipment equipment, CancellationToken cancellationToken)
+    {
+        db.Equipments.Update(equipment);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task RegisterCameraAsync(Equipment equipment, string identity, Action publish, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);

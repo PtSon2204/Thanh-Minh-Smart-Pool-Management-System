@@ -343,6 +343,19 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("registered_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_user_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -360,6 +373,9 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasIndex("CancelledByUserId");
 
+                    b.HasIndex("ReviewedByUserId")
+                        .HasDatabaseName("ix_class_registrations_reviewed_by_user_id");
+
                     b.HasIndex("ClassId", "CustomerUserId")
                         .IsUnique()
                         .HasDatabaseName("ux_class_registrations_class_customer");
@@ -376,7 +392,15 @@ namespace SmartPool.Infrastructure.Migrations
 
                             t.HasCheckConstraint("ck_class_registrations_confirmed_after_registered", "confirmed_at IS NULL OR confirmed_at >= registered_at");
 
-                            t.HasCheckConstraint("ck_class_registrations_status", "status IN ('Confirmed', 'Cancelled')");
+                            t.HasCheckConstraint("ck_class_registrations_pending_fields", "status <> 'PendingApproval' OR (confirmed_at IS NULL AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL AND review_note IS NULL)");
+
+                            t.HasCheckConstraint("ck_class_registrations_rejected_fields", "status <> 'Rejected' OR (confirmed_at IS NULL AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL AND review_note IS NOT NULL AND btrim(review_note) <> '')");
+
+                            t.HasCheckConstraint("ck_class_registrations_review_fields_pair", "(reviewed_by_user_id IS NULL) = (reviewed_at IS NULL)");
+
+                            t.HasCheckConstraint("ck_class_registrations_reviewed_after_registered", "reviewed_at IS NULL OR reviewed_at >= registered_at");
+
+                            t.HasCheckConstraint("ck_class_registrations_status", "status IN ('PendingApproval', 'Confirmed', 'Rejected', 'Cancelled')");
                         });
                 });
 
@@ -852,6 +876,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
+                    b.Property<Guid?>("CameraId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("camera_id");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -871,6 +899,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("incident_time")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location");
 
                     b.Property<Guid?>("ReportedBy")
                         .HasColumnType("uuid")
@@ -901,10 +934,18 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<Guid?>("WarningId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warning_id");
+
                     b.HasKey("Id")
                         .HasName("incidents_pkey");
 
+                    b.HasIndex("CameraId");
+
                     b.HasIndex("ReportedBy");
+
+                    b.HasIndex("WarningId");
 
                     b.ToTable("incidents", "smart_pool");
                 });
@@ -2007,6 +2048,99 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("roles", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.SafetyMonitoringThreshold", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double>("ConfidenceThreshold")
+                        .HasColumnType("double precision")
+                        .HasColumnName("confidence_threshold");
+
+                    b.Property<double>("CooldownSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("cooldown_seconds");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<double>("CriticalHoldSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("critical_hold_seconds");
+
+                    b.Property<double>("CriticalRatio")
+                        .HasColumnType("double precision")
+                        .HasColumnName("critical_ratio");
+
+                    b.Property<double>("MaxObservationGapSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_observation_gap_seconds");
+
+                    b.Property<int>("MinObservations")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_observations");
+
+                    b.Property<double>("RecoveryHoldSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("recovery_hold_seconds");
+
+                    b.Property<double>("RecoveryRatio")
+                        .HasColumnType("double precision")
+                        .HasColumnName("recovery_ratio");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("version");
+
+                    b.Property<double>("WarningRatio")
+                        .HasColumnType("double precision")
+                        .HasColumnName("warning_ratio");
+
+                    b.Property<double>("WindowSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("window_seconds");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("safety_monitoring_thresholds", "smart_pool");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-000000000042"),
+                            ConfidenceThreshold = 0.59999999999999998,
+                            CooldownSeconds = 15.0,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CriticalHoldSeconds = 3.0,
+                            CriticalRatio = 0.69999999999999996,
+                            MaxObservationGapSeconds = 3.0,
+                            MinObservations = 3,
+                            RecoveryHoldSeconds = 5.0,
+                            RecoveryRatio = 0.20000000000000001,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Version = 0,
+                            WarningRatio = 0.40000000000000002,
+                            WindowSeconds = 5.0
+                        });
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Shift", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2928,6 +3062,66 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("user_profiles", "smart_pool");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.VideoAnalysisJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("error");
+
+                    b.Property<string>("InputFile")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("input_file");
+
+                    b.Property<string>("OriginalName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_name");
+
+                    b.Property<string>("OutputFile")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("output_file");
+
+                    b.Property<double>("Progress")
+                        .HasColumnType("double precision")
+                        .HasColumnName("progress");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UploadedBy");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.ToTable("video_analysis_jobs", "smart_pool");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Voucher", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3003,7 +3197,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuid_generate_v4()");
 
-                    b.Property<Guid>("CamId")
+                    b.Property<double[]>("Box")
+                        .HasColumnType("double precision[]")
+                        .HasColumnName("box");
+
+                    b.Property<Guid?>("CamId")
                         .HasColumnType("uuid")
                         .HasColumnName("cam_id");
 
@@ -3019,18 +3217,45 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
+                        .HasDefaultValue("")
                         .HasColumnName("image_url");
 
                     b.Property<Guid?>("IncidentId")
                         .HasColumnType("uuid")
                         .HasColumnName("incident_id");
 
+                    b.Property<string>("RiskEpisode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("risk_episode");
+
                     b.Property<string>("SeverityLevel")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("severity_level");
+
+                    b.Property<int>("SnapshotAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("snapshot_attempts");
+
+                    b.Property<string>("SnapshotStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("NONE")
+                        .HasColumnName("snapshot_status");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("LIVE")
+                        .HasColumnName("source_type");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -3039,6 +3264,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("Pending")
                         .HasColumnName("status");
+
+                    b.Property<string>("TrackId")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("track_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -3053,6 +3283,14 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Property<Guid?>("VerifiedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("verified_by");
+
+                    b.Property<Guid?>("VideoJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("video_job_id");
+
+                    b.Property<double?>("VideoTimestamp")
+                        .HasColumnType("double precision")
+                        .HasColumnName("video_timestamp");
 
                     b.Property<DateTime>("WarningTime")
                         .ValueGeneratedOnAdd()
@@ -3072,9 +3310,16 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasIndex("VerifiedBy");
 
+                    b.HasIndex("VideoJobId");
+
                     b.HasIndex("WarningTime")
                         .IsDescending()
                         .HasDatabaseName("idx_warnings_time");
+
+                    b.HasIndex("SourceType", "RiskEpisode")
+                        .IsUnique()
+                        .HasDatabaseName("IX_warnings_source_type_risk_episode")
+                        .HasFilter("risk_episode IS NOT NULL");
 
                     b.ToTable("warnings", "smart_pool");
                 });
@@ -3279,6 +3524,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("class_registrations_customer_user_id_fkey");
 
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("class_registrations_reviewed_by_user_id_fkey");
+
                     b.Navigation("Class");
 
                     b.Navigation("CustomerUser");
@@ -3417,12 +3668,26 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Incident", b =>
                 {
+                    b.HasOne("SmartPool.Domain.Entities.Equipment", "Camera")
+                        .WithMany()
+                        .HasForeignKey("CameraId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SmartPool.Domain.Entities.User", "ReportedByNavigation")
                         .WithMany("Incidents")
                         .HasForeignKey("ReportedBy")
                         .HasConstraintName("incidents_reported_by_fkey");
 
+                    b.HasOne("SmartPool.Domain.Entities.Warning", "Warning")
+                        .WithMany()
+                        .HasForeignKey("WarningId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Camera");
+
                     b.Navigation("ReportedByNavigation");
+
+                    b.Navigation("Warning");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.InventoryLog", b =>
@@ -3879,13 +4144,23 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SmartPool.Domain.Entities.VideoAnalysisJob", b =>
+                {
+                    b.HasOne("SmartPool.Domain.Entities.User", "Uploader")
+                        .WithMany()
+                        .HasForeignKey("UploadedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Uploader");
+                });
+
             modelBuilder.Entity("SmartPool.Domain.Entities.Warning", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.Equipment", "Cam")
                         .WithMany()
                         .HasForeignKey("CamId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("SmartPool.Domain.Entities.Incident", "Incident")
                         .WithMany()
@@ -3897,11 +4172,18 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasForeignKey("VerifiedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("SmartPool.Domain.Entities.VideoAnalysisJob", "VideoJob")
+                        .WithMany()
+                        .HasForeignKey("VideoJobId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Cam");
 
                     b.Navigation("Incident");
 
                     b.Navigation("Verifier");
+
+                    b.Navigation("VideoJob");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.WaterQualityLog", b =>

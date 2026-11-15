@@ -15,6 +15,7 @@ export default function CameraCaptureModal({
   title = 'Chụp ảnh thiết bị',
   maxPhotos = 5,
   currentCount = 0,
+  captureHint = 'Hướng camera vào thiết bị rồi bấm nút chụp',
 }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -279,7 +280,7 @@ export default function CameraCaptureModal({
           <span style={{ fontSize: 13, color: '#64748b' }}>
             {sessionCount > 0
               ? `Đã chụp thêm ${sessionCount} ảnh mới trong phiên này`
-              : 'Hướng camera vào thiết bị rồi bấm nút chụp'}
+              : captureHint}
           </span>
           <Button type="primary" icon={<CheckOutlined />} onClick={handleClose}>
             Hoàn tất ({currentCount} ảnh)
@@ -466,10 +467,10 @@ export default function CameraCaptureModal({
             }}
           >
             {isSnapping
-              ? 'Đang tải ảnh lên hệ thống...'
+              ? 'Đang xử lý ảnh...'
               : reachedLimit
-              ? 'Đã đủ 5 ảnh tối đa'
-              : 'Bấm để chụp ảnh (chụp liên tiếp nhiều ảnh)'}
+              ? `Đã đủ ${maxPhotos} ảnh tối đa`
+              : maxPhotos === 1 ? 'Bấm để chụp ảnh' : 'Bấm để chụp ảnh (chụp liên tiếp nhiều ảnh)'}
           </div>
         </div>
       )}

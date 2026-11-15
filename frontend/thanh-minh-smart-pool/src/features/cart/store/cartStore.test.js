@@ -90,3 +90,13 @@ test('UTCID09 (N) - toggleCart và closeCart -> Đổi trạng thái mở rồi 
   closeCart()
   assert.equal(useCartStore.getState().isCartOpen, false)
 })
+
+test('PF-CAR-01 - Giỏ hàng được khôi phục từ sessionStorage sau khi tải lại module', async () => {
+  useCartStore.getState().addToCart({ ...ticketA, quantity: 2 })
+
+  const persisted = JSON.parse(storage.get('thanh-minh-cart'))
+  assert.deepEqual(persisted.state.items, [{ ...ticketA, quantity: 2 }])
+
+  const reloaded = await import(`./cartStore.js?reload=${Date.now()}-${Math.random()}`)
+  assert.deepEqual(reloaded.useCartStore.getState().items, [{ ...ticketA, quantity: 2 }])
+})

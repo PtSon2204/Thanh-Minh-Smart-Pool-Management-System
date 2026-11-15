@@ -18,7 +18,7 @@ public class UpdateVoucherHandlerTests
     {
         var entity = ExistingVoucher();
         var createdAt = entity.CreatedAt;
-        var (repo, unitOfWork) = Dependencies(entity);
+        var ops = Dependencies(entity);
         var command = ValidCommand(entity.Id);
         command.Code = "  summer 10  ";
         command.DiscountType = "FIXED_AMOUNT";
@@ -29,7 +29,7 @@ public class UpdateVoucherHandlerTests
         command.IsActive = false;
         using var cts = new CancellationTokenSource();
 
-        var result = await Handler(repo.Object, unitOfWork.Object).Handle(command, cts.Token);
+        var result = await Handler(ops.Object).Handle(command, cts.Token);
 
         Assert.Equal("SUMMER 10", entity.Code);
         Assert.Equal(command.DiscountType, entity.DiscountType);
@@ -48,36 +48,36 @@ public class UpdateVoucherHandlerTests
         Assert.Equal(entity.EndDate, result.EndDate);
         Assert.Equal(entity.IsActive, result.IsActive);
         Assert.Equal(createdAt, result.CreatedAt);
-        repo.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), cts.Token), Times.Exactly(2));
-        repo.Verify(r => r.Update(entity), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
+        ops.Verify(r => r.GetVoucherByIdAsync(entity.Id, cts.Token), Times.Once);
+        ops.Verify(r => r.ExistsByCodeAsync(command.Code, entity.Id, cts.Token), Times.Once);
+        ops.Verify(r => r.UpdateVoucherAsync(entity, cts.Token), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID02 (N) - Giữ nguyên Code của chính voucher -> Không xem chính nó là mã trùng")]
     public async Task UTCID02_UnchangedCode_DoesNotConflictWithSameEntity()
     {
         var entity = ExistingVoucher();
-        var (repo, unitOfWork) = Dependencies(entity);
+        var ops = Dependencies(entity);
         var command = ValidCommand(entity.Id);
         command.Code = entity.Code;
 
-        var result = await Handler(repo.Object, unitOfWork.Object).Handle(command, default);
+        var result = await Handler(ops.Object).Handle(command, default);
 
         Assert.Equal(entity.Code, result.Code);
-        repo.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
-        repo.Verify(r => r.Update(entity), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.GetVoucherByIdAsync(entity.Id, It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.ExistsByCodeAsync(entity.Code, entity.Id, It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.UpdateVoucherAsync(entity, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID03 (N) - IsActive = null -> Gán null vào entity và response")]
     public async Task UTCID03_NullIsActive_IsAssigned()
     {
         var entity = ExistingVoucher(active: true);
-        var (repo, unitOfWork) = Dependencies(entity);
+        var ops = Dependencies(entity);
         var command = ValidCommand(entity.Id);
         command.IsActive = null;
 
-        var result = await Handler(repo.Object, unitOfWork.Object).Handle(command, default);
+        var result = await Handler(ops.Object).Handle(command, default);
 
         Assert.Null(entity.IsActive);
         Assert.Null(result.IsActive);
@@ -86,29 +86,27 @@ public class UpdateVoucherHandlerTests
     [Fact(DisplayName = "UTCID04 (A) - Id không tồn tại -> KeyNotFoundException và không cập nhật hoặc lưu")]
     public async Task UTCID04_MissingId_ThrowsNotFound()
     {
-        var (repo, unitOfWork) = Dependencies();
+        var ops = Dependencies();
         var id = Guid.NewGuid();
 
         var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            Handler(repo.Object, unitOfWork.Object).Handle(ValidCommand(id), default));
+            Handler(ops.Object).Handle(ValidCommand(id), default));
 
         Assert.Equal($"Không tìm thấy voucher với Id: {id}", exception.Message);
-        repo.Verify(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
-        repo.Verify(r => r.Update(It.IsAny<Voucher>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.GetVoucherByIdAsync(id, It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID05 (A) - Voucher hiện tại đã xóa mềm -> Không tìm thấy và không lưu")]
     public async Task UTCID05_DeletedVoucher_ThrowsNotFound()
     {
         var entity = ExistingVoucher(deleted: true);
-        var (repo, unitOfWork) = Dependencies(entity);
+        var ops = Dependencies(entity);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => Handler(repo.Object, unitOfWork.Object)
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => Handler(ops.Object)
             .Handle(ValidCommand(entity.Id), default));
 
-        repo.Verify(r => r.Update(It.IsAny<Voucher>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID06 (A) - Code thuộc voucher khác chưa xóa -> VoucherConflictException và không lưu")]
@@ -116,16 +114,15 @@ public class UpdateVoucherHandlerTests
     {
         var entity = ExistingVoucher();
         var duplicate = ExistingVoucher(code: "NEWCODE");
-        var (repo, unitOfWork) = Dependencies(entity, duplicate);
+        var ops = Dependencies(entity, duplicate);
         var command = ValidCommand(entity.Id);
         command.Code = "NEWCODE";
 
         var exception = await Assert.ThrowsAsync<VoucherConflictException>(() =>
-            Handler(repo.Object, unitOfWork.Object).Handle(command, default));
+            Handler(ops.Object).Handle(command, default));
 
         Assert.Equal("Mã voucher 'NEWCODE' đã tồn tại.", exception.Message);
-        repo.Verify(r => r.Update(It.IsAny<Voucher>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID07 (N) - Code trùng với voucher đã xóa mềm -> Bỏ qua conflict và cập nhật")]
@@ -133,67 +130,62 @@ public class UpdateVoucherHandlerTests
     {
         var entity = ExistingVoucher();
         var deletedDuplicate = ExistingVoucher(code: "NEWCODE", deleted: true);
-        var (repo, unitOfWork) = Dependencies(entity, deletedDuplicate);
+        var ops = Dependencies(entity, deletedDuplicate);
         var command = ValidCommand(entity.Id);
         command.Code = "NEWCODE";
 
-        var result = await Handler(repo.Object, unitOfWork.Object).Handle(command, default);
+        var result = await Handler(ops.Object).Handle(command, default);
 
         Assert.Equal("NEWCODE", result.Code);
-        repo.Verify(r => r.Update(entity), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.UpdateVoucherAsync(entity, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID08 (A) - Repository lỗi khi đọc voucher hiện tại -> Truyền lỗi và không lưu")]
     public async Task UTCID08_FirstReadFailure_IsPropagated()
     {
-        var repo = new Mock<IRepository<Voucher>>();
+        var ops = new Mock<IVoucherOperations>();
         var failure = new InvalidOperationException("Read failed");
-        repo.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()))
+        ops.Setup(r => r.GetVoucherByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(failure);
-        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler(repo.Object, unitOfWork.Object).Handle(ValidCommand(Guid.NewGuid()), default));
+            Handler(ops.Object).Handle(ValidCommand(Guid.NewGuid()), default));
 
         Assert.Same(failure, actual);
-        repo.Verify(r => r.Update(It.IsAny<Voucher>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID09 (A) - Repository lỗi khi kiểm tra Code trùng -> Truyền lỗi và không lưu")]
     public async Task UTCID09_ConflictLookupFailure_IsPropagated()
     {
         var entity = ExistingVoucher();
-        var repo = new Mock<IRepository<Voucher>>();
+        var ops = new Mock<IVoucherOperations>();
         var failure = new InvalidOperationException("Conflict lookup failed");
-        repo.SetupSequence(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity)
+        ops.Setup(r => r.GetVoucherByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(entity);
+        ops.Setup(r => r.ExistsByCodeAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(failure);
-        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler(repo.Object, unitOfWork.Object).Handle(ValidCommand(entity.Id), default));
+            Handler(ops.Object).Handle(ValidCommand(entity.Id), default));
 
         Assert.Same(failure, actual);
-        repo.Verify(r => r.Update(It.IsAny<Voucher>()), Times.Never);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ops.Verify(r => r.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID10 (A) - SaveChangesAsync lỗi -> Truyền lỗi sau khi gọi Update và Save")]
     public async Task UTCID10_SaveFailure_IsPropagated()
     {
         var entity = ExistingVoucher();
-        var (repo, unitOfWork) = Dependencies(entity);
+        var ops = Dependencies(entity);
         var failure = new InvalidOperationException("Save failed");
-        unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+        ops.Setup(u => u.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>())).ThrowsAsync(failure);
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler(repo.Object, unitOfWork.Object).Handle(ValidCommand(entity.Id), default));
+            Handler(ops.Object).Handle(ValidCommand(entity.Id), default));
 
         Assert.Same(failure, actual);
-        repo.Verify(r => r.Update(entity), Times.Once);
-        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ops.Verify(r => r.UpdateVoucherAsync(entity, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "UTCID11 (N) - Validator: PERCENTAGE hợp lệ, các trường ngày và MinOrderValue null -> Hợp lệ")]
@@ -308,22 +300,24 @@ public class UpdateVoucherHandlerTests
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(command.EndDate));
     }
 
-    private static UpdateVoucherHandler Handler(IRepository<Voucher> repo, IUnitOfWork unitOfWork)
+    private static UpdateVoucherHandler Handler(IVoucherOperations operations)
     {
         var mapper = new MapperConfiguration(config => config.AddProfile<VoucherMappingProfile>(), NullLoggerFactory.Instance).CreateMapper();
-        return new UpdateVoucherHandler(repo, unitOfWork, mapper);
+        return new UpdateVoucherHandler(operations, mapper);
     }
 
-    private static (Mock<IRepository<Voucher>> Repo, Mock<IUnitOfWork> UnitOfWork) Dependencies(params Voucher[] rows)
+    private static Mock<IVoucherOperations> Dependencies(params Voucher[] rows)
     {
-        var repo = new Mock<IRepository<Voucher>>();
-        repo.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<Voucher, bool>>>(), It.IsAny<CancellationToken>()))
-            .Returns((Expression<Func<Voucher, bool>> predicate, CancellationToken _) =>
-                Task.FromResult(rows.FirstOrDefault(predicate.Compile())));
-        repo.Setup(r => r.Update(It.IsAny<Voucher>()));
-        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
-        unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        return (repo, unitOfWork);
+        var ops = new Mock<IVoucherOperations>();
+        ops.Setup(r => r.GetVoucherByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid id, CancellationToken _) =>
+                Task.FromResult(rows.FirstOrDefault(v => v.Id == id && v.IsDeleted != true)));
+        ops.Setup(r => r.ExistsByCodeAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((string code, Guid excludeId, CancellationToken _) =>
+                Task.FromResult(rows.Any(v => v.Code == code.Trim().ToUpper() && v.Id != excludeId && v.IsDeleted != true)));
+        ops.Setup(r => r.UpdateVoucherAsync(It.IsAny<Voucher>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        return ops;
     }
 
     private static UpdateVoucherCommand ValidCommand(Guid id) => new()

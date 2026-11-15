@@ -9,39 +9,26 @@ namespace SmartPool.UnitTests.Features.ManageReports;
 
 public sealed class GetTicketRevenueStatisticsHandlerTests
 {
-    private readonly Mock<IRepository<Order>> _orderRepo = new();
-    private readonly Mock<IRepository<OrderDetail>> _orderDetailRepo = new();
-    private readonly Mock<IRepository<Payment>> _paymentRepo = new();
-    private readonly Mock<IRepository<Ticket>> _ticketRepo = new();
-    private readonly Mock<IRepository<TicketType>> _ticketTypeRepo = new();
-    private readonly Mock<IRepository<User>> _userRepo = new();
-    private readonly Mock<IRepository<UserProfile>> _profileRepo = new();
+    private readonly Mock<IReportOperations> _reportOps = new();
 
     private GetTicketRevenueStatisticsHandler CreateHandler()
     {
-        return new GetTicketRevenueStatisticsHandler(
-            _orderRepo.Object,
-            _orderDetailRepo.Object,
-            _paymentRepo.Object,
-            _ticketRepo.Object,
-            _ticketTypeRepo.Object,
-            _userRepo.Object,
-            _profileRepo.Object);
+        return new GetTicketRevenueStatisticsHandler(_reportOps.Object);
     }
 
     private void SetupEmptyRepositories()
     {
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order>());
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail>());
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType>());
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order>());
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail>());
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType>());
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
     }
 
-    [Fact(DisplayName = "UTCID01 (N) - Không có dữ liệu trong DB -> Trả về dữ liệu demo hợp lệ 4 loại vé")]
-    public async Task UTCID01_WhenNoOrdersInDatabase_ReturnsDemoData()
+    [Fact(DisplayName = "UTCID01 (N) - Không có dữ liệu trong DB -> Trả về số liệu 0, không dùng dữ liệu demo")]
+    public async Task UTCID01_WhenNoOrdersInDatabase_ReturnsZeroValues()
     {
         SetupEmptyRepositories();
         var handler = CreateHandler();
@@ -50,13 +37,11 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         var result = await handler.Handle(query, CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.True(result.TotalTicketsSold > 0);
-        Assert.True(result.TotalRevenue > 0);
-        Assert.Equal(4, result.TicketTypeSales.Count);
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé lượt người lớn");
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé lượt trẻ em");
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé tháng người lớn");
-        Assert.Contains(result.TicketTypeSales, t => t.Name == "Vé tháng trẻ em");
+        Assert.Equal(0, result.TotalTicketsSold);
+        Assert.Equal(0m, result.TotalRevenue);
+        Assert.Empty(result.TicketTypeSales);
+        Assert.Empty(result.TicketTypeRevenues);
+        Assert.Empty(result.RecentTransactions);
     }
 
     [Fact(DisplayName = "UTCID02 (N) - Có đơn hàng vé lượt hợp lệ -> Tính đúng tổng số vé và tổng doanh thu")]
@@ -70,13 +55,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         var order = new Order { Id = orderId, TotalAmount = 100_000, FinalAmount = 100_000, IsDeleted = false, CreatedAt = now };
         var detail = new OrderDetail { Id = Guid.NewGuid(), OrderId = orderId, ItemId = ticketTypeId, ItemType = "TICKET", Quantity = 2, UnitPrice = 50_000 };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -102,13 +87,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = o2.Id, ItemId = ttMonthly.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 500_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -135,13 +120,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = o2.Id, ItemId = ttChild.Id, ItemType = "TICKET", Quantity = 2, UnitPrice = 30_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttChild });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttChild });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -168,13 +153,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = yesterdayOrder.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 50_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { todayOrder, yesterdayOrder });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { todayOrder, yesterdayOrder });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -198,13 +183,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = orderOld.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 2, UnitPrice = 50_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { orderRecent, orderOld });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { orderRecent, orderOld });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "7days" }, CancellationToken.None);
@@ -228,13 +213,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = order40DaysAgo.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 300_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order20DaysAgo, order40DaysAgo });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order20DaysAgo, order40DaysAgo });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "30days" }, CancellationToken.None);
@@ -260,13 +245,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = outsideOrder.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 50_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { matchOrder, outsideOrder });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { matchOrder, outsideOrder });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "custom", FromDate = from, ToDate = to }, CancellationToken.None);
@@ -290,13 +275,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = deletedOrder.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 4, UnitPrice = 50_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { validOrder, deletedOrder });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { validOrder, deletedOrder });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -316,13 +301,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = order.Id, ItemId = Guid.NewGuid(), ItemType = "Product", Quantity = 3, UnitPrice = 50_000 } // Đồ uống/thuê phao
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType>());
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType>());
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -346,13 +331,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = o2.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 4, UnitPrice = 50_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -378,13 +363,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = currentOrder.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 3, UnitPrice = 50_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { prevOrder, currentOrder });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { prevOrder, currentOrder });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "7days" }, CancellationToken.None);
@@ -401,13 +386,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         var currentOrder = new Order { Id = Guid.NewGuid(), FinalAmount = 100_000, IsDeleted = false, CreatedAt = now };
         var detail = new OrderDetail { Id = Guid.NewGuid(), OrderId = currentOrder.Id, ItemId = tt.Id, ItemType = "TICKET", Quantity = 2, UnitPrice = 50_000 };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { currentOrder });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { currentOrder });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -435,13 +420,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         var detail = new OrderDetail { Id = Guid.NewGuid(), OrderId = orderId, ItemId = tt.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 500_000 };
         var payment = new Payment { Id = Guid.NewGuid(), OrderId = orderId, Amount = 500_000, PaymentMethod = "Chuyển khoản", PaymentTime = now };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment> { payment });
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment> { payment });
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -474,13 +459,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
         };
         var detail = new OrderDetail { Id = Guid.NewGuid(), OrderId = orderId, ItemId = tt.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 50_000 };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { order });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OrderDetail> { detail });
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { tt });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var result = await handler.Handle(new GetTicketRevenueStatisticsQuery { Period = "today" }, CancellationToken.None);
@@ -505,13 +490,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = o2.Id, ItemId = ttMonthly.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 500_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var query = new GetTicketRevenueStatisticsQuery { Period = "today", TicketCategory = "VE_LUOT" };
@@ -538,13 +523,13 @@ public sealed class GetTicketRevenueStatisticsHandlerTests
             new() { Id = Guid.NewGuid(), OrderId = o2.Id, ItemId = ttMonthly.Id, ItemType = "TICKET", Quantity = 1, UnitPrice = 500_000 }
         };
 
-        _orderRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
-        _orderDetailRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
-        _paymentRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
-        _ticketRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
-        _ticketTypeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
-        _userRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
-        _profileRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
+        _reportOps.Setup(r => r.GetOrdersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Order> { o1, o2 });
+        _reportOps.Setup(r => r.GetOrderDetailsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(details);
+        _reportOps.Setup(r => r.GetPaymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Payment>());
+        _reportOps.Setup(r => r.GetTicketsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Ticket>());
+        _reportOps.Setup(r => r.GetTicketTypesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<TicketType> { ttSingle, ttMonthly });
+        _reportOps.Setup(r => r.GetUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<User>());
+        _reportOps.Setup(r => r.GetUserProfilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<UserProfile>());
 
         var handler = CreateHandler();
         var query = new GetTicketRevenueStatisticsQuery { Period = "today", TicketCategory = "VE_THANG" };
