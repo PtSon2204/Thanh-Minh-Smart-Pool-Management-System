@@ -21,7 +21,7 @@ function DatedContractSchedule({ employeeId, contract, scope }) {
   const toDate = monthEnd > contract.endDate ? contract.endDate : monthEnd
   const query = useQuery({
     queryKey: ['staff-schedule-page', scope, employeeId, fromDate, toDate],
-    queryFn: ({ signal }) => staffService.getCompleteSchedule(scope, { employeeId, fromDate, toDate }, signal),
+    queryFn: ({ signal }) => staffService.getMonthlyContractSchedule(scope, { employeeId, fromDate, toDate }, signal),
     retry: false,
   })
   const assignments = [...(query.data?.items || [])].sort((first, second) => first.workDate.localeCompare(second.workDate) || first.startTime.localeCompare(second.startTime))

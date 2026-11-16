@@ -10,5 +10,9 @@ public sealed class CreateWaterQualityLogCommand : IRequest<WaterQualityLogDto>
     public decimal FreeChlorineMgL { get; set; }
     public bool? IsWaterClear { get; set; }
     public Guid? EquipmentId { get; set; }
+    public Guid? OperationalTaskId { get; set; }
+    public bool AdminExecutionConfirmed { get; set; }
+    public long? ExpectedTaskRevision { get; set; }
+    public Guid? ExpectedAssigneeId { get; set; }
     public string? Notes { get; set; }
 }

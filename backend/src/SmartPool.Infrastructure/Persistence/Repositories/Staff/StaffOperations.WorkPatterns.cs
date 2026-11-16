@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageStaffs.Onboarding;
@@ -22,12 +23,43 @@ public sealed partial class StaffOperations
     private static T ScheduleDeserialize<T>(string value) => JsonSerializer.Deserialize<T>(value, ScheduleJson)!;
     private static string ScheduleHash<T>(T value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ScheduleSerialize(value))));
 
+    private sealed record SchedulePreview(string Kind, Guid EmployeeId, Guid ActorId,
+        string ProposalHash, string StateHash, DateTimeOffset ExpiresAtUtc);
+
+    private string ProtectSchedulePreview(string kind, Guid employeeId, Guid actorId, string proposalHash, string stateHash) =>
+        schedulePreviewProtector.Protect(ScheduleSerialize(new SchedulePreview(kind, employeeId, actorId,
+            proposalHash, stateHash, timeProvider.GetUtcNow().AddMinutes(15))), TimeSpan.FromMinutes(15));
+
+    private void ValidateSchedulePreview(string? token, string kind, Guid employeeId, Guid actorId,
+        string proposalHash, string stateHash)
+    {
+        if (string.IsNullOrWhiteSpace(token)) throw new StaffOnboardingException("PREVIEW_REQUIRED", 400);
+        SchedulePreview? preview;
+        try
+        {
+            preview = JsonSerializer.Deserialize<SchedulePreview>(schedulePreviewProtector.Unprotect(token), ScheduleJson);
+        }
+        catch (Exception exception) when (exception is CryptographicException or FormatException or JsonException)
+        {
+            throw new StaffOnboardingException("STALE_PREVIEW");
+        }
+        if (preview is null || preview.Kind != kind || preview.EmployeeId != employeeId || preview.ActorId != actorId ||
+            preview.ExpiresAtUtc <= timeProvider.GetUtcNow() || preview.ProposalHash != proposalHash || preview.StateHash != stateHash)
+            throw new StaffOnboardingException("STALE_PREVIEW");
+    }
+
+    private IQueryable<StaffScheduleChange> AppliedScheduleChanges => context.StaffScheduleChanges.Where(item => item.AppliedVersion != null);
+    private IQueryable<StaffScheduleChange> AppliedPatterns => AppliedScheduleChanges.Where(item => item.Kind == "Pattern");
+    private IQueryable<StaffScheduleChange> AppliedExceptions => AppliedScheduleChanges.Where(item => item.Kind != "Pattern");
+
     public async Task<object> ExecuteWorkPatternAsync(WorkPatternCommand request, CancellationToken cancellationToken)
     {
         await RequireOnboardingAdminAsync(request.ActorId, cancellationToken);
         if (request.Action == WorkPatternAction.Receipt)
-            return await ReadScheduleReceiptAsync(request.EmployeeId, request.OperationId, cancellationToken);
+            return await ReadScheduleReceiptAsync(request.EmployeeId, request.OperationId, request.ActorId, cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        if (request.Action is WorkPatternAction.Confirm or WorkPatternAction.ExceptionConfirm)
+            await LockStaffScheduleOperationAsync(request.OperationId, cancellationToken);
         await LockEmployeesAsync([request.EmployeeId], cancellationToken);
         var employee = await context.Employees.Include(item => item.User).ThenInclude(item => item.Role)
             .SingleOrDefaultAsync(item => item.UserId == request.EmployeeId, cancellationToken)
@@ -43,12 +75,12 @@ public sealed partial class StaffOperations
         if (isConfirm)
         {
             if (request.OperationId == Guid.Empty) throw new StaffOnboardingException("OPERATION_ID_REQUIRED", 400);
-            var receipt = await context.StaffScheduleOperations.AsNoTracking().SingleOrDefaultAsync(item => item.Id == request.OperationId, cancellationToken);
+            var receipt = await context.StaffScheduleChanges.AsNoTracking().SingleOrDefaultAsync(item => item.OperationId == request.OperationId, cancellationToken);
             if (receipt is not null)
             {
-                if (receipt.EmployeeId != request.EmployeeId || receipt.ProposalHash != proposalHash)
+                if (receipt.EmployeeId != request.EmployeeId || receipt.CreatedBy != request.ActorId || receipt.Kind == "Replace" || receipt.ProposalHash != proposalHash)
                     throw new StaffOnboardingException("OPERATION_PAYLOAD_MISMATCH");
-                return ScheduleDeserialize<WorkPatternResponse>(receipt.ResponseJson);
+                return ScheduleDeserialize<WorkPatternResponse>(receipt.ResponseJson!);
             }
         }
         var state = await LoadScheduleStateAsync(employee, request, cancellationToken);
@@ -67,30 +99,26 @@ public sealed partial class StaffOperations
         var stateHash = ScheduleStateHash(state, plan);
         if (!isConfirm)
         {
-            var preview = new StaffSchedulePreview { EmployeeId = request.EmployeeId, ActorId = request.ActorId,
-                ProposalHash = proposalHash, StateHash = stateHash, ExpiresAtUtc = OnboardingNow.AddMinutes(15) };
-            context.StaffSchedulePreviews.Add(preview);
-            await context.SaveChangesAsync(cancellationToken);
+            var previewToken = ProtectSchedulePreview(isException ? request.Kind! : "Pattern", request.EmployeeId,
+                request.ActorId, proposalHash, stateHash);
             await transaction.CommitAsync(cancellationToken);
-            return plan.Result with { PreviewToken = preview.Id.ToString() };
+            return plan.Result with { PreviewToken = previewToken };
         }
-        if (!Guid.TryParse(request.PreviewToken, out var previewId)) throw new StaffOnboardingException("PREVIEW_REQUIRED", 400);
-        var storedPreview = await context.StaffSchedulePreviews.SingleOrDefaultAsync(item => item.Id == previewId, cancellationToken);
-        if (storedPreview is null || storedPreview.EmployeeId != request.EmployeeId || storedPreview.ActorId != request.ActorId ||
-            storedPreview.ExpiresAtUtc <= OnboardingNow || storedPreview.ProposalHash != proposalHash || storedPreview.StateHash != stateHash)
-            throw new StaffOnboardingException("STALE_PREVIEW");
+        ValidateSchedulePreview(request.PreviewToken, isException ? request.Kind! : "Pattern", request.EmployeeId,
+            request.ActorId, proposalHash, stateHash);
         var response = await ApplySchedulePlanAsync(request, state, plan, proposalHash, isException, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return response;
     }
 
-    private async Task<WorkPatternResponse> ReadScheduleReceiptAsync(Guid employeeId, Guid operationId, CancellationToken cancellationToken)
+    private async Task<WorkPatternResponse> ReadScheduleReceiptAsync(Guid employeeId, Guid operationId, Guid actorId, CancellationToken cancellationToken)
     {
-        var receipt = await context.StaffScheduleOperations.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == operationId && item.EmployeeId == employeeId, cancellationToken)
+        var receipt = await context.StaffScheduleChanges.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.OperationId == operationId && item.EmployeeId == employeeId &&
+                item.CreatedBy == actorId && item.Kind != "Replace", cancellationToken)
             ?? throw new StaffOnboardingException("OPERATION_NOT_FOUND", 404);
-        return ScheduleDeserialize<WorkPatternResponse>(receipt.ResponseJson);
+        return ScheduleDeserialize<WorkPatternResponse>(receipt.ResponseJson!);
     }
 
     private async Task ValidateContractAsync(ContractTerms? contract, DateOnly? joinDate, CancellationToken cancellationToken)
@@ -121,12 +149,13 @@ public sealed partial class StaffOperations
         }
     }
 
-    private sealed record ScheduleState(Employee Employee, List<StaffWorkPattern> Patterns,
-        List<StaffScheduleException> Exceptions, List<EmployeeShift> Assignments, List<PoolDutySchedule> Duties,
+    private sealed record ScheduleState(Employee Employee, List<StaffScheduleChange> Patterns,
+        List<StaffScheduleChange> Exceptions, List<EmployeeShift> Assignments, List<PoolDutySchedule> Duties,
         Dictionary<Guid, Shift> Shifts)
     {
-        public long Version => Math.Max(Patterns.Select(item => item.Version).DefaultIfEmpty().Max(), Exceptions.Select(item => item.Version).DefaultIfEmpty().Max());
-        public ContractTerms? Contract => Patterns.Count == 0 ? null : ScheduleDeserialize<ContractTerms>(Patterns[^1].ContractJson);
+        public long Version => Math.Max(Patterns.Select(item => item.AppliedVersion!.Value).DefaultIfEmpty().Max(), Exceptions.Select(item => item.AppliedVersion!.Value).DefaultIfEmpty().Max());
+        public ContractTerms? Contract => Patterns.Count == 0 ? null : ScheduleDeserialize<ContractTerms>(Patterns[^1].ContractJson!);
+        public bool IsPatternGenerated(EmployeeShift assignment) => Patterns.Any(item => item.Id == assignment.ScheduleChangeId);
         public bool Eligible => Employee.Status == "Working" && Employee.User.IsDeleted != true &&
             string.Equals(Employee.User.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase);
     }
@@ -134,14 +163,15 @@ public sealed partial class StaffOperations
     private async Task<ScheduleState> LoadScheduleStateAsync(Employee employee, WorkPatternCommand request, CancellationToken cancellationToken)
     {
         var assignmentShiftIds = await context.EmployeeShifts.Where(item => item.EmployeeId == employee.UserId).Select(item => item.ShiftId).Distinct().ToListAsync(cancellationToken);
-        var dutyShiftIds = await context.PoolDutySchedules.Where(item => item.AssignedEmployeeId == employee.UserId).Select(item => item.ShiftId).Distinct().ToListAsync(cancellationToken);
+        var dutyShiftIds = await context.PoolDutySchedules.Where(item => item.AssignedEmployeeId == employee.UserId && item.ShiftId.HasValue)
+            .Select(item => item.ShiftId!.Value).Distinct().ToListAsync(cancellationToken);
         var ids = assignmentShiftIds.Concat(dutyShiftIds).Concat(request.Contract?.WeeklyPattern?.Where(item => item is not null)
             .SelectMany(item => item.ShiftIds ?? []) ?? []).Concat(request.DestinationShiftId.HasValue ? [request.DestinationShiftId.Value] : []).Distinct().Order().ToArray();
         foreach (var id in ids) await LockShiftAsync(id, cancellationToken);
         await context.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM smart_pool.employee_shifts WHERE employee_id = {employee.UserId} ORDER BY id FOR UPDATE", cancellationToken);
         await context.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM smart_pool.pool_duty_schedules WHERE assigned_employee_id = {employee.UserId} ORDER BY id FOR UPDATE", cancellationToken);
-        var patterns = await context.StaffWorkPatterns.Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.Version).ToListAsync(cancellationToken);
-        var exceptions = await context.StaffScheduleExceptions.Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.Version).ToListAsync(cancellationToken);
+        var patterns = await AppliedPatterns.Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.AppliedVersion).ToListAsync(cancellationToken);
+        var exceptions = await AppliedExceptions.Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.AppliedVersion).ToListAsync(cancellationToken);
         var assignments = await context.EmployeeShifts.Include(item => item.Shift).Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.Id).ToListAsync(cancellationToken);
         var duties = await context.PoolDutySchedules.Include(item => item.Shift).Where(item => item.AssignedEmployeeId == employee.UserId).OrderBy(item => item.Id).ToListAsync(cancellationToken);
         var shifts = await context.Shifts.Where(item => ids.Contains(item.Id)).ToDictionaryAsync(item => item.Id, cancellationToken);
@@ -167,9 +197,9 @@ public sealed partial class StaffOperations
                 ? item.UserProfile.FullName : item.Username ?? "Nhân viên" })
             .ToDictionaryAsync(item => item.Id, item => item.Name, cancellationToken);
         return new(state.Contract, state.Version,
-            state.Patterns.Select(item => new WorkPatternRevisionView(item.Id, ScheduleDeserialize<ContractTerms>(item.ContractJson), item.EffectiveFrom, item.Version, item.CreatedBy, item.CreatedAtUtc)).ToList(),
-            state.Exceptions.Select(item => new ScheduleExceptionView(item.Id, item.Kind, item.WorkDate,
-                ScheduleDeserialize<Guid[]>(item.SourceAssignmentIdsJson), item.DestinationShiftId, item.Reason, item.Version,
+            state.Patterns.Select(item => new WorkPatternRevisionView(item.Id, ScheduleDeserialize<ContractTerms>(item.ContractJson!), item.EffectiveFrom!.Value, item.AppliedVersion!.Value, item.CreatedBy, item.CreatedAtUtc)).ToList(),
+            state.Exceptions.Select(item => new ScheduleExceptionView(item.Id, item.Kind, item.WorkDate!.Value,
+                ScheduleDeserialize<Guid[]>(item.SourceAssignmentIdsJson!), item.DestinationShiftId, item.Reason!, item.AppliedVersion!.Value,
                 item.DestinationEmployeeId, item.DestinationEmployeeId.HasValue ? replacementNames.GetValueOrDefault(item.DestinationEmployeeId.Value) : null)).ToList(), hours, deliveries,
             await ContractShiftsAsync(state.Contract, cancellationToken));
     }
@@ -177,11 +207,13 @@ public sealed partial class StaffOperations
     private string ScheduleStateHash(ScheduleState state, SchedulePlan plan) => ScheduleHash(new
     {
         state.Version, state.Eligible, Today = VietnamTimeBoundary.GetDate(timeProvider),
-        Patterns = state.Patterns.Select(item => new { item.Id, item.ContractJson, item.EffectiveFrom, item.Version }),
-        Exceptions = state.Exceptions.Select(item => new { item.Id, item.Kind, item.WorkDate, item.SourceAssignmentIdsJson, item.DestinationShiftId, item.Version }),
-        Assignments = state.Assignments.Select(item => new { item.Id, item.ShiftId, item.WorkDate, item.Status, item.CheckInTime, item.CheckOutTime, item.CheckInMethod, item.CheckOutMethod, item.UpdatedAt, item.WorkPatternId, item.ScheduleExceptionId }),
+        Patterns = state.Patterns.Select(item => new { item.Id, item.ContractJson, item.EffectiveFrom, item.AppliedVersion }),
+        Exceptions = state.Exceptions.Select(item => new { item.Id, item.Kind, item.WorkDate, item.SourceAssignmentIdsJson, item.DestinationShiftId, item.DestinationEmployeeId, item.AppliedVersion }),
+        Assignments = state.Assignments.Select(item => new { item.Id, item.ShiftId, item.WorkDate, item.Status, item.CheckInTime, item.CheckOutTime, item.CheckInMethod, item.CheckOutMethod, item.UpdatedAt, item.ScheduleChangeId }),
         Shifts = state.Shifts.Values.OrderBy(item => item.Id).Select(item => new { item.Id, item.Name, item.StartTime, item.EndTime, item.IsActive }),
-        Duties = state.Duties.Select(item => new { item.Id, item.ShiftId, item.DutyDate, item.AssignedEmployeeId, item.Status, item.WaterQualityLogId, item.UpdatedAt }),
+        Duties = state.Duties.Select(item => new { item.Id, item.ShiftId, item.EmployeeShiftId, item.TaskType, item.DutyDate,
+            item.AssignedEmployeeId, item.Status, item.WaterQualityLogId, item.TriggerWaterQualityLogId,
+            item.MeasurementRecurrenceId, item.UpdatedAt }),
         plan.Result
     });
 
@@ -221,7 +253,7 @@ public sealed partial class StaffOperations
                 details.Add(new(date, null, "exception_preserved", "Đã giữ ngoại lệ đã ghi nhận cho ngày này."));
                 continue;
             }
-            var suppressedShiftIds = dateExceptions.SelectMany(item => ScheduleDeserialize<Guid[]>(item.SourceAssignmentIdsJson))
+            var suppressedShiftIds = dateExceptions.SelectMany(item => ScheduleDeserialize<Guid[]>(item.SourceAssignmentIdsJson!))
                 .Select(id => state.Assignments.SingleOrDefault(assignment => assignment.Id == id)?.ShiftId)
                 .Where(id => id.HasValue).Select(id => id!.Value)
                 .Concat(dateExceptions.Where(item => item.Kind is "Move" or "Replace")
@@ -243,7 +275,7 @@ public sealed partial class StaffOperations
             }
         }
 
-        var priorGenerated = state.Assignments.Where(item => item.WorkPatternId.HasValue && item.WorkDate >= request.EffectiveFrom &&
+        var priorGenerated = state.Assignments.Where(item => state.IsPatternGenerated(item) && item.WorkDate >= request.EffectiveFrom &&
             item.Status == "Scheduled" && item.CheckInTime is null && item.CheckOutTime is null).ToList();
         foreach (var old in priorGenerated)
         {
@@ -273,8 +305,9 @@ public sealed partial class StaffOperations
 
         foreach (var old in cancel)
         {
-            var duties = state.Duties.Where(item => item.DutyDate == old.WorkDate && item.ShiftId == old.ShiftId &&
-                item.Status == "Scheduled" && item.WaterQualityLogId is null).ToList();
+            var duties = state.Duties.Where(item => (item.Status is "Scheduled" or "InProgress") &&
+                (item.EmployeeShiftId == old.Id || (item.TaskType is null && item.DutyDate == old.WorkDate &&
+                    item.ShiftId == old.ShiftId && item.WaterQualityLogId is null))).ToList();
             unassign.AddRange(duties);
             foreach (var duty in duties)
                 details.Add(new(duty.DutyDate, duty.ShiftId, "duty_unassigned", "Ca trực đã được gỡ khỏi lịch và cần quản trị viên phân công lại."));
@@ -301,7 +334,7 @@ public sealed partial class StaffOperations
             return EmptyExceptionPlan(request.WorkDate, "source_unavailable", "Lịch nguồn không còn phù hợp để sửa.");
         if (request.Kind == "Leave")
         {
-            var expectedGeneratedIds = state.Assignments.Where(item => item.WorkDate == request.WorkDate && item.WorkPatternId.HasValue &&
+            var expectedGeneratedIds = state.Assignments.Where(item => item.WorkDate == request.WorkDate && state.IsPatternGenerated(item) &&
                 item.Status == "Scheduled" && item.CheckInTime is null && item.CheckOutTime is null).Select(item => item.Id).ToHashSet();
             if (expectedGeneratedIds.Count == 0 || !expectedGeneratedIds.SetEquals(request.SourceAssignmentIds))
                 return EmptyExceptionPlan(request.WorkDate, "leave_requires_all_generated_shifts", "Nghỉ cả ngày phải chọn toàn bộ ca đã sinh từ hợp đồng.");
@@ -335,8 +368,11 @@ public sealed partial class StaffOperations
             create.Add(new(request.WorkDate, destination));
         }
 
-        var unassign = state.Duties.Where(item => cancel.Any(source => source.WorkDate == item.DutyDate && source.ShiftId == item.ShiftId) &&
-            item.Status == "Scheduled" && item.WaterQualityLogId is null).ToList();
+        var sourceIds = cancel.Select(item => item.Id).ToHashSet();
+        var unassign = state.Duties.Where(item => (item.Status is "Scheduled" or "InProgress") &&
+            (item.EmployeeShiftId.HasValue && sourceIds.Contains(item.EmployeeShiftId.Value) ||
+             (item.TaskType is null && item.WaterQualityLogId is null && cancel.Any(source =>
+                 source.WorkDate == item.DutyDate && source.ShiftId == item.ShiftId)))).ToList();
         foreach (var duty in unassign)
             details.Add(new(duty.DutyDate, duty.ShiftId, "duty_unassigned", "Ca trực đã được gỡ khỏi lịch và cần quản trị viên phân công lại."));
         return new(new ScheduleResult(null, create.Count, cancel.Count, unassign.Count, 0, details,
@@ -371,14 +407,14 @@ public sealed partial class StaffOperations
             Action = WorkPatternAction.Preview, Contract = contract, EffectiveFrom = contract.StartDate, OperationId = invitation.Id };
         var state = await LoadScheduleStateAsync(employee, request, cancellationToken);
         var plan = PlanPattern(request, state);
-        var revision = new StaffWorkPattern { EmployeeId = employee.UserId, ContractJson = ScheduleSerialize(contract),
-            EffectiveFrom = contract.StartDate, Version = 1, CreatedBy = actorId, CreatedAtUtc = OnboardingNow };
-        context.StaffWorkPatterns.Add(revision);
+        var revision = new StaffScheduleChange { EmployeeId = employee.UserId, Kind = "Pattern", ContractJson = ScheduleSerialize(contract),
+            EffectiveFrom = contract.StartDate, AppliedVersion = 1, CreatedBy = actorId, CreatedAtUtc = OnboardingNow };
+        context.StaffScheduleChanges.Add(revision);
         foreach (var candidate in plan.Create)
             context.EmployeeShifts.Add(new EmployeeShift { Id = Guid.NewGuid(), EmployeeId = employee.UserId,
                 ShiftId = candidate.Shift.Id, Shift = candidate.Shift, WorkDate = candidate.Date, Status = "Scheduled",
-                WorkPatternId = revision.Id, CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow });
-        var response = new WorkPatternResponse(contract, revision.Version,
+                ScheduleChangeId = revision.Id, CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow });
+        var response = new WorkPatternResponse(contract, revision.AppliedVersion.Value,
             plan.Result with { Status = state.Eligible ? plan.Result.Status : "skipped_ineligible" });
         await QueueScheduleChangeAsync(request, state, plan, response, cancellationToken);
         return response.Result;
@@ -410,9 +446,16 @@ public sealed partial class StaffOperations
             EF.Functions.ILike(item.Role.Name, "ADMIN")).Select(item => new { item.Id, item.Email }).ToListAsync(cancellationToken);
         var dutyLines = plan.Unassign.Select(item =>
         {
-            var shift = state.Shifts.GetValueOrDefault(item.ShiftId);
-            return shift is null ? $"{item.DutyDate:dd/MM/yyyy}: ca {item.ShiftId}" :
-                $"{item.DutyDate:dd/MM/yyyy}: {shift.Name} ({shift.StartTime:HH\\:mm}-{shift.EndTime:HH\\:mm})";
+            var shift = item.ShiftId.HasValue ? state.Shifts.GetValueOrDefault(item.ShiftId.Value) : null;
+            var taskName = item.TaskType switch
+            {
+                PoolDutyTaskTypes.Measurement => "đo chất lượng nước",
+                PoolDutyTaskTypes.EquipmentChecklist => "kiểm tra thiết bị",
+                PoolDutyTaskTypes.Cleaning => "xử lý chất lượng nước",
+                _ => "công việc ca trực"
+            };
+            return shift is null ? $"{item.DutyDate:dd/MM/yyyy}: {taskName}" :
+                $"{item.DutyDate:dd/MM/yyyy}: {taskName}, {shift.Name} ({shift.StartTime:HH\\:mm}-{shift.EndTime:HH\\:mm})";
         });
         var adminMessage = $"Thay đổi lịch đã để trống {plan.Result.AffectedTasks.Count} ca trực: {string.Join("; ", dutyLines)}. Vui lòng phân công lại. Mở lịch: {link}";
         foreach (var admin in admins)
@@ -445,24 +488,19 @@ public sealed partial class StaffOperations
         SchedulePlan plan, string proposalHash, bool isException, CancellationToken cancellationToken)
     {
         var version = state.Version;
-        Guid? patternId = null;
-        Guid? exceptionId = null;
         var contract = isException ? state.Contract : request.Contract;
-        if (!isException)
+        var applied = plan.Result.Status != "conflict";
+        var change = new StaffScheduleChange
         {
-            var revision = new StaffWorkPattern { EmployeeId = request.EmployeeId, ContractJson = ScheduleSerialize(contract),
-                EffectiveFrom = request.EffectiveFrom, Version = ++version, CreatedBy = request.ActorId, CreatedAtUtc = OnboardingNow };
-            context.StaffWorkPatterns.Add(revision);
-            patternId = revision.Id;
-        }
-        else if (plan.Result.ConflictCount == 0)
-        {
-            var exception = new StaffScheduleException { EmployeeId = request.EmployeeId, Kind = request.Kind!, WorkDate = request.WorkDate,
-                SourceAssignmentIdsJson = ScheduleSerialize(request.SourceAssignmentIds), DestinationShiftId = request.DestinationShiftId,
-                Reason = request.Reason!.Trim(), Version = ++version, CreatedBy = request.ActorId, CreatedAtUtc = OnboardingNow };
-            context.StaffScheduleExceptions.Add(exception);
-            exceptionId = exception.Id;
-        }
+            EmployeeId = request.EmployeeId, Kind = isException ? request.Kind! : "Pattern",
+            AppliedVersion = applied ? ++version : null,
+            ContractJson = isException ? null : ScheduleSerialize(contract), EffectiveFrom = isException ? null : request.EffectiveFrom,
+            WorkDate = isException ? request.WorkDate : null,
+            SourceAssignmentIdsJson = isException ? ScheduleSerialize(request.SourceAssignmentIds) : null,
+            DestinationShiftId = isException ? request.DestinationShiftId : null, Reason = isException ? request.Reason!.Trim() : null,
+            CreatedBy = request.ActorId, CreatedAtUtc = OnboardingNow, OperationId = request.OperationId, ProposalHash = proposalHash
+        };
+        context.StaffScheduleChanges.Add(change);
         foreach (var assignment in plan.Cancel)
         {
             assignment.Status = "Cancelled";
@@ -471,16 +509,19 @@ public sealed partial class StaffOperations
         foreach (var candidate in plan.Create)
             context.EmployeeShifts.Add(new EmployeeShift { Id = Guid.NewGuid(), EmployeeId = request.EmployeeId,
                 ShiftId = candidate.Shift.Id, Shift = candidate.Shift, WorkDate = candidate.Date, Status = "Scheduled",
-                WorkPatternId = patternId, ScheduleExceptionId = exceptionId, CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow });
+                ScheduleChangeId = change.Id, CreatedAt = OnboardingNow, UpdatedAt = OnboardingNow });
         foreach (var duty in plan.Unassign)
         {
             duty.AssignedEmployeeId = null;
+            duty.EmployeeShiftId = null;
             duty.Status = "Unassigned";
+            duty.UnassignedReason = "WORK_SCHEDULE_CHANGED";
+            if (duty.TaskType == PoolDutyTaskTypes.Cleaning) duty.DueAtUtc = null;
+            duty.Revision++;
             duty.UpdatedAt = OnboardingNow;
         }
         var response = new WorkPatternResponse(contract, version, plan.Result with { OperationId = request.OperationId });
-        context.StaffScheduleOperations.Add(new StaffScheduleOperation { Id = request.OperationId, EmployeeId = request.EmployeeId,
-            ActorId = request.ActorId, ProposalHash = proposalHash, ResponseJson = ScheduleSerialize(response), CreatedAtUtc = OnboardingNow });
+        change.ResponseJson = ScheduleSerialize(response);
         await QueueScheduleChangeAsync(request, state, plan, response, cancellationToken);
         return response;
     }

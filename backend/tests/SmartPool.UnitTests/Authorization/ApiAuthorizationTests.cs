@@ -9,6 +9,9 @@ using SmartPool.API.Authorization;
 using SmartPool.API.Controllers;
 using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Authorization;
+using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageWaterQuality.Dtos;
+using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Features.Notifications;
 using SmartPool.Application.Features.Notifications.Queries.GetNotifications;
 using SmartPool.Application.Interfaces.Services;
@@ -16,6 +19,7 @@ using SmartPool.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using SmartPool.Application.Features.ManageStaffs.Onboarding;
+using SmartPool.Infrastructure.Services;
 
 namespace SmartPool.UnitTests.Authorization;
 
@@ -98,6 +102,52 @@ public sealed class ApiAuthorizationTests
     }
 
     [Fact]
+    public void CurrentUser_IsInRoleAcceptsStoredRoleCasing()
+    {
+        var principal = CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Lifeguard");
+        var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = principal } };
+        var currentUser = new CurrentUser(accessor);
+
+        Assert.True(currentUser.IsInRole("LIFEGUARD"));
+    }
+
+    [Theory]
+    [InlineData("Admin", true, false)]
+    [InlineData("Lifeguard", true, true)]
+    [InlineData("Customer", false, false)]
+    public async Task OperationalTaskList_AcceptsStoredRoleCasingAndScopesLifeguards(
+        string role, bool allowed, bool selfScope)
+    {
+        var actorId = Guid.NewGuid();
+        GetOperationalTasksQuery? sentQuery = null;
+        var response = new PagedResponse<PoolDutyScheduleDto>();
+        var sender = new Mock<ISender>();
+        sender.Setup(item => item.Send(It.IsAny<GetOperationalTasksQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<PagedResponse<PoolDutyScheduleDto>>, CancellationToken>((query, _) => sentQuery = (GetOperationalTasksQuery)query)
+            .ReturnsAsync(response);
+        var controller = new OperationalTasksController(sender.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = CreatePrincipal(true, actorId.ToString(), role) }
+            }
+        };
+
+        var result = await controller.GetTasks(new GetOperationalTasksQuery(), CancellationToken.None);
+
+        if (!allowed)
+        {
+            Assert.IsType<ForbidResult>(result.Result);
+            sender.Verify(item => item.Send(It.IsAny<GetOperationalTasksQuery>(), It.IsAny<CancellationToken>()), Times.Never);
+            return;
+        }
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.NotNull(sentQuery);
+        Assert.Equal(selfScope ? actorId : null, sentQuery!.EmployeeId);
+    }
+
+    [Fact]
     public void OperationalEndpoints_RequirePermissions()
     {
         var controllers = new[]
@@ -105,6 +155,7 @@ public sealed class ApiAuthorizationTests
             typeof(ServicesController), typeof(StaffsController), typeof(ShiftsController),
             typeof(RentalsController), typeof(PoolAccessController), typeof(TicketController),
             typeof(NotificationsController), typeof(PaymentsController), typeof(ReportsController),
+            typeof(OperationalTasksController),
             typeof(ProfilesController), typeof(SwimClassesController)
         };
         var actions = controllers.SelectMany(controller => controller.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)

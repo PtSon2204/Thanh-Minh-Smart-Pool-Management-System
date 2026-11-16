@@ -7,13 +7,14 @@ using SmartPool.Application.Features.ManageWaterQuality.Queries.GetPoolDutySched
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityAnalytics;
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityLogs;
 using SmartPool.Application.Features.ManageWaterQuality.Services;
+using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.WaterQuality;
 
-public sealed class WaterQualityOperations : IWaterQualityOperations
+public sealed partial class WaterQualityOperations : IWaterQualityOperations
 {
     private readonly SmartPoolDbContext _context;
     private readonly TimeProvider _timeProvider;
@@ -27,48 +28,28 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
     private static (int Page, int PageSize) Normalize(int page, int pageSize) =>
         (Math.Max(1, page), Math.Clamp(pageSize, 1, 100));
 
-    private async Task EnsurePoolDutyTableAsync(CancellationToken cancellationToken)
-    {
-        const string sql = @"
-            CREATE TABLE IF NOT EXISTS smart_pool.pool_duty_schedules (
-                id uuid NOT NULL,
-                duty_date date NOT NULL,
-                shift_id uuid NOT NULL,
-                assigned_employee_id uuid NOT NULL,
-                status character varying(50) NOT NULL DEFAULT 'Scheduled',
-                assignment_type character varying(50) NOT NULL DEFAULT 'Auto',
-                water_quality_log_id uuid NULL,
-                notes text NULL,
-                created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT pk_pool_duty_schedules PRIMARY KEY (id)
-            );
-            CREATE INDEX IF NOT EXISTS ix_pool_duty_schedules_duty_date ON smart_pool.pool_duty_schedules(duty_date);
-            CREATE INDEX IF NOT EXISTS ix_pool_duty_schedules_employee ON smart_pool.pool_duty_schedules(assigned_employee_id);
-            CREATE INDEX IF NOT EXISTS ix_pool_duty_schedules_shift ON smart_pool.pool_duty_schedules(shift_id);
-        ";
-        try
-        {
-            await _context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
-        }
-        catch
-        {
-            // Ignore if already created or executed in migration
-        }
-    }
+    public Task<PoolDutySchedule?> GetOperationalTaskByIdAsync(Guid taskId, CancellationToken cancellationToken) =>
+        _context.PoolDutySchedules.FirstOrDefaultAsync(item => item.Id == taskId && item.TaskType != null, cancellationToken);
 
-    public async Task<WaterQualityLogDto> CreateWaterQualityLogAsync(WaterQualityLog log, CancellationToken cancellationToken)
+    public async Task<WaterQualityLogDto> CreateWaterQualityLogAsync(WaterQualityLog log,
+        CancellationToken cancellationToken, OperationalTaskExecutionAuthorization? taskExecution)
     {
+        if (log.OperationalTaskId.HasValue)
+        {
+            if (taskExecution is null)
+                throw new UnauthorizedAccessException("Cần xác thực quyền thực hiện công việc.");
+            return await CreateTaskLinkedWaterQualityLogAsync(log, taskExecution, cancellationToken);
+        }
+
         _context.WaterQualityLogs.Add(log);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Tự động gán kết quả đo vào lịch trực hôm nay của nhân viên (nếu có)
         try
         {
-            await EnsurePoolDutyTableAsync(cancellationToken);
             var today = DateOnly.FromDateTime(log.InspectionTime);
             var duty = await _context.PoolDutySchedules
-                .FirstOrDefaultAsync(d => d.DutyDate == today && d.AssignedEmployeeId == log.InspectedBy && d.WaterQualityLogId == null, cancellationToken);
+                .FirstOrDefaultAsync(d => d.TaskType == null && d.DutyDate == today
+                    && d.AssignedEmployeeId == log.InspectedBy && d.WaterQualityLogId == null, cancellationToken);
             if (duty != null)
             {
                 duty.WaterQualityLogId = log.Id;
@@ -231,8 +212,6 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
 
     public async Task<PoolDutyOptionsResponse> GetPoolDutyOptionsAsync(CancellationToken cancellationToken)
     {
-        await EnsurePoolDutyTableAsync(cancellationToken);
-
         var shifts = await _context.Shifts.AsNoTracking()
             .OrderBy(s => s.StartTime)
             .Select(s => new PoolDutyShiftOptionDto
@@ -280,27 +259,9 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
 
     public async Task<PagedResponse<PoolDutyScheduleDto>> GetPoolDutySchedulesAsync(GetPoolDutySchedulesQuery query, CancellationToken cancellationToken)
     {
-        await EnsurePoolDutyTableAsync(cancellationToken);
-
-        // Tự động phân công lịch trực bể nếu khoảng thời gian này chưa có lịch nào
-        if (query.FromDate.HasValue && query.ToDate.HasValue && !query.EmployeeId.HasValue && string.IsNullOrWhiteSpace(query.Status))
-        {
-            var hasAny = await _context.PoolDutySchedules
-                .AnyAsync(p => p.DutyDate >= query.FromDate.Value && p.DutyDate <= query.ToDate.Value, cancellationToken);
-            if (!hasAny)
-            {
-                await AutoAssignPoolDutySchedulesAsync(new AutoAssignPoolDutyCommand
-                {
-                    FromDate = query.FromDate.Value,
-                    ToDate = query.ToDate.Value,
-                    OverwriteExisting = false,
-                    DefaultNotes = "Đo pH, Clo tự do đầu ca và kiểm tra vệ sinh mặt nước bể bơi"
-                }, cancellationToken);
-            }
-        }
-
         var (page, pageSize) = Normalize(query.PageIndex, query.PageSize);
         var dbQuery = _context.PoolDutySchedules.AsNoTracking()
+            .Where(item => item.TaskType == null)
             .Include(p => p.Shift)
             .Include(p => p.AssignedEmployee)
                 .ThenInclude(u => u!.UserProfile)
@@ -355,11 +316,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
 
     public async Task<AutoAssignPoolDutyResultDto> AutoAssignPoolDutySchedulesAsync(AutoAssignPoolDutyCommand command, CancellationToken cancellationToken)
     {
-        await EnsurePoolDutyTableAsync(cancellationToken);
-
         var now = _timeProvider.GetUtcNow().UtcDateTime;
-
-        // Xác định ca trực cần gán
         var shiftsQuery = _context.Shifts.AsNoTracking().AsQueryable();
         if (command.ShiftIds != null && command.ShiftIds.Count > 0)
         {
@@ -375,7 +332,6 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             };
         }
 
-        // Xác định danh sách nhân viên ứng viên
         List<Guid> candidateIds;
         if (command.CandidateEmployeeIds != null && command.CandidateEmployeeIds.Count > 0)
         {
@@ -405,9 +361,8 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             };
         }
 
-        // Tải các lịch trực đã có trong khoảng thời gian
         var existingSchedules = await _context.PoolDutySchedules
-            .Where(p => p.DutyDate >= command.FromDate && p.DutyDate <= command.ToDate)
+            .Where(p => p.TaskType == null && p.DutyDate >= command.FromDate && p.DutyDate <= command.ToDate)
             .ToListAsync(cancellationToken);
 
         var assignedList = new List<PoolDutySchedule>();
@@ -422,7 +377,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             foreach (var shift in shifts)
             {
                 totalSlots++;
-                var existing = existingSchedules.FirstOrDefault(e => e.DutyDate == date && e.ShiftId == shift.Id);
+                var existing = existingSchedules.FirstOrDefault(e => e.TaskType == null && e.DutyDate == date && e.ShiftId == shift.Id);
 
                 if (existing != null)
                 {
@@ -432,7 +387,6 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
                         continue;
                     }
 
-                    // Ghi đè nhân viên trực vòng tròn
                     var assignedEmpId = candidateIds[candidateIndex % candidateIds.Count];
                     candidateIndex++;
 
@@ -455,6 +409,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
                     var newSchedule = new PoolDutySchedule
                     {
                         Id = Guid.NewGuid(),
+                        TaskType = null,
                         DutyDate = date,
                         ShiftId = shift.Id,
                         AssignedEmployeeId = assignedEmpId,
@@ -473,7 +428,6 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Load relations for response
         var assignedIds = assignedList.Select(a => a.Id).ToList();
         var resultDtos = await _context.PoolDutySchedules.AsNoTracking()
             .Include(p => p.Shift)
@@ -481,7 +435,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
                 .ThenInclude(u => u!.UserProfile)
             .Include(p => p.AssignedEmployee)
                 .ThenInclude(u => u!.Role)
-            .Where(p => assignedIds.Contains(p.Id))
+            .Where(p => p.TaskType == null && assignedIds.Contains(p.Id))
             .OrderBy(p => p.DutyDate)
             .ThenBy(p => p.Shift != null ? p.Shift.StartTime : TimeOnly.MinValue)
             .Select(p => MapToPoolDutyDto(p))
@@ -500,19 +454,15 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
 
     public async Task<PoolDutyScheduleDto> SavePoolDutyScheduleAsync(UpdatePoolDutyScheduleCommand command, CancellationToken cancellationToken)
     {
-        await EnsurePoolDutyTableAsync(cancellationToken);
-
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         PoolDutySchedule schedule;
 
         if (command.Id.HasValue && command.Id.Value != Guid.Empty)
         {
             schedule = await _context.PoolDutySchedules
-                .FirstOrDefaultAsync(p => p.Id == command.Id.Value, cancellationToken)
+                .FirstOrDefaultAsync(p => p.TaskType == null && p.Id == command.Id.Value, cancellationToken)
                 ?? throw new KeyNotFoundException($"Không tìm thấy lịch trực có mã {command.Id.Value}.");
 
-            // Giữ nguyên DutyDate ban đầu khi cập nhật, không cho phép sửa ngày
-            // schedule.DutyDate = command.DutyDate;
             schedule.ShiftId = command.ShiftId;
             schedule.AssignedEmployeeId = command.AssignedEmployeeId;
             schedule.Status = command.Status;
@@ -524,7 +474,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
         else
         {
             var existing = await _context.PoolDutySchedules
-                .FirstOrDefaultAsync(p => p.DutyDate == command.DutyDate && p.ShiftId == command.ShiftId, cancellationToken);
+                .FirstOrDefaultAsync(p => p.TaskType == null && p.DutyDate == command.DutyDate && p.ShiftId == command.ShiftId, cancellationToken);
 
             if (existing != null)
             {
@@ -541,6 +491,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
                 schedule = new PoolDutySchedule
                 {
                     Id = Guid.NewGuid(),
+                    TaskType = null,
                     DutyDate = command.DutyDate,
                     ShiftId = command.ShiftId,
                     AssignedEmployeeId = command.AssignedEmployeeId,
@@ -564,7 +515,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             .Include(p => p.AssignedEmployee)
                 .ThenInclude(u => u!.Role)
             .Include(p => p.WaterQualityLog)
-            .FirstAsync(p => p.Id == schedule.Id, cancellationToken);
+            .FirstAsync(p => p.TaskType == null && p.Id == schedule.Id, cancellationToken);
 
         return MapToPoolDutyDto(saved);
     }
@@ -583,6 +534,7 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             InspectorName = log.Inspector?.UserProfile?.FullName ?? log.Inspector?.Username,
             EquipmentId = log.EquipmentId,
             EquipmentName = log.Equipment?.Name,
+            OperationalTaskId = log.OperationalTaskId,
             Status = log.Status,
             Recommendation = log.Recommendation,
             EvaluationVersion = log.EvaluationVersion,
@@ -601,7 +553,13 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             ShiftName = p.Shift?.Name ?? "Ca trực",
             ShiftStartTime = p.Shift?.StartTime ?? TimeOnly.MinValue,
             ShiftEndTime = p.Shift?.EndTime ?? TimeOnly.MinValue,
+            TaskType = p.TaskType,
+            InspectionWindow = p.InspectionWindow,
+            EmployeeShiftId = p.EmployeeShiftId,
+            ScheduledAtUtc = p.ScheduledAtUtc,
+            DueAtUtc = p.DueAtUtc,
             AssignedEmployeeId = p.AssignedEmployeeId,
+            PreferredEmployeeId = p.PreferredEmployeeId,
             AssignedEmployeeName = p.AssignedEmployee?.UserProfile?.FullName
                 ?? p.AssignedEmployee?.Username
                 ?? "Chưa xác định",
@@ -609,6 +567,10 @@ public sealed class WaterQualityOperations : IWaterQualityOperations
             EmployeeRole = p.AssignedEmployee?.Role?.Name,
             Status = p.Status,
             AssignmentType = p.AssignmentType,
+            MeasurementRecurrenceId = p.MeasurementRecurrenceId,
+            TriggerWaterQualityLogId = p.TriggerWaterQualityLogId,
+            UnassignedReason = p.UnassignedReason,
+            Revision = p.Revision,
             WaterQualityLogId = p.WaterQualityLogId,
             MeasuredPh = p.WaterQualityLog?.PhValue,
             MeasuredChlorine = p.WaterQualityLog?.FreeChlorineMgL,

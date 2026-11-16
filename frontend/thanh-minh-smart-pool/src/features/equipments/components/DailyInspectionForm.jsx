@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import {
   Card,
   Table,
@@ -35,20 +35,21 @@ import dayjs from 'dayjs'
 import CameraCaptureModal from './CameraCaptureModal'
 import { useInspectionForm, useSubmitInspection } from '../hooks/useInspections'
 import inspectionService from '../services/inspectionService'
+import { FIXED_INSPECTION_SHIFT_IDS } from '../inspectionConstants'
 
 const { Text } = Typography
 
 // 2 Ca cố định của bể bơi
 const FIXED_SHIFTS_FALLBACK = [
   {
-    shiftId: '0f5c2b1a-7d3e-4a6b-8c9d-1e2f3a4b5c6d',
+    shiftId: FIXED_INSPECTION_SHIFT_IDS.morning,
     name: 'Ca sáng',
     timeRange: '06:00 - 11:30',
     allowedFromTime: '05:30',
     allowedToTime: '11:30',
   },
   {
-    shiftId: '1a6d3c2b-8e4f-4b7c-9d0e-2f3a4b5c6d7e',
+    shiftId: FIXED_INSPECTION_SHIFT_IDS.afternoon,
     name: 'Ca chiều',
     timeRange: '13:30 - 19:30',
     allowedFromTime: '13:00',
@@ -56,7 +57,7 @@ const FIXED_SHIFTS_FALLBACK = [
   },
 ]
 
-export default function DailyInspectionForm({ onSuccess }) {
+export default function DailyInspectionForm({ onSuccess, operationalTaskId, operationalTaskDate, initialShiftId, adminTaskExecution = null }) {
   const { data: formData, isLoading, isError, refetch } = useInspectionForm()
   const submitMutation = useSubmitInspection()
 
@@ -73,9 +74,12 @@ export default function DailyInspectionForm({ onSuccess }) {
 
   // Lưu chỉnh sửa của người dùng theo equipmentId
   const [itemEdits, setItemEdits] = useState({})
-  const [selectedShiftId, setSelectedShiftId] = useState(null)
+  const [selectedShiftId, setSelectedShiftId] = useState(initialShiftId || null)
   const [generalNotes, setGeneralNotes] = useState('')
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false)
+  const [confirmation, setConfirmation] = useState(null)
+  const [submitError, setSubmitError] = useState(null)
+  const submitLock = useRef(false)
+  const [executionContext] = useState(adminTaskExecution)
   const [formSearch, setFormSearch] = useState('')
   const [filterOnlyIssues, setFilterOnlyIssues] = useState(false)
   const [uploadingByEqId, setUploadingByEqId] = useState({})
@@ -94,7 +98,9 @@ export default function DailyInspectionForm({ onSuccess }) {
   // Trạng thái kiểm tra thời gian và quyền nộp của ca đang chọn
   const isSelectedShiftAlreadySubmitted = Boolean(selectedShift?.isAlreadySubmittedToday)
   const isSelectedShiftOpen = selectedShift?.isOpenNow !== undefined ? selectedShift.isOpenNow : true
-  const canSubmitSelectedShift = isSelectedShiftOpen && !isSelectedShiftAlreadySubmitted
+  const todayVietnam = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date())
+  const isTaskDateToday = !operationalTaskDate || operationalTaskDate === todayVietnam
+  const canSubmitSelectedShift = isSelectedShiftOpen && !isSelectedShiftAlreadySubmitted && isTaskDateToday
 
   // Tính toán checklist
   const checklist = formItems.map((item) => {
@@ -227,6 +233,11 @@ export default function DailyInspectionForm({ onSuccess }) {
   }, [checklist, filterOnlyIssues, formSearch])
 
   const handleSubmit = async () => {
+    if (submitLock.current || confirmation) return
+    if (Object.values(uploadingByEqId).some(Boolean)) {
+      message.warning('Chờ tải ảnh xong trước khi xác nhận biên bản.')
+      return
+    }
     if (!effectiveShiftId) {
       notification.warning({
         message: 'Chưa chọn ca trực',
@@ -239,7 +250,9 @@ export default function DailyInspectionForm({ onSuccess }) {
     if (!canSubmitSelectedShift) {
       notification.error({
         message: 'Không thể nộp biên bản',
-        description: isSelectedShiftAlreadySubmitted
+        description: !isTaskDateToday
+          ? 'Chỉ được nộp checklist đúng ngày công việc theo giờ Việt Nam.'
+          : isSelectedShiftAlreadySubmitted
           ? `${selectedShift?.name} hôm nay đã có biên bản kiểm tra. Mỗi ca chỉ nộp 1 lần.`
           : `Chưa đến khung giờ kiểm tra cho ${selectedShift?.name}. Chỉ mở trước ca trực 30 phút.`,
         placement: 'topRight',
@@ -258,32 +271,41 @@ export default function DailyInspectionForm({ onSuccess }) {
       return
     }
 
-    if (issuesCount > 0) {
-      setConfirmModalOpen(true)
+    const payload = {
+      shiftId: effectiveShiftId,
+      ...(operationalTaskId ? { operationalTaskId } : {}),
+      ...(executionContext ? {
+        adminExecutionConfirmed: true,
+        expectedTaskRevision: executionContext.revision,
+        expectedAssigneeId: executionContext.assignedEmployeeId,
+      } : {}),
+      notes: generalNotes.trim() || null,
+      items: checklist.map((item) => ({
+        equipmentId: item.equipmentId,
+        equipmentName: item.equipmentName,
+        category: item.category,
+        priorityLevel: item.priorityLevel || 'Normal',
+        location: item.location,
+        isPassed: item.isPassed,
+        note: item.note?.trim() || null,
+        defectImageUrls: [...(item.defectImageUrls || [])],
+      })),
+    }
+    setSubmitError(null)
+    if (issuesCount > 0 || executionContext) {
+      setConfirmation({ payload, task: executionContext, shiftName: selectedShift?.name })
     } else {
-      executeSubmit()
+      await executeSubmit(payload)
     }
   }
 
-  const executeSubmit = async () => {
+  const executeSubmit = async (payload) => {
+    if (submitLock.current) return
+    submitLock.current = true
+    setSubmitError(null)
     try {
-      const payload = {
-        shiftId: effectiveShiftId,
-        notes: generalNotes.trim() || null,
-        items: checklist.map((c) => ({
-          equipmentId: c.equipmentId,
-          equipmentName: c.equipmentName,
-          category: c.category,
-          priorityLevel: c.priorityLevel || 'Normal',
-          location: c.location,
-          isPassed: c.isPassed,
-          note: c.note?.trim() || null,
-          defectImageUrls: c.defectImageUrls || [],
-        })),
-      }
-
       await submitMutation.mutateAsync(payload)
-      setConfirmModalOpen(false)
+      setConfirmation(null)
 
       notification.success({
         message: 'Nộp biên bản kiểm tra thành công!',
@@ -302,11 +324,14 @@ export default function DailyInspectionForm({ onSuccess }) {
           ? Object.values(error.response.data.errors).flat().join(' ')
           : 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.')
 
+      setSubmitError(serverMessage)
       notification.error({
         message: 'Nộp kiểm tra thất bại',
         description: serverMessage,
         placement: 'topRight',
       })
+    } finally {
+      submitLock.current = false
     }
   }
 
@@ -519,6 +544,8 @@ export default function DailyInspectionForm({ onSuccess }) {
 
   return (
     <div>
+      {submitError && !confirmation && <Alert type="error" showIcon message={submitError} />}
+      {!isTaskDateToday && <Alert type="warning" showIcon message="Chỉ được nộp checklist đúng ngày công việc theo giờ Việt Nam." />}
       {/* Thanh tổng quan & Thao tác nhanh */}
       <Card
         style={{ marginBottom: 16, borderRadius: 10 }}
@@ -602,6 +629,7 @@ export default function DailyInspectionForm({ onSuccess }) {
             Ca trực kiểm tra:
           </div>
           <Select
+            disabled={Boolean(operationalTaskId)}
             style={{ width: '100%', maxWidth: 450 }}
             size="large"
             value={effectiveShiftId}
@@ -674,7 +702,7 @@ export default function DailyInspectionForm({ onSuccess }) {
             value={generalNotes}
             onChange={(e) => setGeneralNotes(e.target.value)}
             placeholder="Nhập ghi chú hoặc nhận xét chung về ca trực nếu có..."
-            disabled={!canSubmitSelectedShift}
+            disabled={!canSubmitSelectedShift || Boolean(confirmation) || Object.values(uploadingByEqId).some(Boolean)}
           />
         </div>
 
@@ -691,7 +719,7 @@ export default function DailyInspectionForm({ onSuccess }) {
             size="large"
             icon={<SendOutlined />}
             loading={submitMutation.isPending}
-            disabled={!canSubmitSelectedShift}
+            disabled={!canSubmitSelectedShift || Boolean(confirmation) || Object.values(uploadingByEqId).some(Boolean)}
             onClick={handleSubmit}
             style={{
               backgroundColor: !canSubmitSelectedShift
@@ -708,16 +736,34 @@ export default function DailyInspectionForm({ onSuccess }) {
 
       {/* Modal xác nhận nếu có thiết bị báo hỏng */}
       <Modal
-        title="Xác nhận gửi biên bản có thiết bị hư hỏng"
-        open={confirmModalOpen}
-        onOk={executeSubmit}
+        title={adminTaskExecution ? 'Xác nhận thực hiện công việc' : 'Xác nhận gửi biên bản có thiết bị hư hỏng'}
+        open={Boolean(confirmation)}
+        onOk={() => confirmation && executeSubmit(confirmation.payload)}
         confirmLoading={submitMutation.isPending}
-        onCancel={() => setConfirmModalOpen(false)}
+        onCancel={() => { if (!submitLock.current) setConfirmation(null) }}
+        closable={!submitMutation.isPending}
+        maskClosable={!submitMutation.isPending}
+        cancelButtonProps={{ disabled: submitMutation.isPending }}
+        autoFocusButton={null}
         okText="Xác nhận & Gửi biên bản"
         cancelText="Kiểm tra lại"
         okButtonProps={{ danger: true }}
       >
-        {checklist.some((item) => !item.isPassed && item.priorityLevel === 'Critical') && (
+        {submitError && <Alert type="error" showIcon message={submitError} />}
+        {confirmation?.task && <Alert
+          type="warning"
+          showIcon
+          message="Admin xác nhận thực hiện checklist"
+          description={(
+            <div>
+              <div>Công việc: Kiểm tra thiết bị đầu ca ({confirmation.shiftName}) ngày {dayjs(confirmation.task.dutyDate).format('DD/MM/YYYY')}.</div>
+              <div>Người được phân công: {confirmation.task.assignedEmployeeName} (giữ nguyên).</div>
+              <div>Người thực hiện được ghi nhận: {confirmation.task.performerName} (Admin đang đăng nhập).</div>
+            </div>
+          )}
+          style={{ marginBottom: 12 }}
+        />}
+        {confirmation?.payload.items.some((item) => !item.isPassed && item.priorityLevel === 'Critical') && (
           <Alert
             type="error"
             showIcon
@@ -727,11 +773,11 @@ export default function DailyInspectionForm({ onSuccess }) {
           />
         )}
         <p>
-          Bạn đang đánh dấu <strong>{issuesCount}</strong> thiết bị gặp sự cố/không đạt chuẩn cho{' '}
-          <strong>{selectedShift?.name}</strong>:
+          Bạn đang đánh dấu <strong>{confirmation?.payload.items.filter((item) => !item.isPassed).length || 0}</strong> thiết bị gặp sự cố/không đạt chuẩn cho{' '}
+          <strong>{confirmation?.shiftName}</strong>:
         </p>
         <ul style={{ paddingLeft: 20, color: '#dc2626' }}>
-          {checklist
+          {(confirmation?.payload.items || [])
             .filter((item) => !item.isPassed)
             .map((item) => (
               <li key={item.equipmentId} style={{ marginBottom: 4 }}>
@@ -739,6 +785,7 @@ export default function DailyInspectionForm({ onSuccess }) {
               </li>
             ))}
         </ul>
+        <p>Ghi chú chung: {confirmation?.payload.notes || 'Không có'}</p>
         <Alert
           type="warning"
           message="Lưu ý"

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Table,
   Tag,
@@ -9,6 +10,7 @@ import {
   Card,
   Pagination,
   Empty,
+  Alert,
 } from 'antd'
 import {
   EyeOutlined,
@@ -24,6 +26,8 @@ import DailyInspectionDetailsModal from './DailyInspectionDetailsModal'
 const { RangePicker } = DatePicker
 
 export default function DailyInspectionHistory() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedInspectionId = searchParams.get('inspectionId') || undefined
   const [params, setParams] = useState({
     pageIndex: 1,
     pageSize: 10,
@@ -35,10 +39,14 @@ export default function DailyInspectionHistory() {
   const [selectedInspection, setSelectedInspection] = useState(null)
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
 
-  const { data, isLoading, isFetching, refetch } = useInspections(params)
+  const { data, isLoading, isFetching, isError, refetch } = useInspections(linkedInspectionId
+    ? { inspectionId: linkedInspectionId, pageIndex: 1, pageSize: 10 }
+    : params)
 
   const items = data?.items || []
   const totalCount = data?.totalCount || 0
+
+  const linkedInspection = linkedInspectionId ? items.find((item) => item.id === linkedInspectionId) : null
 
   const handleDateChange = (dates) => {
     if (dates && dates.length === 2) {
@@ -225,6 +233,8 @@ export default function DailyInspectionHistory() {
 
       {/* Bảng dữ liệu */}
       <Card style={{ borderRadius: 10 }}>
+        {isError && <Alert type="error" showIcon message="Không thể tải biên bản kiểm tra. Hãy thử làm mới." />}
+        {linkedInspectionId && !isLoading && !isError && items.length === 0 && <Alert type="warning" showIcon message="Không tìm thấy biên bản được yêu cầu." />}
         <Table
           dataSource={items}
           columns={columns}
@@ -259,11 +269,18 @@ export default function DailyInspectionHistory() {
 
       {/* Modal chi tiết */}
       <DailyInspectionDetailsModal
-        open={detailsModalOpen}
-        inspection={selectedInspection}
+        open={Boolean(linkedInspection) || detailsModalOpen}
+        inspection={linkedInspection || selectedInspection}
+        readOnly={Boolean(linkedInspectionId)}
         onClose={() => {
           setDetailsModalOpen(false)
           setSelectedInspection(null)
+          if (linkedInspectionId) {
+            const nextSearchParams = new URLSearchParams(searchParams)
+            nextSearchParams.delete('inspectionId')
+            setSearchParams(nextSearchParams, { replace: true })
+            setParams((previous) => ({ ...previous, inspectionId: undefined, pageIndex: 1 }))
+          }
         }}
         onInspectionUpdated={(updated) => {
           setSelectedInspection(updated)

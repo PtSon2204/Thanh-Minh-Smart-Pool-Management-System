@@ -54,6 +54,12 @@ export default function StaffSchedulePage() {
   const resourcesReady = roster.isSuccess && shifts.isSuccess && schedule.isSuccess && !schedule.isError
   const firstAssignableDate = week.find((date) => date > vietnamToday())
   const canAssign = isAdmin && resourcesReady && !draftsLocked
+  const assignmentUnavailableReason = !isAdmin ? null
+    : actionsDisabled ? 'Không thể phân ca khi thao tác lịch đang xử lý.'
+      : !resourcesReady ? 'Đang tải lịch, nhân viên hoặc ca làm việc.'
+        : draftsLocked ? 'Bản nháp đang khóa. Hãy kiểm tra hoặc hủy bản nháp trước.'
+          : !firstAssignableDate ? 'Tuần đã chọn không còn ngày trong tương lai để phân ca.'
+            : null
   const blocker = useBlocker(() => isSaving || draftsDirty || replacementBusy || replacementUncertain || Boolean(replacementAssignment))
 
   useBeforeUnload((event) => {
@@ -215,7 +221,7 @@ export default function StaffSchedulePage() {
   if (!canRead) return <div className="service-list-page staff-schedule-page"><Alert type="warning" showIcon title="Không có quyền truy cập" description="Chỉ quản trị viên và nhân viên mới có thể xem lịch làm việc." /></div>
 
   return <div className="service-list-page staff-schedule-page staff-schedule-page--wide">
-    <ServiceListHeader title={<>Lịch làm việc <span className="staff-schedule-count">{schedule.isLoading ? 'Đang tải…' : `${visibleItems.length} lịch trong tuần`}</span></>} action={isAdmin ? <div className="staff-schedule-header-actions"><Button type="primary" onClick={() => setModalContext({ workDate: firstAssignableDate })} disabled={actionsDisabled || !canAssign || !firstAssignableDate}>Phân ca</Button></div> : null} />
+    <ServiceListHeader title={<>Lịch làm việc <span className="staff-schedule-count">{schedule.isLoading ? 'Đang tải…' : `${visibleItems.length} lịch trong tuần`}</span></>} action={isAdmin ? <div className="staff-schedule-header-actions"><Button type="primary" onClick={() => setModalContext({ workDate: firstAssignableDate })} disabled={Boolean(assignmentUnavailableReason)} aria-describedby={assignmentUnavailableReason ? 'staff-schedule-assignment-hint' : undefined}>Phân ca</Button>{assignmentUnavailableReason && <span id="staff-schedule-assignment-hint" className="staff-schedule-assignment-hint" role="status">{assignmentUnavailableReason}</span>}</div> : null} />
     <section className="service-list-toolbar staff-schedule-toolbar" aria-label="Điều khiển lịch làm việc">
       <div className="service-list-filters staff-schedule-filters">
         <Button aria-label="Tuần trước" icon={<LeftOutlined />} onClick={() => changeWeek(dayjs(monday).subtract(7, 'day').format('YYYY-MM-DD'))} disabled={actionsDisabled} />

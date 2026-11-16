@@ -15,7 +15,7 @@ namespace SmartPool.API
             if (!File.Exists(envFilePath))
                 envFilePath = Path.Combine(AppContext.BaseDirectory, ".env");
             if (File.Exists(envFilePath))
-                Env.Load(envFilePath);
+                Env.NoClobber().Load(envFilePath);
 
             var builder = WebApplication.CreateBuilder(args);
             builder.Configuration.AddEnvironmentVariables();

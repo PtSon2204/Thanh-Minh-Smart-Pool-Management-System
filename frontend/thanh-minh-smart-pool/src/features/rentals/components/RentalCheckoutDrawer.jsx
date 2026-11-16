@@ -8,6 +8,7 @@ import '../styles/rentalCheckout.css'
 
 const PRODUCT_PAGE_SIZE = 20
 const DEPOSIT_PER_UNIT = 20000
+const VIETNAMESE_MOBILE_PHONE_PATTERN = /^(?:0|\+84)[35789][0-9]{8}$/
 
 function itemsSignature(items) {
   return JSON.stringify((items || []).map(({ productId, quantity }) => ({ productId, quantity })))
@@ -98,7 +99,7 @@ export default function RentalCheckoutDrawer({ open, mutation, paymentState, onC
       const request = {
         requestId: payload?.requestId || createRentalRequestId(),
         customerName: values.customerName.trim(),
-        customerPhone: values.customerPhone.trim(),
+        customerPhone: values.customerPhone.trim().replace(/^\+84/, '0'),
         items: values.items.map(({ productId, quantity }) => ({ productId, quantity, expectedUnitPrice: quotedPrices.get(productId) })),
       }
       if (values.paymentMethod === 'QR') {
@@ -175,18 +176,22 @@ export default function RentalCheckoutDrawer({ open, mutation, paymentState, onC
         </>}
       </Form.List>
       <Form.Item label="Tên khách hàng" name="customerName" rules={[{ required: true, whitespace: true, message: 'Nhập tên khách hàng.' }, { max: 255, message: 'Tên không vượt quá 255 ký tự.' }]}><Input disabled={isPending || isLocked} /></Form.Item>
-       <Form.Item label="Số điện thoại" name="customerPhone" rules={[{ required: true, whitespace: true, message: 'Nhập số điện thoại.' }, { max: 20, message: 'Số điện thoại không vượt quá 20 ký tự.' }]}><Input disabled={isPending || isLocked} /></Form.Item>
+        <Form.Item label="Số điện thoại" name="customerPhone" rules={[{ required: true, whitespace: true, message: 'Nhập số điện thoại.' }, { max: 20, message: 'Số điện thoại không vượt quá 20 ký tự.' }, { pattern: VIETNAMESE_MOBILE_PHONE_PATTERN, message: 'Nhập số di động Việt Nam, bắt đầu bằng 0 hoặc +84.' }]}><Input inputMode="tel" autoComplete="tel" disabled={isPending || isLocked} /></Form.Item>
        <Form.Item label="Cọc cố định mỗi đơn vị"><Input readOnly value={currencyFormatter.format(DEPOSIT_PER_UNIT)} /></Form.Item>
-       <Form.Item label="Phương thức thu tiền" name="paymentMethod" rules={[{ required: true, message: 'Chọn phương thức thu tiền.' }]}><Radio.Group disabled={isPending || isLocked || paymentState.hasUncertainOutcome}><Radio value="CASH">Tiền mặt tại quầy</Radio><Radio value="QR">Chuyển khoản QR</Radio></Radio.Group></Form.Item>
-       <Button className="admin-action-submit" onClick={requestQuote} loading={quoteMutation.isPending} disabled={isPending || isLocked || productsQuery.isLoading}>Nhận báo giá</Button>
-      {quoteIsCurrent && <section className="rental-quote-preview" aria-label="Báo giá thuê">
-        <div className="rental-quote-lines">{quote.items.map((item) => <div key={item.productId}><strong>{item.productName}</strong><span>{item.quantity} x {currencyFormatter.format(item.unitPrice)}</span><span>Phí thuê: {currencyFormatter.format(item.rentalFee)}</span><span>Cọc: {currencyFormatter.format(item.depositAmount)}</span></div>)}</div>
-        <div className="rental-quote-totals"><span>Phí thuê <strong>{currencyFormatter.format(quote.rentalFeeTotal)}</strong></span><span>Cọc hoàn lại ({currencyFormatter.format(quote.depositPerUnit || DEPOSIT_PER_UNIT)}/đơn vị) <strong>{currencyFormatter.format(quote.depositTotal)}</strong></span><span>Tổng cần thu <strong>{currencyFormatter.format(quote.totalToCollect)}</strong></span></div>
-      </section>}
-      {paymentMethod === 'CASH' ? <Form.Item name="collectionConfirmed" valuePropName="checked" rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('Xác nhận đã thu đủ tiền mặt trước khi xuất đồ.')) }]}>
-        <Checkbox disabled={isPending || isLocked}>Tôi xác nhận đã thu đủ tiền mặt theo báo giá và được phép xuất đồ.</Checkbox>
-      </Form.Item> : null}
-      <Button className="admin-action-submit" type="primary" htmlType="submit" loading={mutation.isPending || paymentState.creating} disabled={isPending || paymentState.hasUncertainOutcome || (!quoteIsCurrent && !isLocked)}>{isLocked ? 'Thử lại yêu cầu tiền mặt đã giữ' : paymentMethod === 'QR' ? 'Tạo yêu cầu QR' : 'Xác nhận thu tiền mặt và xuất đồ'}</Button>
+      <div className="rental-checkout-actions">
+        <Form.Item label="Phương thức thu tiền" name="paymentMethod" rules={[{ required: true, message: 'Chọn phương thức thu tiền.' }]}><Radio.Group disabled={isPending || isLocked || paymentState.hasUncertainOutcome}><Radio value="CASH">Tiền mặt tại quầy</Radio><Radio value="QR">Chuyển khoản QR</Radio></Radio.Group></Form.Item>
+        <Button className="admin-action-submit" onClick={requestQuote} loading={quoteMutation.isPending} disabled={isPending || isLocked || productsQuery.isLoading}>Nhận báo giá</Button>
+        {quoteIsCurrent && <section className="rental-quote-preview" aria-label="Báo giá thuê">
+          <div className="rental-quote-lines">{quote.items.map((item) => <div key={item.productId}><strong>{item.productName}</strong><span>{item.quantity} x {currencyFormatter.format(item.unitPrice)}</span><span>Phí thuê: {currencyFormatter.format(item.rentalFee)}</span><span>Cọc: {currencyFormatter.format(item.depositAmount)}</span></div>)}</div>
+          <div className="rental-quote-totals"><span>Phí thuê <strong>{currencyFormatter.format(quote.rentalFeeTotal)}</strong></span><span>Cọc hoàn lại ({currencyFormatter.format(quote.depositPerUnit || DEPOSIT_PER_UNIT)}/đơn vị) <strong>{currencyFormatter.format(quote.depositTotal)}</strong></span><span>Tổng cần thu <strong>{currencyFormatter.format(quote.totalToCollect)}</strong></span></div>
+        </section>}
+        <div className="rental-checkout-final-actions">
+          {paymentMethod === 'CASH' ? <Form.Item name="collectionConfirmed" valuePropName="checked" rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('Xác nhận đã thu đủ tiền mặt trước khi xuất đồ.')) }]}>
+            <Checkbox disabled={isPending || isLocked}>Tôi xác nhận đã thu đủ tiền mặt theo báo giá và được phép xuất đồ.</Checkbox>
+          </Form.Item> : null}
+          <Button className="admin-action-submit" type="primary" htmlType="submit" loading={mutation.isPending || paymentState.creating} disabled={isPending || paymentState.hasUncertainOutcome || (!quoteIsCurrent && !isLocked)}>{isLocked ? 'Thử lại yêu cầu tiền mặt đã giữ' : paymentMethod === 'QR' ? 'Tạo yêu cầu QR' : 'Xác nhận thu tiền mặt và xuất đồ'}</Button>
+        </div>
+      </div>
     </Form>
   </Drawer>
 }

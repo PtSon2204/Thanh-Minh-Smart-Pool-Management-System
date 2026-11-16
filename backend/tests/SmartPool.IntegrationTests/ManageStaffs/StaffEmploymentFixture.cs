@@ -117,7 +117,8 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
     }
 
     public StaffOperations CreateOperations(SmartPoolDbContext? operationContext = null, TimeProvider? timeProvider = null) =>
-        new(operationContext ?? context, mapper, timeProvider ?? TimeProvider.System, Options.Create(new StaffAttendanceQrSettings()));
+        new(operationContext ?? context, mapper, timeProvider ?? TimeProvider.System, Options.Create(new StaffAttendanceQrSettings()),
+            null, new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider());
 
     public CreateStaffCommand CreateCommand(Guid userId) => new()
     {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Modal,
   Form,
@@ -9,6 +9,8 @@ import {
   Space,
   Typography,
   message,
+  Alert,
+  Descriptions,
 } from 'antd';
 import {
   ExperimentOutlined,
@@ -30,11 +32,15 @@ const DEFAULT_PREVIEW = {
   suggestedChemicals: [],
 };
 
-export default function CreateWaterQualityLogModal({ visible, onCancel, onSuccess }) {
+export default function CreateWaterQualityLogModal({ visible, onCancel, onSuccess, operationalTaskId, taskType, adminTaskExecution = null }) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [preview, setPreview] = useState(DEFAULT_PREVIEW);
   const [currentTime, setCurrentTime] = useState(() => dayjs());
+  const [confirmation, setConfirmation] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
+  const submitLock = useRef(false);
+  const [executionContext] = useState(adminTaskExecution);
 
   // Đồng hồ thời gian thực tự động nhảy giây khi mở modal
   useEffect(() => {
@@ -66,21 +72,16 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
   const handleModalAfterClose = () => {
     form.resetFields();
     setPreview(DEFAULT_PREVIEW);
+    setConfirmation(null);
+    setSubmitError(null);
   };
 
-  const handleSubmit = async () => {
+  const executeSubmit = async (payload) => {
+    if (submitLock.current) return;
+    submitLock.current = true;
+    setSubmitting(true);
+    setSubmitError(null);
     try {
-      const values = await form.validateFields();
-      setSubmitting(true);
-
-      const payload = {
-        inspectionTime: (currentTime || dayjs()).toISOString(),
-        phValue: Number(values.phValue),
-        freeChlorineMgL: Number(values.freeChlorineMgL),
-        isWaterClear: values.isWaterClear,
-        notes: values.notes?.trim() || null,
-      };
-
       const res = await waterQualityService.createLog(payload);
       message.success('Đã ghi nhận phiếu đo chất lượng nước thành công!');
 
@@ -88,18 +89,39 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
         message.error('CHÚ Ý: Chỉ số đo ở mức NGUY HIỂM. Hệ thống đã gửi cảnh báo tới Ban quản trị!');
       }
 
+      setConfirmation(null);
       onSuccess(res);
       onCancel();
     } catch (error) {
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      } else if (error?.errorFields) {
-        // Antd validation error, ignore
-      } else {
-        message.error('Có lỗi xảy ra khi lưu phiếu đo.');
-      }
+      setSubmitError(error?.response?.data?.message || 'Có lỗi xảy ra khi lưu phiếu đo. Dữ liệu đã nhập vẫn được giữ.');
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (submitLock.current || confirmation) return;
+    try {
+      const values = await form.validateFields();
+      const payload = {
+        inspectionTime: dayjs().toISOString(),
+        phValue: Number(values.phValue),
+        freeChlorineMgL: Number(values.freeChlorineMgL),
+        isWaterClear: values.isWaterClear,
+        notes: values.notes?.trim() || null,
+        ...(operationalTaskId ? { operationalTaskId } : {}),
+        ...(executionContext ? {
+          adminExecutionConfirmed: true,
+          expectedTaskRevision: executionContext.revision,
+          expectedAssigneeId: executionContext.assignedEmployeeId,
+        } : {}),
+      };
+      setSubmitError(null);
+      if (executionContext) setConfirmation({ payload, task: executionContext });
+      else await executeSubmit(payload);
+    } catch (error) {
+      if (!error?.errorFields) setSubmitError('Không thể kiểm tra dữ liệu phiếu đo.');
     }
   };
 
@@ -129,25 +151,32 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
   };
 
   return (
+    <>
     <Modal
       title={
         <Space>
           <ExperimentOutlined style={{ color: '#1890ff', fontSize: 20 }} />
-          <span>Tạo phiếu kiểm tra chất lượng nước</span>
+          <span>{taskType === 'Cleaning' ? 'Đo kiểm tra lại công việc xử lý nước' : operationalTaskId ? 'Nộp kết quả công việc đo nước' : 'Tạo phiếu kiểm tra chất lượng nước'}</span>
         </Space>
       }
       open={visible}
       onOk={handleSubmit}
-      onCancel={onCancel}
+      onCancel={() => { if (!submitLock.current && !confirmation) onCancel(); }}
       afterClose={handleModalAfterClose}
       confirmLoading={submitting}
+      cancelButtonProps={{ disabled: submitting || Boolean(confirmation) }}
+      okButtonProps={{ disabled: Boolean(confirmation) }}
+      closable={!submitting && !confirmation}
+      maskClosable={!submitting && !confirmation}
       okText="Lưu phiếu đo"
       cancelText="Hủy"
       width={680}
       destroyOnClose
     >
+      {submitError && !confirmation && <Alert type="error" showIcon message={submitError} />}
       <Form
         form={form}
+        disabled={submitting || Boolean(confirmation)}
         layout="vertical"
         onValuesChange={handleValuesChange}
         initialValues={{
@@ -314,5 +343,37 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
         </Form.Item>
       </Form>
     </Modal>
+    <Modal
+      title="Xác nhận thực hiện công việc"
+      open={Boolean(confirmation)}
+      onOk={() => confirmation && executeSubmit(confirmation.payload)}
+      onCancel={() => { if (!submitLock.current) setConfirmation(null); }}
+      confirmLoading={submitting}
+      cancelButtonProps={{ disabled: submitting }}
+      closable={!submitting}
+      maskClosable={!submitting}
+      autoFocusButton={null}
+      okText="Xác nhận & Lưu phiếu đo"
+      cancelText="Kiểm tra lại"
+    >
+      {confirmation && <>
+        <Alert type="warning" showIcon message="Admin xác nhận thực hiện công việc" description={
+          <div>
+            <div>Công việc: {confirmation.task.taskType === 'Cleaning' ? 'Đo kiểm tra lại xử lý nước' : 'Đo chất lượng nước'} ngày {dayjs(confirmation.task.dutyDate).format('DD/MM/YYYY')}.</div>
+            <div>Người được phân công: {confirmation.task.assignedEmployeeName || 'Chưa phân công'} (giữ nguyên).</div>
+            <div>Người thực hiện được ghi nhận: {confirmation.task.performerName} (Admin đang đăng nhập).</div>
+          </div>
+        } />
+        <Descriptions size="small" column={1}>
+          <Descriptions.Item label="Thời điểm đo">{dayjs(confirmation.payload.inspectionTime).format('DD/MM/YYYY HH:mm:ss')}</Descriptions.Item>
+          <Descriptions.Item label="pH">{confirmation.payload.phValue}</Descriptions.Item>
+          <Descriptions.Item label="Clo tự do">{confirmation.payload.freeChlorineMgL} mg/L</Descriptions.Item>
+          <Descriptions.Item label="Độ trong">{confirmation.payload.isWaterClear ? 'Trong vắt' : 'Bị đục / Có cặn'}</Descriptions.Item>
+          <Descriptions.Item label="Ghi chú">{confirmation.payload.notes || 'Không có'}</Descriptions.Item>
+        </Descriptions>
+      </>}
+      {submitError && <Alert type="error" showIcon message={submitError} />}
+    </Modal>
+    </>
   );
 }

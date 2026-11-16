@@ -57,6 +57,9 @@ public sealed class EquipmentInspectionsController : ControllerBase
         if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var inspectorId))
             return Unauthorized(new { message = "Không xác định được danh tính nhân viên." });
 
+        if (User.IsInRole("LIFEGUARD") && !command.OperationalTaskId.HasValue)
+            return BadRequest(new { message = "Nhân viên cứu hộ chỉ có thể nộp biên bản từ công việc đã được phân công." });
+
         command.InspectorId = inspectorId;
 
         try
@@ -72,6 +75,18 @@ public sealed class EquipmentInspectionsController : ControllerBase
                 errors = ex.Errors.GroupBy(e => e.PropertyName)
                     .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())
             });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

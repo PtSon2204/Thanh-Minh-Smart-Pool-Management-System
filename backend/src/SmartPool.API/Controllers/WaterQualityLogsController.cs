@@ -241,5 +241,13 @@ public sealed class WaterQualityLogsController : ControllerBase
         {
             return Unauthorized(new { message = ex.Message });
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 }

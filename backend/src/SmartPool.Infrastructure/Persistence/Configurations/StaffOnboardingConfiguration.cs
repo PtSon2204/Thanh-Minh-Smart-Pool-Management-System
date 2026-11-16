@@ -5,8 +5,7 @@ using SmartPool.Domain.Entities;
 namespace SmartPool.Infrastructure.Persistence.Configurations;
 
 public sealed class StaffOnboardingConfiguration : IEntityTypeConfiguration<StaffInvitation>,
-    IEntityTypeConfiguration<StaffOnboardingRevision>, IEntityTypeConfiguration<StaffOnboardingDocument>,
-    IEntityTypeConfiguration<StaffIdentityClaim>, IEntityTypeConfiguration<StaffCorrectionRequest>
+    IEntityTypeConfiguration<StaffOnboardingRevision>, IEntityTypeConfiguration<StaffOnboardingDocument>
 {
     public void Configure(EntityTypeBuilder<StaffInvitation> builder)
     {
@@ -35,10 +34,12 @@ public sealed class StaffOnboardingConfiguration : IEntityTypeConfiguration<Staf
         builder.HasKey(item => item.Id);
         builder.Property(item => item.Version).IsConcurrencyToken();
         builder.Property(item => item.CccdDigest).HasMaxLength(64);
+        builder.Property(item => item.ReservedCccdDigest).HasMaxLength(64);
         builder.Property(item => item.CorrectionReason).HasMaxLength(1000);
         builder.HasIndex(item => new { item.InvitationId, item.RevisionNumber }).IsUnique();
         builder.HasIndex(item => new { item.EmployeeId, item.RevisionNumber }).IsUnique();
         builder.HasIndex(item => item.EmployeeId).IsUnique().HasFilter("\"State\" IN ('DRAFT','SUBMITTED','CHANGES_REQUESTED')");
+        builder.HasIndex(item => item.ReservedCccdDigest).IsUnique().HasFilter("\"ReservedCccdDigest\" IS NOT NULL");
         builder.HasOne<StaffInvitation>().WithMany().HasForeignKey(item => item.InvitationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Employee>().WithMany().HasForeignKey(item => item.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<User>().WithMany().HasForeignKey(item => item.ReviewerId).OnDelete(DeleteBehavior.Restrict);
@@ -60,22 +61,4 @@ public sealed class StaffOnboardingConfiguration : IEntityTypeConfiguration<Staf
         builder.HasIndex(item => item.DeleteAfterUtc);
     }
 
-    public void Configure(EntityTypeBuilder<StaffIdentityClaim> builder)
-    {
-        builder.ToTable("staff_identity_claims");
-        builder.HasKey(item => item.Digest);
-        builder.Property(item => item.Digest).HasMaxLength(64);
-        builder.HasIndex(item => item.OwnerId);
-    }
-
-    public void Configure(EntityTypeBuilder<StaffCorrectionRequest> builder)
-    {
-        builder.ToTable("staff_correction_requests", table => table.HasCheckConstraint("ck_staff_correction_state", "\"State\" IN ('REQUESTED','OPENED','CLOSED')"));
-        builder.HasKey(item => item.Id);
-        builder.Property(item => item.Reason).HasMaxLength(1000);
-        builder.Property(item => item.Version).IsConcurrencyToken();
-        builder.HasOne<Employee>().WithMany().HasForeignKey(item => item.EmployeeId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<StaffOnboardingRevision>().WithMany().HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasIndex(item => item.EmployeeId).IsUnique().HasFilter("\"State\" IN ('REQUESTED','OPENED')");
-    }
 }

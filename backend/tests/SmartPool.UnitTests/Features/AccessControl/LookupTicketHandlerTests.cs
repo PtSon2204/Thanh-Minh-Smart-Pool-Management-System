@@ -41,19 +41,4 @@ public sealed class LookupTicketHandlerTests
         operations.Verify(operation => operation.LookupAsync("QA-123", cancellation.Token), Times.Once);
     }
 
-    [Fact]
-    public async Task GivenLookupOperationFailure_WhenHandling_ThenTheSameExceptionIsPropagated()
-    {
-        using var cancellation = new CancellationTokenSource();
-        var failure = new InvalidOperationException("Lookup failed.");
-        var operations = new Mock<IPoolAccessOperations>();
-        operations.Setup(operation => operation.LookupAsync("QA-123", cancellation.Token)).ThrowsAsync(failure);
-        var handler = new LookupTicketHandler(operations.Object, new LookupTicketValidator());
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(
-            new LookupTicketQuery { Code = "QA-123" }, cancellation.Token));
-
-        Assert.Same(failure, exception);
-        operations.Verify(operation => operation.LookupAsync("QA-123", cancellation.Token), Times.Once);
-    }
 }

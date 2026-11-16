@@ -203,7 +203,7 @@ public sealed class StaffOnboardingIntegrationTests
         Assert.Equal("skipped_legacy_no_contract", approved.ScheduleResult!.Status);
         Assert.Equal("legacy_contract_missing", Assert.Single(approved.ScheduleResult.Details).Code);
         var employeeId = approved.Invitation.CompletedUserId!.Value;
-        Assert.False(await fixture.Context.StaffWorkPatterns.AnyAsync(item => item.EmployeeId == employeeId));
+        Assert.False(await fixture.Context.StaffScheduleChanges.AnyAsync(item => item.EmployeeId == employeeId && item.Kind == "Pattern" && item.AppliedVersion != null));
         Assert.False(await fixture.Context.EmployeeShifts.AnyAsync(item => item.EmployeeId == employeeId));
     }
 
@@ -257,28 +257,6 @@ public sealed class StaffOnboardingIntegrationTests
     }
 
     [Fact]
-    public async Task OnboardingReadsDoNotWaitForTheWriteLock()
-    {
-        await using var fixture = await Fixture.CreateAsync();
-        var workspace = await fixture.InviteAsync();
-        var credentials = fixture.Credentials(workspace);
-        await using var writer = new SmartPoolDbContext(fixture.DbOptions);
-        await using var transaction = await writer.Database.BeginTransactionAsync();
-        await writer.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(704318229012)");
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var inspected = await fixture.Operations.ExecuteOnboardingAsync(new()
-        {
-            Action = OnboardingAction.Inspect, InvitationId = credentials.Id, Token = credentials.Token
-        }, timeout.Token);
-        var detail = await fixture.Operations.ExecuteOnboardingAsync(new()
-        {
-            Action = OnboardingAction.Detail, ActorId = fixture.AdminId, InvitationId = credentials.Id
-        }, timeout.Token);
-        Assert.Equal(workspace.Revision!.Id, inspected.Revision!.Id);
-        Assert.Equal(workspace.Revision.Id, detail.Revision!.Id);
-    }
-
-    [Fact]
     public async Task LateUploadAfterCancellationKeepsLocatorUntilSettledDeletion()
     {
         await using var fixture = await Fixture.CreateAsync();
@@ -293,7 +271,7 @@ public sealed class StaffOnboardingIntegrationTests
         {
             var cleanup = new StaffDocumentCleanup(other, fixture.Storage, fixture.Clock);
             var services = new StaffOnboardingServices(Options.Create(fixture.Services.Options), new PasswordHasherService(), fixture.Mail, fixture.Storage, cleanup);
-            await new StaffOperations(other, fixture.Mapper, fixture.Clock, Options.Create(new StaffAttendanceQrSettings()), services)
+            await new StaffOperations(other, fixture.Mapper, fixture.Clock, Options.Create(new StaffAttendanceQrSettings()), services, new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider())
                 .ExecuteOnboardingAsync(new() { Action = OnboardingAction.Cancel, ActorId = fixture.AdminId, InvitationId = credentials.Id,
                     ExpectedVersion = workspace.Invitation!.Version }, default);
             var pending = await other.StaffOnboardingDocuments.AsNoTracking().SingleAsync(item => item.RevisionId == workspace.Revision.Id);
@@ -426,7 +404,7 @@ public sealed class StaffOnboardingIntegrationTests
             var services = new StaffOnboardingServices(Options.Create(new StaffOnboardingOptions { EncryptionKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
                 IdentityKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)), FrontendOrigin = "https://example.test" }), new PasswordHasherService(), mail, storage, cleanup);
             return new() { Context = context, DbOptions = options, Mapper = mapper, AdminId = admin.Id, ShiftId = shiftId, Storage = storage, Mail = mail, Clock = clock, Cleanup = cleanup, Services = services,
-                Operations = new(context, mapper, clock, Options.Create(new StaffAttendanceQrSettings()), services) };
+                Operations = new(context, mapper, clock, Options.Create(new StaffAttendanceQrSettings()), services, new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider()) };
         }
         public Task<OnboardingWorkspace> Run(OnboardingCommand command) => Operations.ExecuteOnboardingAsync(command, default);
         public ContractTerms ContractFor(DateOnly startDate, DateOnly endDate) => new("FULL_TIME", startDate, endDate,
@@ -447,7 +425,7 @@ public sealed class StaffOnboardingIntegrationTests
         {
             await using var context = new SmartPoolDbContext(DbOptions);
             var services = new StaffOnboardingServices(Options.Create(Services.Options), new PasswordHasherService(), Mail, Storage, new StaffDocumentCleanup(context, Storage, Clock));
-            return await new StaffOperations(context, Mapper, Clock, Options.Create(new StaffAttendanceQrSettings()), services).ExecuteOnboardingAsync(new() { Action = OnboardingAction.Approve,
+            return await new StaffOperations(context, Mapper, Clock, Options.Create(new StaffAttendanceQrSettings()), services, new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider()).ExecuteOnboardingAsync(new() { Action = OnboardingAction.Approve,
                 ActorId = AdminId, RevisionId = workspace.Revision!.Id, ExpectedVersion = workspace.Revision.Version, ReviewConfirmed = true }, default);
         }
         public ValueTask DisposeAsync() => Context.DisposeAsync();

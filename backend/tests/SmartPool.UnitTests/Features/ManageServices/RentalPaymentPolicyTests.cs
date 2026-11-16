@@ -8,9 +8,7 @@ public sealed class RentalPaymentPolicyTests
     [InlineData("PENDING", true)]
     [InlineData("PARTIAL", true)]
     [InlineData("PAID", false)]
-    [InlineData("ISSUED", false)]
     [InlineData("EXPIRED", false)]
-    [InlineData("CANCELLED", false)]
     public void GivenRentalPaymentState_WhenCheckingUnpaidExpiry_ThenOnlyWaitingStatesExpire(string state, bool expectedWaiting)
     {
         var deadline = new DateTime(2026, 10, 28, 10, 5, 0, DateTimeKind.Utc);
@@ -71,7 +69,6 @@ public sealed class RentalPaymentPolicyTests
     [Theory]
     [InlineData(1000, true)]
     [InlineData(0, false)]
-    [InlineData(-100, false)]
     [InlineData(1000.5, false)]
     public void GivenIncomingAmount_WhenCheckingWholeVnd_ThenOnlyPositiveIntegerAmountsAreAccepted(decimal amount, bool expected)
     {

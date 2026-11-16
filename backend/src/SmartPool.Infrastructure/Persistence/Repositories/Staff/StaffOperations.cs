@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using AutoMapper;
 using SmartPool.Application.Common.Models;
@@ -24,15 +25,19 @@ public sealed partial class StaffOperations : IStaffOperations
     private readonly IMapper mapper;
     private readonly TimeProvider timeProvider;
     private readonly StaffAttendanceQrSettings attendanceQrSettings;
+    private readonly ITimeLimitedDataProtector schedulePreviewProtector;
     private readonly SmartPool.Infrastructure.StaffOnboarding.StaffOnboardingServices? onboardingServices;
 
     public StaffOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider timeProvider, IOptions<StaffAttendanceQrSettings> attendanceQrSettings,
-        SmartPool.Infrastructure.StaffOnboarding.StaffOnboardingServices? onboardingServices = null)
+        SmartPool.Infrastructure.StaffOnboarding.StaffOnboardingServices? onboardingServices = null,
+        IDataProtectionProvider? dataProtectionProvider = null)
     {
         this.context = context;
         this.mapper = mapper;
         this.timeProvider = timeProvider;
         this.attendanceQrSettings = attendanceQrSettings.Value;
+        schedulePreviewProtector = (dataProtectionProvider ?? DataProtectionProvider.Create("SmartPool.StaffScheduling.Preview.v1"))
+            .CreateProtector("SmartPool.StaffScheduling.Preview.v1").ToTimeLimitedDataProtector();
         this.onboardingServices = onboardingServices;
     }
 

@@ -10,27 +10,26 @@ public sealed class AddEntryLogOperatorId : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<Guid>(
-            name: "operator_id",
-            schema: "smart_pool",
-            table: "entry_logs",
-            type: "uuid",
-            nullable: true);
+        migrationBuilder.Sql("""
+            ALTER TABLE smart_pool.entry_logs
+            ADD COLUMN IF NOT EXISTS operator_id uuid;
 
-        migrationBuilder.CreateIndex(
-            name: "IX_entry_logs_operator_id",
-            schema: "smart_pool",
-            table: "entry_logs",
-            column: "operator_id");
+            CREATE INDEX IF NOT EXISTS "IX_entry_logs_operator_id"
+            ON smart_pool.entry_logs (operator_id);
 
-        migrationBuilder.AddForeignKey(
-            name: "entry_logs_operator_id_fkey",
-            schema: "smart_pool",
-            table: "entry_logs",
-            column: "operator_id",
-            principalSchema: "smart_pool",
-            principalTable: "users",
-            principalColumn: "id");
+            DO $EF$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'entry_logs_operator_id_fkey'
+                        AND conrelid = 'smart_pool.entry_logs'::regclass
+                ) THEN
+                    ALTER TABLE smart_pool.entry_logs
+                    ADD CONSTRAINT entry_logs_operator_id_fkey
+                    FOREIGN KEY (operator_id) REFERENCES smart_pool.users (id);
+                END IF;
+            END $EF$;
+            """);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
