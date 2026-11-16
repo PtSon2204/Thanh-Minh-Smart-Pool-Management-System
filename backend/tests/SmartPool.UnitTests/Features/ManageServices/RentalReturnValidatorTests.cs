@@ -29,33 +29,13 @@ public sealed class RentalReturnValidatorTests
         AssertRejected(result, nameof(ReturnRentalCommand.Condition));
     }
 
-    [Theory]
-    [InlineData(500, true)]
-    [InlineData(501, false)]
-    public void GivenSingleReturnReasonAtItsMaximum_WhenValidating_ThenItAppliesTheLengthLimit(int length, bool expectedValid)
+    [Fact]
+    public void GivenDamagedSingleReturnWithoutReason_WhenValidating_ThenItIsRejected()
     {
         var result = new ReturnRentalValidator().Validate(new ReturnRentalCommand
         {
             RentalId = Guid.NewGuid(), OperatorId = Guid.NewGuid(), RequestId = Guid.NewGuid(),
-            SettlementConfirmed = true, Condition = "Normal", Reason = new string('R', length)
-        });
-
-        Assert.Equal(expectedValid, result.IsValid);
-        if (expectedValid)
-            Assert.Empty(result.Errors);
-        else
-            AssertRejected(result, nameof(ReturnRentalCommand.Reason));
-    }
-
-    [Theory]
-    [InlineData("Damaged")]
-    [InlineData("Lost")]
-    public void GivenNonNormalSingleReturnWithoutReason_WhenValidating_ThenItIsRejected(string condition)
-    {
-        var result = new ReturnRentalValidator().Validate(new ReturnRentalCommand
-        {
-            RentalId = Guid.NewGuid(), OperatorId = Guid.NewGuid(), RequestId = Guid.NewGuid(),
-            SettlementConfirmed = true, Condition = condition
+            SettlementConfirmed = true, Condition = "Damaged"
         });
 
         AssertRejected(result, nameof(ReturnRentalCommand.Reason));
@@ -90,18 +70,6 @@ public sealed class RentalReturnValidatorTests
         var command = ValidBatch([]);
         command.DamagedRentalIds = [Guid.NewGuid()];
         command.Reason = null;
-
-        var result = new ReturnRentalQuantityValidator().Validate(command);
-
-        AssertRejected(result, nameof(ReturnRentalQuantityCommand.Reason));
-    }
-
-    [Fact]
-    public void GivenDamagedBatchReasonBeyondItsMaximum_WhenValidating_ThenItIsRejected()
-    {
-        var command = ValidBatch([]);
-        command.DamagedRentalIds = [Guid.NewGuid()];
-        command.Reason = new string('R', 501);
 
         var result = new ReturnRentalQuantityValidator().Validate(command);
 

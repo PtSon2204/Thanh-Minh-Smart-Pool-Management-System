@@ -16,6 +16,16 @@ public partial class Employee
 
     public DateTime? UpdatedAt { get; set; }
 
+    public Guid? CorrectionRequestId { get; set; }
+
+    public string? CorrectionReason { get; set; }
+
+    public DateTime? CorrectionRequestedAtUtc { get; set; }
+
+    public Guid? CorrectionRevisionId { get; set; }
+
+    public long CorrectionVersion { get; set; }
+
     public virtual ICollection<EmployeeShift> EmployeeShifts { get; set; } = new List<EmployeeShift>();
 
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();

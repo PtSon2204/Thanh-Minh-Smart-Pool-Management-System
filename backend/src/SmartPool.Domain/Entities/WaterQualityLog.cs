@@ -24,6 +24,8 @@ public class WaterQualityLog
     // Bắt buộc với nguồn Device; nguồn Manual có thể ghi lại máy đã dùng để đo.
     public Guid? EquipmentId { get; set; }
 
+    public Guid? OperationalTaskId { get; set; }
+
     // Thiết bị giữ nguyên mã này khi gửi lại cùng một lần đo.
     public string? SourceEventId { get; set; }
 

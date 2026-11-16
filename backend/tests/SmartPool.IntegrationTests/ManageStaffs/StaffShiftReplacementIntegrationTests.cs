@@ -52,8 +52,8 @@ public sealed class StaffShiftReplacementIntegrationTests
             item.WorkDate == workDate && item.ShiftId == fixture.NightShiftId && item.Status == "Scheduled"));
         Assert.Equal("Cancelled", (await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == sourceNight.Id)).Status);
 
-        var exceptions = await fixture.Context.StaffScheduleExceptions.Where(item => item.EmployeeId == fixture.EmployeeId &&
-            item.WorkDate == workDate && item.Kind == "Replace").OrderBy(item => item.Version).ToListAsync();
+        var exceptions = await fixture.Context.StaffScheduleChanges.Where(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.WorkDate == workDate && item.Kind == "Replace").OrderBy(item => item.AppliedVersion).ToListAsync();
         Assert.Equal(2, exceptions.Count);
         Assert.All(exceptions, item => Assert.Equal(replacementEmployeeId, item.DestinationEmployeeId));
         var view = Assert.IsType<WorkPatternView>(await fixture.Operations.ExecuteWorkPatternAsync(new WorkPatternCommand
@@ -187,8 +187,8 @@ public sealed class StaffShiftReplacementIntegrationTests
 
         Assert.All(responses, item => Assert.Equal(operationId, item.OperationId));
         Assert.Equal(responses[0].ReplacementAssignmentId, responses[1].ReplacementAssignmentId);
-        Assert.Equal(1, await fixture.Context.StaffScheduleExceptions.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
-            item.Kind == "Replace" && item.WorkDate == workDate));
+        Assert.Equal(1, await fixture.Context.StaffScheduleChanges.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.Kind == "Replace" && item.WorkDate == workDate));
         Assert.Equal(2, await fixture.Context.StaffScheduleDeliveries.CountAsync(item => item.OperationId == operationId));
         Assert.Equal(1, await fixture.Context.EmployeeShifts.CountAsync(item => item.EmployeeId == replacementEmployeeId &&
             item.WorkDate == workDate && item.ShiftId == fixture.MorningShiftId && item.Status == "Scheduled"));
@@ -227,9 +227,9 @@ public sealed class StaffShiftReplacementIntegrationTests
                 fixture.Clock.GetUtcNow().UtcDateTime, replacementEmployeeId);
         if (scenario == "replacement-on-leave")
         {
-            fixture.Context.StaffScheduleExceptions.Add(new StaffScheduleException { EmployeeId = replacementEmployeeId,
+            fixture.Context.StaffScheduleChanges.Add(new StaffScheduleChange { EmployeeId = replacementEmployeeId,
                 Kind = "Leave", WorkDate = workDate, SourceAssignmentIdsJson = "[]", Reason = "Synthetic leave",
-                Version = 1, CreatedBy = fixture.AdminId, CreatedAtUtc = fixture.Clock.GetUtcNow().UtcDateTime });
+                AppliedVersion = 1, CreatedBy = fixture.AdminId, CreatedAtUtc = fixture.Clock.GetUtcNow().UtcDateTime });
             await fixture.Context.SaveChangesAsync();
         }
 
@@ -239,7 +239,8 @@ public sealed class StaffShiftReplacementIntegrationTests
         Assert.Equal(expectedCode, result.ConflictCode);
         Assert.Null(result.PreviewToken);
         Assert.Equal(sourceStatus, (await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == source.Id)).Status);
-        Assert.False(await fixture.Context.StaffScheduleExceptions.AnyAsync(item => item.EmployeeId == fixture.EmployeeId && item.Kind == "Replace"));
+        Assert.False(await fixture.Context.StaffScheduleChanges.AnyAsync(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.Kind == "Replace"));
         Assert.False(await fixture.Context.EmployeeShifts.AnyAsync(item => item.EmployeeId == replacementEmployeeId &&
             item.WorkDate == workDate && item.ShiftId == fixture.MorningShiftId && item.Status == "Scheduled"));
     }
@@ -262,7 +263,8 @@ public sealed class StaffShiftReplacementIntegrationTests
 
         Assert.Equal("STALE_PREVIEW", error.Code);
         Assert.Equal("Scheduled", (await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == source.Id)).Status);
-        Assert.False(await fixture.Context.StaffScheduleExceptions.AnyAsync(item => item.EmployeeId == fixture.EmployeeId && item.Kind == "Replace"));
+        Assert.False(await fixture.Context.StaffScheduleChanges.AnyAsync(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.Kind == "Replace"));
     }
 
     [Fact]
@@ -287,8 +289,8 @@ public sealed class StaffShiftReplacementIntegrationTests
 
         Assert.All(responses, item => Assert.Equal("completed", item.Status));
         Assert.Equal(responses[0].ReplacementAssignmentId, responses[1].ReplacementAssignmentId);
-        Assert.Equal(1, await fixture.Context.StaffScheduleExceptions.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
-            item.WorkDate == workDate && item.Kind == "Replace"));
+        Assert.Equal(1, await fixture.Context.StaffScheduleChanges.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.WorkDate == workDate && item.Kind == "Replace"));
         Assert.Equal(2, await fixture.Context.StaffScheduleDeliveries.CountAsync(item => item.OperationId == operationId));
         Assert.Equal(1, await fixture.Context.EmployeeShifts.CountAsync(item => item.EmployeeId == replacementEmployeeId &&
             item.WorkDate == workDate && item.ShiftId == fixture.MorningShiftId && item.Status == "Scheduled"));
@@ -358,23 +360,25 @@ public sealed class StaffShiftReplacementIntegrationTests
         Assert.Equal("STALE_PREVIEW", error.Code);
         Assert.Equal("Present", persisted.Status);
         Assert.Equal(checkInAt, persisted.CheckInTime);
-        Assert.False(await fixture.Context.StaffScheduleExceptions.AnyAsync(item => item.EmployeeId == fixture.EmployeeId && item.Kind == "Replace"));
+        Assert.False(await fixture.Context.StaffScheduleChanges.AnyAsync(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.Kind == "Replace"));
     }
 
     [Fact]
     public async Task ReplacementHistoryRejectsANonexistentDestinationEmployee()
     {
         await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
-        fixture.Context.StaffScheduleExceptions.Add(new StaffScheduleException
+        var source = await fixture.AddAssignmentAsync(fixture.Today.AddDays(2), fixture.MorningShiftId);
+        fixture.Context.StaffScheduleChanges.Add(new StaffScheduleChange
         {
             EmployeeId = fixture.EmployeeId,
             Kind = "Replace",
             WorkDate = fixture.Today.AddDays(2),
-            SourceAssignmentIdsJson = "[]",
+            SourceAssignmentIdsJson = $"[\"{source.Id}\"]",
             DestinationShiftId = fixture.MorningShiftId,
             DestinationEmployeeId = Guid.NewGuid(),
             Reason = "Synthetic invalid reference",
-            Version = 1,
+            AppliedVersion = 1,
             CreatedBy = fixture.AdminId,
             CreatedAtUtc = fixture.Clock.GetUtcNow().UtcDateTime
         });

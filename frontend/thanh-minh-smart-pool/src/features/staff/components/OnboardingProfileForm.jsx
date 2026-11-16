@@ -1,6 +1,7 @@
 import { Alert, Button, DatePicker, Descriptions, Form, Input, Select, Space, Steps, Typography } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
+import { passwordSchema } from '../../auth/types/authSchemas'
 import { documentLabels, documentStatusLabels, invitationRoleOptions, phonePattern, profileFromForm, vietnamToday } from '../onboarding/onboardingUi'
 
 const required = (message) => ({ required: true, whitespace: true, message })
@@ -159,10 +160,10 @@ export default function OnboardingProfileForm({ revision, invitation, disabled, 
       </section>
       <section hidden={currentStep !== 3} aria-label="Kiểm tra và gửi hồ sơ">
         <Form.Item noStyle shouldUpdate>{() => <ProfileReview values={form.getFieldsValue(true)} documents={revision.documents} />}</Form.Item>
-        {requirePassword && <div className="onboarding-password-section"><Typography.Title level={4}>Mật khẩu đăng nhập sau khi được duyệt</Typography.Title><Typography.Paragraph type="secondary">Chưa có quyền nhân viên trước khi được duyệt. Hệ thống không tự đăng nhập hoặc gửi mật khẩu qua email.</Typography.Paragraph><div className="onboarding-form-grid">
-          <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Nhập mật khẩu.' }, { min: 8, message: 'Mật khẩu cần ít nhất 8 ký tự.' }, { validator: (_, value) => !value || (/[A-Za-zÀ-ỹ]/.test(value) && /[0-9]/.test(value) && new TextEncoder().encode(value).length <= 72) ? Promise.resolve() : Promise.reject(new Error('Cần chữ và số, tối đa 72 byte UTF-8.')) }]}><Input.Password autoComplete="new-password" /></Form.Item>
+        {requirePassword && <div className="onboarding-password-section"><Typography.Title level={4}>Mật khẩu đăng nhập sau khi được duyệt</Typography.Title><div className="onboarding-form-grid">
+          <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Nhập mật khẩu.' }, { validator: (_, value) => { if (!value) return Promise.resolve(); const result = passwordSchema.safeParse(value); return result.success ? Promise.resolve() : Promise.reject(new Error(result.error.issues[0].message)) } }]}><Input.Password autoComplete="new-password" /></Form.Item>
           <Form.Item name="passwordConfirmation" label="Xác nhận mật khẩu" dependencies={['password']} rules={[{ required: true, message: 'Xác nhận mật khẩu.' }, ({ getFieldValue }) => ({ validator: (_, value) => !value || value === getFieldValue('password') ? Promise.resolve() : Promise.reject(new Error('Mật khẩu xác nhận không khớp.')) })]}><Input.Password autoComplete="new-password" /></Form.Item>
-        </div></div>}
+        </div><Alert type="info" showIcon title="Chưa có quyền nhân viên trước khi được duyệt" description="Hệ thống không tự đăng nhập hoặc gửi mật khẩu qua email." /></div>}
       </section>
     </div>
     <footer className="onboarding-step-actions">

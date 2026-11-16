@@ -29,6 +29,7 @@ public sealed class WaterQualityLogConfiguration : IEntityTypeConfiguration<Wate
         entity.Property(e => e.Source).HasColumnName("source").HasMaxLength(20).IsRequired().HasDefaultValue("Manual");
         entity.Property(e => e.InspectedBy).HasColumnName("inspected_by");
         entity.Property(e => e.EquipmentId).HasColumnName("equipment_id");
+        entity.Property(e => e.OperationalTaskId).HasColumnName("operational_task_id");
         entity.Property(e => e.SourceEventId).HasColumnName("source_event_id").HasMaxLength(128);
         entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).IsRequired().HasDefaultValue("NotEvaluated");
         entity.Property(e => e.Recommendation).HasColumnName("recommendation").HasMaxLength(500);
@@ -37,7 +38,10 @@ public sealed class WaterQualityLogConfiguration : IEntityTypeConfiguration<Wate
         entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
         entity.HasOne(e => e.Inspector).WithMany().HasForeignKey(e => e.InspectedBy).OnDelete(DeleteBehavior.Restrict).HasConstraintName("water_quality_logs_inspected_by_fkey");
         entity.HasOne(e => e.Equipment).WithMany().HasForeignKey(e => e.EquipmentId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("water_quality_logs_equipment_id_fkey");
+        entity.HasOne<PoolDutySchedule>().WithMany().HasForeignKey(e => e.OperationalTaskId)
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("water_quality_logs_operational_task_id_fkey");
         entity.HasIndex(e => e.InspectionTime).IsDescending().HasDatabaseName("ix_water_quality_logs_inspection_time");
         entity.HasIndex(e => new { e.EquipmentId, e.SourceEventId }).IsUnique().HasFilter("source = 'Device'").HasDatabaseName("ux_water_quality_logs_device_event");
+        entity.HasIndex(e => e.OperationalTaskId).HasDatabaseName("ix_water_quality_logs_operational_task_id");
     }
 }

@@ -31,6 +31,7 @@ public static class RolePermissionSeeder
                 ["staff"]            = ["read", "create", "update"],
                 ["shifts"]           = ["read", "create", "update"],
                 ["staff_schedule"]   = ["read", "create", "delete"],
+                ["staff_tasks"]      = ["read", "create", "update", "delete"],
                 ["coach_applications"] = ["read", "review"],
                 ["attendance"]       = ["read", "update"],
                 ["ticket_lookup"]    = ["read"],
@@ -52,6 +53,7 @@ public static class RolePermissionSeeder
             {
                 ["profiles"]         = ["read", "update"],
                 ["staff_schedule"]   = ["read"],
+                ["staff_tasks"]      = ["read"],
                 ["attendance"]       = ["read", "update"],
                 ["safety_alerts"]    = ["read", "create"],
                 ["water_quality"]    = ["read", "create"],

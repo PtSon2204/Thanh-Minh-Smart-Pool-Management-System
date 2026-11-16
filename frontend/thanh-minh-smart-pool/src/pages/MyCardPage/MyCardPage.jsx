@@ -21,9 +21,9 @@ export default function MyCardPage() {
   const [editValue, setEditValue] = useState('')
 
   const { data: profile } = useQuery({
-    queryKey: ['myProfile'],
+    queryKey: ['myProfile', session?.id],
     queryFn: profileService.getMyProfile,
-    enabled: !!session
+    enabled: Boolean(session?.id)
   })
 
   const { data: tickets, isLoading } = useQuery({

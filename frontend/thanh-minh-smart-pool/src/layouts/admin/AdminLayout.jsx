@@ -31,6 +31,7 @@ import {
   LockOutlined,
   SecurityScanOutlined,
   AlertOutlined,
+  ScheduleOutlined,
   // BookOutlined,
   ExperimentOutlined,
   PlusCircleOutlined,
@@ -58,6 +59,7 @@ function openKeysForPath(pathname) {
   if (pathname === "/admin/staff/attendance/scan") return ["staff"];
   if (pathname.startsWith("/admin/staff/attendance"))
     return ["staff", "staff-attendance"];
+  if (pathname === "/admin/staff/tasks") return [];
   if (pathname.startsWith("/admin/staff/")) return ["staff"];
   if (pathname.startsWith("/admin/equipments/")) return ["equipments"];
   if (
@@ -333,6 +335,11 @@ export default function AdminLayout() {
               label: <Link to="/admin/staff/profiles">Hồ sơ nhân viên</Link>,
             },
           ].filter(Boolean),
+        },
+        (isAdmin || isLifeguard) && {
+          key: "/admin/staff/tasks",
+          icon: <ScheduleOutlined />,
+          label: <Link to="/admin/staff/tasks">Công việc vận hành</Link>,
         },
         (isAdmin || isLifeguard) && {
           key: "safety",

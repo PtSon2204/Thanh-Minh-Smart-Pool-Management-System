@@ -12,6 +12,7 @@ public sealed class ChangePasswordValidator
             .WithMessage("Vui lòng nhập mật khẩu hiện tại.");
 
         RuleFor(x => x.NewPassword)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
             .WithMessage("Vui lòng nhập mật khẩu mới.")
             .Must(value => value.Length is >= 8 and <= 128)

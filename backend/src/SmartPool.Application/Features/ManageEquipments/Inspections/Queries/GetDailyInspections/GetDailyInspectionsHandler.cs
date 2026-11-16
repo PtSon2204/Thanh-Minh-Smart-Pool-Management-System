@@ -22,7 +22,7 @@ public sealed class GetDailyInspectionsHandler(
         CancellationToken cancellationToken)
     {
         var (items, total) = await inspectionOperations.GetPagedInspectionsAsync(
-            request.FromDate, request.ToDate, request.OverallStatus,
+            request.InspectionId, request.FromDate, request.ToDate, request.OverallStatus,
             request.PageIndex, request.PageSize, cancellationToken);
 
         // Fetch inspector names

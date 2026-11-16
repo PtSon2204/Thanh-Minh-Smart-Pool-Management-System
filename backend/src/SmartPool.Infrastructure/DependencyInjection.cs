@@ -18,7 +18,6 @@ using SmartPool.Infrastructure.AttendanceQr;
 using SmartPool.Application.Features.ManageServices.Payments;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Infrastructure.Caching;
-using SmartPool.Infrastructure.Persistence;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories;
 using SmartPool.Infrastructure.Persistence.Repositories.Payments;
@@ -159,6 +158,7 @@ namespace SmartPool.Infrastructure
             services.AddScoped<StaffOnboarding.StaffOnboardingServices>();
             services.AddHostedService<StaffOnboarding.StaffDocumentCleanupWorker>();
             services.AddHostedService<StaffOnboarding.StaffScheduleDeliveryWorker>();
+            services.AddHostedService<StaffOnboarding.OperationalTaskMaterializerWorker>();
 
             // Email — MailKit
             services.AddScoped<IEmailService, EmailService>();

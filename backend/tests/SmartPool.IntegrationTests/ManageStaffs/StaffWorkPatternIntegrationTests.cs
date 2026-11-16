@@ -54,9 +54,9 @@ public sealed class StaffWorkPatternIntegrationTests
         Assert.Equal(4, shortenPreview.CancelledCount);
         Assert.Equal(4, result.Result.CancelledCount);
         Assert.Equal(4, await fixture.Context.EmployeeShifts.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
-            item.WorkPatternId != null && item.WorkDate > shortened.EndDate && item.Status == "Cancelled"));
+            item.ScheduleChange != null && item.ScheduleChange.Kind == "Pattern" && item.WorkDate > shortened.EndDate && item.Status == "Cancelled"));
         Assert.Equal(14, await fixture.Context.EmployeeShifts.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
-            item.WorkPatternId != null && item.WorkDate <= initial.EndDate && item.Status == "Scheduled"));
+            item.ScheduleChange != null && item.ScheduleChange.Kind == "Pattern" && item.WorkDate <= initial.EndDate && item.Status == "Scheduled"));
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class StaffWorkPatternIntegrationTests
         await fixture.ConfirmAsync(patternCommand, patternPreview, Guid.NewGuid());
         var leaveDate = fixture.Today.AddDays(3);
         var source = await fixture.Context.EmployeeShifts.SingleAsync(item => item.EmployeeId == fixture.EmployeeId &&
-            item.WorkDate == leaveDate && item.WorkPatternId != null && item.Status == "Scheduled");
+            item.WorkDate == leaveDate && item.ScheduleChange != null && item.ScheduleChange.Kind == "Pattern" && item.Status == "Scheduled");
         var leaveCommand = new WorkPatternCommand { EmployeeId = fixture.EmployeeId, ActorId = fixture.AdminId,
             Action = WorkPatternAction.ExceptionPreview, Kind = "Leave", WorkDate = leaveDate,
             SourceAssignmentIds = [source.Id], Reason = "Synthetic agreed leave", ExpectedVersion = 1 };
@@ -113,8 +113,8 @@ public sealed class StaffWorkPatternIntegrationTests
 
         Assert.Equal("completed", first.Result.Status);
         Assert.Equal("completed", second.Result.Status);
-        Assert.Equal(2, await fixture.Context.StaffScheduleExceptions.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
-            item.WorkDate == workDate && item.Kind == "Move"));
+        Assert.Equal(2, await fixture.Context.StaffScheduleChanges.CountAsync(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.WorkDate == workDate && item.Kind == "Move"));
         Assert.Equal("Scheduled", (await fixture.Context.EmployeeShifts.SingleAsync(item => item.EmployeeId == fixture.EmployeeId &&
             item.WorkDate == workDate && item.ShiftId == fixture.NightShiftId)).Status);
         Assert.Equal("Scheduled", (await fixture.Context.EmployeeShifts.SingleAsync(item => item.EmployeeId == fixture.EmployeeId &&
@@ -139,7 +139,7 @@ public sealed class StaffWorkPatternIntegrationTests
         await fixture.Context.SaveChangesAsync();
         var attendedDate = fixture.Today.AddDays(5);
         var attended = await fixture.Context.EmployeeShifts.SingleAsync(item => item.EmployeeId == fixture.EmployeeId &&
-            item.WorkDate == attendedDate && item.ShiftId == fixture.MorningShiftId && item.WorkPatternId != null);
+            item.WorkDate == attendedDate && item.ShiftId == fixture.MorningShiftId && item.ScheduleChange != null && item.ScheduleChange.Kind == "Pattern");
         attended.Status = "Present";
         attended.CheckInTime = fixture.Clock.GetUtcNow().UtcDateTime;
         attended.CheckInMethod = "Manual";
@@ -157,7 +157,7 @@ public sealed class StaffWorkPatternIntegrationTests
         Assert.Single(preview.AffectedTasks);
         Assert.Equal(1, result.Result.CancelledCount);
         Assert.Equal("Scheduled", (await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == manual.Id)).Status);
-        Assert.Null((await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == manual.Id)).WorkPatternId);
+        Assert.Null((await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == manual.Id)).ScheduleChangeId);
         Assert.Equal("Completed", (await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == historical.Id)).Status);
         var persistedAttendance = await fixture.Context.EmployeeShifts.SingleAsync(item => item.Id == attended.Id);
         Assert.Equal("Present", persistedAttendance.Status);
@@ -195,7 +195,8 @@ public sealed class StaffWorkPatternIntegrationTests
 
         Assert.Equal(1, result.ConflictCount);
         Assert.Equal(expectedCode, Assert.Single(result.Details).Code);
-        Assert.Empty(await fixture.Context.StaffScheduleExceptions.Where(item => item.EmployeeId == fixture.EmployeeId).ToListAsync());
+        Assert.Empty(await fixture.Context.StaffScheduleChanges.Where(item => item.EmployeeId == fixture.EmployeeId &&
+            item.AppliedVersion != null && item.Kind != "Pattern").ToListAsync());
     }
 
     [Theory]

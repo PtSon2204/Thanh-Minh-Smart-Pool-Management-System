@@ -10,6 +10,7 @@ import {
   Typography,
   Tabs,
   Tooltip,
+  message,
 } from 'antd';
 import {
   PlusOutlined,
@@ -28,11 +29,16 @@ import CreateWaterQualityLogModal from '../../../features/waterQuality/component
 import WaterQualityLogDetailDrawer from '../../../features/waterQuality/components/WaterQualityLogDetailDrawer';
 import WaterQualityAnalyticsTab from '../../../features/waterQuality/components/WaterQualityAnalyticsTab';
 import PoolDutyScheduleTab from '../../../features/waterQuality/components/PoolDutyScheduleTab';
+import { useAuthStore } from '../../../features/auth/store/authStore';
+import { useSearchParams } from 'react-router-dom';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 
 export default function WaterQualityPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedLogId = searchParams.get('logId');
+  const isAdmin = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN');
   const [activeTab, setActiveTab] = useState('logs');
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState([]);
@@ -49,6 +55,22 @@ export default function WaterQualityPage() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+
+  useEffect(() => {
+    if (!linkedLogId) return undefined;
+    let stale = false;
+    waterQualityService.getLogById(linkedLogId)
+      .then((log) => {
+        if (!stale) {
+          setSelectedLog(log);
+          setDetailDrawerVisible(true);
+        }
+      })
+      .catch((error) => {
+        if (!stale) message.error(error?.response?.data?.message || 'Không thể mở kết quả đo.');
+      });
+    return () => { stale = true; };
+  }, [linkedLogId]);
 
   useEffect(() => {
     if (activeTab !== 'logs') return undefined;
@@ -251,7 +273,7 @@ export default function WaterQualityPage() {
           </Text>
         </div>
 
-        <Space>
+        {isAdmin && <Space>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -260,7 +282,7 @@ export default function WaterQualityPage() {
           >
             Tạo phiếu đo mới
           </Button>
-        </Space>
+        </Space>}
       </div>
 
       <Tabs
@@ -382,7 +404,15 @@ export default function WaterQualityPage() {
       <WaterQualityLogDetailDrawer
         visible={detailDrawerVisible}
         log={selectedLog}
-        onClose={() => setDetailDrawerVisible(false)}
+        onClose={() => {
+          setDetailDrawerVisible(false);
+          setSelectedLog(null);
+          if (linkedLogId) {
+            const nextSearchParams = new URLSearchParams(searchParams);
+            nextSearchParams.delete('logId');
+            setSearchParams(nextSearchParams, { replace: true });
+          }
+        }}
       />
     </div>
   );

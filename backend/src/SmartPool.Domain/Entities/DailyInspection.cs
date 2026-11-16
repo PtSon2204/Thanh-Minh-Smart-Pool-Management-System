@@ -11,6 +11,8 @@ public partial class DailyInspection
 
     public Guid? ShiftId { get; set; }
 
+    public Guid? OperationalTaskId { get; set; }
+
     public DateOnly InspectionDate { get; set; }
 
     public DateTime InspectionTime { get; set; }

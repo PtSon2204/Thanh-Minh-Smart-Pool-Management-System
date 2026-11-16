@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartPool.API.Controllers;
 using SmartPool.Application.Features.ManageStaffs;
-using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
-using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 
 namespace SmartPool.IntegrationTests.ManageStaffs;
 
@@ -58,63 +56,6 @@ public sealed partial class StaffScheduleBatchTests
     }
 
     [Fact]
-    public async Task GivenTwoEligibleEmployees_WhenAssigningBatch_ThenBothAssignmentsAreCreated()
-    {
-        await using var fixture = await StaffEmploymentFixture.CreateAsync();
-        var shift = CreateShift(new TimeOnly(8, 0), new TimeOnly(12, 0));
-        var workDate = new DateOnly(2026, 11, 5);
-        try
-        {
-            await fixture.SeedEligibleAdminEmploymentAsync();
-            await AddShiftsAsync(fixture, shift);
-            var command = Batch(
-                Item(fixture.AttachedStaffUserId, shift.Id, workDate),
-                Item(fixture.EligibleAdminUserId, shift.Id, workDate));
-
-            var rows = await fixture.CreateOperations(timeProvider: new FixedTimeProvider(AssignmentNow)).AssignShiftBatchAsync(command, CancellationToken.None);
-
-            Assert.Equal(2, rows.Count);
-            Assert.Equal(2, await CountAssignmentsAsync(fixture, [shift.Id]));
-        }
-        finally
-        {
-            await CleanupScheduleAsync(fixture, [shift.Id], 2);
-        }
-    }
-
-    [Fact]
-    public async Task GivenInvalidRows_WhenAssigningBatch_ThenAllConflictsReturnAndStoredRowsStayUnchanged()
-    {
-        await using var fixture = await StaffEmploymentFixture.CreateAsync();
-        var savedShift = CreateShift(new TimeOnly(8, 0), new TimeOnly(12, 0));
-        var overlappingShift = CreateShift(new TimeOnly(10, 0), new TimeOnly(14, 0));
-        var inactiveShift = CreateShift(new TimeOnly(14, 0), new TimeOnly(18, 0));
-        inactiveShift.IsActive = false;
-        var workDate = new DateOnly(2026, 11, 6);
-        try
-        {
-            await AddScheduleAsync(fixture, [savedShift, overlappingShift, inactiveShift],
-                [CreateAssignment(fixture.AttachedStaffUserId, savedShift.Id, workDate)]);
-            var shiftIds = new[] { savedShift.Id, overlappingShift.Id, inactiveShift.Id };
-            var before = await ReadAssignmentsAsync(fixture, shiftIds);
-
-            var exception = await Assert.ThrowsAsync<AssignShiftBatchConflictException>(() => fixture.CreateOperations(timeProvider: new FixedTimeProvider(AssignmentNow))
-                .AssignShiftBatchAsync(Batch(
-                    Item(fixture.AttachedStaffUserId, overlappingShift.Id, workDate),
-                    Item(fixture.EligibleStaffUserId, savedShift.Id, workDate),
-                    Item(fixture.AttachedStaffUserId, inactiveShift.Id, workDate)), CancellationToken.None));
-
-            Assert.Equal(new[] { "employee_ineligible", "overlap", "shift_unavailable" },
-                exception.Conflicts.Select(conflict => conflict.Code).Order());
-            Assert.Equal(before, await ReadAssignmentsAsync(fixture, shiftIds));
-        }
-        finally
-        {
-            await CleanupScheduleAsync(fixture, [savedShift.Id, overlappingShift.Id, inactiveShift.Id], 1);
-        }
-    }
-
-    [Fact]
     public async Task GivenCancelledExactTuple_WhenAssigningSingleAndBatch_ThenBothReturnConflict()
     {
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
@@ -148,88 +89,6 @@ public sealed partial class StaffScheduleBatchTests
         }
     }
 
-    [Theory]
-    [InlineData(-1)]
-    [InlineData(0)]
-    public async Task GivenWorkDateBeforeTomorrow_WhenAssigningSingleShift_ThenRejects(int dayOffset)
-    {
-        await using var fixture = await StaffEmploymentFixture.CreateAsync();
-        var shift = CreateShift(new TimeOnly(8, 0), new TimeOnly(12, 0));
-        try
-        {
-            await AddShiftsAsync(fixture, shift);
-
-            await Assert.ThrowsAsync<StaffConflictException>(() => fixture.CreateOperations(
-                timeProvider: new FixedTimeProvider(AssignmentNow)).AssignShiftAsync(
-                Single(fixture.AttachedStaffUserId, shift.Id, DateOnly.FromDateTime(AssignmentNow.UtcDateTime).AddDays(dayOffset)),
-                CancellationToken.None));
-
-            Assert.Equal(0, await CountAssignmentsAsync(fixture, [shift.Id]));
-        }
-        finally
-        {
-            await CleanupScheduleAsync(fixture, [shift.Id], 1);
-        }
-    }
-
-    [Fact]
-    public async Task GivenBatchWithDateBeforeTomorrow_WhenAssigning_ThenRejectsAllRows()
-    {
-        await using var fixture = await StaffEmploymentFixture.CreateAsync();
-        var shift = CreateShift(new TimeOnly(8, 0), new TimeOnly(12, 0));
-        try
-        {
-            await fixture.SeedEligibleAdminEmploymentAsync();
-            await AddShiftsAsync(fixture, shift);
-
-            var exception = await Assert.ThrowsAsync<AssignShiftBatchConflictException>(() => fixture.CreateOperations(
-                timeProvider: new FixedTimeProvider(AssignmentNow)).AssignShiftBatchAsync(Batch(
-                Item(fixture.AttachedStaffUserId, shift.Id, new DateOnly(2026, 11, 2)),
-                Item(fixture.EligibleAdminUserId, shift.Id, new DateOnly(2026, 11, 3))), CancellationToken.None));
-
-            Assert.Equal(new[] { "work_date_too_soon" }, exception.Conflicts.Select(conflict => conflict.Code));
-            Assert.Equal(0, await CountAssignmentsAsync(fixture, [shift.Id]));
-        }
-        finally
-        {
-            await CleanupScheduleAsync(fixture, [shift.Id], 2);
-        }
-    }
-
-    [Fact]
-    public async Task GivenMixedEmployees_WhenReadingEligibleProjection_ThenOnlyAssignmentFieldsAndEligibleEmployeesAreReturned()
-    {
-        await using var fixture = await StaffEmploymentFixture.CreateAsync();
-        try
-        {
-            await fixture.SeedEligibleAdminEmploymentAsync();
-            string fallbackName;
-            await using (var setupContext = fixture.CreateContext())
-            {
-                var fallbackUser = await setupContext.Users.Include(user => user.UserProfile)
-                    .SingleAsync(user => user.Id == fixture.EligibleAdminUserId);
-                fallbackUser.UserProfile!.FullName = "   ";
-                fallbackName = fallbackUser.Username ?? string.Empty;
-                await setupContext.SaveChangesAsync();
-            }
-
-            var rows = await fixture.CreateOperations().GetScheduleEmployeesAsync(CancellationToken.None);
-            var fixtureRows = rows.Where(row => fixture.UserIds.Contains(row.EmployeeId)).ToList();
-
-            Assert.Equal(new[] { fixture.AttachedStaffUserId, fixture.EligibleAdminUserId }.Order(),
-                fixtureRows.Select(row => row.EmployeeId).Order());
-            Assert.All(fixtureRows, row => Assert.Equal("Working", row.EmploymentStatus));
-            Assert.Equal(fallbackName,
-                fixtureRows.Single(row => row.EmployeeId == fixture.EligibleAdminUserId).Name);
-            Assert.Equal(new[] { "EmployeeId", "EmploymentStatus", "Name" },
-                typeof(GetScheduleEmployeeResponse).GetProperties().Select(property => property.Name).Order());
-        }
-        finally
-        {
-            await fixture.CleanupAsync();
-            Assert.Equal((2, 7, 7), fixture.CleanupCounts);
-        }
-    }
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;

@@ -9,7 +9,7 @@ export default function SwimClassInfoForm({ form, onFinish, pending, error }) {
   return <Card className="swim-class-form-card" title={<><TeamOutlined /> Thông tin lớp học</>}>
     <p className="swim-class-card-intro">Bạn được gán làm Coach của lớp. Lớp được lưu ở trạng thái bản nháp để thêm lịch học trước khi kích hoạt.</p>
     {error && <Alert className="swim-class-form-alert" type="error" showIcon title="Chưa tạo được lớp" description={error} />}
-    <Form form={form} layout="vertical" initialValues={{ capacity: 10, fee: 0 }} onFinish={onFinish} disabled={pending}>
+    <Form form={form} layout="vertical" initialValues={{ capacity: 5, fee: 0 }} onFinish={onFinish} disabled={pending}>
       <div className="swim-class-form-section">
         <h3>Thông tin cơ bản</h3>
         <div className="swim-class-form-grid">
@@ -18,7 +18,7 @@ export default function SwimClassInfoForm({ form, onFinish, pending, error }) {
             { transform: (value) => value?.trim(), max: 150, message: 'Tên lớp tối đa 150 ký tự.' },
           ]}><Input maxLength={150} showCount placeholder="Ví dụ: Lớp bơi căn bản buổi sáng" /></Form.Item>
           <Form.Item className="swim-class-span-full" label="Mô tả" name="description"><Input.TextArea rows={3} placeholder="Thông tin dành cho học viên và phụ huynh" /></Form.Item>
-          <Form.Item label="Sức chứa" name="capacity" rules={[{ required: true, message: 'Nhập sức chứa.' }, { type: 'number', min: 1, message: 'Sức chứa phải lớn hơn 0.' }]}><InputNumber min={1} precision={0} className="swim-class-full-width" addonAfter="học viên" /></Form.Item>
+          <Form.Item label="Sức chứa" name="capacity" rules={[{ required: true, message: 'Nhập sức chứa.' }, { type: 'number', min: 1, max: 5, message: 'Sức chứa phải từ 1 đến 5 học viên.' }]}><InputNumber min={1} max={5} precision={0} className="swim-class-full-width" addonAfter="học viên" /></Form.Item>
           <Form.Item label="Học phí" name="fee" rules={[{ required: true, message: 'Nhập học phí.' }, { type: 'number', min: 0, message: 'Học phí không được âm.' }]}><InputNumber min={0} precision={2} className="swim-class-full-width" addonAfter="VNĐ" /></Form.Item>
         </div>
       </div>

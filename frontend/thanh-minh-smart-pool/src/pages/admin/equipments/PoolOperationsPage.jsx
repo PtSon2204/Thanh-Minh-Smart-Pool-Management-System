@@ -3,15 +3,12 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
-  Tag,
   Form,
   InputNumber,
   TimePicker,
   Radio,
   Input,
   Button,
-  Progress,
   Alert,
   Spin,
   notification,
@@ -20,10 +17,6 @@ import {
 } from 'antd'
 import {
   DashboardOutlined,
-  UserOutlined,
-  ShopOutlined,
-  ShoppingOutlined,
-  ClockCircleOutlined,
   ReloadOutlined,
   SaveOutlined,
   WarningOutlined,
@@ -122,7 +115,6 @@ export default function PoolOperationsPage() {
   }
 
   const isMaintenance = liveStatus?.operationalStatus === 'Maintenance'
-  const occupancyPercent = liveStatus?.occupancyRate || 0
 
   return (
     <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
@@ -142,7 +134,7 @@ export default function PoolOperationsPage() {
             <DashboardOutlined style={{ color: '#0068ff' }} /> Quản lý vận hành bể bơi
           </h1>
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>
-            Theo dõi sức chứa thời gian thực, lưu lượng khách trong ngày và cấu hình ca trực vận hành.
+            Cấu hình sức chứa tối đa, ngưỡng cảnh báo, khung giờ ca trực và trạng thái vận hành của bể bơi.
           </p>
         </div>
         <Button
@@ -150,7 +142,7 @@ export default function PoolOperationsPage() {
           onClick={() => refetch()}
           loading={isFetching}
         >
-          Làm mới số liệu
+          Làm mới dữ liệu
         </Button>
       </div>
 
@@ -175,104 +167,9 @@ export default function PoolOperationsPage() {
         />
       )}
 
-      {/* Cards thống kê thời gian thực */}
-      <Spin spinning={isLoading}>
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          {/* Card 1: Khách đang bơi */}
-          <Col xs={24} sm={12} lg={6}>
-            <Card
-              bordered={false}
-              style={{
-                borderRadius: 12,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                background: liveStatus?.isCrowded ? '#fffbeb' : '#fff',
-                border: liveStatus?.isCrowded ? '1px solid #fde68a' : 'none',
-              }}
-            >
-              <Statistic
-                title={<span style={{ fontWeight: 600, color: '#475569' }}>Khách đang trong bể</span>}
-                value={liveStatus?.currentSwimmers ?? 0}
-                suffix={<span style={{ fontSize: 14, color: '#64748b' }}>/ {liveStatus?.maxCapacity ?? 100} người</span>}
-                prefix={<UserOutlined style={{ color: liveStatus?.isCrowded ? '#f59e0b' : '#0068ff' }} />}
-              />
-              <div style={{ marginTop: 12 }}>
-                <Progress
-                  percent={occupancyPercent}
-                  status={liveStatus?.isCrowded ? 'exception' : 'active'}
-                  strokeColor={liveStatus?.isCrowded ? '#f59e0b' : '#0068ff'}
-                  size="small"
-                />
-              </div>
-              <div style={{ marginTop: 6, fontSize: 12 }}>
-                {liveStatus?.isCrowded ? (
-                  <Tag color="warning">⚠️ Đang đông khách ({occupancyPercent}%)</Tag>
-                ) : (
-                  <Tag color="success">🟢 Mật độ bình thường ({occupancyPercent}%)</Tag>
-                )}
-              </div>
-            </Card>
-          </Col>
-
-          {/* Card 2: Vé bán tại quầy hôm nay */}
-          <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-              <Statistic
-                title={<span style={{ fontWeight: 600, color: '#475569' }}>Vé tại quầy hôm nay (POS)</span>}
-                value={liveStatus?.counterTicketsToday ?? 0}
-                suffix="lượt"
-                prefix={<ShopOutlined style={{ color: '#10b981' }} />}
-              />
-              <div style={{ marginTop: 16, fontSize: 13, color: '#64748b' }}>
-                Giao dịch bán vé trực tiếp cho khách tại quầy soát vé trong ngày.
-              </div>
-            </Card>
-          </Col>
-
-          {/* Card 3: Vé mua online hôm nay */}
-          <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-              <Statistic
-                title={<span style={{ fontWeight: 600, color: '#475569' }}>Vé đặt online hôm nay</span>}
-                value={liveStatus?.onlineTicketsToday ?? 0}
-                suffix="lượt"
-                prefix={<ShoppingOutlined style={{ color: '#8b5cf6' }} />}
-              />
-              <div style={{ marginTop: 16, fontSize: 13, color: '#64748b' }}>
-                Số lượt vé khách hàng đã đặt và thanh toán online qua website.
-              </div>
-            </Card>
-          </Col>
-
-          {/* Card 4: Ca trực & Trạng thái hiện tại */}
-          <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-              <div style={{ fontSize: 14, color: '#475569', fontWeight: 600, marginBottom: 8 }}>
-                Ca trực & Giờ mở cửa
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <ClockCircleOutlined style={{ color: '#0284c7', fontSize: 18 }} />
-                <strong style={{ fontSize: 16, color: '#0f172a' }}>
-                  {liveStatus?.currentShiftName || 'Đang cập nhật'}
-                </strong>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                {isMaintenance ? (
-                  <Tag color="error">🔴 Tạm dừng bảo trì</Tag>
-                ) : liveStatus?.effectiveStatus === 'Operating' ? (
-                  <Tag color="success">🟢 Đang mở cửa đón khách</Tag>
-                ) : liveStatus?.effectiveStatus === 'BreakTime' ? (
-                  <Tag color="warning">🟡 Đang nghỉ trưa</Tag>
-                ) : (
-                  <Tag color="default">⚪ Ngoài giờ hoạt động</Tag>
-                )}
-              </div>
-            </Card>
-          </Col>
-        </Row>
-      </Spin>
-
       {/* Khu vực cấu hình chi tiết */}
-      <Row gutter={[24, 24]}>
+      <Spin spinning={isLoading}>
+        <Row gutter={[24, 24]}>
         {/* Cột 1: Cấu hình sức chứa & ca trực */}
         <Col xs={24} lg={14}>
           <Card
@@ -411,6 +308,7 @@ export default function PoolOperationsPage() {
           </Card>
         </Col>
       </Row>
+      </Spin>
     </div>
   )
 }

@@ -5,5 +5,6 @@ namespace SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmploye
         public Guid EmployeeId { get; init; }
         public string Name { get; init; } = string.Empty;
         public string EmploymentStatus { get; init; } = string.Empty;
+        public string RoleName { get; init; } = string.Empty;
     }
 }
