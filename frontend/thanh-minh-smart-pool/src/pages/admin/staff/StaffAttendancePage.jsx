@@ -249,7 +249,7 @@ export default function StaffAttendancePage() {
     <Alert type="error" showIcon title="Liên kết chấm công không hợp lệ" description={selection.error} action={<Button onClick={() => setSearchParams({})}>Về hôm nay</Button>} />
   </div>
 
-  return <div className="service-list-page staff-schedule-page">
+  return <div className="service-list-page staff-schedule-page staff-manual-attendance-page">
     <ServiceListHeader
       title={<>Check-in / Check-out <span className="staff-schedule-count">{attendance.isLoading ? 'Đang tải…' : `${attendance.data?.totalCount ?? 0} phân công`}</span></>}
       action={<div className="admin-action-group">

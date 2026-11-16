@@ -12,7 +12,7 @@ using SmartPool.Infrastructure.Cameras;
 
 namespace SmartPool.IntegrationTests.ManageEquipments;
 
-public sealed class CameraStreamEquipmentTests
+public sealed partial class CameraStreamEquipmentTests
 {
     [CameraFact]
     public async Task WebRtc_UsesCorrectCameraSharesSourceEnforcesOwnershipAndReleasesOnlyViewer()

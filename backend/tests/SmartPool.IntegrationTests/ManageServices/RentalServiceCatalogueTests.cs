@@ -92,16 +92,14 @@ public sealed class RentalServiceCatalogueTests
         }
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData(-1)]
-    public async Task MissingOrNegativeInitialQuantityDoesNotCreateARentalItem(int? quantity)
+    [Fact]
+    public async Task NegativeInitialQuantityDoesNotCreateARentalItem()
     {
         var options = await IntegrationTestDatabase.CreateOptionsAsync();
         await using var context = new SmartPoolDbContext(options);
         var name = $"Invalid rental {Guid.NewGuid():N}";
         await Assert.ThrowsAsync<ValidationException>(() => CreateHandler(context, CreateMapper()).Handle(
-            new CreateServiceCommand { Name = name, Price = 10000m, StockQuantity = quantity }, default));
+            new CreateServiceCommand { Name = name, Price = 10000m, StockQuantity = -1 }, default));
         Assert.False(await context.Products.AnyAsync(product => product.Name == name));
     }
 

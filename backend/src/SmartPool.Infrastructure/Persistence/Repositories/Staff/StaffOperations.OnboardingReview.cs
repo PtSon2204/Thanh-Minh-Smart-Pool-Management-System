@@ -23,9 +23,15 @@ public sealed partial class StaffOperations
         await CheckPhoneAsync(profile.Phone, employeeId, cancellationToken);
         var ownerId = employeeId ?? invitation!.Id;
         var digest = Onboarding.IdentityDigest(profile.CccdNumber);
-        var claim = await context.StaffIdentityClaims.SingleOrDefaultAsync(item => item.Digest == digest, cancellationToken);
-        if (claim is not null && claim.OwnerId != ownerId) throw new StaffOnboardingException("IDENTITY_CONFLICT");
-        if (claim is null) context.StaffIdentityClaims.Add(new StaffIdentityClaim { Digest = digest, OwnerId = ownerId });
+        var holder = await context.StaffOnboardingRevisions.Where(item => item.ReservedCccdDigest == digest)
+            .Select(item => new
+            {
+                Revision = item,
+                OwnerId = item.EmployeeId ?? context.StaffInvitations.Where(invitation => invitation.Id == item.InvitationId)
+                    .Select(invitation => invitation.CompletedUserId ?? invitation.Id).Single()
+            }).SingleOrDefaultAsync(cancellationToken);
+        if (holder is not null && holder.OwnerId != ownerId) throw new StaffOnboardingException("IDENTITY_CONFLICT");
+        revision!.ReservedCccdDigest = holder is null || holder.Revision.Id == revision.Id ? digest : null;
         revision!.ProtectedProfile = Onboarding.ProtectProfile(profile);
         revision.CccdDigest = digest;
         revision.State = "SUBMITTED";
@@ -57,7 +63,7 @@ public sealed partial class StaffOperations
             revision.CorrectionReason = request.Reason!.Trim();
             if (invitation is not null) { invitation.ProtectedPasswordHash = null; invitation.TokenDigest = ""; invitation.Status = "CANCELLED"; invitation.Version++; }
             await QueueDocumentsAsync(revision.Id, "REJECTED", cancellationToken);
-            await ReleaseIdentityClaimsAsync(invitation?.Id, employeeId, cancellationToken);
+            await ReleaseIdentityReservationsAsync(invitation?.Id, employeeId, cancellationToken);
             await CloseCorrectionAsync(revision.Id, cancellationToken);
             return "REJECTED";
         }
@@ -69,7 +75,8 @@ public sealed partial class StaffOperations
             await context.Database.ExecuteSqlRawAsync("LOCK TABLE smart_pool.users IN SHARE ROW EXCLUSIVE MODE", cancellationToken);
             await CheckAccountIdentityAsync(invitation.Email, cancellationToken);
             if (invitation.ProtectedPasswordHash is null) throw new StaffOnboardingException("PASSWORD_REQUIRED", 400);
-            var role = await context.Roles.SingleOrDefaultAsync(item => EF.Functions.ILike(item.Name, invitation.TargetRole) && item.IsDeleted != true, cancellationToken)
+            var role = await context.Roles.Where(item => EF.Functions.ILike(item.Name, invitation.TargetRole) && item.IsDeleted != true)
+                .OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).FirstOrDefaultAsync(cancellationToken)
                 ?? throw new StaffOnboardingException("ROLE_UNAVAILABLE");
             var user = new User { Id = Guid.NewGuid(), Email = invitation.Email, Username = $"staff-{Guid.NewGuid():N}",
                 Phone = profile.Phone, RoleId = role.Id, Status = "Active", IsDeleted = false,
@@ -83,60 +90,69 @@ public sealed partial class StaffOperations
             invitation.ProtectedPasswordHash = null;
             invitation.Status = "COMPLETED";
             invitation.Version++;
-            var claims = await context.StaffIdentityClaims.Where(item => item.OwnerId == invitation.Id).ToListAsync(cancellationToken);
-            foreach (var claim in claims) claim.OwnerId = user.Id;
             employeeId = user.Id;
         }
         revision.State = "APPROVED";
         revision.DocumentsProvided = await context.StaffOnboardingDocuments.AnyAsync(item => item.RevisionId == revision.Id && item.Purpose != "AVATAR", cancellationToken);
         await QueueDocumentsAsync(revision.Id, "APPROVED", cancellationToken);
         await CloseCorrectionAsync(revision.Id, cancellationToken);
-        // Old identity reservations remain until approval, then only approved history retains them.
-        var approvedDigests = await EmployeeRevisions(employeeId!.Value).Where(item => item.State == "APPROVED" && item.CccdDigest != null)
-            .Select(item => item.CccdDigest!).ToListAsync(cancellationToken);
-        approvedDigests.Add(revision.CccdDigest!);
-        var unused = await context.StaffIdentityClaims.Where(item => item.OwnerId == employeeId && !approvedDigests.Contains(item.Digest)).ToListAsync(cancellationToken);
-        context.StaffIdentityClaims.RemoveRange(unused);
         return "APPROVED";
     }
 
     private async Task RequestCorrectionAsync(OnboardingCommand request, Guid employeeId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length > 1000) throw new StaffOnboardingException("REASON_REQUIRED", 400);
-        if (await context.StaffCorrectionRequests.AnyAsync(item => item.EmployeeId == employeeId && item.State != "CLOSED", cancellationToken))
+        var employee = await context.Employees.SingleOrDefaultAsync(item => item.UserId == employeeId, cancellationToken)
+            ?? throw new StaffOnboardingException("EMPLOYEE_NOT_FOUND", 404);
+        if (employee.CorrectionRequestId.HasValue)
             throw new StaffOnboardingException("CORRECTION_ALREADY_REQUESTED");
-        context.StaffCorrectionRequests.Add(new StaffCorrectionRequest { EmployeeId = employeeId, Reason = request.Reason.Trim(), CreatedAtUtc = OnboardingNow });
+        employee.CorrectionRequestId = Guid.NewGuid();
+        employee.CorrectionReason = request.Reason.Trim();
+        employee.CorrectionRequestedAtUtc = OnboardingNow;
+        employee.CorrectionRevisionId = null;
+        employee.CorrectionVersion++;
     }
 
     private async Task<StaffOnboardingRevision> OpenCorrectionAsync(OnboardingCommand request, Guid employeeId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length > 1000) throw new StaffOnboardingException("REASON_REQUIRED", 400);
-        var correction = await context.StaffCorrectionRequests.SingleOrDefaultAsync(item => item.EmployeeId == employeeId && item.State == "REQUESTED", cancellationToken)
-            ?? throw new StaffOnboardingException("CORRECTION_NOT_REQUESTED");
-        StaffOnboardingValidation.CheckVersion(correction.Version, request.ExpectedVersion);
+        var employee = await context.Employees.SingleOrDefaultAsync(item => item.UserId == employeeId, cancellationToken)
+            ?? throw new StaffOnboardingException("EMPLOYEE_NOT_FOUND", 404);
+        if (!employee.CorrectionRequestId.HasValue || employee.CorrectionRevisionId.HasValue)
+            throw new StaffOnboardingException("CORRECTION_NOT_REQUESTED");
+        StaffOnboardingValidation.CheckVersion(employee.CorrectionVersion, request.ExpectedVersion);
         var latest = await EmployeeRevisions(employeeId).OrderByDescending(item => item.RevisionNumber).FirstOrDefaultAsync(cancellationToken);
         var profile = latest is null ? new StaffLegalProfile() : Onboarding.Profile(latest.ProtectedProfile);
         var revision = new StaffOnboardingRevision { EmployeeId = employeeId, RevisionNumber = (latest?.RevisionNumber ?? 0) + 1,
             ProtectedProfile = Onboarding.ProtectProfile(profile), CorrectionReason = request.Reason.Trim(), CreatedAtUtc = OnboardingNow };
         context.StaffOnboardingRevisions.Add(revision);
-        correction.State = "OPENED";
-        correction.RevisionId = revision.Id;
-        correction.Version++;
+        employee.CorrectionRevisionId = revision.Id;
+        employee.CorrectionVersion++;
         return revision;
     }
 
     private async Task CloseCorrectionAsync(Guid revisionId, CancellationToken cancellationToken)
     {
-        var correction = await context.StaffCorrectionRequests.SingleOrDefaultAsync(item => item.RevisionId == revisionId, cancellationToken);
-        if (correction is not null) { correction.State = "CLOSED"; correction.Version++; }
+        var employee = await context.Employees.SingleOrDefaultAsync(item => item.CorrectionRevisionId == revisionId, cancellationToken);
+        if (employee is not null)
+        {
+            employee.CorrectionRequestId = null;
+            employee.CorrectionReason = null;
+            employee.CorrectionRequestedAtUtc = null;
+            employee.CorrectionRevisionId = null;
+            employee.CorrectionVersion++;
+        }
     }
 
-    private async Task ReleaseIdentityClaimsAsync(Guid? invitationId, Guid? employeeId, CancellationToken cancellationToken)
+    private async Task ReleaseIdentityReservationsAsync(Guid? invitationId, Guid? employeeId, CancellationToken cancellationToken)
     {
         var owner = employeeId ?? invitationId;
-        var keep = employeeId.HasValue ? await EmployeeRevisions(employeeId.Value).Where(item => item.State == "APPROVED" && item.CccdDigest != null)
-            .Select(item => item.CccdDigest!).ToListAsync(cancellationToken) : [];
-        context.StaffIdentityClaims.RemoveRange(await context.StaffIdentityClaims.Where(item => item.OwnerId == owner && !keep.Contains(item.Digest)).ToListAsync(cancellationToken));
+        if (!owner.HasValue) return;
+        var reservations = await context.StaffOnboardingRevisions.Where(item => item.ReservedCccdDigest != null &&
+            (item.EmployeeId == owner || context.StaffInvitations.Any(invitation => invitation.Id == item.InvitationId &&
+                (invitation.CompletedUserId ?? invitation.Id) == owner))).ToListAsync(cancellationToken);
+        foreach (var reservation in reservations.Where(item => item.State != "APPROVED"))
+            reservation.ReservedCccdDigest = null;
     }
 
     private StaffInvitationView InvitationView(StaffInvitation invitation) => new(invitation.Id, invitation.Email, invitation.TargetRole,
@@ -165,11 +181,10 @@ public sealed partial class StaffOperations
     {
         var approved = employeeId.HasValue ? await EmployeeRevisions(employeeId.Value).Where(item => item.State == "APPROVED")
             .OrderByDescending(item => item.RevisionNumber).FirstOrDefaultAsync(cancellationToken) : null;
-        var correction = employeeId.HasValue ? await context.StaffCorrectionRequests.Where(item => item.EmployeeId == employeeId && item.State != "CLOSED")
-            .OrderByDescending(item => item.CreatedAtUtc).FirstOrDefaultAsync(cancellationToken) : null;
+        var correction = employeeId.HasValue ? await context.Employees.AsNoTracking().SingleOrDefaultAsync(item => item.UserId == employeeId, cancellationToken) : null;
         var contractJson = employeeId.HasValue
-            ? await context.StaffWorkPatterns.AsNoTracking().Where(item => item.EmployeeId == employeeId)
-                .OrderByDescending(item => item.Version).Select(item => item.ContractJson).FirstOrDefaultAsync(cancellationToken)
+            ? await AppliedPatterns.AsNoTracking().Where(item => item.EmployeeId == employeeId)
+                .OrderByDescending(item => item.AppliedVersion).Select(item => item.ContractJson).FirstOrDefaultAsync(cancellationToken)
             : null;
         var contract = contractJson is not null ? ScheduleDeserialize<ContractTerms>(contractJson)
             : invitation?.ContractJson is not null ? ScheduleDeserialize<ContractTerms>(invitation.ContractJson) : null;
@@ -178,8 +193,9 @@ public sealed partial class StaffOperations
         if (invitationView is not null)
             invitationView = invitationView with { Shifts = await ContractShiftsAsync(invitationView.Contract, cancellationToken) };
         return new(code, invitationView, await RevisionViewAsync(revision, cancellationToken),
-            await RevisionViewAsync(approved, cancellationToken), correction is null ? null : new(correction.Id, correction.EmployeeId,
-                correction.Reason, correction.State, correction.CreatedAtUtc, correction.RevisionId, correction.Version),
+            await RevisionViewAsync(approved, cancellationToken), correction?.CorrectionRequestId is null ? null : new(correction.CorrectionRequestId.Value, correction.UserId,
+                correction.CorrectionReason!, correction.CorrectionRevisionId.HasValue ? "OPENED" : "REQUESTED", correction.CorrectionRequestedAtUtc!.Value,
+                correction.CorrectionRevisionId, correction.CorrectionVersion),
             Contract: contract, Shifts: shifts);
     }
 

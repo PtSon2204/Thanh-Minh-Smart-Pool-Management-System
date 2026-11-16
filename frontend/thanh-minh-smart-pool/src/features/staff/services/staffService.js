@@ -52,6 +52,24 @@ const staffService = {
       : { fromDate: params.fromDate, toDate: params.toDate }
     return readAllPages((pageIndex) => getSchedulePage(path, { ...supportedParams, pageIndex, pageSize: PAGE_SIZE }, signal), signal)
   },
+  getMonthlyContractSchedule: async (scope, params, signal) => {
+    const assignments = new Map()
+    const windowStart = new Date(`${params.fromDate}T00:00:00Z`)
+    while (windowStart.toISOString().slice(0, 10) <= params.toDate) {
+      signal?.throwIfAborted()
+      const fromDate = windowStart.toISOString().slice(0, 10)
+      const windowEnd = new Date(windowStart)
+      windowEnd.setUTCDate(windowEnd.getUTCDate() + 8)
+      const toDate = windowEnd.toISOString().slice(0, 10) < params.toDate
+        ? windowEnd.toISOString().slice(0, 10) : params.toDate
+      const result = await staffService.getCompleteSchedule(scope, { ...params, fromDate, toDate }, signal)
+      signal?.throwIfAborted()
+      for (const assignment of result.items) assignments.set(assignment.id, assignment)
+      windowStart.setUTCDate(windowStart.getUTCDate() + 9)
+    }
+    const items = [...assignments.values()].sort((first, second) => first.workDate.localeCompare(second.workDate) || first.startTime.localeCompare(second.startTime))
+    return { items, totalCount: items.length }
+  },
   getScheduleEmployees: (signal) => apiClient.get(`${BASE}/schedule/employees`, { signal }).then((response) => response.data),
   assignShiftBatch: (assignments) => apiClient.post(`${BASE}/schedule/batch`, { assignments }).then((response) => response.data),
   cancelSchedule: (id) => apiClient.delete(`${BASE}/schedule/${id}`).then((response) => response.data),

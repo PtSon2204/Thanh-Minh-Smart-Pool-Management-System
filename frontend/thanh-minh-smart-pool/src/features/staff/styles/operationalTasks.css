@@ -1,0 +1,94 @@
+.staff-operational-tasks .staff-week-board--stacked,
+.staff-operational-task-modal .staff-week-board--stacked {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.staff-operational-tasks .staff-week-day,
+.staff-operational-tasks .staff-week-shift-card,
+.staff-operational-task-modal .staff-week-shift-card {
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+.staff-task-name.ant-btn {
+  color: var(--primary);
+  font-size: inherit;
+  font-weight: 600;
+  height: auto;
+  justify-content: flex-start;
+  padding: 0;
+  text-align: start;
+  white-space: normal;
+}
+
+.staff-task-name.ant-btn > span {
+  color: inherit;
+  font-size: inherit;
+}
+
+.staff-operational-tasks .staff-week-shift-heading,
+.staff-operational-task-modal .staff-week-shift-heading {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.staff-operational-tasks .staff-week-loading,
+.staff-operational-task-modal .staff-week-loading {
+  display: grid;
+  padding: var(--space-8);
+  place-items: center;
+}
+
+.staff-operational-tasks .staff-overdue-link {
+  margin-block: var(--space-3);
+}
+
+.staff-operational-tasks .staff-week-table .ant-table-thead > tr > th {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.staff-operational-tasks .staff-week-table .ant-table-tbody > tr > td {
+  border-radius: 0;
+  padding: var(--space-2);
+  vertical-align: top;
+}
+
+.staff-week-table-task-list,
+.staff-week-table-task {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-week-table-task-list {
+  gap: var(--space-2);
+}
+
+.staff-week-table-task + .staff-week-table-task {
+  border-top: 1px solid var(--list-divider);
+  padding-top: var(--space-2);
+}
+
+.staff-week-table-task .ant-tag {
+  margin: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.staff-week-table-task .ant-space {
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  .staff-operational-tasks .staff-operational-week-current {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .staff-operational-tasks .staff-task-next-week {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}

@@ -28,6 +28,7 @@ public sealed class StaffOnboardingRevision
     public string State { get; set; } = "DRAFT";
     public string ProtectedProfile { get; set; } = "";
     public string? CccdDigest { get; set; }
+    public string? ReservedCccdDigest { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? SubmittedAtUtc { get; set; }
     public DateTime? ReviewedAtUtc { get; set; }
@@ -61,21 +62,4 @@ public sealed class StaffOnboardingDocument
     public string? LastErrorCode { get; set; }
     public Guid? LeaseId { get; set; }
     public DateTime? LeaseUntilUtc { get; set; }
-}
-
-public sealed class StaffIdentityClaim
-{
-    public string Digest { get; set; } = "";
-    public Guid OwnerId { get; set; }
-}
-
-public sealed class StaffCorrectionRequest
-{
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid EmployeeId { get; set; }
-    public string Reason { get; set; } = "";
-    public string State { get; set; } = "REQUESTED";
-    public DateTime CreatedAtUtc { get; set; }
-    public Guid? RevisionId { get; set; }
-    public long Version { get; set; } = 1;
 }

@@ -14,6 +14,7 @@ public sealed class DailyInspectionConfiguration : IEntityTypeConfiguration<Dail
         entity.Property(e => e.Id).HasDefaultValueSql("uuid_generate_v4()").HasColumnName("id");
         entity.Property(e => e.InspectorId).HasColumnName("inspector_id");
         entity.Property(e => e.ShiftId).HasColumnName("shift_id");
+        entity.Property(e => e.OperationalTaskId).HasColumnName("operational_task_id");
         entity.Property(e => e.InspectionDate).HasColumnName("inspection_date");
         entity.Property(e => e.InspectionTime).HasColumnName("inspection_time");
         entity.Property(e => e.ItemsJson).HasColumnType("jsonb").HasColumnName("items_json");
@@ -38,5 +39,16 @@ public sealed class DailyInspectionConfiguration : IEntityTypeConfiguration<Dail
         entity.HasIndex(d => new { d.InspectionDate, d.ShiftId })
             .IsUnique()
             .HasDatabaseName("uq_daily_inspections_date_shift");
+
+        entity.HasOne<PoolDutySchedule>()
+            .WithMany()
+            .HasForeignKey(d => d.OperationalTaskId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("daily_inspections_operational_task_id_fkey");
+
+        entity.HasIndex(d => d.OperationalTaskId)
+            .IsUnique()
+            .HasFilter("operational_task_id IS NOT NULL")
+            .HasDatabaseName("uq_daily_inspections_operational_task_id");
     }
 }

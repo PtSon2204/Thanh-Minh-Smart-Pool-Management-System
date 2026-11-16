@@ -11,9 +11,9 @@ public partial class EmployeeShift
 
     public Guid ShiftId { get; set; }
 
-    public Guid? WorkPatternId { get; set; }
+    public Guid? ScheduleChangeId { get; set; }
 
-    public Guid? ScheduleExceptionId { get; set; }
+    public StaffScheduleChange? ScheduleChange { get; set; }
 
     public DateOnly WorkDate { get; set; }
 

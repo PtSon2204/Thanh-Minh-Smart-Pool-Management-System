@@ -23,6 +23,7 @@ namespace SmartPool.Application
             var assembly = Assembly.GetExecutingAssembly();
 
             services.AddSingleton<TimeProvider>(TimeProvider.System);
+            services.AddScoped<Features.SafetyMonitoring.ISafetyMonitoringService, Features.SafetyMonitoring.SafetyMonitoringService>();
             services.AddSingleton<RegistrationOtpCodeService>();
             services.AddSingleton<PasswordResetCodeService>();
             services.AddSingleton<Features.ManageWaterQuality.Services.IWaterQualityEvaluator, Features.ManageWaterQuality.Services.WaterQualityEvaluator>();

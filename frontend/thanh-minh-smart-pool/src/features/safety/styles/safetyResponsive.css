@@ -41,6 +41,13 @@
 .safety-modal .ant-image { max-width: 100%; }
 .safety-modal .ant-modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .safety-modal .ant-modal-footer > .ant-btn + .ant-btn { margin-inline-start: 0; }
+.safety-live-detail { top: 24px; padding-bottom: 24px; }
+.safety-live-detail .ant-modal-container { display: flex; flex-direction: column; max-height: calc(100dvh - 64px); }
+.safety-live-detail .ant-modal-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.safety-live-detail .ant-modal-header,
+.safety-live-detail .ant-modal-footer { flex-shrink: 0; }
+.safety-live-detail-video { width: 100%; min-width: 0; }
+.safety-live-detail-video .camera-video-container { width: 100%; max-width: none; max-height: 50dvh; margin-bottom: 0; }
 
 @media (max-width: 767px) {
   .monitoring-page { gap: 16px; }

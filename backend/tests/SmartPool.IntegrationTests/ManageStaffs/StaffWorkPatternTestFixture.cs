@@ -17,6 +17,8 @@ namespace SmartPool.IntegrationTests.ManageStaffs;
 
 internal sealed class StaffWorkPatternTestFixture : IAsyncDisposable
 {
+    private static readonly Microsoft.AspNetCore.DataProtection.IDataProtectionProvider Protection =
+        new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider();
     private StaffWorkPatternTestFixture(SmartPoolDbContext context, StaffOperations operations, FakeClock clock,
         Guid employeeId, Guid adminId,
         Guid morningShiftId, Guid afternoonShiftId, Guid nightShiftId)
@@ -80,7 +82,7 @@ internal sealed class StaffWorkPatternTestFixture : IAsyncDisposable
         });
         var onboarding = new StaffOnboardingServices(optionsForServices, new PasswordHasherService(), mail, storage, cleanup);
         var mapper = new MapperConfiguration(config => config.AddProfile<StaffMappingProfile>(), NullLoggerFactory.Instance).CreateMapper();
-        var operations = new StaffOperations(context, mapper, clock, Options.Create(new StaffAttendanceQrSettings()), onboarding);
+        var operations = new StaffOperations(context, mapper, clock, Options.Create(new StaffAttendanceQrSettings()), onboarding, Protection);
         return new(context, operations, clock, employeeId, adminId, morningShiftId, afternoonShiftId, nightShiftId);
     }
 
@@ -147,7 +149,8 @@ internal sealed class StaffWorkPatternTestFixture : IAsyncDisposable
 
     public sealed class FakeClock(DateTimeOffset now) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => now;
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 
     private sealed class FakeMail : IEmailService

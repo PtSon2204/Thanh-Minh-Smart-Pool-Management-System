@@ -11,7 +11,7 @@ public sealed class SmartPoolDesignTimeDbContextFactory : IDesignTimeDbContextFa
     {
         var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
         if (!File.Exists(envPath)) envPath = Path.Combine(AppContext.BaseDirectory, ".env");
-        if (File.Exists(envPath)) Env.Load(envPath);
+        if (File.Exists(envPath)) Env.NoClobber().Load(envPath);
 
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true)

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using SIPSorcery.Net;
 using SmartPool.Infrastructure.SafetyMonitoring;
 
 namespace SmartPool.Infrastructure.Cameras;
@@ -17,7 +18,7 @@ internal sealed class CameraAnalysisVideoSource : IWebRtcVideoSource
     private readonly Task run;
     public bool Failed => run.IsCompleted;
     public bool Transcoding => true;
-    public event Action<byte[], bool, uint>? Frame;
+    public event Action<byte[], bool, uint, uint?>? Frame;
 
     public CameraAnalysisVideoSource(CameraAnalysisState analysis, Guid id, CameraOptions options)
     {
@@ -43,11 +44,12 @@ internal sealed class CameraAnalysisVideoSource : IWebRtcVideoSource
             var start = new ProcessStartInfo(options.FfmpegPath) { UseShellExecute = false, CreateNoWindow = true,
                 RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
             foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-protocol_whitelist", "pipe",
-                "-analyzeduration", "1", "-probesize", "32", "-fpsprobesize", "0", "-threads", "1",
+                "-analyzeduration", "1", "-probesize", "32", "-fpsprobesize", "0", "-threads", "1", "-filter_threads", "1",
                 "-f", "image2pipe", "-vcodec", "mjpeg", "-framerate", "25", "-i", "pipe:0", "-an",
                 "-vf", "scale=w='min(1920,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos", "-fps_mode", "passthrough",
                 "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-profile:v", "baseline", "-pix_fmt", "yuv420p",
-                "-threads", "1", "-bf", "0", "-crf", "18", "-x264-params", "aud=1:repeat-headers=1:keyint=1",
+                "-threads", "1", "-bf", "0", "-crf", "18", "-maxrate", "4000k", "-bufsize", "1000k",
+                "-x264-params", "aud=1:repeat-headers=1:keyint=12:min-keyint=1:scenecut=0",
                 "-flush_packets", "1", "-f", "h264", "pipe:1" }) start.ArgumentList.Add(arg);
             process = Process.Start(start) ?? throw new IOException("AI video encoder unavailable.");
             errors = DrainAsync(process.StandardError.BaseStream, stop.Token);
@@ -56,12 +58,16 @@ internal sealed class CameraAnalysisVideoSource : IWebRtcVideoSource
                 if (!pending.TryDequeue(out var time)) throw new IOException("AI video encoder lost frame alignment.");
                 var duration = previous.HasValue ? (uint)Math.Clamp((time - previous.Value).TotalSeconds * 90000, 750, 450000) : 3600u;
                 previous = time;
-                Frame?.Invoke(bytes, true, duration);
+                Frame?.Invoke(bytes, H264Packetiser.ParseNals(bytes).Any(n => (n.NAL[0] & 31) == 5), duration, null);
             }, stop.Token);
             await foreach (var frame in input.Reader.ReadAllAsync(stop.Token))
             {
                 if (DateTimeOffset.UtcNow - frame.Time > TimeSpan.FromSeconds(6)) continue;
-                if (reading.IsCompleted || process.HasExited || pending.Count >= 32) throw new IOException("AI video encoder unavailable.");
+                // FFmpeg có thể cần vài frame để khởi tạo encoder 720p. Ngưỡng 4 quá ngắn,
+                // khiến nguồn bị restart trước khi xuất frame đầu khi máy đang tải cao.
+                if (reading.IsCompleted || process.HasExited || pending.Count >= 12 ||
+                    pending.Count > 2 && pending.TryPeek(out var oldest) && DateTimeOffset.UtcNow - oldest > TimeSpan.FromSeconds(2))
+                    throw new IOException("AI video encoder unavailable.");
                 pending.Enqueue(frame.Time);
                 await process.StandardInput.BaseStream.WriteAsync(frame.Jpeg, stop.Token);
                 await process.StandardInput.BaseStream.FlushAsync(stop.Token);

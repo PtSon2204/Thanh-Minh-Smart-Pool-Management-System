@@ -1,4 +1,4 @@
-export function drawVideoRisks(canvas, video, risks) {
+export function drawVideoRisks(canvas, video, risks, frame) {
   if (!canvas || !video) return
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -11,22 +11,30 @@ export function drawVideoRisks(canvas, video, risks) {
   }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
   ctx.clearRect(0, 0, width, height)
-  if (!video.videoWidth || !video.videoHeight) return
-  const scale = Math.min(width / video.videoWidth, height / video.videoHeight)
-  const imageWidth = video.videoWidth * scale
-  const imageHeight = video.videoHeight * scale
+  const sourceWidth = frame?.displayWidth || video.videoWidth
+  const sourceHeight = frame?.displayHeight || video.videoHeight
+  if (!sourceWidth || !sourceHeight) return
+  const scale = Math.min(width / sourceWidth, height / sourceHeight)
+  const imageWidth = sourceWidth * scale
+  const imageHeight = sourceHeight * scale
   const left = (width - imageWidth) / 2
   const top = (height - imageHeight) / 2
+  if (frame) {
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, width, height)
+    ctx.drawImage(frame, left, top, imageWidth, imageHeight)
+  }
   for (const risk of risks) {
     const [x1, y1, x2, y2] = risk.box || []
     if (![x1, y1, x2, y2].every(Number.isFinite) || x2 <= x1 || y2 <= y1) continue
-    const color = risk.severity === 'CRITICAL' ? '#EF4444' : '#F97316'
+    const critical = risk.severity === 'CRITICAL' || risk.severity === 'EMERGENCY'
+    const color = critical ? '#EF4444' : '#F97316'
     const x = left + x1 * imageWidth
     const y = top + y1 * imageHeight
     ctx.strokeStyle = color
     ctx.lineWidth = 3
     ctx.strokeRect(x, y, (x2 - x1) * imageWidth, (y2 - y1) * imageHeight)
-    const label = risk.severity === 'CRITICAL' ? 'NGUY HIỂM' : 'CHÚ Ý'
+    const label = critical ? 'NGUY HIỂM' : 'CHÚ Ý'
     ctx.font = 'bold 13px system-ui'
     ctx.fillStyle = color
     const labelY = Math.max(0, y - 21)

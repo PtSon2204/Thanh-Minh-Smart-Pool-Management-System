@@ -32,6 +32,7 @@ import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
 import StaffOnboardingPage from "../pages/staff/StaffOnboardingPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
 import StaffSchedulePage from "../pages/admin/staff/StaffSchedulePage";
+import OperationalTasksPage from "../pages/admin/staff/OperationalTasksPage";
 import StaffAttendancePage from "../pages/admin/staff/StaffAttendancePage";
 import StaffQrAttendancePage from "../pages/admin/staff/StaffQrAttendancePage";
 import StaffAttendanceScanPage from "../pages/admin/staff/StaffAttendanceScanPage";
@@ -48,7 +49,6 @@ import ActivateAlertPage from "../pages/admin/safety/ActivateAlertPage";
 import IncidentHistoryPage from "../pages/admin/safety/IncidentHistoryPage";
 import CameraListPage from "../pages/admin/safety/CameraListPage";
 import MonitoringAlertsPage from "../pages/admin/safety/MonitoringAlertsPage";
-import VideoAnalysisPage from "../pages/admin/safety/VideoAnalysisPage";
 import ThresholdsPage from "../pages/admin/safety/ThresholdsPage";
 import CreateSwimClassPage from "../pages/coach/classes/CreateSwimClassPage";
 import SwimClassListPage from "../pages/coach/classes/SwimClassListPage";
@@ -139,7 +139,7 @@ const router = createBrowserRouter([
 
   {
     element: (
-      <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES"]} />
+      <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD", "SALES", "COACH"]} />
     ),
     children: [
       {
@@ -148,6 +148,12 @@ const router = createBrowserRouter([
         children: [
           { path: "doi-mat-khau", element: <ChangePasswordPage /> },
           { path: "staff/schedule", element: <StaffSchedulePage /> },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN", "LIFEGUARD"]} />,
+            children: [
+              { path: "staff/tasks", element: <OperationalTasksPage /> },
+            ],
+          },
           {
             element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
             children: [
@@ -231,7 +237,6 @@ const router = createBrowserRouter([
                 element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
                 children: [
                   { path: "safety/list-camera", element: <CameraListPage /> },
-                  { path: "safety/video-analysis", element: <VideoAnalysisPage /> },
                 ],
               },
               {

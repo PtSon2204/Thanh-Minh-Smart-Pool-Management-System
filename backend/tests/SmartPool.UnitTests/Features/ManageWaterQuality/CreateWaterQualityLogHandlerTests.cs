@@ -4,6 +4,7 @@ using Moq;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.CreateWaterQualityLog;
 using SmartPool.Application.Features.ManageWaterQuality.Dtos;
 using SmartPool.Application.Features.ManageWaterQuality.Services;
+using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
@@ -48,8 +49,9 @@ public sealed class CreateWaterQualityLogHandlerTests
         var inspectorId = Guid.NewGuid();
         _currentUserMock.Setup(u => u.UserId).Returns(inspectorId);
 
-        _operationsMock.Setup(o => o.CreateWaterQualityLogAsync(It.IsAny<WaterQualityLog>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((WaterQualityLog log, CancellationToken _) => new WaterQualityLogDto
+        _operationsMock.Setup(o => o.CreateWaterQualityLogAsync(It.IsAny<WaterQualityLog>(),
+                It.IsAny<CancellationToken>(), It.IsAny<OperationalTaskExecutionAuthorization?>()))
+            .ReturnsAsync((WaterQualityLog log, CancellationToken cancellationToken, OperationalTaskExecutionAuthorization? authorization) => new WaterQualityLogDto
             {
                 Id = log.Id,
                 InspectionTime = log.InspectionTime,
@@ -77,7 +79,37 @@ public sealed class CreateWaterQualityLogHandlerTests
         Assert.Equal(inspectorId, result.InspectedBy);
         _operationsMock.Verify(o => o.CreateWaterQualityLogAsync(
             It.Is<WaterQualityLog>(l => l.Status == WaterQualityConstants.StatusWithinLimits && l.PhValue == 7.4m),
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(), It.IsAny<OperationalTaskExecutionAuthorization?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Admin_task_execution_passes_server_role_and_expected_assignment_to_repository()
+    {
+        var adminId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        _currentUserMock.Setup(user => user.UserId).Returns(adminId);
+        _currentUserMock.Setup(user => user.IsInRole("ADMIN")).Returns(true);
+        _operationsMock.Setup(operations => operations.CreateWaterQualityLogAsync(
+                It.Is<WaterQualityLog>(log => log.InspectedBy == adminId && log.OperationalTaskId == taskId),
+                It.IsAny<CancellationToken>(),
+                It.Is<OperationalTaskExecutionAuthorization?>(authorization => authorization != null &&
+                    authorization.IsAdmin && !authorization.IsLifeguard && authorization.AdminExecutionConfirmed &&
+                    authorization.ExpectedTaskRevision == 4 && authorization.ExpectedAssigneeId == null)))
+            .ReturnsAsync(new WaterQualityLogDto { Status = WaterQualityConstants.StatusWithinLimits });
+
+        var result = await CreateHandler().Handle(new CreateWaterQualityLogCommand
+        {
+            OperationalTaskId = taskId,
+            AdminExecutionConfirmed = true,
+            ExpectedTaskRevision = 4,
+            ExpectedAssigneeId = null,
+            PhValue = 7.4m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true
+        }, CancellationToken.None);
+
+        Assert.Equal(WaterQualityConstants.StatusWithinLimits, result.Status);
+        _operationsMock.VerifyAll();
     }
 
     [Fact(DisplayName = "UTC_CQ02 (N) - Chỉ số nguy hiểm (Danger) -> Phát cảnh báo thông báo và SignalR")]
@@ -90,8 +122,9 @@ public sealed class CreateWaterQualityLogHandlerTests
         _userOperationsMock.Setup(u => u.GetUsersByRoleAsync("ADMIN", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<User> { adminUser });
 
-        _operationsMock.Setup(o => o.CreateWaterQualityLogAsync(It.IsAny<WaterQualityLog>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((WaterQualityLog log, CancellationToken _) => new WaterQualityLogDto
+        _operationsMock.Setup(o => o.CreateWaterQualityLogAsync(It.IsAny<WaterQualityLog>(),
+                It.IsAny<CancellationToken>(), It.IsAny<OperationalTaskExecutionAuthorization?>()))
+            .ReturnsAsync((WaterQualityLog log, CancellationToken cancellationToken, OperationalTaskExecutionAuthorization? authorization) => new WaterQualityLogDto
             {
                 Id = log.Id,
                 InspectionTime = log.InspectionTime,

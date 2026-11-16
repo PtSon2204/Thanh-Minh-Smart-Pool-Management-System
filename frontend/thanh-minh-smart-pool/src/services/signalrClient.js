@@ -1,9 +1,39 @@
 import * as signalR from '@microsoft/signalr';
-import { getAccessToken } from '../features/auth/store/authStore';
+import { getAccessToken, useAuthStore } from '../features/auth/store/authStore';
+import { resolveSignalRHubUrl } from './signalrUrl';
 
 let connection = null;
+let authenticatedToken = null;
+let lifecycle = Promise.resolve();
 const listeners = new Set();
 const stateListeners = new Set();
+let retryTimer = null;
+let retryAttempt = 0;
+const retryDelays = [2000, 5000, 10000, 30000];
+
+function clearRetry(reset = false) {
+  if (retryTimer !== null) clearTimeout(retryTimer);
+  retryTimer = null;
+  if (reset) retryAttempt = 0;
+}
+
+// SignalR automatic reconnect only covers connections that have already started.
+function scheduleRetry() {
+  if (retryTimer !== null || !getAccessToken()) return;
+  const delay = retryDelays[Math.min(retryAttempt++, retryDelays.length - 1)];
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    void startSignalRConnection();
+  }, delay);
+}
+
+// Preserve listeners on the same HubConnection, but never preserve its principal
+// across logout/account/token changes. Serializing stop/start also avoids races
+// between the camera, popup and notification hooks starting at the same time.
+useAuthStore.subscribe((state, previous) => {
+  if (connection && signalRIdentity(state.session) !== signalRIdentity(previous.session))
+    void startSignalRConnection();
+});
 
 /**
  * Lấy hoặc khởi tạo instance HubConnection kết nối tới /hubs/notifications
@@ -12,8 +42,7 @@ export function getSignalRConnection() {
   if (connection) return connection;
 
   const rawBase = import.meta.env.VITE_SIGNALR_HUB_URL || import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  const baseUrl = rawBase.replace(/\/$/, '');
-  const hubUrl = `${baseUrl}/hubs/notifications`;
+  const hubUrl = resolveSignalRHubUrl(rawBase, window.location.origin);
 
   connection = new signalR.HubConnectionBuilder()
     .withUrl(hubUrl, {
@@ -26,6 +55,7 @@ export function getSignalRConnection() {
     .build();
 
   connection.on('ReceiveNotification', (payload) => {
+    if (!authenticatedToken || authenticatedToken !== getAccessToken()) return;
     listeners.forEach((listener) => {
       try {
         listener(payload);
@@ -40,11 +70,13 @@ export function getSignalRConnection() {
   });
 
   connection.onreconnected((connectionId) => {
+    clearRetry(true);
     stateListeners.forEach((fn) => fn('connected', connectionId));
   });
 
   connection.onclose((error) => {
     stateListeners.forEach((fn) => fn('disconnected', error));
+    scheduleRetry();
   });
 
   return connection;
@@ -84,25 +116,42 @@ export function signalRIdentity(session) {
 /**
  * Khởi động kết nối SignalR (nếu chưa kết nối)
  */
-export async function startSignalRConnection() {
+export function startSignalRConnection() {
   const conn = getSignalRConnection();
-  if (conn.state === signalR.HubConnectionState.Disconnected) {
+  const synchronize = async () => {
+    clearRetry();
     try {
-      await conn.start();
-      stateListeners.forEach((fn) => fn('connected', conn.connectionId));
-      return true;
+      while (true) {
+        const token = getAccessToken();
+        if (conn.state !== signalR.HubConnectionState.Disconnected && token !== authenticatedToken)
+          await conn.stop();
+        if (!token) { authenticatedToken = null; clearRetry(true); return false; }
+        if (conn.state === signalR.HubConnectionState.Disconnected) {
+          authenticatedToken = token;
+          await conn.start();
+          // A logout/refresh may have happened during the handshake.
+          if (token !== getAccessToken()) continue;
+          clearRetry(true);
+          stateListeners.forEach((fn) => fn('connected', conn.connectionId));
+        }
+        return conn.state === signalR.HubConnectionState.Connected;
+      }
     } catch (err) {
       stateListeners.forEach((fn) => fn('error', err));
+      scheduleRetry();
       return false;
     }
-  }
-  return conn.state === signalR.HubConnectionState.Connected;
+  };
+  const pending = lifecycle.then(synchronize, synchronize);
+  lifecycle = pending.catch(() => false);
+  return pending;
 }
 
 /**
  * Gửi thông báo test trực tiếp qua Hub (nếu có method)
  */
 export async function sendNotificationViaHub(title, content, type = 'SYSTEM') {
+  if (!await startSignalRConnection()) return false;
   const conn = getSignalRConnection();
   if (conn.state === signalR.HubConnectionState.Connected) {
     try {

@@ -12,6 +12,7 @@ public sealed class WaterQualityLogDto
     public string? InspectorName { get; set; }
     public Guid? EquipmentId { get; set; }
     public string? EquipmentName { get; set; }
+    public Guid? OperationalTaskId { get; set; }
     public string Status { get; set; } = "NotEvaluated";
     public string? Recommendation { get; set; }
     public string? EvaluationVersion { get; set; }

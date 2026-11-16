@@ -1,4 +1,5 @@
 using FluentValidation;
+using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Common.Time;
 
 namespace SmartPool.Application.Features.ManageStaffs.Onboarding;
@@ -43,7 +44,7 @@ public static class StaffOnboardingValidation
 
     public static void ValidatePassword(string? password, string? confirmation)
     {
-        if (password is null || password.Length < 8 || System.Text.Encoding.UTF8.GetByteCount(password) > 72 ||
+        if (password is null || password.Length is < 8 or > 128 ||
             !password.Any(char.IsLetter) || !password.Any(char.IsDigit) || password != confirmation)
             throw new StaffOnboardingException("INVALID_PASSWORD", 400);
     }
@@ -54,7 +55,7 @@ public sealed class StaffInvitationProfileValidator : AbstractValidator<StaffLeg
     public StaffInvitationProfileValidator()
     {
         RuleFor(profile => profile.FullName).NotEmpty().MaximumLength(255);
-        RuleFor(profile => profile.Phone).NotEmpty().Matches(@"^0[35789][0-9]{8}$");
+        RuleFor(profile => profile.Phone).NotEmpty().Matches(VietnameseMobilePhone.ValidationPattern);
     }
 }
 
@@ -78,7 +79,7 @@ public sealed class StaffLegalProfileValidator : AbstractValidator<StaffLegalPro
         RuleFor(profile => profile.EmergencyContactRelationship).MaximumLength(100);
         if (!submitted) return;
         RuleFor(profile => profile.FullName).NotEmpty();
-        RuleFor(profile => profile.Phone).Matches(@"^0[35789][0-9]{8}$");
+        RuleFor(profile => profile.Phone).Matches(VietnameseMobilePhone.ValidationPattern);
         RuleFor(profile => profile.DateOfBirth).NotNull()
             .Must(value => value is null || value.Value.Year <= VietnamTimeBoundary.GetDate(clock).Year - 18)
             .WithMessage("Nhân viên phải từ 18 tuổi, tính theo năm sinh.");
@@ -95,7 +96,7 @@ public sealed class StaffLegalProfileValidator : AbstractValidator<StaffLegalPro
             profile.EmergencyContactRelationship.Length > 0, () =>
         {
             RuleFor(profile => profile.EmergencyContactName).NotEmpty();
-            RuleFor(profile => profile.EmergencyContactPhone).Matches(@"^0[35789][0-9]{8}$");
+            RuleFor(profile => profile.EmergencyContactPhone).Matches(VietnameseMobilePhone.ValidationPattern);
         });
     }
 }

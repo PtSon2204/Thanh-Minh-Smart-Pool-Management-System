@@ -1,4 +1,5 @@
 using FluentValidation;
+using SmartPool.Application.Common.Helpers;
 
 namespace SmartPool.Application.Features.ManageServices.Commands.CheckoutRental
 {
@@ -10,7 +11,12 @@ namespace SmartPool.Application.Features.ManageServices.Commands.CheckoutRental
             RuleFor(command => command.RequestId).NotEmpty();
             RuleFor(command => command.CollectionConfirmed).Equal(true).WithMessage("Xác nhận đã thu đủ phí thuê và tiền cọc.");
             RuleFor(command => command.CustomerName).NotEmpty().MaximumLength(255).WithMessage("Nhập tên khách hàng hợp lệ.");
-            RuleFor(command => command.CustomerPhone).NotEmpty().MaximumLength(20).WithMessage("Nhập số điện thoại khách hàng.");
+            RuleFor(command => command.CustomerPhone)
+                .Cascade(CascadeMode.Stop)
+                .NotEmpty().WithMessage("Nhập số điện thoại khách hàng.")
+                .MaximumLength(20).WithMessage("Số điện thoại không vượt quá 20 ký tự.")
+                .Matches(VietnameseMobilePhone.ValidationPattern)
+                .WithMessage("Nhập số di động Việt Nam, bắt đầu bằng 0 hoặc +84.");
             RuleFor(command => command.Items).NotNull().NotEmpty();
             RuleFor(command => command.Items).Must(items => items is null || (items.Count <= 20 && items.All(item => item is not null) && items.Sum(item => (long)item.Quantity) <= 100 && items.Select(item => item.ProductId).Distinct().Count() == items.Count))
                 .WithMessage("Chọn các sản phẩm khác nhau, tối đa 100 đơn vị mỗi đơn.");

@@ -6,6 +6,21 @@
   white-space: nowrap;
 }
 
+.staff-schedule-header-actions {
+  align-items: end;
+  display: grid;
+  gap: var(--space-1);
+  justify-items: end;
+}
+
+.staff-schedule-assignment-hint {
+  color: var(--list-muted);
+  font-size: var(--schedule-text-small);
+  line-height: 1.4;
+  max-inline-size: 18rem;
+  text-align: end;
+}
+
 .staff-schedule-toolbar {
   align-items: end;
   flex-wrap: wrap;
@@ -76,6 +91,41 @@
   gap: var(--space-2);
   grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-top: var(--space-4);
+}
+
+.staff-week-board--stacked {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.staff-operational-week-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.staff-operational-week-controls > .ant-typography {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.staff-operational-tasks .staff-week-table .ant-table-tbody > tr > td {
+  vertical-align: top;
+}
+
+.staff-week-loading {
+  display: grid;
+  min-height: 12rem;
+  place-items: center;
+  padding-block: var(--space-6);
+}
+
+.staff-task-name.ant-btn {
+  height: auto;
+  max-width: 100%;
+  padding-inline: 0;
+  text-align: start;
+  white-space: normal;
 }
 
 .staff-week-day {
@@ -712,6 +762,21 @@
 }
 
 @media (max-width: 767px) {
+  .staff-operational-week-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .staff-operational-week-controls > .ant-typography {
+    text-align: center;
+  }
+
+  .staff-operational-week-current {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
   .staff-week-board {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -779,7 +844,7 @@
     grid-row: 1;
   }
 
-  .staff-schedule-header-actions {
+.staff-schedule-header-actions {
     justify-content: flex-end;
   }
 

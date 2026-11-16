@@ -35,7 +35,7 @@ const errorMessages = {
   EMPLOYEE_NOT_FOUND: 'Không tìm thấy hồ sơ nhân viên của tài khoản này.',
   INVALID_OR_EXPIRED_INVITATION: 'Liên kết không hợp lệ hoặc đã hết hạn. Hãy yêu cầu quản trị viên gửi lại.',
   INVALID_INVITATION_TOKEN: 'Mở lại đúng liên kết trong email lời mời.',
-  INVALID_PASSWORD: 'Mật khẩu cần ít nhất 8 ký tự, có chữ và số, không quá 72 byte UTF-8.',
+  INVALID_PASSWORD: 'Mật khẩu phải dài từ 8 đến 128 ký tự, có ít nhất một chữ cái và một chữ số. Mật khẩu xác nhận phải trùng khớp.',
   ONBOARDING_KEYS_UNAVAILABLE: 'Chưa cấu hình khóa bảo vệ hồ sơ. Liên hệ quản trị hệ thống.',
   INVITATION_EXISTS: 'Email này đã có lời mời. Hãy kiểm tra danh sách và gửi lại khi cần.',
   RESEND_NOT_ALLOWED: 'Hồ sơ đang chờ duyệt nên không thể gửi lại lời mời. Hãy yêu cầu bổ sung nếu nhân viên cần chỉnh sửa.',
@@ -43,6 +43,39 @@ const errorMessages = {
   PHONE_ALREADY_EXISTS: 'Số điện thoại đã được sử dụng.',
   ROLE_UNAVAILABLE: 'Vai trò trong lời mời không còn khả dụng. Quản trị viên cần kiểm tra vai trò trước khi duyệt lại.',
   INVALID_JOIN_DATE: 'Ngày vào làm phải từ hôm nay trở đi, tính theo ngày tại Việt Nam.',
+}
+
+export function isUnavailableOnboardingLink(error) {
+  const data = error?.response?.data
+  const code = data?.code || data?.message || data?.title
+  return ['INVALID_TOKEN', 'INVALID_INVITATION_TOKEN', 'INVALID_OR_EXPIRED_INVITATION', 'INVITATION_EXPIRED', 'INVITATION_CANCELLED', 'INVITATION_CLOSED'].includes(code)
+    || [401, 403].includes(error?.response?.status)
+}
+
+export const unavailableOnboardingGuidance = {
+  type: 'warning', title: 'Liên kết lời mời không còn khả dụng',
+  description: 'Mở lại liên kết mới nhất trong email. Nếu vẫn không truy cập được, hãy liên hệ quản trị viên để kiểm tra hoặc gửi lại lời mời.',
+}
+
+export function onboardingGuidance(workspace, invitationAccess, now = Date.now()) {
+  const revision = workspace?.revision || workspace?.approvedRevision
+  const invitation = workspace?.invitation
+  const activeInvitation = invitation?.status === 'PENDING' && new Date(invitation.expiresAtUtc).getTime() > now
+  const approvedInvitation = invitation?.status === 'COMPLETED' && revision?.state === 'APPROVED'
+  if (invitationAccess && ((!activeInvitation && !approvedInvitation) ||
+    ['REJECTED', 'REVOKED', 'EXPIRED', 'CANCELLED', 'INVALID'].includes(revision?.state))) {
+    return { ...unavailableOnboardingGuidance, showProfile: false, editable: false }
+  }
+  const guidance = {
+    DRAFT: { type: 'info', title: 'Tiếp tục hoàn thiện hồ sơ', description: 'Bạn có thể chỉnh sửa, lưu bản nháp và gửi hồ sơ để quản trị viên duyệt.', editable: true },
+    SUBMITTED: { type: 'info', title: 'Hồ sơ đang chờ duyệt', description: 'Bạn chỉ có thể chỉnh sửa khi quản trị viên yêu cầu bổ sung. Chọn Tải lại trạng thái để kiểm tra kết quả.' },
+    APPROVED: { type: 'success', title: 'Hồ sơ đã được duyệt', description: 'Bạn có thể đăng nhập bằng tài khoản nhân viên và mật khẩu đã tạo.', canLogin: true },
+    CHANGES_REQUESTED: { type: 'warning', title: 'Hồ sơ cần bổ sung', description: 'Chỉnh sửa theo yêu cầu của quản trị viên bên dưới, rồi gửi lại hồ sơ để duyệt.', editable: true },
+    REJECTED: { type: 'warning', title: 'Hồ sơ đã bị từ chối', description: 'Liên hệ quản trị viên để được hướng dẫn. Bạn không thể chỉnh sửa phiên bản này.' },
+  }[revision?.state]
+  return guidance
+    ? { ...guidance, showProfile: !invitationAccess || ['DRAFT', 'SUBMITTED', 'CHANGES_REQUESTED'].includes(revision.state) }
+    : { type: 'info', title: 'Hồ sơ hiện có', showProfile: !invitationAccess }
 }
 
 export function onboardingError(error) {

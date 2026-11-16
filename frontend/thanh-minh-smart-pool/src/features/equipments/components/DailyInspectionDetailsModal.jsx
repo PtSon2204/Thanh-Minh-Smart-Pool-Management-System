@@ -45,6 +45,7 @@ export default function DailyInspectionDetailsModal({
   inspection,
   onClose,
   onInspectionUpdated,
+  readOnly = false,
 }) {
   const isAdmin = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN')
   const resolveMutation = useResolveInspectionItem()
@@ -475,7 +476,7 @@ export default function DailyInspectionDetailsModal({
               </div>
             )}
 
-            {isAdmin && (
+              {isAdmin && !readOnly && (
               <div style={{ marginTop: 8 }}>
                 <Button
                   type={isHandled ? 'link' : 'primary'}
@@ -531,7 +532,7 @@ export default function DailyInspectionDetailsModal({
                 <div style={{ maxWidth: '75%', color: '#991b1b', fontSize: 13, lineHeight: 1.5 }}>
                   Biên bản ghi nhận <strong>{criticalIssueItems.length} thiết bị cốt lõi</strong> ({criticalIssueItems.map((c) => c.equipmentName).join(', ')}) bị hư hỏng, có nguy cơ vi phạm quy chuẩn an toàn bơi lội (Thông tư 03/2018/TT-BVHTTDL). Bạn có thể chủ động bấm tạm dừng hoạt động bể bơi để bảo trì ngay bên dưới.
                 </div>
-                {isAdmin && (
+            {isAdmin && !readOnly && (
                   <Button
                     type="primary"
                     danger

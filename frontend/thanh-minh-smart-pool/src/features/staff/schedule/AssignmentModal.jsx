@@ -39,7 +39,7 @@ function AssignmentRow({ field, index, rows, monday, employees, shifts, assignme
   const employeeOptions = employees.map((employee) => ({
     value: employee.employeeId,
     label: employee.name,
-    disabled: Boolean(!row?.employeeIds?.includes(employee.employeeId) && row?.shiftId && row?.workDate && conflictFor({ employeeId: employee.employeeId, shiftId: row.shiftId, workDate: row.workDate.format('YYYY-MM-DD') }, [...assignments, ...drafts, ...otherRows], shifts)),
+    disabled: Boolean(row?.shiftId && row?.workDate && conflictFor({ employeeId: employee.employeeId, shiftId: row.shiftId, workDate: row.workDate.format('YYYY-MM-DD') }, [...assignments, ...drafts, ...otherRows], shifts)),
   }))
 
   return <section className="staff-assignment-row" aria-label={`Phân công ${index + 1}`}>
@@ -64,7 +64,7 @@ export default function AssignmentModal({ open, context, monday, employees, shif
   const initialDate = context?.workDate && !assignmentDateError(context.workDate, monday)
     ? context.workDate
     : weekDates(monday).find((date) => !assignmentDateError(date, monday))
-  const initialRows = initialDate ? [{ employeeIds: context?.employeeId ? [context.employeeId] : [], shiftId: context?.shiftId, workDate: dayjs(initialDate) }] : []
+  const initialRows = initialDate ? [{ employeeIds: [], shiftId: context?.shiftId, workDate: dayjs(initialDate) }] : []
   const rows = Form.useWatch('rows', { form, preserve: true }) || initialRows
   const unavailable = loading || !shifts.length || !employees.length
 

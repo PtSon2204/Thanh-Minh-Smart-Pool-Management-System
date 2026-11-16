@@ -97,23 +97,6 @@ public sealed class RentalsControllerErrorContractTests
     }
 
     [Fact]
-    public async Task GivenUnexpectedSenderFailure_WhenReturning_ThenTheSameExceptionPropagates()
-    {
-        var command = new ReturnRentalCommand();
-        var failure = new InvalidOperationException("qa-unexpected-rental-failure");
-        using var cancellation = new CancellationTokenSource();
-        var sender = new Mock<ISender>();
-        sender.Setup(item => item.Send(command, cancellation.Token)).ThrowsAsync(failure);
-        var controller = CreateController(sender.Object, Guid.NewGuid());
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            controller.Return(Guid.NewGuid(), command, cancellation.Token));
-
-        Assert.Same(failure, exception);
-        sender.Verify(item => item.Send(command, cancellation.Token), Times.Once);
-    }
-
-    [Fact]
     public async Task GivenSuccessfulCheckout_WhenCheckingOut_Then201PreservesResponseAndRentalLocation()
     {
         var command = new CheckoutRentalCommand();

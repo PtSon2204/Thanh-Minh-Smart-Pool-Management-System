@@ -19,12 +19,7 @@ public class SmartPoolDbContext : EfDbContext
     public DbSet<StaffInvitation> StaffInvitations { get; set; }
     public DbSet<StaffOnboardingRevision> StaffOnboardingRevisions { get; set; }
     public DbSet<StaffOnboardingDocument> StaffOnboardingDocuments { get; set; }
-    public DbSet<StaffIdentityClaim> StaffIdentityClaims { get; set; }
-    public DbSet<StaffCorrectionRequest> StaffCorrectionRequests { get; set; }
-    public DbSet<StaffWorkPattern> StaffWorkPatterns { get; set; }
-    public DbSet<StaffScheduleException> StaffScheduleExceptions { get; set; }
-    public DbSet<StaffSchedulePreview> StaffSchedulePreviews { get; set; }
-    public DbSet<StaffScheduleOperation> StaffScheduleOperations { get; set; }
+    public DbSet<StaffScheduleChange> StaffScheduleChanges { get; set; }
     public DbSet<StaffScheduleDelivery> StaffScheduleDeliveries { get; set; }
     public virtual DbSet<EmployeeShift> EmployeeShifts { get; set; }
     public virtual DbSet<AttendanceLog> AttendanceLogs { get; set; }
@@ -50,10 +45,10 @@ public class SmartPoolDbContext : EfDbContext
     public virtual DbSet<UserProfile> UserProfiles { get; set; }
     public virtual DbSet<Voucher> Vouchers { get; set; }
     public DbSet<Warning> Warnings { get; set; }
-    public DbSet<VideoAnalysisJob> VideoAnalysisJobs { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<WaterQualityLog> WaterQualityLogs { get; set; }
     public DbSet<PoolDutySchedule> PoolDutySchedules { get; set; }
+    public DbSet<PoolDutyMeasurementRecurrence> PoolDutyMeasurementRecurrences { get; set; }
     public DbSet<SwimClass> SwimClasses { get; set; }
     public DbSet<ClassSession> ClassSessions { get; set; }
     public DbSet<ClassRegistration> ClassRegistrations { get; set; }
@@ -66,23 +61,17 @@ public class SmartPoolDbContext : EfDbContext
     {
         modelBuilder.HasPostgresExtension("pgcrypto").HasPostgresExtension("smart_pool", "uuid-ossp");
         modelBuilder.ApplyConfiguration(new EmployeeConfiguration());
-        var patterns = new StaffWorkPatternConfiguration();
-        modelBuilder.ApplyConfiguration<StaffWorkPattern>(patterns);
-        modelBuilder.ApplyConfiguration<StaffScheduleException>(patterns);
-        modelBuilder.ApplyConfiguration<StaffSchedulePreview>(patterns);
-        modelBuilder.ApplyConfiguration<StaffScheduleOperation>(patterns);
-        modelBuilder.ApplyConfiguration<StaffScheduleDelivery>(patterns);
+        var scheduling = new StaffScheduleChangeConfiguration();
+        modelBuilder.ApplyConfiguration<StaffScheduleChange>(scheduling);
+        modelBuilder.ApplyConfiguration<StaffScheduleDelivery>(scheduling);
         var onboarding = new StaffOnboardingConfiguration();
         modelBuilder.ApplyConfiguration<StaffInvitation>(onboarding);
         modelBuilder.ApplyConfiguration<StaffOnboardingRevision>(onboarding);
         modelBuilder.ApplyConfiguration<StaffOnboardingDocument>(onboarding);
-        modelBuilder.ApplyConfiguration<StaffIdentityClaim>(onboarding);
-        modelBuilder.ApplyConfiguration<StaffCorrectionRequest>(onboarding);
         modelBuilder.ApplyConfiguration(new EmployeeShiftConfiguration());
         modelBuilder.ApplyConfiguration(new AttendanceLogConfiguration());
         modelBuilder.ApplyConfiguration(new EntryLogConfiguration());
         modelBuilder.ApplyConfiguration(new EquipmentConfiguration());
-        modelBuilder.ApplyConfiguration(new VideoAnalysisJobConfiguration());
         modelBuilder.ApplyConfiguration(new IncidentConfiguration());
         modelBuilder.ApplyConfiguration(new InventoryLogConfiguration());
         modelBuilder.ApplyConfiguration(new DailyInspectionConfiguration());
@@ -108,6 +97,7 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
         modelBuilder.ApplyConfiguration(new WaterQualityLogConfiguration());
         modelBuilder.ApplyConfiguration(new PoolDutyScheduleConfiguration());
+        modelBuilder.ApplyConfiguration(new PoolDutyMeasurementRecurrenceConfiguration());
         modelBuilder.ApplyConfiguration(new SwimClassConfiguration());
         modelBuilder.ApplyConfiguration(new ClassSessionConfiguration());
         modelBuilder.ApplyConfiguration(new ClassRegistrationConfiguration());
