@@ -18,6 +18,7 @@ using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetAttendanceHistory;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffEdit;
 using SmartPool.Domain.Enums;
 
 namespace SmartPool.API.Controllers
@@ -60,13 +61,25 @@ namespace SmartPool.API.Controllers
             return await SendAsync(new GetStaffOptionsQuery(), cancellationToken);
         }
 
+        [HttpGet("{userId:guid}/edit")]
+        [RequirePermission("staff", "update")]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+        [ProducesResponseType(typeof(GetStaffEditResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetStaffEdit(Guid userId, CancellationToken cancellationToken)
+        {
+            if (!User.HasRole(RoleEnum.ADMIN) || !TryGetUserId(out var actorId)) return Forbid();
+            return await SendAsync(new GetStaffEditQuery(userId, actorId), cancellationToken);
+        }
+
         /// <summary>Cập nhật hồ sơ nhân viên.</summary>
         [HttpPut("{userId:guid}")]
         [RequirePermission("staff", "update")]
         [ProducesResponseType(typeof(UpdateStaffResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateStaff(Guid userId, [FromBody] UpdateStaffCommand command, CancellationToken cancellationToken)
         {
+            if (!User.HasRole(RoleEnum.ADMIN) || !TryGetUserId(out var actorId)) return Forbid();
             command.UserId = userId;
+            command.ActorId = actorId;
             return await SendAsync(command, cancellationToken);
         }
 

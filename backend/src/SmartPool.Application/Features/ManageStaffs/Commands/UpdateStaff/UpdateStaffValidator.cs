@@ -8,6 +8,11 @@ namespace SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff
         {
             RuleFor(item => item.UserId).NotEmpty().WithMessage("Mã nhân viên không được để trống.");
             RuleFor(item => item.Status).Must(value => value is "Working" or "Inactive").WithMessage("Trạng thái nhân viên không hợp lệ.");
+            When(item => item.Details is not null, () =>
+            {
+                RuleFor(item => item.ActorId).NotEmpty();
+                RuleFor(item => item.HasEditSnapshot).Equal(true).WithMessage("Hãy tải lại hồ sơ trước khi lưu thay đổi.");
+            });
         }
     }
 }

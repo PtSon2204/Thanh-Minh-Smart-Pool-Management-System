@@ -8,7 +8,6 @@ using SmartPool.API.Controllers;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Domain.Entities;
-using SmartPool.Infrastructure.Persistence.Repositories;
 
 namespace SmartPool.UnitTests.Features.ManageStaffs;
 
@@ -87,7 +86,7 @@ public sealed class StaffAttendanceTimingTests
         var checkInClock = new FixedTimeProvider(new DateTimeOffset(2026, 10, 6, 14, 40, 0, TimeSpan.Zero));
         var checkOutClock = new FixedTimeProvider(new DateTimeOffset(2026, 10, 6, 19, 0, 0, TimeSpan.Zero));
 
-        Assert.True(StaffAttendanceTiming.CanCheckIn(assignment, checkInClock.GetUtcNow().UtcDateTime, 20));
+        Assert.True(StaffAttendanceTiming.CanCheckIn(assignment, checkInClock.GetUtcNow().UtcDateTime, 60));
         Assert.True(StaffAttendanceTiming.CanCheckOut(assignment, checkOutClock.GetUtcNow().UtcDateTime));
     }
 
@@ -112,6 +111,18 @@ public sealed class StaffAttendanceTimingTests
         Assert.False(StaffAttendanceTiming.CanCheckIn(assignment, scheduledEnd.GetUtcNow().UtcDateTime, 20));
         Assert.False(StaffAttendanceTiming.CanCheckOut(assignment, beforeCheckOutWindow.GetUtcNow().UtcDateTime));
         Assert.True(StaffAttendanceTiming.CanCheckOut(assignment, scheduledEnd.GetUtcNow().UtcDateTime));
+    }
+
+    [Fact]
+    public void GivenDefaultQrSettings_WhenCheckingEarlyWindow_ThenCheckInStartsSixtyMinutesEarly()
+    {
+        var settings = new StaffAttendanceQrSettings();
+        var start = new DateTime(2026, 10, 6, 1, 0, 0, DateTimeKind.Utc);
+        var end = start.AddHours(4);
+
+        Assert.Equal(60, settings.CheckInEarlyMinutes);
+        Assert.True(StaffAttendanceQrTiming.CanIssueCheckIn(start.AddMinutes(-60), start, end, settings));
+        Assert.False(StaffAttendanceQrTiming.CanIssueCheckIn(start.AddMinutes(-60).AddTicks(-1), start, end, settings));
     }
 
     [Fact]

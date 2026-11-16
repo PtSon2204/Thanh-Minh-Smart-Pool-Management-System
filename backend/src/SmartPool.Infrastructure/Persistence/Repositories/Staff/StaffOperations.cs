@@ -7,7 +7,6 @@ using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
-using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetShifts;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
@@ -69,15 +68,6 @@ public sealed partial class StaffOperations : IStaffOperations
 
     public Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken) =>
         Task.FromException<CreateStaffResponse>(new SmartPool.Application.Features.ManageStaffs.Onboarding.StaffOnboardingException("ONBOARDING_REQUIRED"));
-
-    public async Task<UpdateStaffResponse> UpdateStaffAsync(UpdateStaffCommand request, CancellationToken cancellationToken)
-    {
-        var employee = await context.Employees.Include(item => item.User).ThenInclude(user => user.UserProfile).Include(item => item.User.Role).FirstOrDefaultAsync(item => item.UserId == request.UserId, cancellationToken);
-        if (employee is null) throw new KeyNotFoundException("Không tìm thấy nhân viên.");
-        employee.Status = request.Status; employee.UpdatedAt = DateTime.UtcNow;
-        await context.SaveChangesAsync(cancellationToken);
-        return mapper.Map<UpdateStaffResponse>(employee);
-    }
 
     public async Task<PagedResponse<GetShiftsResponse>> GetShiftsAsync(GetShiftsQuery request, CancellationToken cancellationToken)
     {

@@ -1,29 +1,63 @@
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
 using SmartPool.Application.Features.ManageStaffs.Onboarding;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffEdit;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 
 namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffEmploymentIntegrationTests
 {
     [Fact]
-    public async Task GivenHistoricalEmployee_WhenUpdatingStatus_ThenUserIdentityRoleAndProfileStayUnchanged()
+    public async Task UpdateProfileThenToggleStatus()
     {
         await using var fixture = await StaffEmploymentFixture.CreateAsync();
         try
         {
-            var before = await fixture.ReadUserSnapshotAsync(fixture.AttachedStaffUserId);
+            var userId = fixture.AttachedStaffUserId;
+            var before = await fixture.ReadUserSnapshotAsync(userId);
+            var edit = await fixture.CreateOperations().GetStaffEditAsync(
+                new GetStaffEditQuery(userId, fixture.EligibleAdminUserId), CancellationToken.None);
+            var phone = $"09{RandomNumberGenerator.GetInt32(0, 100_000_000):D8}";
 
-            await fixture.CreateOperations().UpdateStaffAsync(new UpdateStaffCommand
+            await fixture.CreateOperations(fixture.CreateContext()).UpdateStaffAsync(new UpdateStaffCommand
             {
-                UserId = fixture.AttachedStaffUserId,
+                UserId = userId,
+                ActorId = fixture.EligibleAdminUserId,
+                Status = "Working",
+                Details = new StaffEditDetails
+                {
+                    FullName = "Updated QA Staff",
+                    Phone = phone,
+                    Address = "Updated QA address"
+                },
+                ExpectedUpdatedAt = edit.ExpectedUpdatedAt,
+                ExpectedUserUpdatedAt = edit.ExpectedUserUpdatedAt,
+                ExpectedProfileUpdatedAt = edit.ExpectedProfileUpdatedAt,
+                ExpectedProfileExists = edit.ExpectedProfileExists,
+                ExpectedApprovedRevisionId = edit.ExpectedApprovedRevisionId,
+                ExpectedApprovedRevisionVersion = edit.ExpectedApprovedRevisionVersion,
+                ExpectedCorrectionVersion = edit.ExpectedCorrectionVersion
+            }, CancellationToken.None);
 
+            var edited = await fixture.ReadUserSnapshotAsync(userId);
+            Assert.Equal(("Updated QA Staff", phone, "Updated QA address"),
+                (edited.FullName, edited.Phone, edited.Address));
+            Assert.Equal((before.DateOfBirth, before.Username, before.Email, before.RoleId),
+                (edited.DateOfBirth, edited.Username, edited.Email, edited.RoleId));
+            await using (var context = fixture.CreateContext())
+                Assert.Equal(0, await context.StaffOnboardingRevisions.CountAsync(revision => revision.EmployeeId == userId));
+
+            await fixture.CreateOperations(fixture.CreateContext()).UpdateStaffAsync(new UpdateStaffCommand
+            {
+                UserId = userId,
                 Status = "Inactive"
             }, CancellationToken.None);
 
-            var after = await fixture.ReadUserSnapshotAsync(fixture.AttachedStaffUserId);
-            var employee = await fixture.ReadEmployeeAsync(fixture.AttachedStaffUserId);
+            var after = await fixture.ReadUserSnapshotAsync(userId);
+            var employee = await fixture.ReadEmployeeAsync(userId);
 
-            Assert.Equal(before, after);
+            Assert.Equal(edited, after);
             Assert.Equal((new DateOnly(2025, 1, 1), "Inactive"),
                 (employee.JoinDate, employee.Status));
         }
