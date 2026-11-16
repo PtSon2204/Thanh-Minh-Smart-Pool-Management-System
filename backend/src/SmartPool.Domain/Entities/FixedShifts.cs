@@ -39,4 +39,16 @@ public static class FixedShifts
 
     public static FixedShiftDefinition? GetActiveShiftForInspection(TimeOnly currentTime) =>
         All.FirstOrDefault(s => s.IsInInspectionWindow(currentTime));
+
+    public static bool ContainsClassSession(DateTimeOffset startsAt, DateTimeOffset endsAt)
+    {
+        var localStart = startsAt.ToOffset(TimeSpan.FromHours(7));
+        var localEnd = endsAt.ToOffset(TimeSpan.FromHours(7));
+        if (localStart.Date != localEnd.Date || localStart >= localEnd)
+            return false;
+
+        var startTime = TimeOnly.FromDateTime(localStart.DateTime);
+        var endTime = TimeOnly.FromDateTime(localEnd.DateTime);
+        return All.Any(shift => startTime >= shift.StartTime && endTime <= shift.EndTime);
+    }
 }

@@ -11,7 +11,8 @@ public sealed class CreateSwimClassValidator : AbstractValidator<CreateSwimClass
             .WithMessage("Tên lớp không được để trống.")
             .Must(name => name is null || name.Trim().Length <= 150)
             .WithMessage("Tên lớp không được vượt quá 150 ký tự.");
-        RuleFor(x => x.Capacity).GreaterThan(0).WithMessage("Sức chứa phải lớn hơn 0.");
+        RuleFor(x => x.Capacity).InclusiveBetween(1, 5)
+            .WithMessage("Sức chứa phải từ 1 đến 5 học viên.");
         RuleFor(x => x.Fee)
             .GreaterThanOrEqualTo(0).WithMessage("Học phí không được âm.")
             .PrecisionScale(18, 2, true).WithMessage("Học phí tối đa 18 chữ số, gồm 2 chữ số thập phân.");
