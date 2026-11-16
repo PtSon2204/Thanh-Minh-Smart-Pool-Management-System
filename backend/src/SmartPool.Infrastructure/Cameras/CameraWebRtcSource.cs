@@ -5,7 +5,7 @@ using SIPSorcery.Net;
 namespace SmartPool.Infrastructure.Cameras;
 
 // One source per camera. Browser peers share this source and the existing RTSP worker.
-internal sealed class CameraWebRtcSource : IAsyncDisposable
+internal sealed class CameraWebRtcSource : IWebRtcVideoSource
 {
     private readonly Channel<CameraEncodedFrame> input = Channel.CreateBounded<CameraEncodedFrame>(32);
     private readonly CancellationTokenSource stop = new();
@@ -15,7 +15,7 @@ internal sealed class CameraWebRtcSource : IAsyncDisposable
     private bool? passthrough;
     public bool Failed => run.IsCompleted;
     public bool Transcoding => passthrough != true;
-    public event Action<byte[], bool, uint>? Frame;
+    public event Action<byte[], bool, uint, uint?>? Frame;
 
     public CameraWebRtcSource(CameraService cameras, Guid id, CameraOptions options)
     {
@@ -38,6 +38,7 @@ internal sealed class CameraWebRtcSource : IAsyncDisposable
         Process? encoder = null;
         Task output = Task.CompletedTask, errors = Task.CompletedTask;
         uint? previousTimestamp = null;
+        var previousArrival = DateTimeOffset.UtcNow;
         try
         {
             await foreach (var frame in input.Reader.ReadAllAsync(stop.Token))
@@ -46,8 +47,7 @@ internal sealed class CameraWebRtcSource : IAsyncDisposable
                 if (passthrough == null)
                 {
                     if (!frame.IsKeyFrame) continue;
-                    passthrough = frame.Format == "h264" && H264Packetiser.ParseNals(frame.Data).Any(n => n.NAL.Length >= 4
-                        && (n.NAL[0] & 31) == 7 && n.NAL[1] == 66 && (n.NAL[2] & 0x40) != 0 && n.NAL[3] <= 31);
+                    passthrough = frame.Format == "h264" && CameraH264Profile.CanPassthrough(frame.Data);
                     if (!passthrough.Value)
                     {
                         var start = new ProcessStartInfo(options.FfmpegPath)
@@ -58,7 +58,7 @@ internal sealed class CameraWebRtcSource : IAsyncDisposable
                         foreach (var arg in new[] {
                             "-hide_banner", "-loglevel", "error", "-nostdin", "-protocol_whitelist", "pipe",
                             "-use_wallclock_as_timestamps", "1", "-analyzeduration", "1", "-probesize", "32768", "-fpsprobesize", "0",
-                            "-threads", "1", "-flags", "low_delay",
+                            "-threads", "1", "-filter_threads", "1", "-flags", "low_delay",
                             "-f", frame.Format, "-i", "pipe:0", "-an", "-vf", "scale=w='min(1280,iw)':h=-2,fps=15",
                             "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-profile:v", "baseline", "-level:v", "3.1",
                             "-pix_fmt", "yuv420p", "-threads", "2", "-bf", "0", "-b:v", "1500k", "-maxrate", "2000k", "-bufsize", "1000k",
@@ -67,15 +67,20 @@ internal sealed class CameraWebRtcSource : IAsyncDisposable
                         }) start.ArgumentList.Add(arg);
                         encoder = Process.Start(start) ?? throw new IOException("Video encoder unavailable.");
                         output = H264AccessUnits.ReadAsync(encoder.StandardOutput.BaseStream,
-                            bytes => Frame?.Invoke(bytes, H264Packetiser.ParseNals(bytes).Any(n => (n.NAL[0] & 31) == 5), 6000), stop.Token);
+                            bytes => Frame?.Invoke(bytes, H264Packetiser.ParseNals(bytes).Any(n => (n.NAL[0] & 31) == 5), 6000, null), stop.Token);
                         errors = DrainAsync(encoder.StandardError.BaseStream, stop.Token);
                     }
                 }
                 if (passthrough == true)
                 {
                     var duration = previousTimestamp.HasValue ? unchecked(frame.RtpTimestamp - previousTimestamp.Value) : 3600u;
+                    var arrival = DateTimeOffset.UtcNow;
+                    // Publisher replay bắt đầu RTP timestamp mới; không biến seam ngắn thành
+                    // bước nhảy nhân tạo 2 giây trong timeline của trình duyệt.
+                    if (duration > 180000) duration = (uint)Math.Clamp((arrival - previousArrival).TotalSeconds * 90000, 750, 180000);
+                    previousArrival = arrival;
                     previousTimestamp = frame.RtpTimestamp;
-                    Frame?.Invoke(frame.Data, frame.IsKeyFrame, Math.Clamp(duration, 750u, 180000u));
+                    Frame?.Invoke(frame.Data, frame.IsKeyFrame, Math.Clamp(duration, 750u, 180000u), frame.RtpTimestamp);
                 }
                 else
                 {

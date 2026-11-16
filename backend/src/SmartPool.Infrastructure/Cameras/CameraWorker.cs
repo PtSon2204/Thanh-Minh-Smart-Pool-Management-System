@@ -16,16 +16,24 @@ internal sealed class CameraWorker : IAsyncDisposable
     private readonly Task work;
     private RTSPClient? currentClient;
     private string state = "Connecting";
+    private string? analysisSession;
+    private readonly bool simulator;
     private DateTimeOffset? lastFrameAt;
     private byte[]? jpeg;
     private readonly TimeProvider timeProvider;
     private readonly CameraOptions options;
     private event Action<CameraEncodedFrame>? liveFrames;
+    private int continuousDecoders;
+    private bool smoothPlayback;
 
-    internal IDisposable Subscribe(Action<CameraEncodedFrame> receive)
+    internal IDisposable Subscribe(Action<CameraEncodedFrame> receive, bool continuousDecoder = false)
     {
+        if (continuousDecoder) Interlocked.Increment(ref continuousDecoders);
         liveFrames += receive;
-        return new Subscription(() => liveFrames -= receive);
+        return new Subscription(() => {
+            liveFrames -= receive;
+            if (continuousDecoder) Interlocked.Decrement(ref continuousDecoders);
+        });
     }
     public Guid? EquipmentId { get; set; }
     public bool Registered { get; set; }
@@ -36,10 +44,13 @@ internal sealed class CameraWorker : IAsyncDisposable
     {
         this.timeProvider = timeProvider;
         this.options = options;
+        simulator = target.Simulator;
         work = Task.Run(async () =>
         {
+            var clock = new CameraRtpClock();
             while (!stop.IsCancellationRequested)
             {
+                clock.NewSource();
                 var frames = Channel.CreateBounded<(byte[] Data, string Format)>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropOldest });
                 using var attempt = CancellationTokenSource.CreateLinkedTokenSource(stop.Token);
                 Task receiving = Task.CompletedTask;
@@ -54,6 +65,7 @@ internal sealed class CameraWorker : IAsyncDisposable
                 var ended = new TaskCompletionSource<StoppedReason>(TaskCreationOptions.RunContinuationsAsynchronously);
                 client.Stopped += (_, e) => ended.TrySetResult(e.Reason);
                 var assembler = new CameraKeyFrame();
+                var accessUnits = new CameraRtpFrameBuffer();
                 client.NewTrack += (_, e) => { lock (assembler) assembler.Configure(e.Codec, e.StreamConfigurationData); };
                 DateTimeOffset nextDecode = DateTimeOffset.MinValue;
                 var receivedAt = timeProvider.GetUtcNow();
@@ -62,20 +74,27 @@ internal sealed class CameraWorker : IAsyncDisposable
                     lock (assembler)
                     {
                         receivedAt = timeProvider.GetUtcNow();
+                        var picture = accessUnits.Push(frame.Data.RtpTimestamp, receivedAt, frame.Data.Data);
+                        if (picture == null) return;
                         var listeners = liveFrames;
-                        var encoded = assembler.Read(frame.Data.Data, listeners != null || receivedAt >= nextDecode, keyFramesOnly: listeners == null);
+                        var encoded = assembler.Read(picture.Parts, listeners != null || picture.CapturedAt >= nextDecode, keyFramesOnly: listeners == null);
                         if (encoded == null) return;
-                        if (encoded.Value.IsKeyFrame && receivedAt >= nextDecode)
+                        var timestamp = clock.Observe(picture.Timestamp, picture.CapturedAt);
+                        if (encoded.Value.IsKeyFrame)
+                            lock (gate) smoothPlayback = encoded.Value.Format == "h264" && CameraH264Profile.CanPassthrough(encoded.Value.Data);
+                        if (encoded.Value.IsKeyFrame && picture.CapturedAt >= nextDecode &&
+                            (Volatile.Read(ref continuousDecoders) == 0 || GetStatus().State != "Connected"))
                         {
                             frames.Writer.TryWrite((encoded.Value.Data, encoded.Value.Format));
-                            nextDecode = receivedAt.AddSeconds(2);
+                            nextDecode = picture.CapturedAt.AddSeconds(2);
                         }
-                        listeners?.Invoke(new CameraEncodedFrame(encoded.Value.Data, encoded.Value.Format, encoded.Value.IsKeyFrame, frame.Data.RtpTimestamp));
+                        listeners?.Invoke(new CameraEncodedFrame(encoded.Value.Data, encoded.Value.Format, encoded.Value.IsKeyFrame, timestamp, picture.CapturedAt));
                     }
                 };
                 try
                 {
                     SetState("Connecting");
+                    lock (gate) analysisSession = simulator ? Guid.NewGuid().ToString("N") : null;
                     // Connect is synchronous in this library. Bound the caller's wait and
                     // stop again if a cancelled TCP connect completes later.
                     var connecting = Task.Run(() =>
@@ -135,7 +154,7 @@ internal sealed class CameraWorker : IAsyncDisposable
                     try { await Task.WhenAll(receiving, decoding).WaitAsync(TimeSpan.FromSeconds(3)); } catch (Exception) { }
                 }
                 if (!stop.IsCancellationRequested)
-                    try { await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(options.ReconnectDelaySeconds, 1, 60)), stop.Token); } catch (OperationCanceledException) { }
+                    try { await Task.Delay(options.GetReconnectDelay(simulator), stop.Token); } catch (OperationCanceledException) { }
             }
         });
     }
@@ -146,11 +165,20 @@ internal sealed class CameraWorker : IAsyncDisposable
         {
             var current = state == "Connected" && (lastFrameAt == null || timeProvider.GetUtcNow() - lastFrameAt > TimeSpan.FromSeconds(Math.Clamp(options.FrameStaleSeconds, 3, 60)))
                 ? "Disconnected" : state;
-            return new CameraConnectionStatus(current, lastFrameAt);
+            return new CameraConnectionStatus(current, lastFrameAt) { AnalysisSession = analysisSession, SmoothPlayback = smoothPlayback };
         }
     }
 
     public byte[]? GetFrame() { lock (gate) return GetStatus().State == "Connected" ? jpeg : null; }
+    internal void UpdateDecodedFrame(byte[] image, DateTimeOffset observed)
+    {
+        lock (gate)
+        {
+            // Không để một decoder cũ làm sống lại session đã ngắt hoặc ghi đè frame mới hơn.
+            if (state != "Connected" || lastFrameAt >= observed) return;
+            jpeg = image; lastFrameAt = observed;
+        }
+    }
     private void SetState(string value) { lock (gate) { state = value; if (value != "Connected") jpeg = null; } }
 
     private sealed class CameraAuthenticationException : Exception;

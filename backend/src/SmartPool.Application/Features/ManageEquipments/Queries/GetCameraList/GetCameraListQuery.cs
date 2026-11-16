@@ -16,6 +16,8 @@ public sealed class CameraListItem
     public string? Status { get; set; }
     public string ConnectionStatus { get; set; } = "Disconnected";
     public string Source { get; set; } = "RTSP";
+    public bool FastReconnect { get; set; }
+    public bool SmoothPlayback { get; set; }
 }
 
 public interface ICameraListRepository
@@ -44,7 +46,12 @@ public sealed class GetCameraListHandler(ICameraListRepository repository, ICame
         await validator.ValidateAndThrowAsync(request, ct);
         var result = await repository.ListAsync(request, ct);
         foreach (var item in result.Items)
-            item.ConnectionStatus = item.Source == "Browser" ? "Unavailable" : cameras.GetStatus(item.Id).State;
+        {
+            var status = cameras.GetStatus(item.Id);
+            item.ConnectionStatus = item.Source == "Browser" ? "Unavailable" : status.State;
+            item.FastReconnect = item.Source == "RTSP" && status.AnalysisSession != null;
+            item.SmoothPlayback = item.Source == "RTSP" && status.SmoothPlayback;
+        }
         return result;
     }
 }

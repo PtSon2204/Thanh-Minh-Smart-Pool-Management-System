@@ -24,6 +24,7 @@ internal sealed class CameraKeyFrame
         var parts = new List<ReadOnlyMemory<byte>>();
         var length = 0;
         var keyFrame = format == "mjpeg";
+        var hasPicture = format == "mjpeg";
         foreach (var segment in segments)
         {
             var part = format == "mjpeg" ? segment : StripStartCode(segment);
@@ -34,9 +35,12 @@ internal sealed class CameraKeyFrame
             if (format == "hevc" && type is 32 or 33 or 34 || format == "h264" && type is 7 or 8)
                 Set(type, part.ToArray());
             keyFrame |= format == "hevc" ? type is >= 16 and <= 21 : format == "h264" && type == 5;
+            hasPicture |= format == "hevc" ? type <= 31 : format == "h264" && type is >= 1 and <= 5;
             parts.Add(part);
         }
-        if (!capture || (keyFramesOnly && !keyFrame) || parts.Count == 0) return null;
+        // SPS/PPS/AUD/SEI update codec state but are not pictures. Forwarding those as
+        // frames makes the JPEG timestamp queue drift and sends empty RTP video frames.
+        if (!capture || !hasPicture || (keyFramesOnly && !keyFrame) || parts.Count == 0) return null;
         var prefix = format == "mjpeg" || !keyFrame ? [] : parameters.OrderBy(x => x.Key).Select(x => x.Value).ToArray();
         length += prefix.Sum(x => x.Length + 4);
         if (length > Limit) return null;

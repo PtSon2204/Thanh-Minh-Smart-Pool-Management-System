@@ -22,7 +22,7 @@ public sealed class RiskThresholds(IServiceScopeFactory scopes, IOptions<RiskOpt
     private readonly SemaphoreSlim gate = new(1, 1);
     private int appliedVersion;
 
-    public RiskOptions Current => _current;
+    public RiskOptions Current => _current.Clone();
 
     public Task InitializeAsync(CancellationToken ct) => ApplyDatabaseAsync(ct);
 
@@ -32,7 +32,7 @@ public sealed class RiskThresholds(IServiceScopeFactory scopes, IOptions<RiskOpt
         var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
         var row = await db.SafetyMonitoringThresholds.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == SafetyMonitoringThreshold.SingletonId, ct);
-        if (row is null) return _current.ToDto(0, "APPSETTINGS");
+        if (row is null) return _current.Clone().ToDto(0, "APPSETTINGS");
         return new(row.ConfidenceThreshold, row.WarningRatio, row.CriticalRatio, row.RecoveryRatio,
             row.CriticalHoldSeconds, row.RecoveryHoldSeconds, row.CooldownSeconds, row.WindowSeconds,
             row.MaxObservationGapSeconds, row.MinObservations, row.Version, "DATABASE", row.UpdatedBy, row.UpdatedAt);

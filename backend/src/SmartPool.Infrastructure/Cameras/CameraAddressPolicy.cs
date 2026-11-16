@@ -35,7 +35,9 @@ public sealed class CameraAddressPolicy(IOptions<CameraOptions> options)
             (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && (address.GetAddressBytes()[0] >= 224 || address.ToString().StartsWith("169.254.", StringComparison.Ordinal))) || address.ScopeIdSafe() != 0)
             throw new CameraConnectionException("AddressNotAllowed", "Địa chỉ camera không hợp lệ.");
         var pinned = new UriBuilder(uri) { Host = address.ToString(), Port = port }.Uri;
-        var identity = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{address}:{port}")));
-        return new CameraTarget(pinned, identity);
+        // Giữ danh tính camera vật lý hiện có; simulator phân biệt từng path trên cùng server.
+        var identitySource = $"{address}:{port}" + (endpoint.Simulator ? pinned.PathAndQuery : "");
+        var identity = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identitySource)));
+        return new CameraTarget(pinned, identity, endpoint.Simulator);
     }
 }

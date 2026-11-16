@@ -1,14 +1,20 @@
 """Rendering shared by live snapshots, paired AI preview and uploaded video."""
 from pathlib import Path
+from functools import lru_cache
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 
+@lru_cache(maxsize=16)
+def label_font(font_path):
+    return ImageFont.truetype(font_path, 20) if font_path and Path(font_path).is_file() else ImageFont.load_default(size=18)
+
+
 def draw(image, decisions, font_path=None):
     pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     canvas = ImageDraw.Draw(pil)
-    font = ImageFont.truetype(font_path, 20) if font_path and Path(font_path).is_file() else ImageFont.load_default(size=18)
+    font = label_font(font_path)
     for d in decisions:
         if d["severity"] not in ("WARNING", "CRITICAL"):
             continue

@@ -1,0 +1,25 @@
+# Development/Testing, MediaMTX v1.21.3. WebRTC vẫn do SmartPool phục vụ.
+logLevel: warn
+rtsp: yes
+rtspAddress: 127.0.0.1:8554
+rtspTransports: [tcp]
+rtmp: no
+hls: no
+webrtc: no
+srt: no
+api: no
+metrics: no
+pprof: no
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    ips: [127.0.0.1, '::1']
+    permissions:
+      - action: publish
+      - action: read
+pathDefaults:
+  source: publisher
+  overridePublisher: no
+paths:
+  all_others:

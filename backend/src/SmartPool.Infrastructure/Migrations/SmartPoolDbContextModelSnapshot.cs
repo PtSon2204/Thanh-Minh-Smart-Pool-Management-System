@@ -2818,66 +2818,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("user_profiles", "smart_pool");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.VideoAnalysisJob", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Error")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("error");
-
-                    b.Property<string>("InputFile")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("input_file");
-
-                    b.Property<string>("OriginalName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("original_name");
-
-                    b.Property<string>("OutputFile")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("output_file");
-
-                    b.Property<double>("Progress")
-                        .HasColumnType("double precision")
-                        .HasColumnName("progress");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid>("UploadedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("uploaded_by");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UploadedBy");
-
-                    b.HasIndex("Status", "CreatedAt");
-
-                    b.ToTable("video_analysis_jobs", "smart_pool");
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.Voucher", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3005,14 +2945,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasDefaultValue("NONE")
                         .HasColumnName("snapshot_status");
 
-                    b.Property<string>("SourceType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasDefaultValue("LIVE")
-                        .HasColumnName("source_type");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -3040,14 +2972,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("verified_by");
 
-                    b.Property<Guid?>("VideoJobId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("video_job_id");
-
-                    b.Property<double?>("VideoTimestamp")
-                        .HasColumnType("double precision")
-                        .HasColumnName("video_timestamp");
-
                     b.Property<DateTime>("WarningTime")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -3061,21 +2985,19 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasIndex("IncidentId");
 
+                    b.HasIndex("RiskEpisode")
+                        .IsUnique()
+                        .HasDatabaseName("IX_warnings_risk_episode")
+                        .HasFilter("risk_episode IS NOT NULL");
+
                     b.HasIndex("Status")
                         .HasDatabaseName("idx_warnings_status");
 
                     b.HasIndex("VerifiedBy");
 
-                    b.HasIndex("VideoJobId");
-
                     b.HasIndex("WarningTime")
                         .IsDescending()
                         .HasDatabaseName("idx_warnings_time");
-
-                    b.HasIndex("SourceType", "RiskEpisode")
-                        .IsUnique()
-                        .HasDatabaseName("IX_warnings_source_type_risk_episode")
-                        .HasFilter("risk_episode IS NOT NULL");
 
                     b.ToTable("warnings", "smart_pool");
                 });
@@ -3811,17 +3733,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.VideoAnalysisJob", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.User", "Uploader")
-                        .WithMany()
-                        .HasForeignKey("UploadedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Uploader");
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.Warning", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.Equipment", "Cam")
@@ -3839,18 +3750,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasForeignKey("VerifiedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("SmartPool.Domain.Entities.VideoAnalysisJob", "VideoJob")
-                        .WithMany()
-                        .HasForeignKey("VideoJobId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Cam");
 
                     b.Navigation("Incident");
 
                     b.Navigation("Verifier");
-
-                    b.Navigation("VideoJob");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.WaterQualityLog", b =>

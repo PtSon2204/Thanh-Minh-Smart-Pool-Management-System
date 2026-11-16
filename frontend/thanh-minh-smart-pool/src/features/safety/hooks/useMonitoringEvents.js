@@ -8,13 +8,16 @@ export function useMonitoringEvents() {
   const identity = useAuthStore(state => signalRIdentity(state.session))
   const [state, setState] = useState(() => getSignalRConnection().state === 'Connected' ? 'connected' : 'connecting')
   useEffect(() => {
+    let disposed = false
     const connection = getSignalRConnection()
     const update = () => client.invalidateQueries({ queryKey: ['safety'] })
     const events = ['alert_created', 'alert_escalated', 'alert_updated', 'incident_created']
     events.forEach(event => connection.on(event, update))
     const unsubscribe = onSignalRStateChange(next => { setState(next); if (next === 'connected') update() })
-    void startSignalRConnection()
-    return () => { events.forEach(event => connection.off(event, update)); unsubscribe() }
+    void startSignalRConnection().then(connected => {
+      if (!disposed && connected) setState('connected')
+    })
+    return () => { disposed = true; events.forEach(event => connection.off(event, update)); unsubscribe() }
   }, [client, identity])
   return state
 }
