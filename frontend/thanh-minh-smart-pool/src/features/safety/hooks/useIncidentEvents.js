@@ -9,9 +9,16 @@ export function useIncidentEvents(refresh) {
     const connection = getSignalRConnection()
     const events = ['safety_alert', 'incident_created', 'incident_updated', 'alert_updated']
     events.forEach(event => connection.on(event, refresh))
+    // Client vừa xác nhận vẫn cập nhật lịch sử ngay cả khi SignalR tạm mất kết nối.
+    const onAcknowledged = event => { if (event.detail?.incidentId) refresh() }
+    window.addEventListener('safety:acknowledged', onAcknowledged)
     const off = onSignalRStateChange(state => { if (state === 'connected') refresh() })
     void startSignalRConnection()
     const timer = setInterval(refresh, 15000)
-    return () => { events.forEach(event => connection.off(event, refresh)); off(); clearInterval(timer) }
+    return () => {
+      events.forEach(event => connection.off(event, refresh))
+      window.removeEventListener('safety:acknowledged', onAcknowledged)
+      off(); clearInterval(timer)
+    }
   }, [identity, refresh])
 }

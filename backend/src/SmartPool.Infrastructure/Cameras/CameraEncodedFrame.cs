@@ -7,4 +7,4 @@ using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Infrastructure.Cameras;
 
-internal sealed record CameraEncodedFrame(byte[] Data, string Format, bool IsKeyFrame, uint RtpTimestamp);
+internal sealed record CameraEncodedFrame(byte[] Data, string Format, bool IsKeyFrame, uint RtpTimestamp, DateTimeOffset? CapturedAt = null);

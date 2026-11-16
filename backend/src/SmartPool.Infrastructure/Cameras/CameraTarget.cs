@@ -6,4 +6,4 @@ using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Infrastructure.Cameras;
 
-public sealed record CameraTarget(Uri Uri, string Identity);
+public sealed record CameraTarget(Uri Uri, string Identity, bool Simulator = false);

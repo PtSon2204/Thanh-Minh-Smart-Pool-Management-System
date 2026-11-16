@@ -2,6 +2,8 @@ using Moq;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.SellOfflineTicket;
 using SmartPool.Application.Features.ManageTickets.Ticket.DTOs;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Application.Interfaces.Services;
+using SmartPool.Application.Features.Notifications.Models;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using TicketEntity = SmartPool.Domain.Entities.Ticket;
@@ -187,6 +189,88 @@ public class SellOfflineTicketHandlerTests
         harness.TicketOrderOperations.Verify(r => r.CreateOfflineSaleAsync(It.IsAny<Order>(), It.IsAny<IEnumerable<OrderDetail>>(), It.IsAny<Payment>(), It.IsAny<IEnumerable<TicketEntity>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact(DisplayName = "UTCID13 (N) - Bán vé tháng tại quầy cho khách có email -> Gửi email xác nhận")]
+    public async Task SellOfflineTicket_WhenMonthlyTicketAndCustomerHasEmail_SendsConfirmationEmail()
+    {
+        var existingUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Phone = "0900000003",
+            Username = "0900000003",
+            Email = "member@test.com",
+            UserProfile = new UserProfile { FullName = "Hội Viên Test" }
+        };
+        var monthlyType = new TicketTypeEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "Vé tháng bơi",
+            TicketCategory = TicketCategoryEnum.VE_THANG.ToString(),
+            Price = 500_000m,
+            IsActive = true
+        };
+        var harness = new Harness(ticketType: monthlyType, existingUser: existingUser);
+        harness.UserOperations.Setup(u => u.GetByIdAsync(existingUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+
+        var response = await harness.SellWithEmail(
+            new SellOfflineTicketCommand
+            {
+                Items = [new SellOfflineTicketItem { TicketTypeId = monthlyType.Id, Quantity = 1 }],
+                CustomerName = "Hội Viên Test",
+                CustomerPhone = existingUser.Phone
+            });
+
+        Assert.Single(response.Tickets);
+        harness.EmailService.Verify(e => e.SendAsync(
+            "member@test.com",
+            It.Is<string>(s => s.Contains("Xác nhận đặt vé")),
+            It.Is<string>(html => html.Contains("Hội Viên Test")
+                               && html.Contains("Vé tháng bơi")
+                               && html.Contains("api.qrserver.com")
+                               && html.Contains("the-cua-toi")),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+        harness.EmailHistoryStore.Verify(h => h.AddLogAsync(
+            It.Is<EmailHistoryItem>(i => i.Recipient == "member@test.com" && i.TemplateType == "ticket_confirmation")),
+            Times.Once);
+    }
+
+    [Fact(DisplayName = "UTCID14 (E) - Gửi email POS gặp lỗi -> Bắt ngoại lệ và vẫn hoàn thành bán vé")]
+    public async Task SellOfflineTicket_WhenEmailFails_DoesNotThrowAndCompletesSale()
+    {
+        var existingUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Phone = "0900000004",
+            Username = "0900000004",
+            Email = "member2@test.com"
+        };
+        var monthlyType = new TicketTypeEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "Vé tháng bơi",
+            TicketCategory = TicketCategoryEnum.VE_THANG.ToString(),
+            Price = 500_000m,
+            IsActive = true
+        };
+        var harness = new Harness(ticketType: monthlyType, existingUser: existingUser);
+        harness.UserOperations.Setup(u => u.GetByIdAsync(existingUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+        harness.EmailService.Setup(e => e.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SMTP unreachable"));
+
+        var response = await harness.SellWithEmail(
+            new SellOfflineTicketCommand
+            {
+                Items = [new SellOfflineTicketItem { TicketTypeId = monthlyType.Id, Quantity = 1 }],
+                CustomerName = "Hội Viên 2",
+                CustomerPhone = existingUser.Phone
+            });
+
+        Assert.Single(response.Tickets);
+        Assert.Single(harness.CreatedOrders);
+    }
+
     private static TicketTypeEntity CreateTicketType(bool isActive = true) => new()
     {
         Id = Guid.NewGuid(), Name = "Vé lượt", TicketCategory = TicketCategoryEnum.VE_LUOT.ToString(),
@@ -206,6 +290,8 @@ public class SellOfflineTicketHandlerTests
         public Mock<ITicketTypeOperations> TicketTypeOperations { get; } = new();
         public Mock<IUserOperations> UserOperations { get; } = new();
         public Mock<IVoucherOperations> VoucherOperations { get; } = new();
+        public Mock<IEmailService> EmailService { get; } = new();
+        public Mock<IEmailHistoryStore> EmailHistoryStore { get; } = new();
 
         public List<Order> CreatedOrders { get; } = [];
         public List<OrderDetail> CreatedDetails { get; } = [];
@@ -258,6 +344,12 @@ public class SellOfflineTicketHandlerTests
             new SellOfflineTicketHandler(TicketOrderOperations.Object, TicketTypeOperations.Object,
                 UserOperations.Object, VoucherOperations.Object,
                 new FixedTimeProvider(Now)).Handle(command, CancellationToken.None);
+
+        public Task<SellOfflineTicketResponse> SellWithEmail(SellOfflineTicketCommand command) =>
+            new SellOfflineTicketHandler(TicketOrderOperations.Object, TicketTypeOperations.Object,
+                UserOperations.Object, VoucherOperations.Object,
+                new FixedTimeProvider(Now),
+                EmailService.Object, EmailHistoryStore.Object).Handle(command, CancellationToken.None);
     }
 
     private sealed class FixedTimeProvider(DateTime now) : TimeProvider

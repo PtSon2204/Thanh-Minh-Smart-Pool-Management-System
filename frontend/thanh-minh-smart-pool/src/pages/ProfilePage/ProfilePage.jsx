@@ -174,19 +174,6 @@ const ProfilePage = () => {
               />
             </Form.Item>
 
-            {/* Tên đăng nhập */}
-            <Form.Item
-              name="username"
-              label={<span className="profile-field-label">Tên đăng nhập (Biệt danh)</span>}
-              style={{ marginBottom: 0 }}
-            >
-              <Input 
-                size="large" 
-                className="profile-field-input" 
-                disabled
-              />
-            </Form.Item>
-
             {/* Ngày sinh */}
             <Form.Item
               name="dateOfBirth"

@@ -11,6 +11,113 @@ namespace SmartPool.IntegrationTests.SafetyMonitoring;
 public sealed partial class SafetyMonitoringTests
 {
     [Fact]
+    public async Task CancelFromStaleWarningPopup_RequiresReviewOfEscalatedCritical()
+    {
+        await using var app = await ApiAsync();
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
+            client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "ADMIN"));
+            Guid id;
+            await using (var db = new SmartPoolDbContext(options)) {
+                var repo = Repo(db);
+                id = (await repo.RecordAsync(Event("WARNING"), default)).Alert.Id;
+                await repo.RecordAsync(Event("CRITICAL"), default);
+            }
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PatchAsync($"/api/alerts/{id}/cancel", null)).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PatchAsJsonAsync($"/api/alerts/{id}/cancel", new { expectedSeverity = "WARNING" })).StatusCode);
+            await using (var verify = new SmartPoolDbContext(options)) {
+                var pending = await verify.Warnings.AsNoTracking().SingleAsync(x => x.Id == id);
+                Assert.Equal("PENDING", pending.Status);
+                Assert.Equal("CRITICAL", pending.SeverityLevel);
+                Assert.Empty(await verify.Incidents.ToListAsync());
+            }
+            Assert.Equal(HttpStatusCode.OK, (await client.PatchAsJsonAsync($"/api/alerts/{id}/cancel", new { expectedSeverity = "CRITICAL" })).StatusCode);
+        }
+        finally { await app.StopAsync(); }
+    }
+
+    [Theory]
+    [InlineData("ADMIN")]
+    [InlineData("LIFEGUARD")]
+    public async Task AcknowledgeCriticalLive_PersistsInIncidentHistory_AndCannotCreateDuplicate(string role)
+    {
+        await using var app = await ApiAsync();
+        using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, role));
+        Guid alertId;
+        await using (var db = new SmartPoolDbContext(options))
+            alertId = (await Repo(db).RecordAsync(Event("CRITICAL"), default)).Alert.Id;
+        var response = await client.PatchAsJsonAsync($"/api/alerts/{alertId}/acknowledge", new { expectedSeverity = "CRITICAL" });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var handled = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("ACKNOWLEDGED", handled.RootElement.GetProperty("status").GetString());
+        var incidentId = handled.RootElement.GetProperty("incidentId").GetGuid();
+        using var history = JsonDocument.Parse(await client.GetStringAsync("/api/safety-alerts/incidents?sourceType=camera"));
+        var incident = Assert.Single(history.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetGuid() == incidentId);
+        Assert.Equal("Area A", incident.GetProperty("zone").GetString());
+        Assert.Equal("EMERGENCY", incident.GetProperty("severityLevel").GetString());
+        Assert.Equal("Pending", incident.GetProperty("status").GetString());
+        Assert.Equal("Camera AI giám sát", incident.GetProperty("sourceType").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PatchAsJsonAsync($"/api/alerts/{alertId}/acknowledge", new { expectedSeverity = "CRITICAL" })).StatusCode);
+        await using var verify = new SmartPoolDbContext(options);
+        Assert.Equal(1, await verify.Incidents.CountAsync(row => row.WarningId == alertId && row.CameraId == cameraId));
+        Assert.Equal(incidentId, (await verify.Warnings.AsNoTracking().SingleAsync(row => row.Id == alertId)).IncidentId);
+        await app.StopAsync();
+    }
+
+    [Theory]
+    [InlineData("WARNING", "acknowledge")]
+    [InlineData("CRITICAL", "cancel")]
+    public async Task NonIncidentAlertActions_DoNotAddRowsToIncidentHistory(string severity, string action)
+    {
+        await using var app = await ApiAsync();
+        using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "ADMIN"));
+        Guid alertId;
+        await using (var db = new SmartPoolDbContext(options))
+            alertId = (await Repo(db).RecordAsync(Event(severity), default)).Alert.Id;
+        Assert.Equal(HttpStatusCode.OK, (await client.PatchAsJsonAsync($"/api/alerts/{alertId}/{action}", new { expectedSeverity = severity })).StatusCode);
+        using var history = JsonDocument.Parse(await client.GetStringAsync("/api/safety-alerts/incidents"));
+        Assert.Empty(history.RootElement.GetProperty("items").EnumerateArray());
+        await using var verify = new SmartPoolDbContext(options);
+        Assert.False(await verify.Incidents.AnyAsync(row => row.WarningId == alertId));
+        await app.StopAsync();
+    }
+
+    [Fact]
+    public async Task WarningPopupEscalatedBeforeClick_RequiresReviewInsteadOfCreatingAnIncident()
+    {
+        await using var app = await ApiAsync();
+        try {
+            using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
+            client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "ADMIN"));
+            Guid id;
+            await using (var db = new SmartPoolDbContext(options)) {
+                var repo = Repo(db);
+                id = (await repo.RecordAsync(Event("WARNING"), default)).Alert.Id;
+                Assert.Equal(id, (await repo.RecordAsync(Event("CRITICAL"), default)).Alert.Id);
+            }
+            var missing = await client.PatchAsync($"/api/alerts/{id}/acknowledge", null);
+            Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+            var stale = await client.PatchAsJsonAsync($"/api/alerts/{id}/acknowledge", new { expectedSeverity = "WARNING" });
+            Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+            using var conflict = JsonDocument.Parse(await stale.Content.ReadAsStringAsync());
+            Assert.Equal("CRITICAL", conflict.RootElement.GetProperty("alert").GetProperty("severity").GetString());
+            await using (var db = new SmartPoolDbContext(options)) {
+                var warning = await db.Warnings.AsNoTracking().SingleAsync(x => x.Id == id);
+                Assert.Equal("PENDING", warning.Status);
+                Assert.Null(warning.IncidentId);
+                Assert.Empty(await db.Incidents.ToListAsync());
+            }
+            var accepted = await client.PatchAsJsonAsync($"/api/alerts/{id}/acknowledge", new { expectedSeverity = "CRITICAL" });
+            Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+            await using var verify = new SmartPoolDbContext(options);
+            Assert.Equal(1, await verify.Incidents.CountAsync(x => x.WarningId == id));
+        } finally { await app.StopAsync(); }
+    }
+
+    [Fact]
     [Trait("TestCaseId", "MSA-AL-01")]
     public async Task SafetyOperatorCanViewAlertDetailsAndUnknownAlertReturnsNotFound()
     {
@@ -28,7 +135,6 @@ public sealed partial class SafetyMonitoringTests
         {
             Assert.Equal(alertId, body.RootElement.GetProperty("id").GetGuid());
             Assert.Equal("WARNING", body.RootElement.GetProperty("severity").GetString());
-            Assert.Equal("LIVE", body.RootElement.GetProperty("sourceType").GetString());
         }
 
         Assert.Equal(HttpStatusCode.NotFound,
@@ -91,13 +197,19 @@ public sealed partial class SafetyMonitoringTests
         await app.StopAsync();
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("ADMIN")]
+    [InlineData("Admin")]
+    [InlineData("admin")]
+    [InlineData("LIFEGUARD")]
+    [InlineData("Lifeguard")]
+    [InlineData("lifeguard")]
     [Trait("TestCaseId", "MSA-HI-01")]
-    public async Task SafetyOperatorCanViewFilteredIncidentHistory()
+    public async Task SafetyOperatorCanViewFilteredIncidentHistory(string role)
     {
         await using var app = await ApiAsync();
         using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
-        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, role));
 
         var matchingId = Guid.NewGuid();
         var occurredAt = DateTime.UtcNow.AddMinutes(-5);

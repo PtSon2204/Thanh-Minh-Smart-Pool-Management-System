@@ -1,4 +1,5 @@
 using FluentValidation;
+using SmartPool.Domain.Entities;
 
 namespace SmartPool.Application.Features.ManageSwimClasses.Commands.CreateClassSessions;
 
@@ -23,7 +24,9 @@ public sealed class CreateClassSessionsValidator : AbstractValidator<CreateClass
                 .Must((item, endsAt) =>
                     item.StartsAt.ToOffset(TimeSpan.FromHours(7)).Date ==
                     endsAt.ToOffset(TimeSpan.FromHours(7)).Date)
-                .WithMessage("Giờ kết thúc phải cùng ngày với giờ bắt đầu theo giờ Việt Nam.");
+                .WithMessage("Giờ kết thúc phải cùng ngày với giờ bắt đầu theo giờ Việt Nam.")
+                .Must((item, endsAt) => FixedShifts.ContainsClassSession(item.StartsAt, endsAt))
+                .WithMessage("Buổi học phải nằm trọn trong ca sáng 06:00–11:30 hoặc ca chiều 13:30–19:30 (giờ Việt Nam).");
             session.RuleFor(item => item.CoachUserId)
                 .Must(id => id is null || id != Guid.Empty)
                 .WithMessage("Mã Coach không hợp lệ.");

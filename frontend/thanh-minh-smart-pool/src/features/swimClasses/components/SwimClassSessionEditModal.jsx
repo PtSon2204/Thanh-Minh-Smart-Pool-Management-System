@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, DatePicker, Form, Modal, message } from 'antd'
 import { useUpdateClassSession } from '../hooks/useSwimClassManagement'
 import { applyClassServerErrors, classServerMessage } from '../utils/classDisplay'
-import { formatVietnamTime, utcTimeToVietnamPicker, vietnamPickerTimeToUtc } from '../utils/classSchedule'
+import { CLASS_HOURS_LABEL, formatVietnamTime, isClassHourStart, isWithinClassHours, utcTimeToVietnamPicker, vietnamPickerTimeToUtc } from '../utils/classSchedule'
 
 const TIME_PICKER = { format: 'HH:mm', minuteStep: 15 }
 
@@ -60,6 +60,8 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
           { required: true, message: 'Chọn giờ bắt đầu.' },
           { validator: (_, value) => !value || Date.parse(vietnamPickerTimeToUtc(value)) > Date.now()
             ? Promise.resolve() : Promise.reject(new Error('Buổi học phải bắt đầu trong tương lai.')) },
+          { validator: (_, value) => isClassHourStart(value)
+            ? Promise.resolve() : Promise.reject(new Error(`Giờ bắt đầu phải trong giờ mở cửa: ${CLASS_HOURS_LABEL}.`)) },
         ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format="DD/MM/YYYY HH:mm" /></Form.Item>
         <Form.Item label="Kết thúc" name="endsAt" dependencies={['startsAt']} rules={[
           { required: true, message: 'Chọn giờ kết thúc.' },
@@ -67,8 +69,10 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
             const start = getFieldValue('startsAt')
             if (!value || !start) return Promise.resolve()
             if (!value.isSame(start, 'day')) return Promise.reject(new Error('Giờ kết thúc phải cùng ngày với giờ bắt đầu.'))
-            return vietnamPickerTimeToUtc(value) > vietnamPickerTimeToUtc(start)
-              ? Promise.resolve() : Promise.reject(new Error('Giờ kết thúc phải sau giờ bắt đầu.'))
+            if (vietnamPickerTimeToUtc(value) <= vietnamPickerTimeToUtc(start))
+              return Promise.reject(new Error('Giờ kết thúc phải sau giờ bắt đầu.'))
+            return isWithinClassHours(start, value)
+              ? Promise.resolve() : Promise.reject(new Error(`Buổi học phải nằm trọn trong một ca mở cửa: ${CLASS_HOURS_LABEL}.`))
           } }),
         ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format="DD/MM/YYYY HH:mm"
           disabledDate={date => {
@@ -76,7 +80,7 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
             return Boolean(start && !date.isSame(start, 'day'))
           }} /></Form.Item>
       </div>
-      <p className="swim-class-detail-timezone">Thời gian nhập theo giờ Việt Nam (UTC+7).</p>
+      <p className="swim-class-detail-timezone">Giờ Việt Nam (UTC+7). Mỗi buổi phải nằm trọn trong một ca mở cửa: {CLASS_HOURS_LABEL}.</p>
       <div className="swim-class-edit-actions"><Button onClick={onClose} disabled={update.isPending}>Hủy</Button>
         <Button type="primary" htmlType="submit" loading={update.isPending}>Lưu thay đổi</Button></div>
     </Form>

@@ -1,7 +1,7 @@
 import { CalendarOutlined, ClockCircleOutlined, DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, DatePicker, Form } from 'antd'
 import { conflictDescription } from '../utils/classDisplay'
-import { vietnamPickerTimeToUtc } from '../utils/classSchedule'
+import { CLASS_HOURS_LABEL, isClassHourStart, isWithinClassHours, vietnamPickerTimeToUtc } from '../utils/classSchedule'
 
 const DATE_FORMAT = 'DD/MM/YYYY HH:mm'
 const TIME_PICKER = { format: 'HH:mm', minuteStep: 15 }
@@ -20,6 +20,7 @@ export default function ClassSessionsEditor({ form, onFinish, pending, coaches, 
               <Form.Item label="Bắt đầu" name={[field.name, 'startsAt']} rules={[
                 { required: true, message: 'Chọn giờ bắt đầu.' },
                 { validator: (_, value) => !value || Date.parse(vietnamPickerTimeToUtc(value)) > Date.now() ? Promise.resolve() : Promise.reject(new Error('Buổi học phải bắt đầu trong tương lai.')) },
+                { validator: (_, value) => isClassHourStart(value) ? Promise.resolve() : Promise.reject(new Error(`Giờ bắt đầu phải trong giờ mở cửa: ${CLASS_HOURS_LABEL}.`)) },
               ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format={DATE_FORMAT} placeholder="Ngày và giờ" /></Form.Item>
               <Form.Item label="Kết thúc" name={[field.name, 'endsAt']} dependencies={[['sessions', field.name, 'startsAt']]} rules={[
                 { required: true, message: 'Chọn giờ kết thúc.' },
@@ -27,8 +28,10 @@ export default function ClassSessionsEditor({ form, onFinish, pending, coaches, 
                   const start = form.getFieldValue(['sessions', field.name, 'startsAt'])
                   if (!value || !start) return Promise.resolve()
                   if (!value.isSame(start, 'day')) return Promise.reject(new Error('Giờ kết thúc phải cùng ngày với giờ bắt đầu.'))
-                  return vietnamPickerTimeToUtc(value) > vietnamPickerTimeToUtc(start)
-                    ? Promise.resolve() : Promise.reject(new Error('Giờ kết thúc phải sau giờ bắt đầu.'))
+                  if (vietnamPickerTimeToUtc(value) <= vietnamPickerTimeToUtc(start))
+                    return Promise.reject(new Error('Giờ kết thúc phải sau giờ bắt đầu.'))
+                  return isWithinClassHours(start, value)
+                    ? Promise.resolve() : Promise.reject(new Error(`Buổi học phải nằm trọn trong một ca mở cửa: ${CLASS_HOURS_LABEL}.`))
                 } },
               ]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format={DATE_FORMAT} placeholder="Ngày và giờ"
                 disabledDate={date => {
@@ -41,7 +44,7 @@ export default function ClassSessionsEditor({ form, onFinish, pending, coaches, 
           <Button className="swim-class-add-session" type="dashed" icon={<PlusOutlined />} onClick={() => add({})}>Thêm buổi học</Button>
         </>}
       </Form.List>
-      <div className="swim-class-time-note"><ClockCircleOutlined /> Giờ nhập theo Việt Nam (UTC+7). Các buổi trùng nhau không thể lưu.</div>
+      <div className="swim-class-time-note"><ClockCircleOutlined /> Giờ Việt Nam (UTC+7). Mỗi buổi phải nằm trọn trong một ca mở cửa: {CLASS_HOURS_LABEL}. Các buổi trùng nhau không thể lưu.</div>
       <div className="swim-class-actions"><Button type="primary" htmlType="submit" size="large" icon={<SaveOutlined />} loading={pending}>Thêm vào bản nháp</Button></div>
     </Form>
   </Card>

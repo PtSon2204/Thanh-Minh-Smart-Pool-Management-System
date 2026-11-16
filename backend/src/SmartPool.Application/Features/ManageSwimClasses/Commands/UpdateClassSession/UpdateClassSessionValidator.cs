@@ -1,4 +1,5 @@
 using FluentValidation;
+using SmartPool.Domain.Entities;
 
 namespace SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassSession;
 
@@ -21,6 +22,8 @@ public sealed class UpdateClassSessionValidator : AbstractValidator<UpdateClassS
             .Must((command, endsAt) =>
                 command.StartsAt.ToOffset(TimeSpan.FromHours(7)).Date ==
                 endsAt.ToOffset(TimeSpan.FromHours(7)).Date)
-            .WithMessage("Giờ kết thúc phải cùng ngày với giờ bắt đầu theo giờ Việt Nam.");
+            .WithMessage("Giờ kết thúc phải cùng ngày với giờ bắt đầu theo giờ Việt Nam.")
+            .Must((command, endsAt) => FixedShifts.ContainsClassSession(command.StartsAt, endsAt))
+            .WithMessage("Buổi học phải nằm trọn trong ca sáng 06:00–11:30 hoặc ca chiều 13:30–19:30 (giờ Việt Nam).");
     }
 }

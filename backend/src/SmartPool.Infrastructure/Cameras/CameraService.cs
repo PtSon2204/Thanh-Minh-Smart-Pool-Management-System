@@ -69,14 +69,19 @@ public sealed class CameraService(CameraAddressPolicy policy, ICameraFrameDecode
 
     public byte[]? GetFrame(Guid equipmentId) { lock (gate) return published.TryGetValue(equipmentId, out var worker) ? worker.GetFrame() : null; }
 
-    internal IDisposable Subscribe(Guid equipmentId, Action<CameraEncodedFrame> receive)
+    internal IDisposable Subscribe(Guid equipmentId, Action<CameraEncodedFrame> receive, bool continuousDecoder = false)
     {
         lock (gate)
         {
             if (!published.TryGetValue(equipmentId, out var worker) || worker.GetStatus().State != "Connected")
                 throw new CameraConnectionException("StreamUnavailable", "Camera hiện không khả dụng");
-            return worker.Subscribe(receive);
+            return worker.Subscribe(receive, continuousDecoder);
         }
+    }
+
+    internal void UpdateDecodedFrame(Guid equipmentId, byte[] jpeg, DateTimeOffset observed)
+    {
+        lock (gate) if (published.TryGetValue(equipmentId, out var worker)) worker.UpdateDecodedFrame(jpeg, observed);
     }
 
     public async Task RestoreAsync(Guid equipmentId, string protectedConfiguration, CancellationToken cancellationToken)

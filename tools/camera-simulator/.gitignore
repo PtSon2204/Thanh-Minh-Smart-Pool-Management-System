@@ -1,0 +1,6 @@
+.runtime/
+bin/
+videos/*
+!videos/.gitkeep
+cameras.local.json
+*.local.yml

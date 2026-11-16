@@ -3,6 +3,8 @@ using Microsoft.Extensions.Caching.Memory;
 using Moq;
 using SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPendingOrder;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Application.Interfaces.Services;
+using SmartPool.Application.Features.Notifications.Models;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
 using TicketTypeEntity = SmartPool.Domain.Entities.TicketType;
@@ -171,6 +173,94 @@ public sealed class ConfirmPendingOrderHandlerTests
         h.TicketOrderOperations.Verify(o => o.SaveIncomingPaymentAsync(It.IsAny<PaymentEntity>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact(DisplayName = "UTCID11 (N) - Hoàn tất đơn và khách có email -> Gửi email xác nhận kèm mã vé và lưu lịch sử")]
+    public async Task UTCID11_CompletedOrder_SendsEmailWithTicketCodes_WhenUserHasEmail()
+    {
+        var userId = Guid.NewGuid();
+        var ticketType = new TicketTypeEntity { Id = Guid.NewGuid(), Name = "Vé bơi ngày", TicketCategory = nameof(TicketCategoryEnum.VE_LUOT) };
+        var detail = new OrderDetailEntity { Id = Guid.NewGuid(), OrderId = Guid.NewGuid(), ItemId = ticketType.Id, Quantity = 1 };
+        var h = new Harness(userId: userId, details: [detail], ticketTypes: [ticketType]);
+        detail.OrderId = h.Order.Id;
+        h.Payments.Add(h.PendingPayment);
+
+        var user = new User
+        {
+            Id = userId,
+            Username = "customer1",
+            Email = "customer@example.com",
+            UserProfile = new UserProfile { UserId = userId, FullName = "Nguyễn Văn Test" }
+        };
+        h.UserOperations.Setup(u => u.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var result = await h.Handle(h.Command(amount: 100, bankReference: "BANK-EMAIL"));
+
+        Assert.True(result.Success);
+        Assert.Equal("COMPLETED", h.Order.Status);
+        var ticket = Assert.Single(h.AddedTickets);
+
+        // Verify email was sent with recipient and ticket code
+        h.EmailService.Verify(e => e.SendAsync(
+            "customer@example.com",
+            It.Is<string>(s => s.Contains("Xác nhận đặt vé thành công")),
+            It.Is<string>(html => html.Contains(ticket.QrCode)
+                               && html.Contains("Nguyễn Văn Test")
+                               && html.Contains("api.qrserver.com")
+                               && html.Contains("the-cua-toi")),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Verify history log was added
+        h.EmailHistoryStore.Verify(s => s.AddLogAsync(
+            It.Is<EmailHistoryItem>(item => item.Recipient == "customer@example.com" && item.TemplateType == "ticket_confirmation" && item.Status == "Thành công")),
+            Times.Once);
+    }
+
+    [Fact(DisplayName = "UTCID12 (N) - Khách không có email -> Không gọi gửi email")]
+    public async Task UTCID12_CompletedOrder_DoesNotSendEmail_WhenUserHasNoEmail()
+    {
+        var userId = Guid.NewGuid();
+        var ticketType = new TicketTypeEntity { Id = Guid.NewGuid(), Name = "Vé bơi ngày", TicketCategory = nameof(TicketCategoryEnum.VE_LUOT) };
+        var detail = new OrderDetailEntity { Id = Guid.NewGuid(), OrderId = Guid.NewGuid(), ItemId = ticketType.Id, Quantity = 1 };
+        var h = new Harness(userId: userId, details: [detail], ticketTypes: [ticketType]);
+        detail.OrderId = h.Order.Id;
+        h.Payments.Add(h.PendingPayment);
+
+        var user = new User { Id = userId, Username = "0988111222", Email = null };
+        h.UserOperations.Setup(u => u.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var result = await h.Handle(h.Command(amount: 100, bankReference: "BANK-NO-EMAIL"));
+
+        Assert.True(result.Success);
+        h.EmailService.Verify(e => e.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        h.EmailHistoryStore.Verify(s => s.AddLogAsync(It.IsAny<EmailHistoryItem>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UTCID13 (E) - Gửi email gặp lỗi SMTP -> Bắt ngoại lệ, không làm sập xác nhận đơn")]
+    public async Task UTCID13_CompletedOrder_EmailFailureDoesNotFailOrderConfirmation()
+    {
+        var userId = Guid.NewGuid();
+        var ticketType = new TicketTypeEntity { Id = Guid.NewGuid(), Name = "Vé bơi ngày", TicketCategory = nameof(TicketCategoryEnum.VE_LUOT) };
+        var detail = new OrderDetailEntity { Id = Guid.NewGuid(), OrderId = Guid.NewGuid(), ItemId = ticketType.Id, Quantity = 1 };
+        var h = new Harness(userId: userId, details: [detail], ticketTypes: [ticketType]);
+        detail.OrderId = h.Order.Id;
+        h.Payments.Add(h.PendingPayment);
+
+        var user = new User { Id = userId, Username = "customer1", Email = "customer@example.com" };
+        h.UserOperations.Setup(u => u.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        h.EmailService.Setup(e => e.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SMTP connection timeout"));
+
+        var result = await h.Handle(h.Command(amount: 100, bankReference: "BANK-FAIL-EMAIL"));
+
+        // Order confirmation still succeeds
+        Assert.True(result.Success);
+        Assert.Equal("COMPLETED", h.Order.Status);
+        Assert.Single(h.AddedTickets);
+    }
+
     private sealed class Harness
     {
         public readonly OrderEntity Order;
@@ -180,6 +270,9 @@ public sealed class ConfirmPendingOrderHandlerTests
         public readonly List<TicketEntity> AddedTickets = [];
         public readonly Mock<ITicketOrderOperations> TicketOrderOperations = new();
         public readonly Mock<IOrderPaymentOperations> Operations = new();
+        public readonly Mock<IUserOperations> UserOperations = new();
+        public readonly Mock<IEmailService> EmailService = new();
+        public readonly Mock<IEmailHistoryStore> EmailHistoryStore = new();
         private readonly Mock<ITicketTypeOperations> _ticketTypes = new();
         private readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions());
         private readonly TimeProvider _time = new FixedTimeProvider(Now);
@@ -229,7 +322,7 @@ public sealed class ConfirmPendingOrderHandlerTests
             _ticketTypes.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns((Guid id, CancellationToken _) => Task.FromResult(typeRows.FirstOrDefault(t => t.Id == id)));
 
-            Handler = new ConfirmPendingOrderHandler(_ticketTypes.Object, TicketOrderOperations.Object, Operations.Object, _cache, _time);
+            Handler = new ConfirmPendingOrderHandler(_ticketTypes.Object, TicketOrderOperations.Object, Operations.Object, _cache, _time, UserOperations.Object, EmailService.Object, EmailHistoryStore.Object);
         }
 
         public ConfirmPendingOrderHandler Handler { get; }

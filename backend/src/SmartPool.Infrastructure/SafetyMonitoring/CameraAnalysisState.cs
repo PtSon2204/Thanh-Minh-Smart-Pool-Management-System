@@ -11,11 +11,15 @@ public sealed class CameraAnalysisState(ICameraService cameras, IOptions<Monitor
     private readonly ConcurrentDictionary<Guid, Entry> entries = new();
     private readonly ConcurrentDictionary<(Guid CameraId, string FrameId), Entry> frames = new();
     public event Action<Guid, DateTimeOffset, byte[]>? FrameReady;
+    public CameraAnalysisDto[] Active() => entries.Keys.Select(Get).Where(x => x.State == "Connected" && x.CameraId.HasValue).ToArray();
     public void Set(Guid id, string frameId, DateTimeOffset observed, IReadOnlyList<RiskDecision> risks, byte[] jpeg, IReadOnlyList<TrackedDetection>? detections = null,
-        double? inferenceMilliseconds = null)
+        double? inferenceMilliseconds = null, uint? rtpTimestamp = null, string? trackingSession = null, IReadOnlyList<string>? activeRiskTrackIds = null,
+        double? renderMilliseconds = null, double? analysisMilliseconds = null, IReadOnlyList<RiskDecision>? displayRisks = null)
     {
         entries[id] = new(new CameraAnalysisDto("Connected", frameId, observed, DateTimeOffset.UtcNow, risks, Detections: detections)
-            { CameraId = id, InferenceMilliseconds = inferenceMilliseconds }, jpeg);
+            { CameraId = id, InferenceMilliseconds = inferenceMilliseconds, RtpTimestamp = rtpTimestamp, TrackingSession = trackingSession,
+                ActiveRiskTrackIds = activeRiskTrackIds, RenderMilliseconds = renderMilliseconds, AnalysisMilliseconds = analysisMilliseconds,
+                DisplayRisks = displayRisks }, jpeg);
         frames[(id, frameId)] = entries[id];
         // Giữ một số frame gần nhất để GET metadata rồi GET JPEG không đua với suy luận kế tiếp.
         foreach (var old in frames.Where(x => x.Key.CameraId == id).OrderByDescending(x => x.Value.Metadata.ObservedAt).Skip(8))

@@ -45,6 +45,10 @@ namespace SmartPool.Infrastructure
             IConfiguration configuration)
         {
             services.Configure<CameraOptions>(configuration.GetSection("CameraSettings"));
+            services.AddOptions<CameraOptions>().Validate<Microsoft.Extensions.Hosting.IHostEnvironment>((camera, host) =>
+                !camera.AllowedEndpoints.Any(endpoint => endpoint.Simulator) ||
+                host.EnvironmentName is "Development" or "Testing",
+                "Camera simulator chỉ được phép trong Development/Testing.").ValidateOnStart();
             var keyRingPath = configuration["CameraSettings:KeyRingPath"] ?? Path.Combine(AppContext.BaseDirectory, "camera-keys");
             var protection = services.AddDataProtection().SetApplicationName("SmartPool.Camera")
                 .PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
@@ -201,38 +205,36 @@ namespace SmartPool.Infrastructure
             services.AddScoped<SmartPool.Application.Interfaces.Repositories.IWaterQualityOperations, SmartPool.Infrastructure.Persistence.Repositories.WaterQuality.WaterQualityOperations>();
             services.AddScoped<IReportOperations, SmartPool.Infrastructure.Persistence.Repositories.Reports.ReportOperations>();
             services.AddScoped<ISafetyAlertOperations, SmartPool.Infrastructure.Persistence.Repositories.SafetyMonitoring.SafetyAlertOperations>();
+            services.AddScoped<ISafetyIncidentReader, SmartPool.Infrastructure.Persistence.Repositories.SafetyMonitoring.SafetyIncidentReader>();
             services.AddScoped<IDailyInspectionOperations, SmartPool.Infrastructure.Persistence.Repositories.Equipments.DailyInspectionOperations>();
             services.AddScoped<INotificationOperations, SmartPool.Infrastructure.Persistence.Repositories.Notifications.NotificationOperations>();
             services.AddHostedService<ExpiredOnlineOrderWorker>();
             services.AddHostedService<ExpiredRentalPaymentWorker>();
             services.AddHostedService<InspectionSafetyReminderWorker>();
 
-            // Giám sát an toàn — camera AI, cảnh báo, upload video, snapshot.
+            // Giám sát an toàn — camera AI, cảnh báo, snapshot.
             // Options: MonitoringOptions (camera/worker ffmpeg/Python), RiskOptions (ngưỡng RiskDecisionEngine).
             services.Configure<SmartPool.Infrastructure.SafetyMonitoring.MonitoringOptions>(configuration.GetSection("SafetyMonitoring"));
             services.Configure<SmartPool.Application.Features.SafetyMonitoring.RiskOptions>(configuration.GetSection("SafetyMonitoring:Risk"));
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.MonitoringFiles>();
-            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoProbe>();
-            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisQueue>();
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.AlertSnapshotQueue>();
             // State trong bộ nhớ chia sẻ giữa worker AI LIVE và nguồn WebRTC AI (phải là instance duy nhất).
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>();
-            // Decisions (box) từng frame trong lúc video đang phân tích — cho phát song song overlay đúng 1:1.
-            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisState>();
             services.AddSingleton<SmartPool.Application.Interfaces.Services.ICameraFrameSource, SmartPool.Infrastructure.SafetyMonitoring.CameraFrameSource>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.ICameraAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>());
-            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoFrameAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisState>());
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IMonitoringRepository, SmartPool.Infrastructure.Persistence.Repositories.MonitoringRepository>();
             services.AddScoped<SmartPool.Application.Features.ManageEquipments.Queries.GetCameraList.ICameraListRepository, SmartPool.Infrastructure.Persistence.Repositories.Equipments.CameraListRepository>();
-            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoAnalysisService, SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisService>();
-            services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IVideoPlaybackTickets, SmartPool.Infrastructure.SafetyMonitoring.VideoPlaybackTickets>();
             // Ngưỡng cảnh báo AI có thể chỉnh từ giao diện (bảng single-row), áp nóng lên instance RiskOptions dùng chung.
             services.AddSingleton<SmartPool.Application.Features.SafetyMonitoring.IRiskThresholds, SmartPool.Infrastructure.SafetyMonitoring.RiskThresholds>();
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.SafetyThresholdsBootstrap>();
             // BackgroundService: khi SafetyMonitoring:Enabled=false (mặc định) các worker chỉ chạy vòng lặp rảnh,
             // không chạm DB hay khởi động Python/FFmpeg nên an toàn cho test tích hợp không cấu hình native.
-            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker>();
-            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.VideoAnalysisWorker>();
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisBroadcastWorker>();
+            // Host stops in reverse registration order: stop producers, drain
+            // staging, then stop uploads so accepted frames can still progress.
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.SnapshotUploadWorker>();
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.AlertSnapshotStagingWorker>();
+            services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker>();
             services.AddHostedService<TicketExpiryReminderWorker>();
             services.AddHostedService<PoolDutyAutoAssignWorker>();
 

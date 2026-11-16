@@ -1,4 +1,5 @@
 using AutoMapper;
+using FluentValidation;
 using MediatR;
 using SmartPool.Application.Common.Helpers;
 using SmartPool.Application.Interfaces.Repositories;
@@ -11,15 +12,25 @@ namespace SmartPool.Application.Features.ManageTickets.TicketType.Commands.Creat
     {
         private readonly ITicketTypeOperations _operations;
         private readonly IMapper _mapper;
+        private readonly IValidator<CreateTicketTypeCommand>? _validator;
 
-        public CreateTicketTypeHandler(ITicketTypeOperations operations, IMapper mapper)
+        public CreateTicketTypeHandler(
+            ITicketTypeOperations operations, 
+            IMapper mapper, 
+            IValidator<CreateTicketTypeCommand>? validator = null)
         {
             _operations = operations;
             _mapper = mapper;
+            _validator = validator;
         }
 
         public async Task<CreateTicketTypeResponse> Handle(CreateTicketTypeCommand request, CancellationToken cancellationToken)
         {
+            if (_validator != null)
+            {
+                await _validator.ValidateAndThrowAsync(request, cancellationToken);
+            }
+
             int? totalEntries = request.TicketCategory == TicketCategoryEnum.VE_LUOT
                 ? 1
                 : null;

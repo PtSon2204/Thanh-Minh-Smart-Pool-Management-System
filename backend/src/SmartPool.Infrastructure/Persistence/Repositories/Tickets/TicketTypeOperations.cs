@@ -79,6 +79,16 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Tickets
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken cancellationToken = default)
+        {
+            var trimmed = name.Trim().ToLower();
+            return await _context.TicketTypes.AsNoTracking()
+                .AnyAsync(t => t.IsDeleted != true
+                            && (excludeId == null || t.Id != excludeId.Value)
+                            && t.Name.ToLower() == trimmed,
+                          cancellationToken);
+        }
+
         public async Task AddAsync(TicketType ticketType, CancellationToken cancellationToken = default)
         {
             await _context.TicketTypes.AddAsync(ticketType, cancellationToken);

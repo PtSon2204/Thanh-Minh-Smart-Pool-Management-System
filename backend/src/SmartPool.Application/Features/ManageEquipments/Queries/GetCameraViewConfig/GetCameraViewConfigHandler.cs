@@ -8,7 +8,8 @@ namespace SmartPool.Application.Features.ManageEquipments.Queries.GetCameraViewC
 
 public sealed class GetCameraViewConfigHandler(
     IEquipmentOperations equipmentOperations,
-    ICameraStreamService streams)
+    ICameraStreamService streams,
+    ICameraService? cameras = null)
     : IRequestHandler<GetCameraViewConfigQuery, CameraWebRtcConfiguration>
 {
     public async Task<CameraWebRtcConfiguration> Handle(GetCameraViewConfigQuery query, CancellationToken cancellationToken)
@@ -20,6 +21,6 @@ public sealed class GetCameraViewConfigHandler(
             throw new InvalidOperationException("Thiết bị không thuộc nhóm Camera.");
         if (equipment.Status != "Active")
             throw new CameraConnectionException("Unavailable", "Camera hiện không khả dụng");
-        return streams.GetConfiguration();
+        return streams.GetConfiguration() with { FastReconnect = cameras?.GetStatus(query.EquipmentId).AnalysisSession != null };
     }
 }

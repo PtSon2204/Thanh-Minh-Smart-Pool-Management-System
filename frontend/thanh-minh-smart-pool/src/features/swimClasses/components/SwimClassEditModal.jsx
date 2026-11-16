@@ -58,7 +58,7 @@ export default function SwimClassEditModal({ swimClass, open, onClose, onReload 
           { transform: value => value?.trim(), max: 150, message: 'Tên lớp tối đa 150 ký tự.' },
         ]}><Input maxLength={150} showCount /></Form.Item>
         <Form.Item className="swim-class-span-full" label="Mô tả" name="description"><Input.TextArea rows={3} /></Form.Item>
-        <Form.Item label="Sức chứa" name="capacity" rules={[{ required: true, message: 'Nhập sức chứa.' }, { type: 'number', min: 1, message: 'Sức chứa phải lớn hơn 0.' }]}><InputNumber min={1} precision={0} className="swim-class-full-width" addonAfter="học viên" /></Form.Item>
+        <Form.Item label="Sức chứa" name="capacity" rules={[{ required: true, message: 'Nhập sức chứa.' }, { type: 'number', min: 1, max: 5, message: 'Sức chứa phải từ 1 đến 5 học viên.' }]}><InputNumber min={1} max={5} precision={0} className="swim-class-full-width" addonAfter="học viên" /></Form.Item>
         <Form.Item label="Học phí" name="fee" rules={[{ required: true, message: 'Nhập học phí.' }, { type: 'number', min: 0, message: 'Học phí không được âm.' }]}><InputNumber min={0} precision={2} className="swim-class-full-width" addonAfter="VNĐ" /></Form.Item>
         <Form.Item label="Bắt đầu nhận đăng ký" name="registrationStartAt" rules={[{ required: true, message: 'Chọn thời gian bắt đầu.' }]}><DatePicker className="swim-class-full-width" showTime={TIME_PICKER} format="DD/MM/YYYY HH:mm" /></Form.Item>
         <Form.Item label="Kết thúc nhận đăng ký" name="registrationEndAt" dependencies={['registrationStartAt']} rules={[
