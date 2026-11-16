@@ -5,7 +5,11 @@ import AlertActionButtons from './AlertActionButtons'
 // Popup cảnh báo toàn cục: hiển thị trên mọi trang khi người dùng có quyền nhận
 // cảnh báo an toàn. Chi tiết LIVE mở camera trong dialog, không đổi trang.
 export default function GlobalAlertPopup({ alert, isCritical, onDismiss, onViewLive }) {
-  const isAdmin = useAuthStore(state => state.session?.role?.toUpperCase() === 'ADMIN')
+  // Chỉ operator an toàn (ADMIN / LIFEGUARD) được mở chi tiết LIVE — khớp host GlobalSafetyAlertsHost.
+  const canViewDetail = useAuthStore(state => {
+    const role = state.session?.role?.toUpperCase()
+    return role === 'ADMIN' || role === 'LIFEGUARD'
+  })
 
   const detail = () => {
     onViewLive?.(alert)
@@ -32,7 +36,7 @@ export default function GlobalAlertPopup({ alert, isCritical, onDismiss, onViewL
             ? <Image src={alert.imageUrl} width="100%" alt="Ảnh sự cố" style={{ borderRadius: 8, maxHeight: '35dvh', objectFit: 'contain' }} preview={false} />
             : <Tag>Ảnh sự cố đang được xử lý</Tag>}
           <Space wrap>
-            {isAdmin && <Button type="primary" size="small" onClick={detail}>Xem chi tiết</Button>}
+            {canViewDetail && <Button type="primary" size="small" onClick={detail}>Xem chi tiết</Button>}
             <AlertActionButtons alert={alert} onHandled={() => onDismiss(alert.id)} />
             <Button type="text" size="small" onClick={() => onDismiss(alert.id)}>Đóng</Button>
           </Space>

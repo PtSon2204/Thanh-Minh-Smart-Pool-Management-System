@@ -10,7 +10,8 @@ namespace SmartPool.API.Controllers;
 
 [ApiController]
 [Route("api/cameras")]
-[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+// Giám sát an toàn — ADMIN và LIFEGUARD được xem danh sách camera cùng dữ liệu phân tích AI.
+[Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
 public sealed class CamerasController(ISender sender, SmartPool.Infrastructure.SafetyMonitoring.CameraDiagnostics diagnostics) : ControllerBase
 {
     [HttpGet]
