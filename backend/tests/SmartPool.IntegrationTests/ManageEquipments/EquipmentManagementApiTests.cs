@@ -34,7 +34,7 @@ public sealed class EquipmentManagementApiTests
             .Where(x => x is not null).Cast<Role>().ToList();
         var admin = TestUser(adminRole.Role, "eqadmin" + suffix);
         var lifeguard = TestUser(lifeguardRole.Role, "eqlifeguard" + suffix);
-        var inspectionDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
+        var inspectionDate = new DateOnly(2085, 1, 1).AddDays(Random.Shared.Next(1, 10000));
         var employee = new Employee
         {
             UserId = lifeguard.Id, User = lifeguard, JoinDate = inspectionDate, Status = "Working"
@@ -63,6 +63,11 @@ public sealed class EquipmentManagementApiTests
             Id = Guid.NewGuid(), Name = "Filter " + suffix, Category = "Filter", Location = "Pool A",
             Status = "Active", IsDeleted = false
         };
+
+        await db.PoolDutySchedules
+            .Where(x => x.DutyDate == inspectionDate && x.InspectionWindow == PoolDutyInspectionWindows.Morning && x.TaskType == PoolDutyTaskTypes.EquipmentChecklist)
+            .ExecuteDeleteAsync();
+
         db.Users.AddRange(admin, lifeguard);
         db.Employees.Add(employee);
         db.EmployeeShifts.Add(assignment);
@@ -240,10 +245,10 @@ public sealed class EquipmentManagementApiTests
         finally
         {
             await app.StopAsync();
-            await db.PoolDutySchedules.Where(x => x.Id == operationalTask.Id)
+            await db.PoolDutySchedules.Where(x => x.Id == operationalTask.Id || (x.DutyDate == inspectionDate && x.InspectionWindow == PoolDutyInspectionWindows.Morning))
                 .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.DailyInspectionId, (Guid?)null));
             await db.DailyInspections.Where(x => inspectionIds.Contains(x.Id)).ExecuteDeleteAsync();
-            await db.PoolDutySchedules.Where(x => x.Id == operationalTask.Id).ExecuteDeleteAsync();
+            await db.PoolDutySchedules.Where(x => x.Id == operationalTask.Id || (x.DutyDate == inspectionDate && x.InspectionWindow == PoolDutyInspectionWindows.Morning)).ExecuteDeleteAsync();
             await db.EmployeeShifts.Where(x => x.Id == assignment.Id).ExecuteDeleteAsync();
             await db.StaffScheduleDeliveries.Where(x => x.EmployeeId == lifeguard.Id ||
                 x.RecipientId == admin.Id || x.RecipientId == lifeguard.Id).ExecuteDeleteAsync();
