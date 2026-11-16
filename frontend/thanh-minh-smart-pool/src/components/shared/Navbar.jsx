@@ -82,9 +82,9 @@ export default function Navbar() {
     navigate('/dang-nhap', { replace: true })
   }
   const { data: profileData } = useQuery({
-    queryKey: ['myProfile'],
+    queryKey: ['myProfile', session?.id],
     queryFn: profileService.getMyProfile,
-    enabled: !!session
+    enabled: Boolean(session?.id)
   })
 
   useEffect(() => {

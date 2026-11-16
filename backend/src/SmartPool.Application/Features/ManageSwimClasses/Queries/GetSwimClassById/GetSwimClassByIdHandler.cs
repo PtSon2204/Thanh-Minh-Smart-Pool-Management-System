@@ -19,7 +19,9 @@ public sealed class GetSwimClassByIdHandler(
                 currentUser.Role, StringComparer.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("Không có quyền xem lớp dạy bơi.");
 
-        var role = request.Scope?.Trim().ToUpperInvariant() ?? currentUser.Role.ToUpperInvariant();
+        var role = string.IsNullOrWhiteSpace(request.Scope)
+            ? currentUser.Role.ToUpperInvariant()
+            : request.Scope.Trim().ToUpperInvariant();
         if (role is not ("COACH" or "CUSTOMER") ||
             (!string.IsNullOrWhiteSpace(request.Scope) && !currentUser.IsInRole(role)))
             throw new UnauthorizedAccessException("Không có quyền xem phạm vi lớp được yêu cầu.");
