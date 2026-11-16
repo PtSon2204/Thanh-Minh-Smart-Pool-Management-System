@@ -1,4 +1,5 @@
 import { getSignalRConnection, onSignalRStateChange, startSignalRConnection } from '../../../services/signalrClient'
+import { cameraDiagnostics } from '../utils/cameraDiagnostics.js'
 
 // A card and its enlarged modal can overlap during mounting. Keep one server group
 // subscription per camera so closing either does not unsubscribe the other viewer.
@@ -7,7 +8,15 @@ let initialized = false
 
 async function join(cameraId) {
   if (await startSignalRConnection() && subscribers.has(cameraId)) {
-    try { await getSignalRConnection().invoke('SubscribeCameraAnalysis', cameraId) } catch { /* HTTP fallback stays active. */ }
+    const at = Date.now()
+    try {
+      await getSignalRConnection().invoke('SubscribeCameraAnalysis', cameraId)
+      cameraDiagnostics.record(cameraId, { source: 'signalr-subscribe', at, ok: true })
+    } catch (error) {
+      cameraDiagnostics.record(cameraId, { source: 'signalr-subscribe', at, ok: false,
+        error: error?.message || error?.name || 'unknown-error' })
+      /* HTTP fallback stays active. */
+    }
   }
 }
 
@@ -16,10 +25,15 @@ export function subscribeCameraAnalysis(cameraId, listener) {
   if (!initialized) {
     initialized = true
     getSignalRConnection().on('camera_analysis', payload => {
-      const listeners = subscribers.get(payload?.cameraId?.toLowerCase())
+      const cameraId = payload?.cameraId?.toLowerCase()
+      const listeners = subscribers.get(cameraId)
+      cameraDiagnostics.record(cameraId, { source: 'signalr-event', at: Date.now(),
+        frameId: payload?.frameId ?? null, rtpTimestamp: payload?.rtpTimestamp ?? null,
+        trackingSession: payload?.trackingSession ?? null, accepted: Boolean(listeners?.size) })
       listeners?.forEach(callback => callback(payload))
     })
     onSignalRStateChange(state => {
+      cameraDiagnostics.record('signalr', { source: 'signalr-state', at: Date.now(), state })
       if (state === 'connected') for (const key of subscribers.keys()) void join(key)
     })
   }

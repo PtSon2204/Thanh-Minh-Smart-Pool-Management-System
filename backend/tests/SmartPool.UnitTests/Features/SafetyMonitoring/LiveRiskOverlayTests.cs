@@ -35,8 +35,21 @@ public sealed class LiveRiskOverlayTests
         var missing = overlay.Update(.1, [], [], ["person"]);
         Assert.Single(missing.Rendered);
         Assert.Empty(missing.Current);
-        Assert.Empty(overlay.Update(.31, [], [], ["person"]).Rendered);
+        Assert.Empty(overlay.Update(.51, [], [], ["person"]).Rendered);
         Assert.Empty(overlay.Update(.4, [Detection(.4)], [], []).Rendered);
+    }
+
+    [Fact]
+    public void MissingDetection_AtFourHundredMilliseconds_KeepsLatchedRiskVisible()
+    {
+        var overlay = new LiveRiskOverlay();
+        RiskDecision[] risk = [new("person", "episode", "CRITICAL", .9, 0, [.1, .1, .3, .5])];
+        overlay.Update(0, [Detection()], risk, ["person"]);
+
+        var missing = overlay.Update(.4, [], [], ["person"]);
+
+        Assert.Equal("CRITICAL", Assert.Single(missing.Rendered).Severity);
+        Assert.Empty(missing.Current);
     }
 
     [Fact]

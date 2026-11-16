@@ -46,7 +46,6 @@ public sealed partial class SafetyMonitoringTests
             ["SafetyMonitoring:PythonPath"] = snapshotPython ?? Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_PYTHON"),
             ["SafetyMonitoring:WorkerPath"] = Path.Combine(RepositoryRoot(), "backend", "ai", "worker.py"),
             ["SafetyMonitoring:ModelPath"] = Path.Combine(RepositoryRoot(), "model", "best.onnx"),
-            ["SafetyMonitoring:FfprobePath"] = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_FFPROBE"),
             ["SafetyMonitoring:FontPath"] = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_FONT"),
             ["SafetyMonitoring:StoragePath"] = Path.Combine(RepositoryRoot(), "backend", ".test-runtime", "jobs", database),
             ["CameraSettings:FfmpegPath"] = Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")

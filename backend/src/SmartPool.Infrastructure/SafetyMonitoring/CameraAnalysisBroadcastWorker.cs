@@ -1,13 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Infrastructure.SafetyMonitoring;
 
 // Metadata phục vụ tag/canvas, không nằm trên đường phát video. Coalesce về frame mới nhất.
 public sealed class CameraAnalysisBroadcastWorker(CameraAnalysisState state, IServiceScopeFactory scopes,
-    ILogger<CameraAnalysisBroadcastWorker> logger) : BackgroundService
+    ILogger<CameraAnalysisBroadcastWorker> logger, CameraDiagnostics? diagnostics = null) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -27,13 +28,24 @@ public sealed class CameraAnalysisBroadcastWorker(CameraAnalysisState state, ISe
                     var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     timeout.CancelAfter(200);
+                    var started = Stopwatch.GetTimestamp();
                     try
                     {
                         await notifications.SendToGroupAsync($"camera-analysis_{id:N}", "camera_analysis", frame, timeout.Token);
                         sent[id] = frame.FrameId;
+                        diagnostics?.Record(new CameraDiagnosticEvent(DateTimeOffset.UtcNow, "broadcast_success", id,
+                            frame.FrameId, frame.RtpTimestamp, frame.ObservedAt, frame.InferenceMilliseconds,
+                            CameraSession: frame.TrackingSession, ElapsedMilliseconds: Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                            ConnectionState: frame.State));
                     }
-                    catch (Exception) when (!stoppingToken.IsCancellationRequested)
-                    { logger.LogDebug("Camera metadata push deferred for {CameraId}; video continues independently.", id); }
+                    catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
+                    {
+                        diagnostics?.Record(new CameraDiagnosticEvent(DateTimeOffset.UtcNow, "broadcast_failure", id,
+                            frame.FrameId, frame.RtpTimestamp, frame.ObservedAt, frame.InferenceMilliseconds,
+                            CameraSession: frame.TrackingSession, ElapsedMilliseconds: Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                            FailureReason: exception.GetType().Name, ConnectionState: frame.State));
+                        logger.LogDebug("Camera metadata push deferred for {CameraId}; video continues independently.", id);
+                    }
                 });
                 await Task.Delay(75, stoppingToken);
             }
