@@ -1,140 +1,193 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import staffService from '../services/staffService'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import staffService from "../services/staffService";
 
-export const STAFFS_QUERY_KEY = ['staffs']
+export const STAFFS_QUERY_KEY = ["staffs"];
 
 export function useStaffs(params, enabled = true) {
   return useQuery({
     queryKey: [...STAFFS_QUERY_KEY, params],
     queryFn: () => staffService.getAll(params),
     enabled,
-  })
+  });
 }
 
 export function useStaffOptions(enabled) {
   return useQuery({
-    queryKey: ['staff-options'],
+    queryKey: ["staff-options"],
     queryFn: staffService.getOptions,
     enabled,
-  })
+  });
 }
 
 export function useStaffSchedule(employeeId, params, enabled) {
   return useQuery({
-    queryKey: ['staff-schedule', employeeId, params],
+    queryKey: ["staff-schedule", employeeId, params],
     queryFn: () => staffService.getSchedule({ ...params, employeeId }),
     enabled: Boolean(enabled && employeeId),
-  })
+  });
 }
 
-export function useStaffSchedulePage({ scope, sessionUserId, params, enabled }) {
+export function useStaffSchedulePage({
+  scope,
+  sessionUserId,
+  params,
+  enabled,
+}) {
   return useQuery({
-    queryKey: ['staff-schedule-page', scope, sessionUserId, params.fromDate, params.toDate, params.employeeId, params.status, params.pageIndex, params.pageSize],
-    queryFn: ({ signal }) => staffService.getCompleteSchedule(scope, params, signal),
+    queryKey: [
+      "staff-schedule-page",
+      scope,
+      sessionUserId,
+      params.fromDate,
+      params.toDate,
+      params.employeeId,
+      params.status,
+      params.pageIndex,
+      params.pageSize,
+    ],
+    queryFn: ({ signal }) =>
+      staffService.getCompleteSchedule(scope, params, signal),
     enabled: Boolean(enabled && sessionUserId),
-  })
+  });
 }
 
-export function useAttendanceSchedule(sessionUserId, date, enabled, scope = 'all') {
+export function useAttendanceSchedule(
+  sessionUserId,
+  date,
+  enabled,
+  scope = "all",
+) {
   return useQuery({
-    queryKey: ['staff-attendance', sessionUserId, date, scope],
-    queryFn: ({ signal }) => staffService.getCompleteSchedule(scope, { fromDate: date, toDate: date }, signal),
+    queryKey: ["staff-attendance", sessionUserId, date, scope],
+    queryFn: ({ signal }) =>
+      staffService.getCompleteSchedule(
+        scope,
+        { fromDate: date, toDate: date },
+        signal,
+      ),
     enabled: Boolean(enabled && sessionUserId && date),
-  })
+  });
 }
 
 export function useScheduleEmployees(enabled) {
   return useQuery({
-    queryKey: ['staff-schedule-employees'],
+    queryKey: ["staff-schedule-employees"],
     queryFn: ({ signal }) => staffService.getScheduleEmployees(signal),
     enabled,
-  })
+  });
 }
 
 export function useAssignShiftBatch() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: staffService.assignShiftBatch,
     retry: false,
-    onSuccess: () => Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] }),
-      queryClient.invalidateQueries({ queryKey: ['shifts'] }),
-    ]),
-  })
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["staff-attendance"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule-page"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["staff-schedule-employees"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["shifts"] }),
+      ]),
+  });
 }
 
 export function useCancelSchedule() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: staffService.cancelSchedule,
     retry: false,
-    onSuccess: () => Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] }),
-    ]),
-  })
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["staff-attendance"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule-page"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["staff-schedule-employees"],
+        }),
+      ]),
+  });
 }
 
 export function useReplaceSchedule() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ assignmentId, data }) => staffService.confirmScheduleReplacement(assignmentId, data),
+    mutationFn: ({ assignmentId, data }) =>
+      staffService.confirmScheduleReplacement(assignmentId, data),
     retry: false,
-    onSuccess: () => Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-employees'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-work-pattern'] }),
-    ]),
-  })
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["staff-attendance"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule-page"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["staff-schedule-employees"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["staff-work-pattern"] }),
+      ]),
+  });
 }
 
 function useAttendanceMutation(mutationFn) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
     retry: false,
-    onSuccess: () => Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
-    ]),
-  })
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["staff-attendance"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule-page"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule"] }),
+      ]),
+  });
 }
 
 export function useCheckIn() {
-  return useAttendanceMutation(({ id, reason }) => staffService.checkIn(id, { reason }))
+  return useAttendanceMutation(({ id, reason }) =>
+    staffService.checkIn(id, { reason }),
+  );
 }
 
 export function useCheckOut() {
-  return useAttendanceMutation(({ id, reason }) => staffService.checkOut(id, { reason }))
+  return useAttendanceMutation(({ id, reason }) =>
+    staffService.checkOut(id, { reason }),
+  );
 }
 
 export function useCorrectAttendance() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) => staffService.correctAttendance(id, data),
     retry: false,
-    onSuccess: () => Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['staff-attendance'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule-page'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-schedule'] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-attendance-history'] }),
-    ]),
-  })
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["staff-attendance"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule-page"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-schedule"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["staff-attendance-history"],
+        }),
+      ]),
+  });
 }
 
-export function useAttendanceHistory(assignmentId, pageIndex = 1, enabled = true) {
+export function useAttendanceHistory(
+  assignmentId,
+  pageIndex = 1,
+  enabled = true,
+) {
   return useQuery({
-    queryKey: ['staff-attendance-history', assignmentId, pageIndex],
-    queryFn: ({ signal }) => staffService.getAttendanceHistory(assignmentId, { pageIndex, pageSize: 20 }, signal),
+    queryKey: ["staff-attendance-history", assignmentId, pageIndex],
+    queryFn: ({ signal }) =>
+      staffService.getAttendanceHistory(
+        assignmentId,
+        { pageIndex, pageSize: 20 },
+        signal,
+      ),
     enabled: Boolean(enabled && assignmentId),
     retry: false,
-  })
+  });
 }
