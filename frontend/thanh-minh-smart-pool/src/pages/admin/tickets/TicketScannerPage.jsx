@@ -192,10 +192,10 @@ export default function TicketScannerPage() {
   const hasRemainingEntries = remainingEntries !== undefined && remainingEntries !== null && remainingEntries > 0
 
   return (
-    <div className="service-list-page">
+    <div className="service-list-page ticket-scanner-page">
       <ServiceListHeader title="Quét QR vào cổng" />
       <section className="service-list-table" aria-label="Quét và xác nhận vé vào bể">
-        <Card>
+        <Card className="ticket-scanner-card">
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Segmented
               aria-label="Chọn cách nhập mã vé"
@@ -203,23 +203,27 @@ export default function TicketScannerPage() {
               value={source}
               onChange={(value) => { reset(); setSource(value) }}
             />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#f6ffed', borderRadius: '8px', border: '1px solid #b7eb8f' }}>
-              <span style={{ fontWeight: 600, color: '#389e0d' }}>Số lượt muốn trừ:</span>
+            <div className="ticket-scanner-entry-count">
+              <span className="ticket-scanner-entry-count-label">Số lượt muốn trừ:</span>
               <InputNumber
                 min={1}
                 max={99}
                 value={entriesRequested}
                 onChange={(val) => setEntriesRequested(val ? Math.max(1, parseInt(val, 10) || 1) : 1)}
-                style={{ width: '80px' }}
+                className="ticket-scanner-entry-count-input"
               />
-              <span style={{ fontSize: '13px', color: '#52c41a' }}>
+              <span className="ticket-scanner-entry-count-help">
                 (Nhập số lượt/người đi cùng để trừ 1 lần, mặc định là 1)
               </span>
             </div>
             {source === INPUT_MODE.qr ? (
               <>
-                <Button onClick={() => setScannerOpen((current) => !current)}>{scannerOpen ? 'Dừng quét' : 'Bắt đầu quét'}</Button>
-                <QrScanner key={scannerKey} open={scannerOpen} autoStart expectedPurpose={QR_PURPOSE.ticket} onDecoded={(payload) => scanAndConfirm(payload, INPUT_MODE.qr)} onReset={reset} />
+                <div className="ticket-scanner-camera-controls">
+                  <Button className="ticket-scanner-camera-toggle" onClick={() => setScannerOpen((current) => !current)}>{scannerOpen ? 'Dừng quét' : 'Bắt đầu quét'}</Button>
+                </div>
+                <div className="ticket-scanner-camera-frame">
+                  <QrScanner key={scannerKey} open={scannerOpen} autoStart expectedPurpose={QR_PURPOSE.ticket} onDecoded={(payload) => scanAndConfirm(payload, INPUT_MODE.qr)} onReset={reset} />
+                </div>
               </>
             ) : (
               <Space.Compact style={{ width: '100%' }}>

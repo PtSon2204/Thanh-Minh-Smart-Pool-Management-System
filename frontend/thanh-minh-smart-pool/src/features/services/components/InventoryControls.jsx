@@ -38,6 +38,19 @@ function formatUtcDate(value) {
   return `${new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(value))} UTC`;
 }
 
+const SYSTEM_RENTAL_NOTES = [
+  { changeType: "RentalCheckout", pattern: /^Rental checkout order [0-9a-f-]{36}$/i, label: "Xuất kho theo đơn thuê" },
+  { changeType: "RentalReturn", pattern: /^Rental settlement [0-9a-f-]{36}$/i, label: "Nhập kho khi khách trả đồ" },
+  { changeType: "RentalReservation", pattern: /^Rental QR reservation [0-9a-f-]{36}$/i, label: "Giữ hàng cho yêu cầu thuê qua QR" },
+  { changeType: "RentalReservationRelease", pattern: /^Rental QR EXPIRED: [0-9a-f-]{36}$/i, label: "Hủy giữ hàng thuê qua QR do hết hạn" },
+  { changeType: "RentalReservationRelease", pattern: /^Rental QR CANCELLED: [0-9a-f-]{36}$/i, label: "Hủy giữ hàng thuê qua QR" },
+];
+
+function formatInventoryNote(value, changeType) {
+  if (!value) return "-";
+  return SYSTEM_RENTAL_NOTES.find((note) => note.changeType === changeType && note.pattern.test(value))?.label || value;
+}
+
 export default function InventoryControls({ children }) {
   const [selectedService, setSelectedService] = useState(null);
   const [date, setDate] = useState();
@@ -125,12 +138,14 @@ export default function InventoryControls({ children }) {
       title: "Thời gian (UTC)",
       dataIndex: "createdAt",
       key: "createdAt",
+      width: 164,
       render: formatUtcDate,
     },
     {
       title: "Thay đổi",
       dataIndex: "changeType",
       key: "changeType",
+      width: 172,
       render: (value) => (
         <Tag color="blue">
           {{
@@ -148,6 +163,7 @@ export default function InventoryControls({ children }) {
       dataIndex: "quantity",
       key: "quantity",
       align: "right",
+      width: 108,
       render: (value) => (
         <strong
           className={value > 0 ? "inventory-positive" : "inventory-negative"}
@@ -160,13 +176,15 @@ export default function InventoryControls({ children }) {
       title: "Ghi chú",
       dataIndex: "note",
       key: "note",
-      render: (value) => value || "-",
+      width: 248,
+      render: (value, record) => <span className="inventory-history-note">{formatInventoryNote(value, record.changeType)}</span>,
     },
     {
       title: "Người thực hiện",
-      dataIndex: "createdBy",
-      key: "createdBy",
-      render: (value) => value || "-",
+      dataIndex: "createdByName",
+      key: "createdByName",
+      width: 168,
+      render: (value) => <span className="inventory-history-operator">{value || "Không xác định"}</span>,
     },
   ];
 
@@ -183,7 +201,7 @@ export default function InventoryControls({ children }) {
         onClose={() => !isAdjusting && setHistoryOpen(false)}
         closable={!isAdjusting}
         mask={{ closable: !isAdjusting }}
-        size="large"
+        size="min(100vw, 960px)"
       >
         <label className="inventory-history-filter">
           <span>Ngày theo UTC</span>
@@ -212,11 +230,13 @@ export default function InventoryControls({ children }) {
         )}
         {!historyQuery.isLoading && !historyQuery.isError && (
           <Table
+            className="inventory-history-table"
             rowKey="id"
             columns={historyColumns}
             dataSource={historyQuery.data?.items || []}
             pagination={false}
-            scroll={{ x: true }}
+            tableLayout="fixed"
+            scroll={{ x: 860 }}
             locale={{ emptyText: "Chưa có lịch sử điều chỉnh tồn kho." }}
           />
         )}
