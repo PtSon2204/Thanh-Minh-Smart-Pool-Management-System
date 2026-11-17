@@ -128,7 +128,7 @@ export default function CartDrawer() {
               Hiện tại bể bơi đang có <strong>{currentSwimmers} / {maxCap}</strong> khách trong bể.
             </p>
             <p style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
-              Tổng số lượng lượt vé trong giỏ ({totalEntriesInCart} lượt) là số lượng khá lớn hoặc có thể khiến bể bơi đạt ngưỡng đông khách, dẫn đến việc có thể phải chờ đợi tại cổng soát vé.
+              Tổng số lượng lượt vé trong giỏ ({totalEntriesInCart} lượt) là số lượng khá lớn hoặc có thể khiến bể bơi đạt ngưỡng đông khách, sẽ dẫn đến có trải nghiệm không tốt.
             </p>
             <p style={{ color: '#0284c7', fontSize: 13, fontWeight: 500 }}>
               Bạn có muốn tiếp tục tiến hành thanh toán đơn hàng này không?
