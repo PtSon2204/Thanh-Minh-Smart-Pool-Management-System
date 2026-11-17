@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { Alert, AutoComplete, Button, Form, Input, Modal, Select } from 'antd'
 import { useCreateEquipment } from '../hooks/useCreateEquipment'
 import { useEquipmentFilters } from '../hooks/useEquipments'
-import BrowserCameraPreview from './BrowserCameraPreview'
 
 function applyServerErrors(form, error) {
   const errors = error?.response?.data?.errors
@@ -21,7 +20,6 @@ export default function EquipmentFormModal({ open, onClose }) {
   const [form] = Form.useForm()
   const category = Form.useWatch('category', form)
   const isCamera = category?.trim().toLowerCase() === 'camera'
-  const cameraSource = Form.useWatch('cameraSource', form) || 'RTSP'
   const submitting = useRef(false)
   const mutation = useCreateEquipment()
   const filters = useEquipmentFilters()
@@ -45,7 +43,7 @@ export default function EquipmentFormModal({ open, onClose }) {
       priorityLevel: values.priorityLevel || 'Normal',
       location: values.location?.trim() || null,
       metadata: null,
-      ...(isCamera ? { cameraConnection: cameraSource === 'Browser' ? { protocol: 'Browser' } : {
+      ...(isCamera ? { cameraConnection: {
         protocol: 'RTSP', streamUrl: values.cameraStreamUrl.trim(),
         username: values.cameraUsername || null, password: values.cameraPassword || null,
       } } : {}),
@@ -73,7 +71,7 @@ export default function EquipmentFormModal({ open, onClose }) {
   return <Modal title="Thêm thiết bị" open={open} forceRender width={680} className="equipment-modal"
     onOk={() => form.submit()} onCancel={handleCancel} cancelText="Hủy"
     confirmLoading={mutation.isPending}
-    okText={mutation.isPending && isCamera && cameraSource === 'RTSP' ? 'Đang kiểm tra camera...' : 'Lưu'}
+    okText={mutation.isPending && isCamera ? 'Đang kiểm tra camera...' : 'Lưu'}
     cancelButtonProps={{ disabled: mutation.isPending }} closable={!mutation.isPending}
     keyboard={!mutation.isPending} mask={{ closable: !mutation.isPending }}>
     <Form form={form} layout="vertical" preserve={false} disabled={mutation.isPending} onFinish={handleFinish}
@@ -109,8 +107,7 @@ export default function EquipmentFormModal({ open, onClose }) {
       ]}><Input placeholder="Nhập vị trí (không bắt buộc)" /></Form.Item>
       {isCamera && <section aria-label="Cấu hình kết nối Camera">
         <h3>Cấu hình kết nối Camera</h3>
-        <Form.Item label="Nguồn camera" name="cameraSource" initialValue="RTSP"><Select options={[{ value: 'RTSP', label: 'Camera IP — RTSP' }, { value: 'Browser', label: 'Camera máy tính — Webcam' }]} /></Form.Item>
-        {cameraSource === 'Browser' ? (open && <BrowserCameraPreview name={form.getFieldValue('name') || 'máy tính'} />) : <>
+        <Form.Item label="Nguồn camera" name="cameraSource" initialValue="RTSP"><Select options={[{ value: 'RTSP', label: 'Camera IP — RTSP' }]} /></Form.Item>
         <Alert type="info" showIcon title="Kết nối RTSP qua TCP (H.264/H.265/MJPEG)" description="Chỉ lưu sau khi backend đọc được frame hợp lệ. Địa chỉ và cổng phải được quản trị hệ thống cho phép. Không tự kích hoạt AI." className="service-inline-error" />
         <Form.Item label="RTSP URL" name="cameraStreamUrl" extra="Gồm IP/hostname, cổng (mặc định 554) và đường dẫn stream. Nhập thông tin đăng nhập ở các trường riêng." rules={[
           { required: true, whitespace: true, message: 'Nhập RTSP URL của camera.' },
@@ -127,7 +124,6 @@ export default function EquipmentFormModal({ open, onClose }) {
           { validator: (_, value) => !form.getFieldValue('cameraPassword') || value ? Promise.resolve() : Promise.reject(new Error('Nhập username khi sử dụng password.')) },
         ]}><Input autoComplete="off" /></Form.Item>
         <Form.Item label="Password" name="cameraPassword" extra="Không bắt buộc nếu camera không yêu cầu xác thực. Mật khẩu được xóa khỏi form khi kết nối thất bại; hãy nhập lại trước khi thử lưu."><Input.Password visibilityToggle={false} autoComplete="new-password" /></Form.Item>
-        </>}
       </section>}
     </Form>
   </Modal>
