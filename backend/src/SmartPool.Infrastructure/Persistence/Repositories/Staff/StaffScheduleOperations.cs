@@ -78,7 +78,7 @@ public sealed partial class StaffOperations
         if (request.OwnerId is not null && assignment.EmployeeId != request.OwnerId) throw new StaffForbiddenException("Bạn không có quyền chấm công cho lịch này.");
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (request.CheckIn && !StaffAttendanceTiming.CanCheckIn(assignment, now, attendanceQrSettings.CheckInEarlyMinutes))
-            throw new StaffConflictException("Chỉ có thể check-in từ 20 phút trước giờ bắt đầu đến trước giờ kết thúc ca.");
+            throw new StaffConflictException($"Chỉ có thể check-in từ {attendanceQrSettings.CheckInEarlyMinutes} phút trước giờ bắt đầu đến trước giờ kết thúc ca.");
         if (!request.CheckIn && !StaffAttendanceTiming.CanCheckOut(assignment, now))
             throw new StaffConflictException("Chỉ có thể check-out từ giờ kết thúc ca sau khi đã check-in.");
         var changed = request.CheckIn

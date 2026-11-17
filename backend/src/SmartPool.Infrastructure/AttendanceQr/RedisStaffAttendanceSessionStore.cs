@@ -5,7 +5,6 @@ using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
-using SmartPool.Infrastructure.Persistence.Repositories;
 using StackExchange.Redis;
 
 namespace SmartPool.Infrastructure.AttendanceQr;
@@ -124,7 +123,8 @@ public sealed class RedisStaffAttendanceSessionStore : IStaffAttendanceSessionSt
             return null;
         var assignment = await context.EmployeeShifts.AsNoTracking().Include(item => item.Shift).Include(item => item.Employee).ThenInclude(item => item.User)
             .FirstOrDefaultAsync(item => item.EmployeeId == employeeId && item.ShiftId == shiftId && item.WorkDate == workDate &&
-                item.Employee.Status == "Working" && item.Employee.User.IsDeleted != true && item.Employee.User.Status != null &&
+                (item.Employee.Status == "Working" || action == StaffAttendanceQrAction.CheckOut && item.Employee.Status == "Inactive") &&
+                item.Employee.User.IsDeleted != true && item.Employee.User.Status != null &&
                 item.Employee.User.Status.ToUpper() == "ACTIVE" && item.Employee.User.Role != null && item.Employee.User.Role.IsDeleted != true && item.Employee.User.Role.Name != null &&
                 (item.Employee.User.Role.Name.ToUpper() == nameof(RoleEnum.SALES) || item.Employee.User.Role.Name.ToUpper() == nameof(RoleEnum.LIFEGUARD) || item.Employee.User.Role.Name.ToUpper() == nameof(RoleEnum.COACH)), cancellationToken);
         if (assignment is null || !StaffAttendanceQrAssignmentPolicy.SupportsAction(assignment, action))
@@ -142,7 +142,8 @@ public sealed class RedisStaffAttendanceSessionStore : IStaffAttendanceSessionSt
 
     private async Task<bool> HasEligibleAssignmentAsync(Guid shiftId, DateOnly workDate, StaffAttendanceQrAction action, CancellationToken cancellationToken) =>
         await context.EmployeeShifts.AsNoTracking().AnyAsync(item => item.ShiftId == shiftId && item.WorkDate == workDate &&
-            item.Employee.Status == "Working" && item.Employee.User.IsDeleted != true && item.Employee.User.Status != null && item.Employee.User.Status.ToUpper() == "ACTIVE" &&
+            (item.Employee.Status == "Working" || action == StaffAttendanceQrAction.CheckOut && item.Employee.Status == "Inactive") &&
+            item.Employee.User.IsDeleted != true && item.Employee.User.Status != null && item.Employee.User.Status.ToUpper() == "ACTIVE" &&
             item.Employee.User.Role != null && item.Employee.User.Role.IsDeleted != true && item.Employee.User.Role.Name != null &&
             (item.Employee.User.Role.Name.ToUpper() == nameof(RoleEnum.SALES) || item.Employee.User.Role.Name.ToUpper() == nameof(RoleEnum.LIFEGUARD) || item.Employee.User.Role.Name.ToUpper() == nameof(RoleEnum.COACH)) &&
             (action == StaffAttendanceQrAction.CheckIn ? item.Status == "Scheduled" && item.CheckInTime == null : item.Status == "Present" && item.CheckInTime != null && item.CheckOutTime == null), cancellationToken);

@@ -46,6 +46,24 @@ public sealed class StaffAttendanceIntegrationTests
     }
 
     [Fact]
+    public async Task InactiveEmploymentCanCheckOutAnExistingAttendance()
+    {
+        await using var fixture = await AttendanceFixture.CreateAsync();
+        await fixture.AttendAsync(true);
+        await using (var context = fixture.Employment.CreateContext())
+            await context.Employees.Where(employee => employee.UserId == fixture.EmployeeId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(employee => employee.Status, "Inactive"));
+
+        fixture.Clock.Now = fixture.Clock.Now.AddHours(8);
+        await fixture.AttendAsync(false);
+
+        await using var read = fixture.Employment.CreateContext();
+        var assignment = await read.EmployeeShifts.SingleAsync(shift => shift.Id == fixture.AssignmentId);
+        Assert.Equal("Completed", assignment.Status);
+        Assert.NotNull(assignment.CheckOutTime);
+    }
+
+    [Fact]
     public async Task ConcurrentCheckInsHaveOneWinner()
     {
         await using var fixture = await AttendanceFixture.CreateAsync();

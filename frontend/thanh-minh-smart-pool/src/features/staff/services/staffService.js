@@ -42,6 +42,7 @@ const staffService = {
   getAll: (params) => apiClient.get(BASE, { params }).then((response) => response.data),
   getOptions: () => apiClient.get(`${BASE}/options`).then((response) => response.data),
   create: (data) => apiClient.post(BASE, data).then((response) => response.data),
+  getEdit: (userId, signal) => apiClient.get(`${BASE}/${userId}/edit`, { signal }).then((response) => response.data),
   update: (userId, data) => apiClient.put(`${BASE}/${userId}`, data).then((response) => response.data),
   getSchedule: (params, signal) => getSchedulePage(`${BASE}/schedule`, params, signal),
   getMySchedule: (params, signal) => getSchedulePage(`${BASE}/me/schedule`, params, signal),

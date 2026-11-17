@@ -14,6 +14,7 @@ using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetShifts;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
+using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffEdit;
 using SmartPool.Application.Features.Notifications.Queries.GetNotifications;
 
 namespace SmartPool.Application.Interfaces.Repositories
@@ -33,6 +34,7 @@ public interface IStaffOperations
     Task<GetStaffOptionsResponse> GetOptionsAsync(CancellationToken cancellationToken);
     Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken);
     Task<UpdateStaffResponse> UpdateStaffAsync(UpdateStaffCommand request, CancellationToken cancellationToken);
+    Task<GetStaffEditResponse> GetStaffEditAsync(GetStaffEditQuery request, CancellationToken cancellationToken);
     Task<PagedResponse<GetShiftsResponse>> GetShiftsAsync(GetShiftsQuery request, CancellationToken cancellationToken);
     Task<SaveShiftResponse> SaveShiftAsync(SaveShiftCommand request, CancellationToken cancellationToken);
     Task<PagedResponse<GetScheduleResponse>> GetScheduleAsync(GetScheduleQuery request, CancellationToken cancellationToken);

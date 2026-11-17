@@ -1,12 +1,9 @@
-using System.Security.Cryptography;
-using System.Text;
-
 namespace SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 
 public sealed class StaffAttendanceQrSettings
 {
     public const string SectionName = "StaffAttendanceQr";
-    public int CheckInEarlyMinutes { get; set; } = 20;
+    public int CheckInEarlyMinutes { get; set; } = 60;
     public int TokenLifetimeSeconds { get; set; } = 60;
     public int RotationIntervalSeconds { get; set; } = 60;
     public int SessionLifetimeMinutes { get; set; } = 15;
