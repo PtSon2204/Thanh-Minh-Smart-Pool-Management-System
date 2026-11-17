@@ -25,26 +25,32 @@ namespace SmartPool.Infrastructure.Services
         public async Task SendAsync(IEnumerable<string> recipients, string subject, string htmlBody, CancellationToken cancellationToken = default)
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(
-                _configuration["EmailSettings:FromName"],
-                _configuration["EmailSettings:FromEmail"]));
+            var fromName = _configuration["EmailSettings:FromName"]?.Trim() 
+                           ?? _configuration["EmailSettings:From"]?.Trim() 
+                           ?? "Thanh Minh Smart Pool";
+            var fromEmail = _configuration["EmailSettings:FromEmail"]?.Trim() ?? string.Empty;
+            message.From.Add(new MailboxAddress(fromName, fromEmail));
 
             foreach (var recipient in recipients)
-                message.To.Add(MailboxAddress.Parse(recipient));
+                message.To.Add(MailboxAddress.Parse(recipient.Trim()));
 
             message.Subject = subject;
             message.Body = new TextPart("html") { Text = htmlBody };
 
             using var client = new SmtpClient();
+            var smtpHost = _configuration["EmailSettings:SmtpHost"]?.Trim() ?? "localhost";
+            var smtpPort = int.Parse(_configuration["EmailSettings:SmtpPort"]?.Trim() ?? "587");
             await client.ConnectAsync(
-                _configuration["EmailSettings:SmtpHost"],
-                int.Parse(_configuration["EmailSettings:SmtpPort"] ?? "587"),
+                smtpHost,
+                smtpPort,
                 SecureSocketOptions.StartTls,
                 cancellationToken);
 
+            var username = _configuration["EmailSettings:Username"]?.Trim() ?? string.Empty;
+            var password = _configuration["EmailSettings:Password"]?.Trim() ?? string.Empty;
             await client.AuthenticateAsync(
-                _configuration["EmailSettings:Username"],
-                _configuration["EmailSettings:Password"],
+                username,
+                password,
                 cancellationToken);
 
             await client.SendAsync(message, cancellationToken);

@@ -95,6 +95,21 @@ test('a real no-risk observation removes the box immediately', () => {
   assert.deepEqual(buffer.sample(28000, origin), [])
 })
 
+test('a present backend box reports a reason when the displayed video has no usable RTP sample', () => {
+  const buffer = new CameraRiskFrameBuffer()
+  const box = [.2, .1, .4, .3]
+  buffer.add(frame(1, 10000, box, { risks: [], activeRiskTrackIds: [7],
+    displayRisks: [{ trackId: 7, episode: 1, severity: 'CRITICAL', box }],
+    detections: [{ trackId: 7, confidence: .4, box }],
+  }), origin)
+  // Video has raced 1s ahead of the last metadata sample: the box is latched on
+  // the server, but there is no usable past sample at the displayed RTP.
+  const result = buffer.sampleWithDiagnostics(100000, origin)
+  assert.deepEqual(result.risks, [])
+  assert.equal(result.reason, 'outside-hold-window')
+  assert.equal(result.metadataRtpTimestamp, 10000)
+})
+
 test('a brief confidence dip keeps the explicitly active warning at the measured track position', () => {
   const buffer = new CameraRiskFrameBuffer()
   buffer.add(frame(1, 10000, [.1, .1, .3, .3]), origin)

@@ -11,7 +11,8 @@ using SmartPool.Infrastructure.Persistence.DbContext;
 namespace SmartPool.Infrastructure.SafetyMonitoring;
 
 public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraService cameras, ICameraFrameSource frames, CameraAnalysisState state,
-    IOptions<MonitoringOptions> options, IOptions<RiskOptions> risk, AlertSnapshotQueue snapshots, ILogger<LiveMonitoringWorker> logger) : BackgroundService
+    IOptions<MonitoringOptions> options, IOptions<RiskOptions> risk, AlertSnapshotQueue snapshots, ILogger<LiveMonitoringWorker> logger,
+    CameraDiagnostics? diagnostics = null) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -118,6 +119,17 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
                     var decisions = engine.Observe(observedSeconds, detections);
                     var activeTrackIds = engine.ActiveTrackIds();
                     var display = overlay.Update(observedSeconds, detections, decisions, activeTrackIds);
+                    if (diagnostics?.ShouldSampleFrame(id, DateTimeOffset.UtcNow) == true)
+                    {
+                        diagnostics.Record(new CameraDiagnosticEvent(DateTimeOffset.UtcNow, "camera_analysis_frame", id,
+                            captured.FrameId, captured.RtpTimestamp, timestamp, inferenceMs, detections.Length,
+                            detections.Select(d => new DiagnosticDetection(d.TrackId, d.Class, d.Confidence, d.Box)).Take(64).ToArray(),
+                            activeTrackIds.Take(64).ToArray(),
+                            display.Rendered.Select(d => new DiagnosticBox(d.TrackId, d.Episode, d.Severity, d.Box)).Take(64).ToArray(),
+                            display.Current.Select(d => new DiagnosticBox(d.TrackId, d.Episode, d.Severity, d.Box)).Take(64).ToArray(),
+                            decisions.Count, display.Rendered.Count, status.AnalysisSession, workerSession,
+                            RenderMilliseconds: null, AnalysisMilliseconds: null));
+                    }
                     // Chỉ log lúc thay đổi, để phân biệt đổi ID với đổi severity trong cùng episode.
                     // Không ghi frame, URL RTSP hay thông tin đăng nhập vào log.
                     var tracks = string.Join(",", detections.Select(d => d.TrackId).Distinct().OrderBy(value => value, StringComparer.Ordinal));

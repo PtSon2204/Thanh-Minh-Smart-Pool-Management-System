@@ -71,6 +71,32 @@ export class CameraRiskFrameBuffer {
     this.samples.sort((a, b) => Date.parse(a.processedAt) - Date.parse(b.processedAt))
     if (this.samples.length > 32) this.samples.splice(0, this.samples.length - 32)
   }
+  sampleWithDiagnostics(timestamp, now = Date.now()) {
+    const age = this.latest ? cameraAnalysisAge(this.latest, now) : Infinity
+    let reason = null
+    if (!Number.isInteger(timestamp)) reason = 'invalid-video-rtp'
+    else if (!this.latest) reason = 'no-latest-metadata'
+    else if (age >= MAX_OVERLAY_AGE_MS) reason = 'metadata-stale'
+    const risks = this.sample(timestamp, now)
+    if (!reason && risks.length === 0) {
+      let past = false
+      let future = false
+      let behind = Infinity
+      let ahead = Infinity
+      for (const item of this.samples) {
+        const distance = ticks(timestamp, item.rtpTimestamp)
+        if (distance >= 0 && distance < behind) { past = true; behind = distance }
+        if (distance < 0 && -distance < ahead) { future = true; ahead = -distance }
+      }
+      if (!past) reason = 'no-past-sample'
+      else if (behind > MAX_HOLD_TICKS && (!future || behind + ahead > 90000)) reason = 'outside-hold-window'
+      else if (this.latest.displayRisks?.length) reason = 'held-risk-expired'
+      else reason = 'no-visible-risks'
+    }
+    return { risks, reason: reason || 'risks-present', metadataAgeMs: age,
+      metadataRtpTimestamp: this.latest?.rtpTimestamp ?? null }
+  }
+
   sample(timestamp, now = Date.now()) {
     if (!Number.isInteger(timestamp) || !this.latest || cameraAnalysisAge(this.latest, now) >= MAX_OVERLAY_AGE_MS) return []
     let past, future, behind = Infinity, ahead = Infinity

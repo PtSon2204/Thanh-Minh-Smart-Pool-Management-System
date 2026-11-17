@@ -24,7 +24,8 @@ public sealed class GetEquipmentsTests
         var handler = new GetEquipmentsHandler(repository.Object, new GetEquipmentsValidator(), TimeProvider.System);
         await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new GetEquipmentsQuery
         {
-            PageIndex = pageIndex, PageSize = pageSize
+            PageIndex = pageIndex,
+            PageSize = pageSize
         }, CancellationToken.None));
         repository.VerifyNoOtherCalls();
     }
@@ -35,7 +36,12 @@ public sealed class GetEquipmentsTests
         var repository = new Mock<IEquipmentOperations>();
         var request = new GetEquipmentsQuery
         {
-            SearchTerm = "pump", Category = "filter", Location = "pool", Status = "Active", PageIndex = 2, PageSize = 20
+            SearchTerm = "pump",
+            Category = "filter",
+            Location = "pool",
+            Status = "Active",
+            PageIndex = 2,
+            PageSize = 20
         };
         var expected = new PagedResponse<EquipmentListItem> { PageIndex = 2, PageSize = 20 };
         var cancellationToken = new CancellationTokenSource().Token;
@@ -50,17 +56,74 @@ public sealed class GetEquipmentsTests
     {
         var result = new GetEquipmentsValidator().Validate(new GetEquipmentsQuery
         {
-            SearchTerm = new string('x', 256), Category = new string('x', 51),
-            Location = new string('x', 256), Status = new string('x', 51)
+            SearchTerm = new string('x', 256),
+            Category = new string('x', 51),
+            Location = new string('x', 256),
+            Status = new string('x', 51)
         });
         Assert.Equal(4, result.Errors.Count);
     }
 
     [Fact]
-    public void AllEquipmentEndpoints_RequireExistingAdminPolicy()
+    public void EquipmentEndpoints_RequireCorrectPolicies()
     {
-        var attribute = Assert.Single(typeof(EquipmentsController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>());
-        Assert.Equal(AuthorizationPolicies.AdminOnly, attribute.Policy);
+        var controller = typeof(EquipmentsController);
+
+        var cameraActions = new[]
+        {
+            nameof(EquipmentsController.GetCameraViewConfiguration),
+            nameof(EquipmentsController.OpenCameraView),
+            nameof(EquipmentsController.ReadCameraView),
+            nameof(EquipmentsController.CloseCameraView),
+            nameof(EquipmentsController.GetCameraStatus),
+            nameof(EquipmentsController.GetCameraFrame)
+        };
+
+        var adminActions = new[]
+        {
+            nameof(EquipmentsController.Create),
+            nameof(EquipmentsController.Update),
+            nameof(EquipmentsController.SetStatus),
+            nameof(EquipmentsController.GetList),
+            nameof(EquipmentsController.GetFilters),
+            nameof(EquipmentsController.GetById)
+        };
+
+        foreach (var action in cameraActions)
+        {
+            AssertPolicy(action, AuthorizationPolicies.SafetyOperators);
+        }
+
+        foreach (var action in adminActions)
+        {
+            AssertPolicy(action, AuthorizationPolicies.AdminOnly);
+        }
+
+        void AssertPolicy(string actionName, string expectedPolicy)
+        {
+            var method = controller.GetMethod(actionName);
+            Assert.NotNull(method);
+
+            var policies = controller
+                .GetCustomAttributes(typeof(AuthorizeAttribute), true)
+                .Cast<AuthorizeAttribute>()
+                .Concat(
+                    method.GetCustomAttributes(typeof(AuthorizeAttribute), true)
+                        .Cast<AuthorizeAttribute>()
+                )
+                .Select(attribute => attribute.Policy)
+                .ToArray();
+
+            Assert.Contains(expectedPolicy, policies);
+
+            if (expectedPolicy == AuthorizationPolicies.SafetyOperators)
+            {
+                Assert.DoesNotContain(
+                    AuthorizationPolicies.AdminOnly,
+                    policies
+                );
+            }
+        }
     }
 
     private sealed class FixedTime : TimeProvider

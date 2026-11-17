@@ -220,6 +220,7 @@ namespace SmartPool.Infrastructure
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.AlertSnapshotQueue>();
             // State trong bộ nhớ chia sẻ giữa worker AI LIVE và nguồn WebRTC AI (phải là instance duy nhất).
             services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>();
+            services.AddSingleton<SmartPool.Infrastructure.SafetyMonitoring.CameraDiagnostics>();
             services.AddSingleton<SmartPool.Application.Interfaces.Services.ICameraFrameSource, SmartPool.Infrastructure.SafetyMonitoring.CameraFrameSource>();
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.ICameraAnalysisReader>(provider => provider.GetRequiredService<SmartPool.Infrastructure.SafetyMonitoring.CameraAnalysisState>());
             services.AddScoped<SmartPool.Application.Features.SafetyMonitoring.IMonitoringRepository, SmartPool.Infrastructure.Persistence.Repositories.MonitoringRepository>();

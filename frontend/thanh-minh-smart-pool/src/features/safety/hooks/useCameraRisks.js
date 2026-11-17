@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { monitoringService } from '../services/monitoringService'
 import { subscribeCameraAnalysis } from '../services/cameraAnalysisStream'
-import { cameraAnalysisAge, MAX_OVERLAY_AGE_MS, MONITORING_STALE_MS, mergeCameraAnalysis } from '../utils/cameraAnalysisState'
+import { cameraAnalysisAge, MAX_OVERLAY_AGE_MS, MONITORING_STALE_MS, mergeCameraAnalysis, metadataRejectionReason } from '../utils/cameraAnalysisState'
 import { useAuthStore } from '../../auth/store/authStore'
 import { signalRIdentity } from '../../../services/signalrClient'
 import { CameraRiskFrameBuffer } from '../utils/cameraRiskFrameBuffer'
+import { cameraDiagnostics } from '../utils/cameraDiagnostics'
 
 // Lần nhận quan sát tốt cuối (Connected, metadata mới) cho mỗi camera, key
 // cameraId|identity. Sticky state ở module: nhãn "đang giám sát" giữ 10s sau
@@ -27,13 +28,15 @@ export function useCameraRisks(cameraId, enabled) {
   const ai = useQuery({
     queryKey: ['safety', 'camera-analysis', cameraId],
     queryFn: async ({ signal }) => {
-      const started = Date.now()
       const incoming = await monitoringService.analysis(cameraId, signal)
       const current = client.getQueryData(['safety', 'camera-analysis', cameraId])
-      // A push received during this request is newer than an old offline HTTP response.
-      if (current?.receivedAt > started && !incoming.processedAt) return current
+      const reason = metadataRejectionReason(current, incoming)
       const merged = mergeCameraAnalysis(current, incoming, Date.now())
       frames.add(merged, merged.receivedAt)
+      cameraDiagnostics.record(cameraId, { source: 'http-poll', at: Date.now(),
+        rtpTimestamp: incoming.rtpTimestamp ?? null, frameId: incoming.frameId ?? null,
+        trackingSession: incoming.trackingSession ?? null, riskCount: incoming.activeRiskTrackIds?.length ?? 0,
+        rejected: Boolean(reason), reason })
       return merged
     },
     enabled: enabled && !!cameraId, refetchInterval: enabled ? 1000 : false, retry: false,
@@ -47,8 +50,13 @@ export function useCameraRisks(cameraId, enabled) {
     if (!enabled || !cameraId || !identity) return undefined
     return subscribeCameraAnalysis(cameraId, payload => {
       client.setQueryData(['safety', 'camera-analysis', cameraId], current => {
+        const reason = metadataRejectionReason(current, payload)
         const merged = mergeCameraAnalysis(current, payload, Date.now())
         frames.add(merged, merged.receivedAt)
+        cameraDiagnostics.record(cameraId, { source: 'signalr', at: Date.now(),
+          rtpTimestamp: payload.rtpTimestamp ?? null, frameId: payload.frameId ?? null,
+          trackingSession: payload.trackingSession ?? null, riskCount: payload.activeRiskTrackIds?.length ?? 0,
+          rejected: Boolean(reason), reason })
         return merged
       })
     })
@@ -69,6 +77,18 @@ export function useCameraRisks(cameraId, enabled) {
   const monitored = Number.isFinite(lastGoodAt) && now - lastGoodAt < MONITORING_STALE_MS
   const fresh = monitored && cameraAnalysisAge(ai.data, Math.max(now, ai.data?.receivedAt || now)) < MAX_OVERLAY_AGE_MS
   const sampleRisks = useCallback(timestamp => frames.sample(timestamp), [frames])
+  // Observation-only companion: same risks as sampleRisks, plus the exact empty
+  // reason so the repro procedure can classify a disappearance. Bounded.
+  const sampleRisksWithDiagnostics = useCallback(timestamp => {
+    const result = frames.sampleWithDiagnostics(timestamp)
+    if (cameraDiagnostics.shouldSampleFrame(cameraId, Date.now())) {
+      cameraDiagnostics.record(cameraId, { source: 'render', at: Date.now(),
+        rtpTimestamp: timestamp ?? null, riskCount: result.risks.length, reason: result.reason,
+        metadataAgeMs: result.metadataAgeMs, metadataRtpTimestamp: result.metadataRtpTimestamp })
+    }
+    return result.risks
+  }, [frames, cameraId])
   const getPlayoutDelay = useCallback(() => frames.playoutDelayMs(), [frames])
-  return { ai, fresh: monitored, risks: fresh ? (ai.data?.displayRisks ?? ai.data?.risks ?? []) : [], sampleRisks, getPlayoutDelay }
+  return { ai, fresh: monitored, risks: fresh ? (ai.data?.displayRisks ?? ai.data?.risks ?? []) : [],
+    sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay }
 }

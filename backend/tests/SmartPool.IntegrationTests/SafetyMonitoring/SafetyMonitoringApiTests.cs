@@ -46,7 +46,6 @@ public sealed partial class SafetyMonitoringTests
             ["SafetyMonitoring:PythonPath"] = snapshotPython ?? Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_PYTHON"),
             ["SafetyMonitoring:WorkerPath"] = Path.Combine(RepositoryRoot(), "backend", "ai", "worker.py"),
             ["SafetyMonitoring:ModelPath"] = Path.Combine(RepositoryRoot(), "model", "best.onnx"),
-            ["SafetyMonitoring:FfprobePath"] = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_FFPROBE"),
             ["SafetyMonitoring:FontPath"] = Environment.GetEnvironmentVariable("SMARTPOOL_SAFETY_TEST_FONT"),
             ["SafetyMonitoring:StoragePath"] = Path.Combine(RepositoryRoot(), "backend", ".test-runtime", "jobs", database),
             ["CameraSettings:FfmpegPath"] = Environment.GetEnvironmentVariable("SMARTPOOL_CAMERA_TEST_FFMPEG")
@@ -99,7 +98,8 @@ public sealed partial class SafetyMonitoringTests
             Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(path)).StatusCode);
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/alerts")).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/cameras")).StatusCode);
+        // LIFEGUARD là operator an toàn — đọc được danh sách camera cùng dữ liệu AI.
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/cameras")).StatusCode);
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "ADMIN"));
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/cameras")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/cameras?page=0")).StatusCode);

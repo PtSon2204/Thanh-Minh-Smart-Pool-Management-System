@@ -25,7 +25,9 @@ namespace SmartPool.API.Controllers;
 
 [ApiController]
 [Route("api/equipments")]
-[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+// Quyền phân tách theo nhóm action (xem CameraStreamEquipmentTests / EquipmentManagementApiTests):
+//   • Camera view (xem video WebRTC)  → SafetyOperators (ADMIN + LIFEGUARD)
+//   • CRUD thiết bị                    → AdminOnly
 public sealed class EquipmentsController : ControllerBase
 {
     private readonly ISender _sender;
@@ -41,6 +43,8 @@ public sealed class EquipmentsController : ControllerBase
     // Camera View Endpoints
     // -------------------------------------------------------------------------
 
+    // LIFEGUARD mở được view video trực tiếp của camera (giám sát an toàn).
+    [Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
     [HttpGet("{equipmentId:guid}/camera/views")]
     public async Task<IActionResult> GetCameraViewConfiguration(Guid equipmentId, CancellationToken cancellationToken)
     {
@@ -48,6 +52,7 @@ public sealed class EquipmentsController : ControllerBase
         return await SendCameraAsync(new GetCameraViewConfigQuery(equipmentId), cancellationToken);
     }
 
+    [Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
     [HttpPost("{equipmentId:guid}/camera/views")]
     [RequestSizeLimit(73728)]
     public async Task<IActionResult> OpenCameraView(Guid equipmentId, [FromBody] CameraOffer offer, CancellationToken cancellationToken)
@@ -56,6 +61,7 @@ public sealed class EquipmentsController : ControllerBase
         return await SendCameraAsync(new OpenCameraViewCommand(equipmentId, offer, GetUserId()), cancellationToken);
     }
 
+    [Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
     [HttpGet("{equipmentId:guid}/camera/views/{viewId:guid}")]
     public async Task<IActionResult> ReadCameraView(Guid equipmentId, Guid viewId, CancellationToken cancellationToken)
     {
@@ -63,6 +69,7 @@ public sealed class EquipmentsController : ControllerBase
         return await SendCameraAsync(new GetCameraViewStatusQuery(equipmentId, viewId, GetUserId()), cancellationToken);
     }
 
+    [Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
     [HttpDelete("{equipmentId:guid}/camera/views/{viewId:guid}")]
     public async Task<IActionResult> CloseCameraView(Guid equipmentId, Guid viewId, CancellationToken cancellationToken)
     {
@@ -70,6 +77,7 @@ public sealed class EquipmentsController : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
     [HttpGet("{equipmentId:guid}/camera")]
     public async Task<IActionResult> GetCameraStatus(Guid equipmentId, CancellationToken cancellationToken)
     {
@@ -77,6 +85,7 @@ public sealed class EquipmentsController : ControllerBase
         return await SendCameraAsync(new GetCameraStatusQuery(equipmentId), cancellationToken);
     }
 
+    [Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
     [HttpGet("{equipmentId:guid}/camera/frame")]
     public async Task<IActionResult> GetCameraFrame(Guid equipmentId, CancellationToken cancellationToken)
     {
@@ -95,6 +104,8 @@ public sealed class EquipmentsController : ControllerBase
     // Equipment CRUD Endpoints
     // -------------------------------------------------------------------------
 
+    // CRUD thiết bị — chỉ ADMIN (giữ nguyên quyền cũ khi tách khỏi controller-level).
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpPost]
     [ProducesResponseType(typeof(EquipmentListItem), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create([FromBody] CreateEquipmentCommand command, CancellationToken cancellationToken)
@@ -128,6 +139,7 @@ public sealed class EquipmentsController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpPut("{equipmentId:guid}")]
     public async Task<IActionResult> Update(Guid equipmentId, [FromBody] UpdateEquipmentCommand command, CancellationToken cancellationToken)
     {
@@ -144,6 +156,7 @@ public sealed class EquipmentsController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpPatch("{equipmentId:guid}/status")]
     public async Task<IActionResult> SetStatus(Guid equipmentId, [FromBody] SetEquipmentStatusCommand command, CancellationToken cancellationToken)
     {
@@ -160,6 +173,7 @@ public sealed class EquipmentsController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<EquipmentListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetList([FromQuery] GetEquipmentsQuery query, CancellationToken cancellationToken)
@@ -168,11 +182,13 @@ public sealed class EquipmentsController : ControllerBase
         catch (ValidationException exception) { return BadRequest(ValidationError(exception)); }
     }
 
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpGet("filters")]
     [ProducesResponseType(typeof(EquipmentFilterOptions), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFilters(CancellationToken cancellationToken) =>
         Ok(await _sender.Send(new GetEquipmentFiltersQuery(), cancellationToken));
 
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpGet("{equipmentId:guid}")]
     [ProducesResponseType(typeof(EquipmentListItem), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(Guid equipmentId, CancellationToken cancellationToken)
