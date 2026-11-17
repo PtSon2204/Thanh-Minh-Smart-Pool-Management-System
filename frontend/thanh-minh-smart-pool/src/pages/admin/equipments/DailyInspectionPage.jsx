@@ -15,16 +15,43 @@ export default function DailyInspectionPage() {
   const [searchParams] = useSearchParams()
   const session = useAuthStore((state) => state.session)
   const isAdmin = session?.role?.toUpperCase() === 'ADMIN'
-  const operationalTaskId = searchParams.get('taskId')
+  const isLifeguard = session?.role?.toUpperCase() === 'LIFEGUARD'
+  const rawTaskId = searchParams.get('taskId')
   const initialShiftId = searchParams.get('shiftId')
-  const passedTask = location.state?.task?.id === operationalTaskId ? location.state.task : null
+  const passedTask = location.state?.task?.id === rawTaskId ? location.state.task : null
+
+  // 1. Direct task lookup when taskId is explicitly in query params
   const taskLookup = useQuery({
-    queryKey: ['operational-task-execution-context', operationalTaskId],
-    queryFn: ({ signal }) => operationalTaskService.getTasks({ taskId: operationalTaskId }, signal),
-    enabled: Boolean(operationalTaskId) && !passedTask,
+    queryKey: ['operational-task-execution-context', rawTaskId],
+    queryFn: ({ signal }) => operationalTaskService.getTasks({ taskId: rawTaskId }, signal),
+    enabled: Boolean(rawTaskId) && !passedTask,
     staleTime: 30_000,
   })
-  const task = passedTask || taskLookup.data?.items?.find((item) => item.id === operationalTaskId)
+
+  // 2. Auto-resolve task for lifeguard accessing from sidebar without taskId
+  const todayVietnam = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date())
+  const autoTaskLookup = useQuery({
+    queryKey: ['lifeguard-today-checklist-task', session?.id, todayVietnam],
+    queryFn: ({ signal }) => operationalTaskService.getTasks({
+      fromDate: todayVietnam,
+      toDate: todayVietnam,
+      taskType: 'EquipmentChecklist',
+    }, signal),
+    enabled: isLifeguard && !rawTaskId && Boolean(session?.id),
+    staleTime: 30_000,
+  })
+
+  const todayTasks = autoTaskLookup.data?.items?.filter(
+    (item) => item.status !== 'Completed' && item.status !== 'Cancelled'
+  ) || []
+  const preferredWindow = dayjs().hour() < 12 ? 'MORNING' : 'AFTERNOON'
+  const autoTask = todayTasks.find((t) => t.inspectionWindow === preferredWindow) || todayTasks[0] || null
+
+  const task = passedTask
+    || (rawTaskId ? taskLookup.data?.items?.find((item) => item.id === rawTaskId) : null)
+    || autoTask
+
+  const operationalTaskId = rawTaskId || autoTask?.id
   const adminTaskExecution = isAdmin && task ? {
     id: task.id,
     taskType: task.taskType,
@@ -46,10 +73,12 @@ export default function DailyInspectionPage() {
   const isSafeReturnTo = returnTo === '/admin/staff/tasks' || returnTo.startsWith('/admin/staff/tasks?')
   const returnToTasks = () => navigate(isSafeReturnTo ? returnTo : fallbackReturnTo, { replace: true })
   const handleSuccess = () => {
-    if (operationalTaskId) {
+    if (rawTaskId) {
       returnToTasks()
     } else if (isAdmin) {
       navigate('/admin/equipments/inspection-history')
+    } else {
+      navigate('/admin/staff/tasks')
     }
   }
 
@@ -80,8 +109,24 @@ export default function DailyInspectionPage() {
           </div>
         </header>
 
-        {operationalTaskId && <Button onClick={returnToTasks}>Quay lại công việc vận hành</Button>}
-        {operationalTaskId && !task ? (
+        {rawTaskId && <Button onClick={returnToTasks} style={{ marginBottom: 16 }}>Quay lại công việc vận hành</Button>}
+        {isLifeguard && !rawTaskId && autoTaskLookup.isPending ? (
+          <Spin tip="Đang kiểm tra nhiệm vụ kiểm tra thiết bị hôm nay..." />
+        ) : isLifeguard && !rawTaskId && !autoTask ? (
+          <div style={{ maxWidth: 640, marginTop: 12 }}>
+            <Alert
+              type="warning"
+              showIcon
+              title="Chưa có ca trực hoặc nhiệm vụ kiểm tra thiết bị hôm nay"
+              description="Bạn chưa được phân công ca trực hoặc nhiệm vụ kiểm tra thiết bị cho ngày hôm nay. Vui lòng liên hệ Quản trị viên để được phân ca, hoặc truy cập trang Công việc vận hành."
+              action={
+                <Button type="primary" onClick={() => navigate('/admin/staff/tasks')}>
+                  Xem công việc vận hành
+                </Button>
+              }
+            />
+          </div>
+        ) : operationalTaskId && !task ? (
           taskLookup.isError ? (
             <Alert type="error" showIcon title="Không thể tải công việc" description="Hãy quay lại danh sách công việc và mở lại checklist." />
           ) : taskLookup.isPending ? (
