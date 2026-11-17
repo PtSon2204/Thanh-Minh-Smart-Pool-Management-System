@@ -6,7 +6,7 @@ using SmartPool.Infrastructure.Cameras;
 namespace SmartPool.Infrastructure.SafetyMonitoring;
 
 // Lấy khung JPEG mới nhất của camera để gộp vào luồng AI giám sát LIVE.
-public sealed class CameraFrameSource(CameraService cameras, IOptions<CameraOptions> options, ILogger<CameraFrameSource>? logger = null) : ICameraFrameSource, IAsyncDisposable
+public sealed class CameraFrameSource(CameraService cameras, IOptions<CameraOptions> options, ILogger<CameraFrameSource>? logger = null, CameraDiagnostics? diagnostics = null) : ICameraFrameSource, IAsyncDisposable
 {
     private readonly Dictionary<Guid, CameraAnalysisFramePump> pumps = new();
     private readonly Dictionary<Guid, string?> sessions = new();
@@ -26,7 +26,12 @@ public sealed class CameraFrameSource(CameraService cameras, IOptions<CameraOpti
         foreach (var id in pumps.Where(x => x.Value.Failed || cameras.GetStatus(x.Key).State != "Connected" ||
             cameras.GetStatus(x.Key).AnalysisSession != sessions.GetValueOrDefault(x.Key)).Select(x => x.Key).ToArray())
         {
-            if (pumps[id].Failed && pumps[id].Failure != null) logger?.LogWarning("Camera {CameraId} decoder restarted ({FailureCode}).", id, pumps[id].Failure);
+            if (pumps[id].Failed && pumps[id].Failure != null)
+            {
+                logger?.LogWarning("Camera {CameraId} decoder restarted ({FailureCode}).", id, pumps[id].Failure);
+                diagnostics?.Record(new CameraDiagnosticEvent(DateTimeOffset.UtcNow, "decoder_restart", id,
+                    CameraSession: cameras.GetStatus(id).AnalysisSession, RestartReason: pumps[id].Failure));
+            }
             retryAt[id] = DateTimeOffset.UtcNow.AddMilliseconds(cameras.GetStatus(id).AnalysisSession != null ? 100 : 1000);
             retiring.Add(pumps[id].DisposeAsync().AsTask());
             pumps.Remove(id);

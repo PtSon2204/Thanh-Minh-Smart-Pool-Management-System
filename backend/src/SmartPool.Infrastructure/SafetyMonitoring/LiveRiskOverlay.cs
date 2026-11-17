@@ -6,6 +6,7 @@ namespace SmartPool.Infrastructure.SafetyMonitoring;
 // One instance per camera/tracking session, alongside its decision engine.
 public sealed class LiveRiskOverlay
 {
+    private const double MissingDetectionHoldSeconds = .5;
     private readonly Dictionary<string, RiskDecision> latched = new();
     public void Clear() => latched.Clear();
 
@@ -25,7 +26,10 @@ public sealed class LiveRiskOverlay
             if (!active.Contains(detection.TrackId) || !latched.TryGetValue(detection.TrackId, out var risk) || timestamp < risk.Timestamp) continue;
             latched[detection.TrackId] = risk with { Timestamp = timestamp, Box = detection.Box };
         }
-        var visible = latched.Values.Where(x => timestamp >= x.Timestamp && timestamp - x.Timestamp <= .3).ToArray();
+        // Bridge a brief detection gap or low-confidence frame. Aligned with the
+        // frontend's MAX_UNOBSERVED_TICKS (500 ms) so the two overlay stages agree;
+        // a confirmed recovery still drops the box, so this is never indefinite.
+        var visible = latched.Values.Where(x => timestamp >= x.Timestamp && timestamp - x.Timestamp <= MissingDetectionHoldSeconds).ToArray();
         // Only current measured geometry is advertised to a NEW viewer. Missing
         // observations may render briefly, but must not renew a client hold TTL.
         return (visible, visible.Where(x => x.Timestamp == timestamp).ToArray());

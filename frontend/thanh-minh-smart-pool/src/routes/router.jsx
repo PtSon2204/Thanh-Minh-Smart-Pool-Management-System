@@ -233,12 +233,7 @@ const router = createBrowserRouter([
               { path: "safety/alerts", element: <MonitoringAlertsPage /> },
               { path: "safety/thresholds", element: <ThresholdsPage /> },
               { path: "safety/incidents", element: <IncidentHistoryPage /> },
-              {
-                element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
-                children: [
-                  { path: "safety/list-camera", element: <CameraListPage /> },
-                ],
-              },
+              { path: "safety/list-camera", element: <CameraListPage /> },
               {
                 path: "safety/incident-history",
                 element: <IncidentHistoryPage />,

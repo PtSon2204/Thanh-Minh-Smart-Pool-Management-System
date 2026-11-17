@@ -17,7 +17,7 @@ export default function LiveAlertDetailsModal({ alert, onClose }) {
   const cameras = useCameraList({ cameraId: current.cameraId, page: 1, pageSize: 1 })
   const camera = cameras.data?.items?.find(item => item.id === current.cameraId)
   const canPlay = camera?.status === 'Active' && camera?.source === 'RTSP'
-  const { fresh, sampleRisks, getPlayoutDelay } = useCameraRisks(camera?.id, canPlay)
+  const { fresh, sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay } = useCameraRisks(camera?.id, canPlay)
   const critical = ['CRITICAL', 'EMERGENCY'].includes(current.severity)
   const status = { PENDING: 'Chờ xác nhận', ACKNOWLEDGED: 'Đã xác nhận', CANCELLED: 'Đã hủy' }[current.status] || current.status
 
@@ -40,7 +40,7 @@ export default function LiveAlertDetailsModal({ alert, onClose }) {
         : cameras.isError ? <Alert type="error" title="Không tải được camera"
           action={<Button onClick={() => cameras.refetch()}>Thử lại</Button>} />
           : canPlay ? <div className="safety-live-detail-video">
-            <CameraVideoPlayer key={camera.id} equipment={camera} analysis smooth={camera.smoothPlayback} sampleRisks={sampleRisks} getPlayoutDelay={getPlayoutDelay} />
+            <CameraVideoPlayer key={camera.id} equipment={camera} analysis smooth={camera.smoothPlayback} sampleRisks={sampleRisks} sampleRisksWithDiagnostics={sampleRisksWithDiagnostics} getPlayoutDelay={getPlayoutDelay} />
           </div> : <Alert type="warning" title="Camera hiện không khả dụng để phát LIVE. Có thể xem ảnh cảnh báo bên dưới." />}
       <Descriptions title="Thông tin cảnh báo" size="small" column={1} items={[
         { key: 'camera', label: 'Camera', children: current.cameraName || camera?.name || 'Camera' },

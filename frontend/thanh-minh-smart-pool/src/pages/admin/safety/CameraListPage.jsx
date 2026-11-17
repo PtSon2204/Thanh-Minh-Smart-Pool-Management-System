@@ -14,7 +14,7 @@ import './Monitoring.css'
 function CameraCard({ camera, onEnlarge, highlighted, onRetry }) {
   const element = useRef(null)
   const [visible, setVisible] = useState(false)
-  const { ai, fresh, risks, sampleRisks, getPlayoutDelay } = useCameraRisks(camera.id, visible && camera.source === 'RTSP')
+  const { ai, fresh, risks, sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay } = useCameraRisks(camera.id, visible && camera.source === 'RTSP')
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.1 })
     observer.observe(element.current)
@@ -42,7 +42,7 @@ function CameraCard({ camera, onEnlarge, highlighted, onRetry }) {
           camera.status !== 'Active' ? <Alert type="warning" title="Camera hiện không khả dụng" /> :
             <>
               {camera.connectionStatus !== 'Connected' && <Alert type="warning" title="Đang chờ camera kết nối lại" action={<Button onClick={onRetry}>Tải lại trạng thái</Button>} />}
-              {visible ? <CameraVideoPlayer equipment={camera} analysis smooth={camera.smoothPlayback} sampleRisks={sampleRisks} getPlayoutDelay={getPlayoutDelay} /> : <div className="monitor-video-placeholder">Camera AI tạm dừng</div>}
+              {visible ? <CameraVideoPlayer equipment={camera} analysis smooth={camera.smoothPlayback} sampleRisks={sampleRisks} sampleRisksWithDiagnostics={sampleRisksWithDiagnostics} getPlayoutDelay={getPlayoutDelay} /> : <div className="monitor-video-placeholder">Camera AI tạm dừng</div>}
             </>}
       </div>
       <div className="camera-card-foot" />
