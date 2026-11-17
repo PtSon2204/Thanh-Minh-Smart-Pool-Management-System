@@ -80,7 +80,7 @@ function CameraListContent() {
     <Space wrap className="monitoring-filters">
       <Input aria-label="Tìm camera" placeholder="Tên hoặc vị trí camera" allowClear value={search} onChange={e => setSearch(e.target.value)} />
       <Select aria-label="Trạng thái thiết bị" placeholder="Trạng thái thiết bị" allowClear value={filters.status}
-        options={['Active', 'Maintenance', 'Inactive'].map(value => ({ value, label: value }))} onChange={status => change({ status })} />
+        options={['Active', 'Maintenance'].map(value => ({ value, label: value }))} onChange={status => change({ status })} />
       <Select aria-label="Khu vực" placeholder="Khu vực" allowClear loading={areas.isPending} value={filters.area}
         options={(areas.data || []).map(value => ({ value, label: value }))} onChange={area => change({ area })} />
       <Button onClick={() => { setSearch(''); setFilters({ page: 1, pageSize: 4 }); setHighlight(null); setParams({}) }}>Đặt lại</Button>

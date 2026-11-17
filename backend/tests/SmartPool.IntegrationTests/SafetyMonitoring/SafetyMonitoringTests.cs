@@ -82,6 +82,7 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         await using var db = new SmartPoolDbContext(options);
         db.Equipments.AddRange(new Equipment { Id = Guid.NewGuid(), Name = "Camera Pump", Category = "Pump", Location = "Area A", Status = "Active" },
             new Equipment { Id = Guid.NewGuid(), Name = "Deleted", Category = "Camera", IsDeleted = true },
+            new Equipment { Id = Guid.NewGuid(), Name = "Inactive Camera", Category = "Camera", Status = "Inactive" },
             new Equipment { Id = Guid.NewGuid(), Name = "camera B", Category = " Camera ", Location = "Area B", Status = "Maintenance",
                 Metadata = "{\"_camera\":{\"protectedConfiguration\":\"secret\"}}" });
         await db.SaveChangesAsync();

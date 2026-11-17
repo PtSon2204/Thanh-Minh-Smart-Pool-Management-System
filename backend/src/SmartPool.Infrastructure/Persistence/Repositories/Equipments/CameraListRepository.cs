@@ -3,15 +3,16 @@ using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetCameraList;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.Equipments;
 
 public sealed class CameraListRepository(SmartPoolDbContext db) : ICameraListRepository
 {
-    // Category is the existing stable equipment discriminator. There is no area entity/UUID in this schema.
+    // Category is the existing stable equipment discriminator. Thiết bị đã khóa (Inactive) không đưa vào danh sách camera giám sát.
     private IQueryable<Equipment> Cameras => db.Equipments.AsNoTracking()
-        .Where(x => x.IsDeleted != true && x.Category.Trim().ToLower() == "camera");
+        .Where(x => x.IsDeleted != true && x.Status != EquipmentStatuses.Inactive && x.Category.Trim().ToLower() == "camera");
 
     public async Task<PagedResponse<CameraListItem>> ListAsync(GetCameraListQuery request, CancellationToken ct)
     {

@@ -108,7 +108,6 @@ export default function EquipmentFormModal({ open, onClose }) {
       {isCamera && <section aria-label="Cấu hình kết nối Camera">
         <h3>Cấu hình kết nối Camera</h3>
         <Form.Item label="Nguồn camera" name="cameraSource" initialValue="RTSP"><Select options={[{ value: 'RTSP', label: 'Camera IP — RTSP' }]} /></Form.Item>
-        <Alert type="info" showIcon title="Kết nối RTSP qua TCP (H.264/H.265/MJPEG)" description="Chỉ lưu sau khi backend đọc được frame hợp lệ. Địa chỉ và cổng phải được quản trị hệ thống cho phép. Không tự kích hoạt AI." className="service-inline-error" />
         <Form.Item label="RTSP URL" name="cameraStreamUrl" extra="Gồm IP/hostname, cổng (mặc định 554) và đường dẫn stream. Nhập thông tin đăng nhập ở các trường riêng." rules={[
           { required: true, whitespace: true, message: 'Nhập RTSP URL của camera.' },
           { validator: (_, value) => {
