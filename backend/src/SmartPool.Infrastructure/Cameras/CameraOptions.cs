@@ -14,6 +14,10 @@ public sealed class CameraOptions
     public int AnalysisJpegQscale { get; set; } = 2;
     public int MaxConnections { get; set; } = 16;
     public CameraWebRtcOptions WebRtc { get; set; } = new();
+    // Optional structured pipeline diagnostics. Disabled by default; the bounded
+    // ring buffer and sampled events only run when explicitly enabled.
+    public SmartPool.Infrastructure.SafetyMonitoring.CameraDiagnosticsOptions Diagnostics { get; set; }
+        = new();
 
     public TimeSpan GetReconnectDelay(bool simulator) => simulator
         ? TimeSpan.FromMilliseconds(Math.Clamp(SimulatorReconnectDelayMilliseconds, 100, 2000))

@@ -20,7 +20,6 @@ public sealed class CameraAnalysisHubTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("LIFEGUARD")]
     [InlineData("SALES")]
     public async Task Subscribe_RejectsRolesWithoutCameraPermission(string? role)
     {
@@ -29,13 +28,16 @@ public sealed class CameraAnalysisHubTests
         groups.Verify(x => x.AddToGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
-    public async Task Subscribe_AdminJoinsOnlyRequestedCameraGroup_RejectsEmptyId()
+    [Theory]
+    [InlineData("ADMIN")]
+    [InlineData("LIFEGUARD")]
+    public async Task Subscribe_AllowedRolesJoinOnlyRequestedCameraGroup(string role)
     {
-        var (hub, groups) = Create("ADMIN");
+        var (hub, groups) = Create(role);
         var id = Guid.NewGuid();
         await hub.SubscribeCameraAnalysis(id);
         groups.Verify(x => x.AddToGroupAsync("viewer-1", $"camera-analysis_{id:N}", It.IsAny<CancellationToken>()), Times.Once);
+        // ID rỗng vẫn bị từ chối cho mọi role được phép.
         await Assert.ThrowsAsync<HubException>(() => hub.SubscribeCameraAnalysis(Guid.Empty));
     }
 }

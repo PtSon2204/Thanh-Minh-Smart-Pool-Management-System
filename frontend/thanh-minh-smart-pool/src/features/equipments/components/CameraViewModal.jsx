@@ -37,7 +37,7 @@ function cameraError(status) {
 
 // Safety screens prefer source FPS and sample interpolated boxes on the displayed
 // RTP clock. Paired analyzed pixels are the fallback when that clock is unavailable.
-export const CameraVideoPlayer = memo(function CameraVideoPlayer({ equipment, risks = [], analysis = false, smooth = false, sampleRisks, getPlayoutDelay }) {
+export const CameraVideoPlayer = memo(function CameraVideoPlayer({ equipment, risks = [], analysis = false, smooth = false, sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay }) {
   const videoRef = useRef(null)
   const containerRef = useRef(null)
   const overlayRef = useRef(null)
@@ -53,8 +53,12 @@ export const CameraVideoPlayer = memo(function CameraVideoPlayer({ equipment, ri
   const delayRef = useRef(getPlayoutDelay)
   const buffered = useSmooth && !bufferUnavailable && typeof VideoFrame === 'function'
   useEffect(() => { delayRef.current = getPlayoutDelay }, [getPlayoutDelay])
-  const samplerRef = useRef(sampleRisks)
-  useEffect(() => { samplerRef.current = sampleRisks }, [sampleRisks])
+  // Prefer the observation-only diagnostics sampler (returns the same risks as
+  // sampleRisks and records a bounded diagnostic event when enabled); falling
+  // back keeps the plain sampler a single call, never a double sample.
+  const activeSampler = sampleRisksWithDiagnostics ?? sampleRisks
+  const samplerRef = useRef(activeSampler)
+  useEffect(() => { samplerRef.current = activeSampler }, [activeSampler])
   const reconnectRef = useRef(null)
   useEffect(() => {
     if (equipment.connectionStatus === 'Connected') reconnectRef.current?.()

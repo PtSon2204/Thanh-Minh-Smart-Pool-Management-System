@@ -346,7 +346,7 @@ export default function AdminLayout() {
           icon: <SecurityScanOutlined />,
           label: "Giám sát an toàn",
           children: [
-            isAdmin && {
+            {
               key: "/admin/safety/list-camera",
               label: <Link to="/admin/safety/list-camera">Danh sách camera</Link>,
             },

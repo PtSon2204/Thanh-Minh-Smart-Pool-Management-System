@@ -10,8 +10,9 @@ namespace SmartPool.API.Controllers;
 
 [ApiController]
 [Route("api/cameras")]
-[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
-public sealed class CamerasController(ISender sender) : ControllerBase
+// Giám sát an toàn — ADMIN và LIFEGUARD được xem danh sách camera cùng dữ liệu phân tích AI.
+[Authorize(Policy = AuthorizationPolicies.SafetyOperators)]
+public sealed class CamerasController(ISender sender, SmartPool.Infrastructure.SafetyMonitoring.CameraDiagnostics diagnostics) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] GetCameraListQuery query, CancellationToken ct)
@@ -32,5 +33,15 @@ public sealed class CamerasController(ISender sender) : ControllerBase
         Response.Headers.CacheControl = "no-store";
         var jpeg = await sender.Send(new GetCameraAnalysisFrameQuery(id, frameId), ct);
         return jpeg == null ? StatusCode(410) : File(jpeg, "image/jpeg");
+    }
+
+    // Optional, bounded pipeline diagnostics. Returns [] unless CameraSettings:
+    // Diagnostics:Enabled is on; the ring buffer only records while enabled, so
+    // this endpoint never exposes frames, URLs, credentials or PII.
+    [HttpGet("{id:guid}/diagnostics")]
+    public IActionResult Diagnostics(Guid id, [FromQuery] int limit = 512)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return Ok(diagnostics.Get(id, limit));
     }
 }
