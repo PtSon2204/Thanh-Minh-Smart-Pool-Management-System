@@ -75,7 +75,6 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
   // Lưu chỉnh sửa của người dùng theo equipmentId
   const [itemEdits, setItemEdits] = useState({})
   const [selectedShiftId, setSelectedShiftId] = useState(initialShiftId || null)
-  const [generalNotes, setGeneralNotes] = useState('')
   const [confirmation, setConfirmation] = useState(null)
   const [submitError, setSubmitError] = useState(null)
   const submitLock = useRef(false)
@@ -279,7 +278,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
         expectedTaskRevision: executionContext.revision,
         expectedAssigneeId: executionContext.assignedEmployeeId,
       } : {}),
-      notes: generalNotes.trim() || null,
+      notes: null,
       items: checklist.map((item) => ({
         equipmentId: item.equipmentId,
         equipmentName: item.equipmentName,
@@ -679,7 +678,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
                 type="warning"
                 showIcon
                 message={`Chưa đến giờ kiểm tra cho ${selectedShift.name}`}
-                description={`Quy định an toàn: Chỉ được kiểm tra trước ca trực 30 phút (từ ${selectedShift.allowedFromTime} đến ${selectedShift.allowedToTime}). Vui lòng quay lại trong khung giờ này.`}
+                description={`Quy định an toàn: Chỉ được kiểm tra trước ca trực 30 phút. Vui lòng quay lại trong khung giờ này.`}
               />
             ) : (
               <Alert
@@ -691,20 +690,6 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
             )}
           </div>
         )}
-
-        {/* Ghi chú chung của ca trực */}
-        <div style={{ marginBottom: 16 }}>
-          <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
-            Ghi chú chung của ca trực (không bắt buộc):
-          </Typography.Text>
-          <Input.TextArea
-            rows={2}
-            value={generalNotes}
-            onChange={(e) => setGeneralNotes(e.target.value)}
-            placeholder="Nhập ghi chú hoặc nhận xét chung về ca trực nếu có..."
-            disabled={!canSubmitSelectedShift || Boolean(confirmation) || Object.values(uploadingByEqId).some(Boolean)}
-          />
-        </div>
 
         {/* Nút gửi */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>

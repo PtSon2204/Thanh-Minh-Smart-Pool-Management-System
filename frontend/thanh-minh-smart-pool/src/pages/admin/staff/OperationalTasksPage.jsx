@@ -379,16 +379,9 @@ export default function OperationalTasksPage() {
       returnParams.set("week", weekMonday(taskWeek).format("YYYY-MM-DD"));
       if (view === "list") returnParams.delete("view");
       else returnParams.set("view", view);
-      const params = new URLSearchParams({
-        taskId: task.id,
-        shiftId,
-        returnTo: `/admin/staff/tasks?${returnParams.toString()}`,
-      });
-      navigate(`/admin/equipments/daily-inspections?${params}`, {
-        state: {
-          returnTo: `/admin/staff/tasks?${returnParams.toString()}`,
-          task,
-        },
+      const returnTo = `/admin/staff/tasks?${returnParams.toString()}`;
+      navigate("/admin/equipments/daily-inspections", {
+        state: { returnTo, task, taskId: task.id, shiftId },
       });
     },
     [navigate, searchParams, view],

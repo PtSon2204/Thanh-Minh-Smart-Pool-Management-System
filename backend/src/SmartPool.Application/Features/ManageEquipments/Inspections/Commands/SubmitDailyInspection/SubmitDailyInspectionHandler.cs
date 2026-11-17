@@ -202,9 +202,10 @@ public sealed class SubmitDailyInspectionHandler(
             {
                 try
                 {
+                    var vietnamNow = VietnamTimeBoundary.GetVietnamNow(timeProvider);
                     var subject = hasCriticalSafetyViolation
-                        ? $"[CẢNH BÁO ĐỎ AN TOÀN] Phát hiện thiết bị cốt lõi hư hỏng - Ca {shiftDef.Name} ({today:dd/MM/yyyy})"
-                        : $"[BÁO CÁO SỰ CỐ THIẾT BỊ] Ca {shiftDef.Name} ngày {today:dd/MM/yyyy}";
+                        ? $"[CẢNH BÁO ĐỎ AN TOÀN] Phát hiện thiết bị cốt lõi hư hỏng - Ca {shiftDef.Name} ({vietnamNow:dd/MM/yyyy})"
+                        : $"[BÁO CÁO SỰ CỐ THIẾT BỊ] Ca {shiftDef.Name} ngày {vietnamNow:dd/MM/yyyy}";
 
                     var itemsHtml = string.Join("", failedItems.Select(f =>
                     {
@@ -215,8 +216,15 @@ public sealed class SubmitDailyInspectionHandler(
                             : "<span style='background:#f3f4f6;color:#4b5563;padding:3px 8px;border-radius:4px;font-size:11px;'>THƯỜNG</span>";
 
                         var imagesHtml = f.DefectImageUrls is { Count: > 0 }
-                            ? string.Join(" ", f.DefectImageUrls.Select(img => $"<a href='{img}' target='_blank'><img src='{img}' style='width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;margin-right:6px;' alt='Ảnh lỗi'/></a>"))
-                            : "<em style='color:#9ca3af;'>Chưa có ảnh</em>";
+                            ? string.Join(" ", f.DefectImageUrls.Select(img =>
+                            {
+                                var thumbUrl = BuildEmailThumbnailUrl(img);
+                                return $"<a href=\"{img}\" target=\"_blank\" title=\"Bấm xem ảnh gốc\" style=\"display:inline-block;margin-right:6px;text-decoration:none;\">" +
+                                       $"<img src=\"{thumbUrl}\" width=\"90\" height=\"90\" border=\"0\" " +
+                                       $"style=\"width:90px;height:90px;max-width:90px;max-height:90px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;display:block;\" " +
+                                       $"alt=\"Ảnh sự cố\"/></a>";
+                            }))
+                            : "<em style=\"color:#9ca3af;\">Chưa có ảnh</em>";
 
                         return $@"
                             <tr style='border-bottom:1px solid #e5e7eb;'>
@@ -243,7 +251,7 @@ public sealed class SubmitDailyInspectionHandler(
                             <div style='padding:20px;background:#ffffff;'>
                                 <p style='font-size:14px;color:#374151;line-height:1.6;'>
                                     Kính gửi Ban Quản lý / Quản trị viên,<br/>
-                                    Nhân viên kiểm tra <strong>{inspectorName}</strong> vừa nộp biên bản kiểm tra đầu <strong>{shiftDef.Name}</strong> ngày <strong>{today:dd/MM/yyyy}</strong> lúc <strong>{nowUtc:HH:mm}</strong> (giờ UTC) và ghi nhận <strong>{failedItems.Count} thiết bị gặp sự cố</strong>.
+                                    Nhân viên kiểm tra <strong>{inspectorName}</strong> vừa nộp biên bản kiểm tra đầu <strong>{shiftDef.Name}</strong> ngày <strong>{vietnamNow:dd/MM/yyyy}</strong> lúc <strong>{vietnamNow:HH:mm}</strong> và ghi nhận <strong>{failedItems.Count} thiết bị gặp sự cố</strong>.
                                 </p>
                                 {(hasCriticalSafetyViolation ? @"
                                 <div style='background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;margin:16px 0;border-radius:4px;'>
@@ -295,5 +303,16 @@ public sealed class SubmitDailyInspectionHandler(
             Notes = inspection.Notes,
             Items = command.Items
         };
+    }
+
+    private static string BuildEmailThumbnailUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return url;
+        // Tự động chuyển Cloudinary sang ảnh thumbnail nhỏ (200x200 JPG nén) để email client và Google Proxy tải nhanh, không bị timeout
+        if (url.Contains("/image/upload/") && !url.Contains("/image/upload/w_") && !url.Contains("/image/upload/c_"))
+        {
+            return url.Replace("/image/upload/", "/image/upload/w_200,h_200,c_fill,q_auto,f_jpg/");
+        }
+        return url;
     }
 }

@@ -396,13 +396,6 @@ export default function PricingPage() {
                     {/* Ticket Name */}
                     <h2 className="pl-ticket-name">{ticket.name}</h2>
 
-                    {/* Ticket Description */}
-                    <p className="pl-ticket-desc">
-                      {isThang
-                        ? `Vé tháng ${ticket.durationDays || 30} ngày - tích hợp mã QR định danh bảo mật.`
-                        : 'Vé bơi tiêu chuẩn lượt - Tự do bơi lội trong khung giờ mở cửa.'}
-                    </p>
-
                     {/* Metadata Grid */}
                     <div className="pl-meta-grid">
                       {info.map((item, i) => (

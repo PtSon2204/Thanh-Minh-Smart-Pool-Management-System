@@ -2,9 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Alert, AutoComplete, Button, Form, Input, Modal, Select } from 'antd'
 import { useCreateEquipment } from '../hooks/useCreateEquipment'
 import { useEquipmentFilters } from '../hooks/useEquipments'
-import EquipmentSpecificationsEditor from './EquipmentSpecificationsEditor'
 import BrowserCameraPreview from './BrowserCameraPreview'
-import { specificationError, specificationsToMetadata } from '../utils/equipmentSpecifications'
 
 function applyServerErrors(form, error) {
   const errors = error?.response?.data?.errors
@@ -12,8 +10,8 @@ function applyServerErrors(form, error) {
   const fields = Object.entries(errors).flatMap(([key, messages]) => {
     const field = key.split('.').at(-1)
     const cameraFields = { streamurl: 'cameraStreamUrl', protocol: 'cameraSource', username: 'cameraUsername', password: 'cameraPassword', cameraconnection: 'cameraSource' }
-    const name = field.toLowerCase() === 'metadata' ? 'specifications' : cameraFields[field.toLowerCase()] || field.charAt(0).toLowerCase() + field.slice(1)
-    return ['name', 'category', 'location', 'priorityLevel', 'specifications', ...Object.values(cameraFields)].includes(name)
+    const name = cameraFields[field.toLowerCase()] || field.charAt(0).toLowerCase() + field.slice(1)
+    return ['name', 'category', 'location', 'priorityLevel', ...Object.values(cameraFields)].includes(name)
       ? [{ name, errors: Array.isArray(messages) ? messages : [String(messages)] }] : []
   })
   form.setFields(fields)
@@ -46,7 +44,7 @@ export default function EquipmentFormModal({ open, onClose }) {
       category: values.category.trim(),
       priorityLevel: values.priorityLevel || 'Normal',
       location: values.location?.trim() || null,
-      metadata: specificationsToMetadata(values.specifications),
+      metadata: null,
       ...(isCamera ? { cameraConnection: cameraSource === 'Browser' ? { protocol: 'Browser' } : {
         protocol: 'RTSP', streamUrl: values.cameraStreamUrl.trim(),
         username: values.cameraUsername || null, password: values.cameraPassword || null,
@@ -97,7 +95,6 @@ export default function EquipmentFormModal({ open, onClose }) {
         label="Mức độ ưu tiên"
         name="priorityLevel"
         initialValue="Normal"
-        extra="Thiết bị có mức Critical (phao cứu sinh, sào cứu hộ, máy bơm lọc theo Luật TT 03/2018) nếu bị hỏng sẽ kích hoạt cảnh báo đỏ đề xuất tạm dừng bể bơi."
       >
         <Select
           options={[
@@ -132,14 +129,6 @@ export default function EquipmentFormModal({ open, onClose }) {
         <Form.Item label="Password" name="cameraPassword" extra="Không bắt buộc nếu camera không yêu cầu xác thực. Mật khẩu được xóa khỏi form khi kết nối thất bại; hãy nhập lại trước khi thử lưu."><Input.Password visibilityToggle={false} autoComplete="new-password" /></Form.Item>
         </>}
       </section>}
-      <Form.Item label="Thông số thiết bị" name="specifications" extra="Không bắt buộc. Thêm tên và giá trị cho từng thông số, ví dụ Công suất — 2 kW." rules={[{
-        validator: (_, value) => {
-          const error = specificationError(value)
-          return error ? Promise.reject(new Error(error)) : Promise.resolve()
-        },
-      }]}>
-        <EquipmentSpecificationsEditor disabled={mutation.isPending} />
-      </Form.Item>
     </Form>
   </Modal>
 }
