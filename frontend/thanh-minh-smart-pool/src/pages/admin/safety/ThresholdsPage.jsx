@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Alert, Button, Card, Col, Form, InputNumber, Popconfirm, Row, Space, Spin, Tag, Typography, message,
+  Button, Card, Col, Form, InputNumber, Popconfirm, Row, Spin, Typography, message,
 } from 'antd'
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { useAuthStore } from '../../../features/auth/store/authStore'
 import { monitoringService } from '../../../features/safety/services/monitoringService'
 import './Monitoring.css'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 
 const FIELDS = [
   { name: 'confidenceThreshold', label: 'Độ tin cậy phát hiện', min: 0, max: 1, step: 0.01, hint: 'Từ 0 đến 1. Dấu dưới ngưỡng bị bỏ qua.' },
@@ -100,30 +99,8 @@ export default function ThresholdsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>Ngưỡng cảnh báo AI</Title>
-          <Text type="secondary">
-            Bộ ngưỡng điều khiển khi nào AI phát cảnh báo / khẩn cấp / hồi phục.
-            Sửa chỉ dành cho Admin; thay đổi có hiệu lực ngay trên các camera đang chạy
-            (không làm mất trạng thái theo dõi).
-          </Text>
         </div>
-        {data && (
-          <Space size={8} wrap>
-            <Tag color={data.origin === 'DATABASE' ? 'blue' : 'orange'}>
-              Nguồn: {data.origin === 'DATABASE' ? 'Cấu hình (lưu DB)' : 'Mặc định appsettings'}
-            </Tag>
-            <Tag>Phiên bản: {data.version || '—'}</Tag>
-            {data.updatedAt && <Text type="secondary">Cập nhật {dayjs(data.updatedAt).format('DD/MM HH:mm')}</Text>}
-          </Space>
-        )}
       </div>
-
-      {!isAdmin && (
-        <Alert
-          type="info"
-          showIcon
-          message="Bạn chỉ xem được bộ ngưỡng. Chỉ Admin mới có quyền sửa."
-        />
-      )}
 
       <Spin spinning={isLoading || isFetching}>
         <Card>

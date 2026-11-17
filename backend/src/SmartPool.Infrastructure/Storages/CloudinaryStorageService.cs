@@ -38,11 +38,14 @@ public class CloudinaryStorageService : IStorageService
 
     public async Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default)
     {
+        var rawName = Path.GetFileNameWithoutExtension(fileName);
+        var cleanName = System.Text.RegularExpressions.Regex.Replace(rawName, @"[^a-zA-Z0-9_\-]", "_");
+
         var uploadParams = new ImageUploadParams
         {
             File = new FileDescription(fileName, fileStream),
             Folder = "smartpool/avatars",
-            PublicId = $"{Guid.NewGuid()}_{Path.GetFileNameWithoutExtension(fileName)}"
+            PublicId = $"{Guid.NewGuid():N}_{cleanName}"
         };
 
         var uploadResult = await _cloudinary.UploadAsync(uploadParams);

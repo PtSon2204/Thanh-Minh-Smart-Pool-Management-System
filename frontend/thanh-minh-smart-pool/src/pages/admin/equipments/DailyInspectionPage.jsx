@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Button, ConfigProvider, Spin } from 'antd'
 import dayjs from 'dayjs'
@@ -16,11 +17,34 @@ export default function DailyInspectionPage() {
   const session = useAuthStore((state) => state.session)
   const isAdmin = session?.role?.toUpperCase() === 'ADMIN'
   const isLifeguard = session?.role?.toUpperCase() === 'LIFEGUARD'
-  const rawTaskId = searchParams.get('taskId')
-  const initialShiftId = searchParams.get('shiftId')
-  const passedTask = location.state?.task?.id === rawTaskId ? location.state.task : null
 
-  // 1. Direct task lookup when taskId is explicitly in query params
+  // Trích xuất context từ location.state hoặc query params (nếu người dùng bấm link cũ)
+  const stateContext = location.state || {}
+  const rawTaskId = stateContext.taskId || stateContext.task?.id || searchParams.get('taskId')
+  const initialShiftId = stateContext.shiftId || searchParams.get('shiftId')
+  const passedTask = stateContext.task || null
+
+  // URL Normalization: Tự động xóa sạch Query Params khỏi thanh địa chỉ nếu có,
+  // giữ nguyên toàn bộ state để thanh URL luôn sạch đẹp: /admin/equipments/daily-inspections
+  useEffect(() => {
+    const qTaskId = searchParams.get('taskId')
+    const qShiftId = searchParams.get('shiftId')
+    const qReturnTo = searchParams.get('returnTo')
+    if (qTaskId || qShiftId || qReturnTo) {
+      navigate('/admin/equipments/daily-inspections', {
+        replace: true,
+        state: {
+          ...location.state,
+          taskId: qTaskId || location.state?.taskId,
+          shiftId: qShiftId || location.state?.shiftId,
+          returnTo: qReturnTo || location.state?.returnTo,
+          task: passedTask || location.state?.task,
+        },
+      })
+    }
+  }, [searchParams, location.state, navigate, passedTask])
+
+  // 1. Direct task lookup when taskId is explicitly provided and task object wasn't passed
   const taskLookup = useQuery({
     queryKey: ['operational-task-execution-context', rawTaskId],
     queryFn: ({ signal }) => operationalTaskService.getTasks({ taskId: rawTaskId }, signal),
@@ -72,8 +96,10 @@ export default function DailyInspectionPage() {
   const returnTo = typeof candidate === 'string' ? candidate : fallbackReturnTo
   const isSafeReturnTo = returnTo === '/admin/staff/tasks' || returnTo.startsWith('/admin/staff/tasks?')
   const returnToTasks = () => navigate(isSafeReturnTo ? returnTo : fallbackReturnTo, { replace: true })
+  
+  const hasTaskContext = Boolean(rawTaskId || location.state?.returnTo || location.state?.task)
   const handleSuccess = () => {
-    if (rawTaskId) {
+    if (hasTaskContext) {
       returnToTasks()
     } else if (isAdmin) {
       navigate('/admin/equipments/inspection-history')
@@ -103,13 +129,18 @@ export default function DailyInspectionPage() {
                 Kiểm tra thiết bị đầu ca 
               </h1>
               <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: 14 }}>
-                Quy trình kiểm tra vận hành & an toàn trước ca làm việc. Thiết bị phát hiện sự cố sẽ được ghi nhận để thông báo xử lý.
+                Quy trình kiểm tra vận hành & an toàn trước ca làm việc.
               </p>
             </div>
           </div>
         </header>
 
-        {rawTaskId && <Button onClick={returnToTasks} style={{ marginBottom: 16 }}>Quay lại công việc vận hành</Button>}
+        {hasTaskContext && (
+          <Button onClick={returnToTasks} style={{ marginBottom: 16 }}>
+            Quay lại công việc vận hành
+          </Button>
+        )}
+
         {isLifeguard && !rawTaskId && autoTaskLookup.isPending ? (
           <Spin tip="Đang kiểm tra nhiệm vụ kiểm tra thiết bị hôm nay..." />
         ) : isLifeguard && !rawTaskId && !autoTask ? (
