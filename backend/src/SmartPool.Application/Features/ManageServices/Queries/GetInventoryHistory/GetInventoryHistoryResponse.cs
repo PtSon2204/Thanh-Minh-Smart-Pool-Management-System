@@ -8,6 +8,7 @@ namespace SmartPool.Application.Features.ManageServices.Queries.GetInventoryHist
         public int Quantity { get; set; }
         public string? Note { get; set; }
         public Guid? CreatedBy { get; set; }
+        public string? CreatedByName { get; set; }
         public DateTime? CreatedAt { get; set; }
     }
 }

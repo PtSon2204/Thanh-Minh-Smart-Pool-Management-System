@@ -1,86 +1,155 @@
-import apiClient from '../../../services/apiClient'
+import apiClient from "../../../services/apiClient";
 
-const BASE = '/api/staffs'
-const PAGE_SIZE = 100
+const BASE = "/api/staffs";
+const PAGE_SIZE = 100;
 
 class UnstableScheduleReadError extends Error {
   constructor() {
-    super('Dữ liệu lịch thay đổi khi đang tải. Hãy thử lại.')
-    this.name = 'UnstableScheduleReadError'
+    super("Dữ liệu lịch thay đổi khi đang tải. Hãy thử lại.");
+    this.name = "UnstableScheduleReadError";
   }
 }
 
 async function readAllPages(requestPage, signal) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const firstPage = await requestPage(1, signal)
-    const totalCount = firstPage.totalCount ?? 0
-    const pages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-    const items = [...(firstPage.items || [])]
-    let isStable = true
+    const firstPage = await requestPage(1, signal);
+    const totalCount = firstPage.totalCount ?? 0;
+    const pages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    const items = [...(firstPage.items || [])];
+    let isStable = true;
 
     for (let pageIndex = 2; pageIndex <= pages; pageIndex += 1) {
-      const page = await requestPage(pageIndex, signal)
+      const page = await requestPage(pageIndex, signal);
       if (page.totalCount !== totalCount) {
-        isStable = false
-        break
+        isStable = false;
+        break;
       }
-      items.push(...(page.items || []))
+      items.push(...(page.items || []));
     }
 
-    const ids = new Set(items.map((item) => item.id))
-    if (isStable && items.length === totalCount && ids.size === items.length) return { items, totalCount }
+    const ids = new Set(items.map((item) => item.id));
+    if (isStable && items.length === totalCount && ids.size === items.length)
+      return { items, totalCount };
   }
 
-  throw new UnstableScheduleReadError()
+  throw new UnstableScheduleReadError();
 }
 
 function getSchedulePage(path, params, signal) {
-  return apiClient.get(path, { params, signal }).then((response) => response.data)
+  return apiClient
+    .get(path, { params, signal })
+    .then((response) => response.data);
 }
 
 const staffService = {
-  getAll: (params) => apiClient.get(BASE, { params }).then((response) => response.data),
-  getOptions: () => apiClient.get(`${BASE}/options`).then((response) => response.data),
-  create: (data) => apiClient.post(BASE, data).then((response) => response.data),
-  getEdit: (userId, signal) => apiClient.get(`${BASE}/${userId}/edit`, { signal }).then((response) => response.data),
-  update: (userId, data) => apiClient.put(`${BASE}/${userId}`, data).then((response) => response.data),
-  getSchedule: (params, signal) => getSchedulePage(`${BASE}/schedule`, params, signal),
-  getMySchedule: (params, signal) => getSchedulePage(`${BASE}/me/schedule`, params, signal),
+  getAll: (params) =>
+    apiClient.get(BASE, { params }).then((response) => response.data),
+  getOptions: () =>
+    apiClient.get(`${BASE}/options`).then((response) => response.data),
+  create: (data) =>
+    apiClient.post(BASE, data).then((response) => response.data),
+  getEdit: (userId, signal) =>
+    apiClient
+      .get(`${BASE}/${userId}/edit`, { signal })
+      .then((response) => response.data),
+  update: (userId, data) =>
+    apiClient.put(`${BASE}/${userId}`, data).then((response) => response.data),
+  getSchedule: (params, signal) =>
+    getSchedulePage(`${BASE}/schedule`, params, signal),
+  getMySchedule: (params, signal) =>
+    getSchedulePage(`${BASE}/me/schedule`, params, signal),
   getCompleteSchedule: (scope, params, signal) => {
-    const path = scope === 'all' ? `${BASE}/schedule` : `${BASE}/me/schedule`
-    const supportedParams = scope === 'all'
-      ? { fromDate: params.fromDate, toDate: params.toDate, employeeId: params.employeeId, status: params.status }
-      : { fromDate: params.fromDate, toDate: params.toDate }
-    return readAllPages((pageIndex) => getSchedulePage(path, { ...supportedParams, pageIndex, pageSize: PAGE_SIZE }, signal), signal)
+    const path = scope === "all" ? `${BASE}/schedule` : `${BASE}/me/schedule`;
+    const supportedParams =
+      scope === "all"
+        ? {
+            fromDate: params.fromDate,
+            toDate: params.toDate,
+            employeeId: params.employeeId,
+            status: params.status,
+          }
+        : { fromDate: params.fromDate, toDate: params.toDate };
+    return readAllPages(
+      (pageIndex) =>
+        getSchedulePage(
+          path,
+          { ...supportedParams, pageIndex, pageSize: PAGE_SIZE },
+          signal,
+        ),
+      signal,
+    );
   },
   getMonthlyContractSchedule: async (scope, params, signal) => {
-    const assignments = new Map()
-    const windowStart = new Date(`${params.fromDate}T00:00:00Z`)
+    const assignments = new Map();
+    const windowStart = new Date(`${params.fromDate}T00:00:00Z`);
     while (windowStart.toISOString().slice(0, 10) <= params.toDate) {
-      signal?.throwIfAborted()
-      const fromDate = windowStart.toISOString().slice(0, 10)
-      const windowEnd = new Date(windowStart)
-      windowEnd.setUTCDate(windowEnd.getUTCDate() + 8)
-      const toDate = windowEnd.toISOString().slice(0, 10) < params.toDate
-        ? windowEnd.toISOString().slice(0, 10) : params.toDate
-      const result = await staffService.getCompleteSchedule(scope, { ...params, fromDate, toDate }, signal)
-      signal?.throwIfAborted()
-      for (const assignment of result.items) assignments.set(assignment.id, assignment)
-      windowStart.setUTCDate(windowStart.getUTCDate() + 9)
+      signal?.throwIfAborted();
+      const fromDate = windowStart.toISOString().slice(0, 10);
+      const windowEnd = new Date(windowStart);
+      windowEnd.setUTCDate(windowEnd.getUTCDate() + 8);
+      const toDate =
+        windowEnd.toISOString().slice(0, 10) < params.toDate
+          ? windowEnd.toISOString().slice(0, 10)
+          : params.toDate;
+      const result = await staffService.getCompleteSchedule(
+        scope,
+        { ...params, fromDate, toDate },
+        signal,
+      );
+      signal?.throwIfAborted();
+      for (const assignment of result.items)
+        assignments.set(assignment.id, assignment);
+      windowStart.setUTCDate(windowStart.getUTCDate() + 9);
     }
-    const items = [...assignments.values()].sort((first, second) => first.workDate.localeCompare(second.workDate) || first.startTime.localeCompare(second.startTime))
-    return { items, totalCount: items.length }
+    const items = [...assignments.values()].sort(
+      (first, second) =>
+        first.workDate.localeCompare(second.workDate) ||
+        first.startTime.localeCompare(second.startTime),
+    );
+    return { items, totalCount: items.length };
   },
-  getScheduleEmployees: (signal) => apiClient.get(`${BASE}/schedule/employees`, { signal }).then((response) => response.data),
-  assignShiftBatch: (assignments) => apiClient.post(`${BASE}/schedule/batch`, { assignments }).then((response) => response.data),
-  cancelSchedule: (id) => apiClient.delete(`${BASE}/schedule/${id}`).then((response) => response.data),
-  previewScheduleReplacement: (id, data) => apiClient.post(`${BASE}/schedule/assignments/${id}/replacement/preview`, data).then((response) => response.data),
-  confirmScheduleReplacement: (id, data) => apiClient.post(`${BASE}/schedule/assignments/${id}/replacement/confirm`, data).then((response) => response.data),
-  getScheduleReplacementOperation: (operationId, signal) => apiClient.get(`${BASE}/schedule/replacements/operations/${operationId}`, { signal }).then((response) => response.data),
-  checkIn: (id, data) => apiClient.post(`${BASE}/schedule/${id}/check-in`, data).then((response) => response.data),
-  checkOut: (id, data) => apiClient.post(`${BASE}/schedule/${id}/check-out`, data).then((response) => response.data),
-  correctAttendance: (id, data) => apiClient.patch(`${BASE}/schedule/${id}/attendance`, data).then((response) => response.data),
-  getAttendanceHistory: (id, params, signal) => apiClient.get(`${BASE}/schedule/${id}/attendance/history`, { params, signal }).then((response) => response.data),
-}
+  getScheduleEmployees: (signal) =>
+    apiClient
+      .get(`${BASE}/schedule/employees`, { signal })
+      .then((response) => response.data),
+  assignShiftBatch: (assignments) =>
+    apiClient
+      .post(`${BASE}/schedule/batch`, { assignments })
+      .then((response) => response.data),
+  cancelSchedule: (id) =>
+    apiClient
+      .delete(`${BASE}/schedule/${id}`)
+      .then((response) => response.data),
+  previewScheduleReplacement: (id, data) =>
+    apiClient
+      .post(`${BASE}/schedule/assignments/${id}/replacement/preview`, data)
+      .then((response) => response.data),
+  confirmScheduleReplacement: (id, data) =>
+    apiClient
+      .post(`${BASE}/schedule/assignments/${id}/replacement/confirm`, data)
+      .then((response) => response.data),
+  getScheduleReplacementOperation: (operationId, signal) =>
+    apiClient
+      .get(`${BASE}/schedule/replacements/operations/${operationId}`, {
+        signal,
+      })
+      .then((response) => response.data),
+  checkIn: (id, data) =>
+    apiClient
+      .post(`${BASE}/schedule/${id}/check-in`, data)
+      .then((response) => response.data),
+  checkOut: (id, data) =>
+    apiClient
+      .post(`${BASE}/schedule/${id}/check-out`, data)
+      .then((response) => response.data),
+  correctAttendance: (id, data) =>
+    apiClient
+      .patch(`${BASE}/schedule/${id}/attendance`, data)
+      .then((response) => response.data),
+  getAttendanceHistory: (id, params, signal) =>
+    apiClient
+      .get(`${BASE}/schedule/${id}/attendance/history`, { params, signal })
+      .then((response) => response.data),
+};
 
-export default staffService
+export default staffService;
