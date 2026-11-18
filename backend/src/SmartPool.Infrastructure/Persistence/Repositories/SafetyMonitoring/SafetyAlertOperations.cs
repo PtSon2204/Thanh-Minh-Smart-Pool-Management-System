@@ -24,12 +24,6 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.SafetyMonitoring
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task UpdateIncidentAsync(Incident incident, CancellationToken cancellationToken = default)
-        {
-            _context.Incidents.Update(incident);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-
         public async Task<User?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => await _context.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 

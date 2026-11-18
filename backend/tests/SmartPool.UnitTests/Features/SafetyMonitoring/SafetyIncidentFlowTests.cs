@@ -1,6 +1,6 @@
 using Moq;
 using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSafetyAlert;
-using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ConfirmSafetyIncident;
+using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidentById;
 using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidents;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
@@ -48,7 +48,7 @@ public sealed class SafetyIncidentFlowTests
     }
 
     [Fact]
-    public async Task Activation_PersistsPendingBeforeBroadcast_AndEchoesCorrelation()
+    public async Task Activation_PersistsResolvedBeforeBroadcast_AndEchoesCorrelation()
     {
         Incident? saved = null;
         var committed = false;
@@ -65,9 +65,20 @@ public sealed class SafetyIncidentFlowTests
             .Handle(new() { Zone = "Bể trẻ em", ClientRequestId = correlation }, default);
         Assert.Equal(correlation, result.ClientRequestId);
         Assert.NotNull(saved);
-        Assert.Equal("Pending", saved.Status);
+        Assert.Equal("Resolved", saved.Status);
+        Assert.Equal("EMERGENCY", saved.SeverityLevel);
         Assert.Equal("Bể trẻ em", saved.Location);
         Assert.Equal(saved.Id, result.AlertId);
+    }
+
+    [Fact]
+    public async Task Activation_RejectsWarningLevel()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            new ActivateSafetyAlertHandler(notifications.Object, operations.Object)
+                .Handle(new() { Zone = "Bể lớn", Level = "WARNING" }, default));
+        operations.Verify(x => x.AddIncidentAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()), Times.Never);
+        notifications.Verify(x => x.SendToAllAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -80,18 +91,18 @@ public sealed class SafetyIncidentFlowTests
     }
 
     [Fact]
-    public async Task ConfirmMissingIncident_DoesNotReportSuccessOrBroadcast()
+    public async Task GetIncidentById_HidesPendingIncidentsAndReturnsResolvedIncidents()
     {
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() { IncidentId = Guid.NewGuid() }, default));
-        operations.Verify(x => x.UpdateIncidentAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()), Times.Never);
-        notifications.Verify(x => x.SendToAllAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
+        var pendingId = Guid.NewGuid();
+        var resolvedId = Guid.NewGuid();
+        operations.Setup(x => x.GetIncidentByIdAsync(pendingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Incident { Id = pendingId, Title = "Old pending", Location = "Bể lớn", SeverityLevel = "EMERGENCY", Status = "Pending" });
+        operations.Setup(x => x.GetIncidentByIdAsync(resolvedId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Incident { Id = resolvedId, Title = "Handled", Location = "Bể lớn", SeverityLevel = "EMERGENCY", Status = "Resolved" });
 
-    [Fact]
-    public async Task ConfirmInvalidStatus_IsRejected()
-    {
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() { Status = "arbitrary" }, default));
+        var handler = new GetSafetyIncidentByIdHandler(operations.Object);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => handler.Handle(new(pendingId), default));
+        var dto = await handler.Handle(new(resolvedId), default);
+        Assert.Equal("Resolved", dto.Status);
     }
 }

@@ -6,7 +6,6 @@ namespace SmartPool.Application.Interfaces.Repositories
     {
         Task<Incident?> GetIncidentByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task AddIncidentAsync(Incident incident, CancellationToken cancellationToken = default);
-        Task UpdateIncidentAsync(Incident incident, CancellationToken cancellationToken = default);
         Task<User?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<UserProfile?> GetProfileByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     }
