@@ -1,13 +1,13 @@
 import './PricingPage.css'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
 import { useState, useMemo } from 'react'
 import { message, Modal } from 'antd'
 import { ExclamationCircleOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../../features/auth/store/authStore'
 import { useCartStore } from '../../features/cart/store/cartStore'
 import poolAccessService from '../../features/tickets/services/poolAccessService'
+import apiClient from '../../services/apiClient'
 
 const categoryMeta = {
   VE_THANG: {
@@ -76,8 +76,9 @@ export default function PricingPage() {
   const { data: apiData, isLoading, isError, refetch } = useQuery({
     queryKey: ['ticket-types-public'],
     queryFn: async () => {
-      const res = await axios.get('/api/ticket-types?isActive=true&pageIndex=1&pageSize=100')
-      return res.data.items || res.data
+      const res = await apiClient.get('/api/ticket-types?isActive=true&pageIndex=1&pageSize=100')
+      if (Array.isArray(res.data?.items)) return res.data.items
+      return Array.isArray(res.data) ? res.data : []
     },
     retry: 1,
   })
@@ -155,7 +156,7 @@ export default function PricingPage() {
   }
 
   const tickets = useMemo(() => {
-    return apiData && apiData.length > 0 ? apiData : []
+    return Array.isArray(apiData) ? apiData : []
   }, [apiData])
 
   const counts = useMemo(() => {
