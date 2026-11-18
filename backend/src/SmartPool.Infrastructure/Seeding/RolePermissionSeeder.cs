@@ -123,12 +123,6 @@ public static class RolePermissionSeeder
 
             if (role is null)
             {
-                if (roleName != "COACH")
-                {
-                    logger.LogWarning("[RolePermissionSeeder] Role '{Role}' chưa có trong DB — bỏ qua.", roleName);
-                    continue;
-                }
-
                 role = roles.FirstOrDefault(r =>
                     string.Equals(r.Name.Trim(), roleName, StringComparison.OrdinalIgnoreCase));
                 if (role is null)
@@ -150,7 +144,7 @@ public static class RolePermissionSeeder
 
             // Merge: chỉ thêm action còn thiếu, giữ nguyên những gì đã có
             bool changed = roleActivated;
-            if (roleName == "COACH" && role.Name != roleName)
+            if (role.Name != roleName)
             {
                 role.Name = roleName;
                 changed = true;

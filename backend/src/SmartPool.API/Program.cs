@@ -1,4 +1,5 @@
 using DotNetEnv;
+using Microsoft.AspNetCore.HttpOverrides;
 using SmartPool.API.Extensions;
 using SmartPool.Application;
 using SmartPool.Infrastructure;
@@ -19,6 +20,14 @@ namespace SmartPool.API
 
             var builder = WebApplication.CreateBuilder(args);
             builder.Configuration.AddEnvironmentVariables();
+
+            // Tin cậy X-Forwarded-For / X-Forwarded-Proto từ reverse proxy (Render, Nginx...)
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
 
             // CORS — đọc origin từ .env
             var allowedOrigins = (builder.Configuration["CorsSettings:AllowedOrigins"] ?? "http://localhost:5173")
@@ -44,22 +53,26 @@ namespace SmartPool.API
             // Build & Middleware pipeline
             var app = builder.Build();
 
+            app.UseForwardedHeaders();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
+                app.UseHttpsRedirection();
             }
 
-            app.UseHttpsRedirection();
             app.UseCors("SmartPoolCorsPolicy");     // Phải đứng TRƯỚC Auth
             app.UseAuthentication();
             app.UseAuthorization();
+            app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
             app.MapControllers();
             app.MapHubs();                          // SignalR Hubs — xem API/Extensions/HubExtensions.cs
 
-            // Tự động sync role permissions vào DB khi app khởi động.
+            // Tự động sync role permissions, admin khởi tạo (nếu cấu hình) và ca làm việc vào DB khi app khởi động.
             // Thêm tính năng mới? Sửa RolePermissionSeeder.cs là đủ.
             await RolePermissionSeeder.SeedAsync(app.Services);
+            await AdminUserSeeder.SeedAsync(app.Services);
             await ShiftSeeder.SeedAsync(app.Services);
 
             app.Run();
