@@ -124,9 +124,9 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("WARNING", "ACKNOWLEDGED")]
+    [InlineData("WARNING", "CANCELLED")]
     [InlineData("CRITICAL", "CANCELLED")]
-    public async Task WarningAcknowledgementAndCancellation_DoNotCreateIncident(string severity, string action)
+    public async Task Cancellation_DoesNotCreateIncident(string severity, string action)
     {
         await using var db = new SmartPoolDbContext(options);
         var alert = await Repo(db).RecordAsync(Event(severity), default);

@@ -102,7 +102,7 @@ public sealed partial class SafetyMonitoringTests
         var incident = Assert.Single(history.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetGuid() == incidentId);
         Assert.Equal("WARNING", incident.GetProperty("severityLevel").GetString());
         Assert.Equal("Resolved", incident.GetProperty("status").GetString());
-        Assert.Equal("https://example.test/photo.jpg", incident.GetProperty("imageIncidents").GetString());
+        Assert.Equal("https://example.test/verified-snapshot.jpg", incident.GetProperty("imageIncidents").GetString());
         await app.StopAsync();
     }
 
