@@ -34,8 +34,6 @@ import {
   ScheduleOutlined,
   // BookOutlined,
   ExperimentOutlined,
-  PlusCircleOutlined,
-  UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/store/authStore";
@@ -271,20 +269,6 @@ export default function AdminLayout() {
           key: "/admin/coach-applications",
           icon: <AuditOutlined />,
           label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
-        },
-        isAdmin && {
-          key: "/admin/classes/create",
-          icon: <PlusCircleOutlined />,
-          label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
-        },
-        (isAdmin || isCoach) && {
-          key: "/admin/classes",
-          icon: <UnorderedListOutlined />,
-          label: (
-            <Link to="/admin/classes">
-              {isAdmin ? "Danh sách lớp dạy bơi" : "Lớp được phân công"}
-            </Link>
-          ),
         },
       ].filter(Boolean),
     },
