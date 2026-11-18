@@ -50,7 +50,7 @@ const SEVERITIES = [
   { value: 'WARNING', label: 'Cảnh báo' },
 ]
 
-const STATUS_LABELS = { Pending: 'Chờ xử lý', 'In Progress': 'Đang xử lý', Resolved: 'Đã xử lý' }
+const STATUS_LABELS = { 'In Progress': 'Đang xử lý', Resolved: 'Đã xử lý' }
 
 const SOURCES = [
   { value: 'Tất cả', label: 'Tất cả nguồn' },
@@ -62,8 +62,6 @@ export default function IncidentHistoryPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [resolutionNote, setResolutionNote] = useState('')
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -158,7 +156,6 @@ export default function IncidentHistoryPage() {
   // Mở modal xem chi tiết
   const handleOpenDetail = useCallback(async (record) => {
     setSelectedIncident(null)
-    setResolutionNote('')
     setDetailModalOpen(true)
     setDetailLoading(true)
     try {
@@ -170,18 +167,6 @@ export default function IncidentHistoryPage() {
       setDetailLoading(false)
     }
   }, [])
-
-  const updateIncident = async status => {
-    setSaving(true)
-    try {
-      await safetyAlertService.confirmIncident(selectedIncident.id, { status, resolutionNote: resolutionNote.trim() || null })
-      message.success('Đã cập nhật sự cố')
-      setDetailModalOpen(false)
-      triggerRefresh()
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Không cập nhật được sự cố')
-    } finally { setSaving(false) }
-  }
 
   // Cấu hình các cột hiển thị trên bảng danh sách (chỉ giữ các trường đại diện)
   const columns = useMemo(
@@ -429,8 +414,6 @@ export default function IncidentHistoryPage() {
         open={detailModalOpen}
         onCancel={() => setDetailModalOpen(false)}
         footer={[
-          selectedIncident?.status === 'Pending' && <Button key="start" loading={saving} onClick={() => updateIncident('In Progress')}>Bắt đầu xử lý</Button>,
-          selectedIncident?.status !== 'Resolved' && <Button key="resolve" type="primary" loading={saving} onClick={() => updateIncident('Resolved')}>Xác nhận đã xử lý</Button>,
           <Button key="close" type="primary" onClick={() => setDetailModalOpen(false)}>
             Đóng
           </Button>,
@@ -502,7 +485,6 @@ export default function IncidentHistoryPage() {
               </Descriptions.Item>
             </Descriptions>
 
-            {selectedIncident.status !== 'Resolved' && <Input.TextArea aria-label="Ghi chú xử lý" placeholder="Ghi chú xử lý sự cố" value={resolutionNote} onChange={e => setResolutionNote(e.target.value)} style={{ marginTop: 16 }} />}
             <Divider style={{ margin: '16px 0' }} />
 
             <div>

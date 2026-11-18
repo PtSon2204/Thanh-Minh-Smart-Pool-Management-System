@@ -17,7 +17,8 @@ public sealed class SafetyIncidentReader(SmartPoolDbContext db) : ISafetyInciden
                    join profile in db.UserProfiles.AsNoTracking() on incident.ReportedBy equals (Guid?)profile.UserId into profiles
                    from profile in profiles.DefaultIfEmpty()
                    select new SafetyIncidentRow { Incident = incident, User = user, Profile = profile };
-        var query = rows.Select(SafetyIncidentMapper.Projection);
+        var query = rows.Select(SafetyIncidentMapper.Projection)
+            .Where(x => x.Status != "Pending");
         if (!string.IsNullOrWhiteSpace(request.Search)) {
             var text = request.Search.Trim().ToLowerInvariant();
             query = query.Where(x => x.Title.ToLower().Contains(text) || (x.Description != null && x.Description.ToLower().Contains(text))

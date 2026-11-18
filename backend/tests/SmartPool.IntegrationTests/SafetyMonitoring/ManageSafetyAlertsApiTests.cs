@@ -57,7 +57,7 @@ public sealed partial class SafetyMonitoringTests
         var incident = Assert.Single(history.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetGuid() == incidentId);
         Assert.Equal("Area A", incident.GetProperty("zone").GetString());
         Assert.Equal("EMERGENCY", incident.GetProperty("severityLevel").GetString());
-        Assert.Equal("Pending", incident.GetProperty("status").GetString());
+        Assert.Equal("Resolved", incident.GetProperty("status").GetString());
         Assert.Equal("Camera AI giám sát", incident.GetProperty("sourceType").GetString());
         Assert.Equal(HttpStatusCode.Conflict, (await client.PatchAsJsonAsync($"/api/alerts/{alertId}/acknowledge", new { expectedSeverity = "CRITICAL" })).StatusCode);
         await using var verify = new SmartPoolDbContext(options);
@@ -67,7 +67,7 @@ public sealed partial class SafetyMonitoringTests
     }
 
     [Theory]
-    [InlineData("WARNING", "acknowledge")]
+    [InlineData("WARNING", "cancel")]
     [InlineData("CRITICAL", "cancel")]
     public async Task NonIncidentAlertActions_DoNotAddRowsToIncidentHistory(string severity, string action)
     {
@@ -82,6 +82,27 @@ public sealed partial class SafetyMonitoringTests
         Assert.Empty(history.RootElement.GetProperty("items").EnumerateArray());
         await using var verify = new SmartPoolDbContext(options);
         Assert.False(await verify.Incidents.AnyAsync(row => row.WarningId == alertId));
+        await app.StopAsync();
+    }
+
+    [Fact]
+    public async Task AcknowledgeWarningLive_PersistsInIncidentHistory_AsWarningResolved()
+    {
+        await using var app = await ApiAsync();
+        using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
+        Guid alertId;
+        await using (var db = new SmartPoolDbContext(options))
+            alertId = (await Repo(db).RecordAsync(Event("WARNING"), default)).Alert.Id;
+        var response = await client.PatchAsJsonAsync($"/api/alerts/{alertId}/acknowledge", new { expectedSeverity = "WARNING" });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var handled = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var incidentId = handled.RootElement.GetProperty("incidentId").GetGuid();
+        using var history = JsonDocument.Parse(await client.GetStringAsync("/api/safety-alerts/incidents?sourceType=camera&severityLevel=WARNING"));
+        var incident = Assert.Single(history.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetGuid() == incidentId);
+        Assert.Equal("WARNING", incident.GetProperty("severityLevel").GetString());
+        Assert.Equal("Resolved", incident.GetProperty("status").GetString());
+        Assert.Equal("https://example.test/photo.jpg", incident.GetProperty("imageIncidents").GetString());
         await app.StopAsync();
     }
 
@@ -212,14 +233,21 @@ public sealed partial class SafetyMonitoringTests
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, role));
 
         var matchingId = Guid.NewGuid();
+        var pendingId = Guid.NewGuid();
         var occurredAt = DateTime.UtcNow.AddMinutes(-5);
         await using (var db = new SmartPoolDbContext(options))
         {
             db.Incidents.AddRange(
                 new Incident
                 {
+                    Id = pendingId, Title = "Unconfirmed pending incident", Location = "Kids Pool",
+                    Description = "Legacy pending row must stay hidden.", SeverityLevel = "EMERGENCY", Status = "Pending",
+                    ReportedBy = userId, IncidentTime = occurredAt.AddSeconds(10), CreatedAt = occurredAt, UpdatedAt = occurredAt,
+                },
+                new Incident
+                {
                     Id = matchingId, Title = "Rescue at kids pool", Location = "Kids Pool",
-                    Description = "A swimmer required help.", SeverityLevel = "EMERGENCY", Status = "Pending",
+                    Description = "A swimmer required help.", SeverityLevel = "EMERGENCY", Status = "Resolved",
                     ReportedBy = userId, IncidentTime = occurredAt, CreatedAt = occurredAt, UpdatedAt = occurredAt,
                 },
                 new Incident
@@ -231,16 +259,19 @@ public sealed partial class SafetyMonitoringTests
             await db.SaveChangesAsync();
         }
 
-        var response = await client.GetAsync("/api/safety-alerts/incidents?zone=Kids%20Pool&status=Pending&pageNumber=1&pageSize=10");
+        var response = await client.GetAsync("/api/safety-alerts/incidents?zone=Kids%20Pool&pageNumber=1&pageSize=10");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using (var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
         {
             var root = body.RootElement;
             Assert.Equal(1, root.GetProperty("totalCount").GetInt32());
-            Assert.Equal(1, root.GetProperty("pendingCount").GetInt32());
+            Assert.Equal(0, root.GetProperty("pendingCount").GetInt32());
+            Assert.Equal(1, root.GetProperty("resolvedCount").GetInt32());
             Assert.Equal(matchingId,
                 root.GetProperty("items")[0].GetProperty("id").GetGuid());
         }
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/safety-alerts/incidents/{pendingId}")).StatusCode);
 
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "SALES"));
         Assert.Equal(HttpStatusCode.Forbidden,
@@ -266,6 +297,8 @@ public sealed partial class SafetyMonitoringTests
         client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
         Assert.Equal(HttpStatusCode.BadRequest,
             (await client.PostAsJsonAsync("/api/safety-alerts/activate", new { zone = " ", level = "EMERGENCY" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/safety-alerts/activate", new { zone = "Main Pool", level = "WARNING" })).StatusCode);
 
         var response = await client.PostAsJsonAsync("/api/safety-alerts/activate", request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -276,7 +309,7 @@ public sealed partial class SafetyMonitoringTests
         await using var verify = new SmartPoolDbContext(options);
         var saved = await verify.Incidents.AsNoTracking().SingleAsync(x => x.Id == alertId);
         Assert.Equal("Cảnh báo cứu hộ: Main Pool", saved.Title);
-        Assert.Equal("Pending", saved.Status);
+        Assert.Equal("Resolved", saved.Status);
         Assert.Equal("Rescue required", saved.Description);
         Assert.Equal("Main Pool", saved.Location);
         await app.StopAsync();

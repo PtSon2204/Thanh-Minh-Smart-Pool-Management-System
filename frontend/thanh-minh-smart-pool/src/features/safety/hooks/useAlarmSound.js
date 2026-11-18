@@ -8,7 +8,14 @@ let audioCtx = null
 let sirenInterval = null
 let vibrateInterval = null
 let globalIsPlaying = false
+let currentBaseVolume = 1.0
+let globalDucked = false
 const listeners = new Set()
+
+function applyAlarmVolume() {
+  if (!currentAudio) return
+  currentAudio.volume = globalDucked ? Math.min(currentBaseVolume, 0.25) : currentBaseVolume
+}
 
 function notifyListeners() {
   listeners.forEach((fn) => {
@@ -53,7 +60,7 @@ function playBeep(freq, duration) {
     osc.type = 'sawtooth'
     osc.frequency.setValueAtTime(freq, ctx.currentTime)
 
-    gain.gain.setValueAtTime(0.8, ctx.currentTime)
+    gain.gain.setValueAtTime(globalDucked ? 0.18 : 0.8, ctx.currentTime)
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration)
 
     osc.connect(gain)
@@ -135,18 +142,24 @@ if (typeof window !== 'undefined') {
   window.addEventListener('touchstart', silentUnlock, { once: true, passive: true })
 }
 
+export function setGlobalAlarmDucking(ducked) {
+  globalDucked = Boolean(ducked)
+  applyAlarmVolume()
+}
+
 /**
  * Bắt đầu phát âm thanh cảnh báo (file MP3, dự phòng còi Web Audio).
  */
 export function playGlobalAlarm(level = 'EMERGENCY') {
   globalIsPlaying = true
+  currentBaseVolume = level === 'EMERGENCY' ? 1.0 : 0.8
   notifyListeners()
   startVibration()
 
   try {
     const audio = getAudio()
     audio.loop = true
-    audio.volume = level === 'EMERGENCY' ? 1.0 : 0.8
+    applyAlarmVolume()
 
     const promise = audio.play()
     if (promise !== undefined) {
@@ -166,11 +179,13 @@ export function playGlobalAlarm(level = 'EMERGENCY') {
  */
 export function stopGlobalAlarm() {
   globalIsPlaying = false
+  globalDucked = false
   notifyListeners()
   stopVibration()
 
   if (currentAudio) {
     try {
+      applyAlarmVolume()
       currentAudio.pause()
       currentAudio.currentTime = 0
     } catch {

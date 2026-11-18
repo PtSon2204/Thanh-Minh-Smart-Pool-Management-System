@@ -19,12 +19,6 @@ const safetyAlertService = {
   /** Lấy thông tin đầy đủ của một sự cố theo ID. */
   getIncidentById: (id) =>
     apiClient.get(`${BASE}/incidents/${id}`).then((r) => r.data),
-
-  /**
-   * Xác nhận xử lý sự cố cứu hộ.
-   */
-  confirmIncident: (id, payload) =>
-    apiClient.put(`${BASE}/incidents/${id}/confirm`, payload).then((r) => r.data),
 }
 
 export default safetyAlertService

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from '../../auth/store/authStore'
 import { getSignalRConnection, signalRIdentity } from '../../../services/signalrClient'
 import { criticalAnnouncement } from '../utils/criticalAnnouncement'
+import { setGlobalAlarmDucking } from './useAlarmSound'
 
 /**
  * Giọng đọc sự cố LIVE sau xác nhận thành công (Web Speech API).
@@ -26,8 +27,13 @@ export function useSafetyTts(enabled) {
         utterance.rate = 1
         const vi = window.speechSynthesis.getVoices?.().find(voice => voice.lang?.toLowerCase().startsWith('vi'))
         if (vi) utterance.voice = vi
+        utterance.onstart = () => setGlobalAlarmDucking(true)
+        utterance.onend = () => setGlobalAlarmDucking(false)
+        utterance.onerror = () => setGlobalAlarmDucking(false)
         window.speechSynthesis.speak(utterance)
-      } catch { /* Không chặn xác nhận nếu trình duyệt không phát được. */ }
+      } catch {
+        setGlobalAlarmDucking(false)
+      }
     }
     const local = event => announce(event.detail)
     const connection = getSignalRConnection()
@@ -37,6 +43,7 @@ export function useSafetyTts(enabled) {
       connection.off('incident_created', announce)
       window.removeEventListener('safety:acknowledged', local)
       try { window.speechSynthesis.cancel() } catch { /* Không hỗ trợ. */ }
+      setGlobalAlarmDucking(false)
     }
   }, [enabled, identity])
 }

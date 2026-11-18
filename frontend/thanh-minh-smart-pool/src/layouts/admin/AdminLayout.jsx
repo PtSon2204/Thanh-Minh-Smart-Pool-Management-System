@@ -43,6 +43,7 @@ import {
   startSignalRConnection,
 } from "../../services/signalrClient";
 import authService from "../../features/auth/services/authService";
+import { isLocalSafetyAlertEcho } from "../../features/safety/utils/localAlertEcho";
 import { getSessionRoles } from "../../features/auth/utils/sessionRoles";
 import { useAlarmSound } from "../../features/safety/hooks/useAlarmSound";
 import { useSafetyAlertSignalR } from "../../features/safety/hooks/useSafetyAlertSignalR";
@@ -151,6 +152,7 @@ export default function AdminLayout() {
 
   const handleGlobalAlert = useCallback(
     (payload) => {
+      if (isLocalSafetyAlertEcho(payload)) return;
       startAlarm(payload.level);
       notifApi.error({
         message:

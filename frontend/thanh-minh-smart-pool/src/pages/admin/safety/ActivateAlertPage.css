@@ -244,10 +244,10 @@
   transform: translateY(-1px);
 }
 
-/* ── Mức độ cảnh báo: 2 nút Khẩn cấp & Cảnh báo ── */
+/* ── Mức độ cảnh báo: chỉ Khẩn cấp ── */
 .alert-level-group {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
