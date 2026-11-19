@@ -12,7 +12,7 @@ public sealed record ScheduleDetail(DateOnly WorkDate, Guid? ShiftId, string Cod
 public sealed record AffectedScheduleTask(Guid Id, DateOnly WorkDate, Guid? PreviousAssigneeId, string Status);
 public sealed record ScheduleResult(string? PreviewToken, int CreatedCount, int CancelledCount, int SkippedCount,
     int ConflictCount, IReadOnlyList<ScheduleDetail> Details, IReadOnlyList<AffectedScheduleTask> AffectedTasks,
-    string Status, Guid? OperationId = null);
+    string Status, Guid? OperationId = null, int ProtectedCount = 0);
 public sealed record WorkPatternResponse(ContractTerms? Contract, long Version, ScheduleResult Result);
 public sealed record WorkPatternRevisionView(Guid Id, ContractTerms Contract, DateOnly EffectiveFrom,
     long Version, Guid CreatedBy, DateTime CreatedAtUtc);
@@ -21,12 +21,14 @@ public sealed record ScheduleExceptionView(Guid Id, string Kind, DateOnly WorkDa
     Guid? DestinationEmployeeId = null, string? DestinationEmployeeName = null);
 public sealed record ScheduleDeliveryView(Guid Id, Guid OperationId, string Channel, string Status,
     int AttemptCount, DateTime CreatedAtUtc, string? LastErrorCode);
+public sealed record ContractRenewalView(ContractTerms? CurrentContract, DateOnly Today, bool IsExpired,
+    bool HasPendingRevision, string? EmployeeStatus, bool AccountActive, bool ManuallyInactive);
 public sealed record WorkPatternView(ContractTerms? Contract, long Version,
     IReadOnlyList<WorkPatternRevisionView> History, IReadOnlyList<ScheduleExceptionView> Exceptions,
     decimal ExpectedWeeklyHours, IReadOnlyList<ScheduleDeliveryView> Deliveries,
-    IReadOnlyList<ContractShiftView>? Shifts = null);
+    IReadOnlyList<ContractShiftView>? Shifts = null, ContractRenewalView? Renewal = null);
 
-public enum WorkPatternAction { Get, Preview, Confirm, ExceptionPreview, ExceptionConfirm, Receipt }
+public enum WorkPatternAction { Get, Preview, Confirm, ExceptionPreview, ExceptionConfirm, Receipt, RenewalPreview, RenewalConfirm }
 
 public sealed class WorkPatternCommand : IRequest<object>
 {
@@ -43,6 +45,8 @@ public sealed class WorkPatternCommand : IRequest<object>
     public IReadOnlyList<Guid> SourceAssignmentIds { get; set; } = [];
     public Guid? DestinationShiftId { get; set; }
     public string? Reason { get; set; }
+    public DateOnly? NewStartDate { get; set; }
+    public DateOnly NewEndDate { get; set; }
 }
 
 public sealed class WorkPatternHandler(IStaffOperations operations) : IRequestHandler<WorkPatternCommand, object>

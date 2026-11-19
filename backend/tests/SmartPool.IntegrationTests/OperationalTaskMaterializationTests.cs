@@ -9,14 +9,17 @@ namespace SmartPool.IntegrationTests;
 public sealed class OperationalTaskMaterializationTests
 {
     [Fact]
-    public async Task Ensure_week_keeps_anchor_cursor_and_materializes_distant_then_near_occurrences()
+    public async Task Ensure_week_bounds_measurements_and_replays_configuration_without_reviving_cancelled_tasks()
     {
         await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
+        fixture.Clock.Now = fixture.Clock.Now.AddDays(4);
         var context = fixture.Context;
         var now = fixture.Clock.GetUtcNow().UtcDateTime;
-        var rangeStart = fixture.Today.AddDays(28 + Random.Shared.Next(0, 3650));
-        var anchor = rangeStart.AddDays(-((int)rangeStart.DayOfWeek + 6) % 7);
-        var distantWeek = anchor.AddDays(21);
+        var monday = fixture.Today.AddDays(28);
+        monday = monday.AddDays(-((int)monday.DayOfWeek + 6) % 7);
+        var anchor = monday;
+        var thursday = anchor.AddDays(3);
+        var sunday = anchor.AddDays(6);
         var lifeguardRoleId = await context.Roles.AsNoTracking()
             .Where(item => item.Name.ToUpper() == "LIFEGUARD" && item.IsDeleted != true)
             .Select(item => item.Id).FirstAsync();
@@ -39,65 +42,84 @@ public sealed class OperationalTaskMaterializationTests
         {
             UserId = lifeguardId,
             User = user,
-            JoinDate = anchor,
+            JoinDate = fixture.Today,
             Status = "Working",
             CreatedAt = now,
             UpdatedAt = now
         };
-        var recurrence = new PoolDutyMeasurementRecurrence
+        var cancelledLegacyTask = new PoolDutySchedule
         {
             Id = Guid.NewGuid(),
-            AnchorDate = anchor,
-            NextOccurrenceDate = anchor,
-            ScheduledTime = new TimeOnly(9, 0),
+            TaskType = PoolDutyTaskTypes.Measurement,
+            DutyDate = thursday,
             ShiftId = fixture.MorningShiftId,
+            ScheduledAtUtc = new DateTimeOffset(thursday.ToDateTime(new TimeOnly(9, 0)), TimeSpan.FromHours(7)).UtcDateTime,
+            Status = "Cancelled",
+            Revision = 2,
             PreferredEmployeeId = lifeguardId,
-            IsActive = true,
             CreatedBy = fixture.AdminId,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
+            CreatedAt = now,
+            UpdatedAt = now
         };
         context.Users.Add(user);
         context.Employees.Add(employee);
-        context.PoolDutyMeasurementRecurrences.Add(recurrence);
+        context.PoolDutySchedules.Add(cancelledLegacyTask);
         await context.SaveChangesAsync();
 
         try
         {
             var operations = new WaterQualityOperations(context, fixture.Clock);
-            await operations.EnsureOperationalTaskWeekAsync(
-                new EnsureOperationalTaskWeekCommand(distantWeek.AddDays(4)) { ActorId = fixture.AdminId }, default);
-            await operations.EnsureOperationalTaskWeekAsync(
-                new EnsureOperationalTaskWeekCommand(anchor.AddDays(4)) { ActorId = fixture.AdminId }, default);
-            var repeatedEnsureCount = await operations.EnsureOperationalTaskWeekAsync(
-                new EnsureOperationalTaskWeekCommand(anchor.AddDays(5)) { ActorId = fixture.AdminId }, default);
+            var currentMonday = fixture.Today.AddDays(-((int)fixture.Today.DayOfWeek + 6) % 7);
+            var pastAnchorRequest = new EnsureOperationalTaskWeekCommand(currentMonday, 1, new TimeOnly(9, 0),
+                fixture.MorningShiftId, lifeguardId) { ActorId = fixture.AdminId };
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                operations.EnsureOperationalTaskWeekAsync(pastAnchorRequest, default));
 
-            var cursor = await context.PoolDutyMeasurementRecurrences.AsNoTracking()
-                .Where(item => item.Id == recurrence.Id).Select(item => item.NextOccurrenceDate).SingleAsync();
-            var occurrenceDates = await context.PoolDutySchedules.AsNoTracking()
-                .Where(item => item.MeasurementRecurrenceId == recurrence.Id)
-                .OrderBy(item => item.DutyDate).Select(item => item.DutyDate).ToListAsync();
+            var request = new EnsureOperationalTaskWeekCommand(monday, 1, new TimeOnly(9, 0),
+                fixture.MorningShiftId, lifeguardId) { ActorId = fixture.AdminId };
+            var first = await operations.EnsureOperationalTaskWeekAsync(request, default);
+            fixture.Clock.Now = monday.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddHours(7).AddDays(1);
+            var repeated = await operations.EnsureOperationalTaskWeekAsync(request with { WeekStart = monday.AddDays(2) }, default);
             var checklistCount = await context.PoolDutySchedules.AsNoTracking()
                 .CountAsync(item => item.TaskType == PoolDutyTaskTypes.EquipmentChecklist &&
-                    ((item.DutyDate >= anchor && item.DutyDate <= anchor.AddDays(6)) ||
-                     (item.DutyDate >= distantWeek && item.DutyDate <= distantWeek.AddDays(6))));
+                    item.DutyDate >= anchor && item.DutyDate <= sunday);
+            var measurementTasks = await context.PoolDutySchedules.AsNoTracking()
+                .Where(item => item.TaskType == PoolDutyTaskTypes.Measurement &&
+                    item.MeasurementRecurrenceId == first.Configuration.Id && item.DutyDate >= anchor && item.DutyDate <= sunday)
+                .OrderBy(item => item.DutyDate).ToListAsync();
 
-            Assert.Equal(anchor, cursor);
-            Assert.Equal([anchor, anchor.AddDays(3), anchor.AddDays(6), distantWeek, distantWeek.AddDays(3), distantWeek.AddDays(6)], occurrenceDates);
-            Assert.Equal(28, checklistCount);
-            Assert.Equal(0, repeatedEnsureCount);
+            Assert.Equal(16, first.CreatedCount);
+            Assert.Equal(1, first.ExistingCount);
+            Assert.Equal(2, first.UnassignedCount);
+            Assert.Equal(monday, first.Configuration.WeekStart);
+            Assert.Equal(1, first.Configuration.StartDayOfWeek);
+            Assert.Equal(14, checklistCount);
+            Assert.Equal([anchor, sunday], measurementTasks.Select(item => item.DutyDate));
+            Assert.All(measurementTasks, item => Assert.Equal("Unassigned", item.Status));
+            Assert.Equal("Cancelled", await context.PoolDutySchedules.AsNoTracking()
+                .Where(item => item.Id == cancelledLegacyTask.Id).Select(item => item.Status).SingleAsync());
+            Assert.Equal(0, repeated.CreatedCount);
+            Assert.Equal(17, repeated.ExistingCount);
+            await Assert.ThrowsAsync<SmartPool.Application.Features.ManageStaffs.StaffConflictException>(() =>
+                operations.EnsureOperationalTaskWeekAsync(request with { ScheduledTime = new TimeOnly(9, 15) }, default));
+            Assert.Equal(1, await context.PoolDutyMeasurementRecurrences.AsNoTracking()
+                .CountAsync(item => item.WeekStart == monday));
+            Assert.Equal(17, await context.PoolDutySchedules.AsNoTracking()
+                .CountAsync(item => item.TaskType != null && item.DutyDate >= anchor && item.DutyDate <= sunday));
         }
         finally
         {
+            var configuration = await context.PoolDutyMeasurementRecurrences
+                .SingleOrDefaultAsync(item => item.WeekStart == monday);
+            var configurationId = configuration?.Id;
             var taskRows = await context.PoolDutySchedules.Where(item =>
-                item.MeasurementRecurrenceId == recurrence.Id ||
-                (item.TaskType == PoolDutyTaskTypes.EquipmentChecklist &&
-                 ((item.DutyDate >= anchor && item.DutyDate <= anchor.AddDays(6)) ||
-                  (item.DutyDate >= distantWeek && item.DutyDate <= distantWeek.AddDays(6)))))
+                (configurationId.HasValue && item.MeasurementRecurrenceId == configurationId.Value) ||
+                item.Id == cancelledLegacyTask.Id ||
+                (item.TaskType == PoolDutyTaskTypes.EquipmentChecklist && item.DutyDate >= anchor && item.DutyDate <= sunday))
                 .ToListAsync();
             context.PoolDutySchedules.RemoveRange(taskRows);
             await context.SaveChangesAsync();
-            context.PoolDutyMeasurementRecurrences.Remove(recurrence);
+            if (configuration is not null) context.PoolDutyMeasurementRecurrences.Remove(configuration);
             context.Employees.Remove(employee);
             context.Users.Remove(user);
             await context.SaveChangesAsync();

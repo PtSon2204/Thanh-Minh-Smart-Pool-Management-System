@@ -81,6 +81,29 @@
   max-width: 100%;
 }
 
+.staff-week-preparation-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.staff-week-preparation-grid .ant-form-item {
+  margin-bottom: 0;
+}
+
+.staff-week-preparation-grid .ant-picker,
+.staff-week-preparation-grid .ant-select {
+  width: 100%;
+}
+
+.staff-week-preparation-employee {
+  grid-column: 1 / -1;
+}
+
+.staff-week-preparation-feedback {
+  margin-top: var(--space-4);
+}
+
 @media (max-width: 767px) {
   .staff-operational-tasks .staff-operational-week-current {
     grid-column: 1 / -1;
@@ -90,5 +113,13 @@
   .staff-operational-tasks .staff-task-next-week {
     grid-column: 3;
     grid-row: 1;
+  }
+
+  .staff-week-preparation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-week-preparation-employee {
+    grid-column: auto;
   }
 }

@@ -43,26 +43,77 @@
   min-width: 164px;
 }
 
-.rental-checkout-line,
+.rental-checkout-items,
 .rental-quote-preview {
   background: var(--list-canvas);
   border: 1px solid var(--list-divider);
   border-radius: var(--list-radius);
   margin-bottom: var(--space-4);
+}
+
+.rental-checkout-items {
+  overflow-x: auto;
+}
+
+.rental-quote-preview {
   padding: var(--space-4);
 }
 
-.rental-checkout-line-heading,
+.rental-checkout-items table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  min-inline-size: 32rem;
+  table-layout: fixed;
+}
+
+.rental-checkout-items th,
+.rental-checkout-items td {
+  min-inline-size: 0;
+  padding: var(--space-3) var(--space-4);
+  text-align: start;
+  vertical-align: top;
+}
+
+.rental-checkout-items th {
+  color: var(--list-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rental-checkout-items th:first-child {
+  inline-size: 72%;
+}
+
+.rental-checkout-items tbody td {
+  border-top: 1px solid var(--list-divider);
+}
+
+.rental-checkout-product-control {
+  align-items: start;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.rental-checkout-items .ant-form-item {
+  margin-bottom: 0;
+}
+
+.rental-checkout-quantity-cell .ant-input-number {
+  inline-size: 100%;
+}
+
+.rental-checkout-product-cell .rental-line-stock {
+  display: block;
+  margin-top: var(--space-1);
+}
+
 .rental-quote-totals,
 .rental-quote-lines > div {
   align-items: center;
   display: flex;
   gap: var(--space-2);
   justify-content: space-between;
-}
-
-.rental-checkout-line .ant-form-item {
-  margin-bottom: var(--space-3);
 }
 
 .rental-line-stock,
@@ -207,7 +258,11 @@
     white-space: normal;
   }
 
-  .rental-checkout-line,
+  .rental-checkout-items th,
+  .rental-checkout-items td {
+    padding: var(--space-3);
+  }
+
   .rental-quote-preview {
     padding: var(--space-3);
   }

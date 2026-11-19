@@ -23,6 +23,28 @@ namespace SmartPool.IntegrationTests.ManageStaffs;
 public sealed class StaffOnboardingIntegrationTests
 {
     [Fact]
+    public async Task CreateAccountRejectsCoachRole()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var startDate = VietnamTimeBoundary.GetDate(fixture.Clock);
+
+        var failure = await Assert.ThrowsAsync<StaffOnboardingException>(() => fixture.Run(new()
+        {
+            Action = OnboardingAction.Create,
+            ActorId = fixture.AdminId,
+            Email = $"coach-account-{Guid.NewGuid():N}@example.test",
+            TargetRole = "COACH",
+            JoinDate = startDate,
+            Contract = fixture.ContractFor(startDate, startDate),
+            FullName = "Coach account",
+            Phone = "0901234567",
+        }));
+
+        Assert.Equal("INVALID_INVITATION", failure.Code);
+        Assert.False(await fixture.Context.StaffInvitations.AnyAsync(item => item.TargetRole == "COACH"));
+    }
+
+    [Fact]
     public async Task OwnWorkspaceAndDocumentsCannotSelectAnotherEmployeesRecords()
     {
         await using var fixture = await Fixture.CreateAsync();
@@ -350,9 +372,10 @@ public sealed class StaffOnboardingIntegrationTests
         var workspace = await fixture.InviteAsync();
         var credentials = fixture.Credentials(workspace);
         workspace = await fixture.Submit(workspace, credentials);
-        var approved = await Task.WhenAll(fixture.Approve(workspace), fixture.ApproveInNewContext(workspace));
+        var approved = await Task.WhenAll(fixture.ApproveInNewContext(workspace), fixture.ApproveInNewContext(workspace));
         Assert.Contains(approved, item => item.Code == "ALREADY_APPROVED");
         workspace = approved[0];
+        fixture.Context.ChangeTracker.Clear();
         var employeeId = workspace.Invitation!.CompletedUserId!.Value;
         var own = await fixture.Run(new() { Action = OnboardingAction.RequestCorrection, ActorId = employeeId, Reason = "Synthetic bank correction" });
         var opened = await fixture.Run(new() { Action = OnboardingAction.OpenCorrection, ActorId = fixture.AdminId, EmployeeId = employeeId,

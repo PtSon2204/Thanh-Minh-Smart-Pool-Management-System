@@ -52,8 +52,23 @@ public sealed partial class StaffOperations
 
         if (request.Details is not null)
             await ApplyStaffDetailsAsync(request, employee, cancellationToken);
+        var reactivating = request.Status == "Working" && (employee.Status != "Working" ||
+            !string.Equals(employee.User.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase));
         employee.Status = request.Status;
+        employee.ContractInactiveSinceUtc = null;
         employee.UpdatedAt = OnboardingNow;
+        if (employee.User.Role is not null &&
+            (string.Equals(employee.User.Role.Name, "SALES", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(employee.User.Role.Name, "LIFEGUARD", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(employee.User.Role.Name, "COACH", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (request.Status == "Inactive" || reactivating)
+            {
+                employee.ManualAccessEnabled = reactivating;
+                employee.User.Status = reactivating ? "ACTIVE" : "LOCKED";
+                employee.User.UpdatedAt = OnboardingNow;
+            }
+        }
         try
         {
             await context.SaveChangesAsync(cancellationToken);

@@ -23,20 +23,21 @@ public sealed record GetOperationalTaskChecklistResultQuery(Guid TaskId) : IRequ
     [JsonIgnore] public Guid? EmployeeId { get; set; }
 }
 
-public sealed record CreateMeasurementRecurrenceCommand(DateOnly AnchorDate, TimeOnly ScheduledTime,
-    Guid ShiftId, Guid PreferredEmployeeId) : IRequest<PoolDutyMeasurementRecurrenceDto>
-{
-    [JsonIgnore] public Guid ActorId { get; set; }
-}
-
 public sealed record GetMeasurementRecurrencesQuery : IRequest<IReadOnlyList<PoolDutyMeasurementRecurrenceDto>>;
+
+public sealed record GetOperationalTaskWeekConfigurationQuery(DateOnly WeekStart)
+    : IRequest<OperationalTaskWeekConfigurationDto?>;
 
 public sealed record EnsureChecklistTasksCommand(DateOnly Date) : IRequest<int>;
 
-public sealed record EnsureOperationalTaskWeekCommand(DateOnly WeekStart) : IRequest<int>
+public sealed record EnsureOperationalTaskWeekCommand(DateOnly WeekStart, int StartDayOfWeek, TimeOnly ScheduledTime,
+    Guid ShiftId, Guid PreferredEmployeeId) : IRequest<EnsureOperationalTaskWeekResultDto>
 {
     [JsonIgnore] public Guid ActorId { get; set; }
 }
+
+public sealed record EnsureOperationalTaskWeekResultDto(int CreatedCount, int ExistingCount, int UnassignedCount,
+    OperationalTaskWeekConfigurationDto Configuration);
 
 public sealed record OperationalTaskExecutionAuthorization(bool IsAdmin, bool IsLifeguard,
     bool AdminExecutionConfirmed, long? ExpectedTaskRevision, Guid? ExpectedAssigneeId);
@@ -80,18 +81,19 @@ public sealed class GetOperationalTaskChecklistResultHandler(IWaterQualityOperat
         operations.GetOperationalTaskChecklistResultAsync(request.TaskId, request.EmployeeId, cancellationToken);
 }
 
-public sealed class CreateMeasurementRecurrenceHandler(IWaterQualityOperations operations)
-    : IRequestHandler<CreateMeasurementRecurrenceCommand, PoolDutyMeasurementRecurrenceDto>
-{
-    public Task<PoolDutyMeasurementRecurrenceDto> Handle(CreateMeasurementRecurrenceCommand request, CancellationToken cancellationToken) =>
-        operations.CreateMeasurementRecurrenceAsync(request, cancellationToken);
-}
-
 public sealed class GetMeasurementRecurrencesHandler(IWaterQualityOperations operations)
     : IRequestHandler<GetMeasurementRecurrencesQuery, IReadOnlyList<PoolDutyMeasurementRecurrenceDto>>
 {
     public Task<IReadOnlyList<PoolDutyMeasurementRecurrenceDto>> Handle(GetMeasurementRecurrencesQuery request, CancellationToken cancellationToken) =>
         operations.GetMeasurementRecurrencesAsync(cancellationToken);
+}
+
+public sealed class GetOperationalTaskWeekConfigurationHandler(IWaterQualityOperations operations)
+    : IRequestHandler<GetOperationalTaskWeekConfigurationQuery, OperationalTaskWeekConfigurationDto?>
+{
+    public Task<OperationalTaskWeekConfigurationDto?> Handle(GetOperationalTaskWeekConfigurationQuery request,
+        CancellationToken cancellationToken) =>
+        operations.GetOperationalTaskWeekConfigurationAsync(request.WeekStart, cancellationToken);
 }
 
 public sealed class EnsureChecklistTasksHandler(IWaterQualityOperations operations)
@@ -102,9 +104,9 @@ public sealed class EnsureChecklistTasksHandler(IWaterQualityOperations operatio
 }
 
 public sealed class EnsureOperationalTaskWeekHandler(IWaterQualityOperations operations)
-    : IRequestHandler<EnsureOperationalTaskWeekCommand, int>
+    : IRequestHandler<EnsureOperationalTaskWeekCommand, EnsureOperationalTaskWeekResultDto>
 {
-    public Task<int> Handle(EnsureOperationalTaskWeekCommand request, CancellationToken cancellationToken) =>
+    public Task<EnsureOperationalTaskWeekResultDto> Handle(EnsureOperationalTaskWeekCommand request, CancellationToken cancellationToken) =>
         operations.EnsureOperationalTaskWeekAsync(request, cancellationToken);
 }
 

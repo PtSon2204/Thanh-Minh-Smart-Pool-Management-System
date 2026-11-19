@@ -4,6 +4,8 @@ public sealed class PoolDutyMeasurementRecurrence
 {
     public Guid Id { get; set; }
 
+    public DateOnly? WeekStart { get; set; }
+
     public DateOnly AnchorDate { get; set; }
 
     public DateOnly NextOccurrenceDate { get; set; }

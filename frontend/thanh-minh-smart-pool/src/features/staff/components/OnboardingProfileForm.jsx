@@ -270,7 +270,7 @@ export default function OnboardingProfileForm({
         <Alert
           type="info"
           showIcon
-          title="Thông tin lời mời do quản trị viên quyết định"
+          title="Thông tin tạo tài khoản do quản trị viên quyết định"
           description={
             <div className="onboarding-invitation-meta">
               <span>{invitation.email}</span>

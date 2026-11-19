@@ -80,7 +80,7 @@ export default function StaffProfilesPage() {
             icon={<PlusOutlined />}
             onClick={() => setInviteOpen(true)}
           >
-            Mời nhân viên
+            Tạo tài khoản nhân viên
           </Button>
         }
       />

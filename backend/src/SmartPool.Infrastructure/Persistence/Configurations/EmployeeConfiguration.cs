@@ -14,6 +14,8 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         entity.Property(e => e.JoinDate).HasColumnName("join_date");
         entity.Property(e => e.Status).HasMaxLength(50).HasDefaultValueSql("'Working'::character varying").HasColumnName("status");
         entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()").HasColumnName("updated_at");
+        entity.Property(e => e.ContractInactiveSinceUtc).HasColumnName("contract_inactive_since_utc").HasColumnType("timestamp with time zone");
+        entity.Property(e => e.ManualAccessEnabled).HasColumnName("manual_access_enabled").HasDefaultValue(false);
         entity.Property(e => e.CorrectionRequestId).HasColumnName("correction_request_id");
         entity.Property(e => e.CorrectionReason).HasMaxLength(1000).HasColumnName("correction_reason");
         entity.Property(e => e.CorrectionRequestedAtUtc).HasColumnName("correction_requested_at_utc");

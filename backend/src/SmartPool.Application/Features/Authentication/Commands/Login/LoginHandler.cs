@@ -18,6 +18,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAccessTokenService _accessTokenService;
     private readonly IRefreshTokenService _refreshTokenService;
+    private readonly IStaffContractAccessPolicy _contractAccess;
     private readonly IUserRoleMembershipService? _membership;
     private readonly IValidator<LoginCommand> _validator;
 
@@ -27,6 +28,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         IAccessTokenService accessTokenService,
         IRefreshTokenService refreshTokenService,
         IValidator<LoginCommand> validator,
+        IStaffContractAccessPolicy contractAccess,
         IUserRoleMembershipService? membership = null)
     {
         _userOperations = userOperations;
@@ -34,6 +36,7 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         _accessTokenService = accessTokenService;
         _refreshTokenService = refreshTokenService;
         _validator = validator;
+        _contractAccess = contractAccess;
         _membership = membership;
     }
 
@@ -62,6 +65,9 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
 
         var role = await _userOperations.GetRoleByIdAsync(authenticatedUser.RoleId.Value, cancellationToken);
         if (role is null || role.IsDeleted == true)
+            return InvalidCredentials();
+
+        if (!(await _contractAccess.EvaluateAsync(authenticatedUser.Id, role.Name, cancellationToken)).IsAllowed)
             return InvalidCredentials();
 
         var refreshToken = await _refreshTokenService.CreateAsync(authenticatedUser.Id,

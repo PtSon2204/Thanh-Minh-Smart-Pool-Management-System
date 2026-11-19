@@ -376,101 +376,115 @@ export default function RentalCheckoutDrawer({
         >
           {(fields, { add, remove }, { errors }) => (
             <>
-              {fields.map((field, index) => {
-                const selectedProduct = productById.get(
-                  formItems[index]?.productId,
-                );
-                return (
-                  <section
-                    className="rental-checkout-line"
-                    key={field.key}
-                    aria-label={`Sản phẩm thuê ${index + 1}`}
-                  >
-                    <div className="rental-checkout-line-heading">
-                      <strong>Sản phẩm {index + 1}</strong>
-                      {fields.length > 1 && (
-                        <Button
-                          type="text"
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={() => remove(field.name)}
-                          disabled={isLocked || isPending}
-                        >
-                          Xóa
-                        </Button>
-                      )}
-                    </div>
-                    <Form.Item
-                      label="Sản phẩm cho thuê"
-                      name={[field.name, "productId"]}
-                      rules={[
-                        { required: true, message: "Chọn sản phẩm cho thuê." },
-                      ]}
-                    >
-                      <Select
-                        showSearch
-                        filterOption={false}
-                        onSearch={handleSearch}
-                        onChange={() => {
-                          const quantityPath = [
-                            "items",
-                            field.name,
-                            "quantity",
-                          ];
-                          if (form.getFieldValue(quantityPath) == null)
-                            form.setFieldValue(quantityPath, 1);
-                        }}
-                        optionRender={optionRender}
-                        popupRender={popupRender}
-                        placeholder="Tìm và chọn sản phẩm"
-                        options={options}
-                        loading={productsQuery.isLoading}
-                        disabled={isPending || isLocked}
-                        notFoundContent={
-                          productsQuery.isError
-                            ? "Không thể tải sản phẩm."
-                            : "Không có sản phẩm đủ tồn kho."
-                        }
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      label="Số lượng"
-                      name={[field.name, "quantity"]}
-                      rules={[
-                        { required: true, message: "Nhập số lượng." },
-                        {
-                          type: "integer",
-                          min: 1,
-                          message: "Số lượng phải là số nguyên dương.",
-                        },
-                        {
-                          validator: (_, value) =>
-                            !selectedProduct ||
-                            value <= selectedProduct.stockQuantity
-                              ? Promise.resolve()
-                              : Promise.reject(
-                                  new Error(
-                                    "Số lượng không được vượt tồn kho hiện có.",
-                                  ),
-                                ),
-                        },
-                      ]}
-                    >
-                      <InputNumber
-                        min={1}
-                        precision={0}
-                        className="service-full-width"
-                        disabled={isPending || isLocked}
-                      />
-                    </Form.Item>
-                    <span className="rental-line-stock">
-                      {selectedProduct
-                        ? `Tồn hiện có: ${selectedProduct.stockQuantity}`
-                        : "Chọn sản phẩm để xem tồn kho."}
-                    </span>
-                  </section>
-                );
-              })}
+              <div className="rental-checkout-items">
+                <table aria-label="Sản phẩm thuê">
+                  <thead>
+                    <tr>
+                      <th scope="col">Sản phẩm</th>
+                      <th scope="col">Số lượng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fields.map((field, index) => {
+                      const selectedProduct = productById.get(
+                        formItems[index]?.productId,
+                      );
+                      return (
+                        <tr key={field.key}>
+                          <td className="rental-checkout-product-cell">
+                            <div className="rental-checkout-product-control">
+                              <Form.Item
+                                name={[field.name, "productId"]}
+                                rules={[
+                                  {
+                                    required: true,
+                                    message: "Chọn sản phẩm cho thuê.",
+                                  },
+                                ]}
+                              >
+                                <Select
+                                  aria-label={`Sản phẩm thuê ${index + 1}`}
+                                  showSearch
+                                  filterOption={false}
+                                  onSearch={handleSearch}
+                                  onChange={() => {
+                                    const quantityPath = [
+                                      "items",
+                                      field.name,
+                                      "quantity",
+                                    ];
+                                    if (form.getFieldValue(quantityPath) == null)
+                                      form.setFieldValue(quantityPath, 1);
+                                  }}
+                                  optionRender={optionRender}
+                                  popupRender={popupRender}
+                                  placeholder="Tìm và chọn sản phẩm"
+                                  options={options}
+                                  loading={productsQuery.isLoading}
+                                  disabled={isPending || isLocked}
+                                  notFoundContent={
+                                    productsQuery.isError
+                                      ? "Không thể tải sản phẩm."
+                                      : "Không có sản phẩm đủ tồn kho."
+                                  }
+                                />
+                              </Form.Item>
+                              {fields.length > 1 && (
+                                <Button
+                                  type="text"
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  aria-label={`Xóa sản phẩm thuê ${index + 1}`}
+                                  title={`Xóa sản phẩm thuê ${index + 1}`}
+                                  onClick={() => remove(field.name)}
+                                  disabled={isLocked || isPending}
+                                />
+                              )}
+                            </div>
+                            <span className="rental-line-stock">
+                              {selectedProduct
+                                ? `Tồn hiện có: ${selectedProduct.stockQuantity}`
+                                : "Chọn sản phẩm để xem tồn kho."}
+                            </span>
+                          </td>
+                          <td className="rental-checkout-quantity-cell">
+                            <Form.Item
+                              name={[field.name, "quantity"]}
+                              rules={[
+                                { required: true, message: "Nhập số lượng." },
+                                {
+                                  type: "integer",
+                                  min: 1,
+                                  message: "Số lượng phải là số nguyên dương.",
+                                },
+                                {
+                                  validator: (_, value) =>
+                                    !selectedProduct ||
+                                    value <= selectedProduct.stockQuantity
+                                      ? Promise.resolve()
+                                      : Promise.reject(
+                                          new Error(
+                                            "Số lượng không được vượt tồn kho hiện có.",
+                                          ),
+                                        ),
+                                },
+                              ]}
+                            >
+                              <InputNumber
+                                aria-label={`Số lượng sản phẩm ${index + 1}`}
+                                min={1}
+                                precision={0}
+                                className="service-full-width"
+                                disabled={isPending || isLocked}
+                              />
+                            </Form.Item>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
               <Form.ErrorList errors={errors} />
               <Button
                 className="rental-add-line"
@@ -478,7 +492,7 @@ export default function RentalCheckoutDrawer({
                 onClick={() => add({ quantity: 1 })}
                 disabled={isPending || isLocked}
               >
-                Thêm sản phẩm
+                Thêm đồ
               </Button>
             </>
           )}

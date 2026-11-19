@@ -70,19 +70,13 @@ const operationalTaskService = {
     apiClient
       .post(`${BASE}/checklists/ensure`, null, { params: { date } })
       .then(({ data }) => data),
-  ensureWeek: (weekStart) =>
+  ensureWeek: (payload) =>
     apiClient
-      .post(`${BASE}/weeks/ensure`, { weekStart })
+      .post(`${BASE}/weeks/ensure`, payload)
       .then(({ data }) => data),
-  getRecurrences: () =>
-    apiClient.get(`${BASE}/measurement-recurrences`).then(({ data }) => data),
-  createRecurrence: (payload) =>
+  getWeekConfiguration: (weekStart, signal) =>
     apiClient
-      .post(`${BASE}/measurement-recurrences`, payload)
-      .then(({ data }) => data),
-  stopRecurrence: (id) =>
-    apiClient
-      .delete(`${BASE}/measurement-recurrences/${id}`)
+      .get(`${BASE}/weeks/configuration`, { params: { weekStart }, signal })
       .then(({ data }) => data),
 };
 

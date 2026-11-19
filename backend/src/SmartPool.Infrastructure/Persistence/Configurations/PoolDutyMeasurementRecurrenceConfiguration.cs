@@ -11,6 +11,7 @@ public sealed class PoolDutyMeasurementRecurrenceConfiguration : IEntityTypeConf
         entity.ToTable("pool_duty_measurement_recurrences", "smart_pool");
         entity.HasKey(item => item.Id).HasName("pool_duty_measurement_recurrences_pkey");
         entity.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+        entity.Property(item => item.WeekStart).HasColumnName("week_start");
         entity.Property(item => item.AnchorDate).HasColumnName("anchor_date");
         entity.Property(item => item.NextOccurrenceDate).HasColumnName("next_occurrence_date");
         entity.Property(item => item.ScheduledTime).HasColumnName("scheduled_time");
@@ -29,8 +30,7 @@ public sealed class PoolDutyMeasurementRecurrenceConfiguration : IEntityTypeConf
             .OnDelete(DeleteBehavior.Restrict).HasConstraintName("pool_duty_measurement_recurrences_created_by_fkey");
         entity.HasIndex(item => new { item.IsActive, item.NextOccurrenceDate })
             .HasDatabaseName("ix_pool_duty_measurement_recurrences_active_next_occurrence");
-        entity.HasIndex(item => new { item.AnchorDate, item.ScheduledTime, item.ShiftId, item.PreferredEmployeeId })
-            .IsUnique().HasFilter("is_active = true")
-            .HasDatabaseName("ux_pool_duty_measurement_recurrences_active_pattern");
+        entity.HasIndex(item => item.WeekStart).IsUnique().HasFilter("week_start IS NOT NULL")
+            .HasDatabaseName("ux_pool_duty_measurement_recurrences_week_start");
     }
 }

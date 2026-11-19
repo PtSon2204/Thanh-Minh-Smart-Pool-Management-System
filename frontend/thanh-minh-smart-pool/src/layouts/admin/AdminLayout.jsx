@@ -339,7 +339,7 @@ export default function AdminLayout() {
         (isAdmin || isLifeguard) && {
           key: "/admin/staff/tasks",
           icon: <ScheduleOutlined />,
-          label: <Link to="/admin/staff/tasks">Công việc vận hành</Link>,
+          label: <Link to="/admin/staff/tasks">Công việc hằng ngày</Link>,
         },
         (isAdmin || isLifeguard) && {
           key: "safety",

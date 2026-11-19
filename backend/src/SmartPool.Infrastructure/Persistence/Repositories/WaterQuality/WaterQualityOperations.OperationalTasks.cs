@@ -207,53 +207,6 @@ public sealed partial class WaterQualityOperations
         };
     }
 
-    public async Task<PoolDutyMeasurementRecurrenceDto> CreateMeasurementRecurrenceAsync(
-        CreateMeasurementRecurrenceCommand command, CancellationToken cancellationToken)
-    {
-        var today = VietnamTimeBoundary.GetDate(_timeProvider);
-        if (command.ActorId == Guid.Empty || command.AnchorDate < today || command.ShiftId == Guid.Empty || command.PreferredEmployeeId == Guid.Empty)
-            throw new InvalidOperationException("Ngày bắt đầu phải là hôm nay trở đi và cần chọn nhân viên, ca hợp lệ.");
-
-        var shift = await _context.Shifts.AsNoTracking().SingleOrDefaultAsync(item => item.Id == command.ShiftId, cancellationToken)
-            ?? throw new KeyNotFoundException("Không tìm thấy ca làm việc.");
-        if (shift.IsActive != true || shift.StartTime == shift.EndTime || !TimeIsWithinShift(command.ScheduledTime, shift))
-            throw new InvalidOperationException("Giờ đo phải nằm trong một ca đang hoạt động.");
-
-        var eligibleEmployee = await _context.Employees.AsNoTracking()
-            .Include(item => item.User).ThenInclude(item => item!.Role)
-            .SingleOrDefaultAsync(item => item.UserId == command.PreferredEmployeeId && item.Status == "Working" &&
-                item.User.IsDeleted != true && item.User.Status != null && item.User.Status.ToUpper() == "ACTIVE" &&
-                item.User.Role != null && item.User.Role.Name.ToUpper() == "LIFEGUARD", cancellationToken);
-        if (eligibleEmployee is null)
-            throw new InvalidOperationException("Chỉ có thể chọn nhân viên cứu hộ đang hoạt động.");
-
-        var recurrence = new PoolDutyMeasurementRecurrence
-        {
-            Id = Guid.NewGuid(),
-            AnchorDate = command.AnchorDate,
-            NextOccurrenceDate = command.AnchorDate,
-            ScheduledTime = command.ScheduledTime,
-            ShiftId = command.ShiftId,
-            PreferredEmployeeId = command.PreferredEmployeeId,
-            IsActive = true,
-            CreatedBy = command.ActorId,
-            CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime,
-            UpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-        };
-        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        _context.PoolDutyMeasurementRecurrences.Add(recurrence);
-        try
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-        }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: "23505" })
-        {
-            throw new StaffConflictException("Lịch đo định kỳ giống hệt đang hoạt động.");
-        }
-        return await MapRecurrenceAsync(recurrence, cancellationToken);
-    }
-
     public async Task<IReadOnlyList<PoolDutyMeasurementRecurrenceDto>> GetMeasurementRecurrencesAsync(
         CancellationToken cancellationToken)
     {
@@ -274,6 +227,19 @@ public sealed partial class WaterQualityOperations
             item.IsActive, item.CreatedAtUtc, item.UpdatedAtUtc)).ToList();
     }
 
+    public async Task<OperationalTaskWeekConfigurationDto?> GetOperationalTaskWeekConfigurationAsync(
+        DateOnly weekStart, CancellationToken cancellationToken)
+    {
+        var monday = WeekMonday(weekStart);
+        var configuration = await _context.PoolDutyMeasurementRecurrences.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.WeekStart == monday, cancellationToken);
+        if (configuration is null) return null;
+
+        return new OperationalTaskWeekConfigurationDto(configuration.Id, monday,
+            configuration.AnchorDate.DayNumber - monday.DayNumber + 1, configuration.ScheduledTime,
+            configuration.ShiftId, configuration.PreferredEmployeeId);
+    }
+
     public async Task<int> EnsureChecklistTasksAsync(DateOnly date, CancellationToken cancellationToken)
     {
         var today = VietnamTimeBoundary.GetDate(_timeProvider);
@@ -283,18 +249,87 @@ public sealed partial class WaterQualityOperations
         return await EnsureOperationalTasksForRangeAsync(date, date, null, false, cancellationToken);
     }
 
-    public async Task<int> EnsureOperationalTaskWeekAsync(EnsureOperationalTaskWeekCommand command,
+    public async Task<EnsureOperationalTaskWeekResultDto> EnsureOperationalTaskWeekAsync(EnsureOperationalTaskWeekCommand command,
         CancellationToken cancellationToken)
     {
         if (command.ActorId == Guid.Empty)
             throw new InvalidOperationException("Không xác định được quản trị viên tạo công việc.");
 
+        var today = VietnamTimeBoundary.GetDate(_timeProvider);
         var daysSinceMonday = ((int)command.WeekStart.DayOfWeek + 6) % 7;
         var monday = command.WeekStart.AddDays(-daysSinceMonday);
         if (monday > DateOnly.MaxValue.AddDays(-6))
             throw new InvalidOperationException("Tuần đã chọn vượt quá ngày tối đa được hỗ trợ.");
-        return await EnsureOperationalTasksForRangeAsync(monday, monday.AddDays(6), command.ActorId, true,
-            cancellationToken);
+        var sunday = monday.AddDays(6);
+        if (sunday < today || command.StartDayOfWeek is < 1 or > 7)
+            throw new InvalidOperationException("Chỉ có thể chuẩn bị tuần hiện tại hoặc tuần tương lai với thứ bắt đầu từ 1 đến 7.");
+
+        var anchorDate = monday.AddDays(command.StartDayOfWeek - 1);
+        if (command.ShiftId == Guid.Empty || command.PreferredEmployeeId == Guid.Empty)
+            throw new InvalidOperationException("Ngày đo đầu tiên không được ở quá khứ và cần chọn nhân viên, ca hợp lệ.");
+
+        var shift = await _context.Shifts.AsNoTracking().SingleOrDefaultAsync(item => item.Id == command.ShiftId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy ca làm việc.");
+        if (shift.IsActive != true || shift.StartTime == shift.EndTime || !TimeIsWithinShift(command.ScheduledTime, shift))
+            throw new InvalidOperationException("Giờ đo phải nằm trong một ca đang hoạt động.");
+
+        var eligibleEmployee = await _context.Employees.AsNoTracking()
+            .Include(item => item.User).ThenInclude(item => item!.Role)
+            .SingleOrDefaultAsync(item => item.UserId == command.PreferredEmployeeId && item.Status == "Working" &&
+                item.User.IsDeleted != true && item.User.Status != null && item.User.Status.ToUpper() == "ACTIVE" &&
+                item.User.Role != null && item.User.Role.Name.ToUpper() == "LIFEGUARD", cancellationToken);
+        if (eligibleEmployee is null)
+            throw new InvalidOperationException("Chỉ có thể chọn nhân viên cứu hộ đang hoạt động.");
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        await _context.Database.ExecuteSqlRawAsync(
+            "SELECT pg_advisory_xact_lock(hashtextextended('pool-operational-task-materializer', 0))", cancellationToken);
+
+        var configuration = await _context.PoolDutyMeasurementRecurrences
+            .SingleOrDefaultAsync(item => item.WeekStart == monday, cancellationToken);
+        if (configuration is not null && (configuration.AnchorDate != anchorDate ||
+            configuration.ScheduledTime != command.ScheduledTime || configuration.ShiftId != command.ShiftId ||
+            configuration.PreferredEmployeeId != command.PreferredEmployeeId))
+            throw new StaffConflictException("Tuần này đã có cấu hình đo khác. Không thể thay đổi cấu hình đã chuẩn bị.");
+
+        if (configuration is null)
+        {
+            if (anchorDate < today)
+                throw new InvalidOperationException("Ngày đo đầu tiên không được ở quá khứ và cần chọn nhân viên, ca hợp lệ.");
+
+            var occurrenceDates = new[] { 0, 3, 6 }
+                .Where(offset => offset <= sunday.DayNumber - anchorDate.DayNumber)
+                .Select(offset => anchorDate.AddDays(offset));
+            if (!occurrenceDates.Any(date => LocalToUtc(date, command.ScheduledTime) >= now))
+                throw new InvalidOperationException("Tuần đã chọn không còn thời điểm đo nào trong tương lai.");
+
+            configuration = new PoolDutyMeasurementRecurrence
+            {
+                Id = Guid.NewGuid(),
+                WeekStart = monday,
+                AnchorDate = anchorDate,
+                NextOccurrenceDate = anchorDate,
+                ScheduledTime = command.ScheduledTime,
+                ShiftId = command.ShiftId,
+                PreferredEmployeeId = command.PreferredEmployeeId,
+                IsActive = true,
+                CreatedBy = command.ActorId,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+            _context.PoolDutyMeasurementRecurrences.Add(configuration);
+        }
+
+        var materialized = await MaterializeOperationalTasksForRangeAsync(monday, sunday, command.ActorId,
+            [configuration], cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new EnsureOperationalTaskWeekResultDto(materialized.CreatedCount, materialized.ExistingCount,
+            materialized.UnassignedCount, new OperationalTaskWeekConfigurationDto(configuration.Id, monday,
+                command.StartDayOfWeek, command.ScheduledTime, command.ShiftId, command.PreferredEmployeeId));
     }
 
     public async Task CompleteOperationalChecklistTaskAsync(DailyInspection inspection,
@@ -392,8 +427,27 @@ public sealed partial class WaterQualityOperations
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         await _context.Database.ExecuteSqlRawAsync(
             "SELECT pg_advisory_xact_lock(hashtextextended('pool-operational-task-materializer', 0))", cancellationToken);
+        var configurations = includeMeasurements
+            ? await _context.PoolDutyMeasurementRecurrences.AsNoTracking()
+                .Where(item => item.IsActive && item.WeekStart.HasValue && item.WeekStart.Value >= WeekMonday(fromDate) &&
+                    item.WeekStart.Value <= WeekMonday(toDate))
+                .OrderBy(item => item.WeekStart).ToListAsync(cancellationToken)
+            : [];
+        var materialized = await MaterializeOperationalTasksForRangeAsync(fromDate, toDate, actorId,
+            configurations, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return materialized.CreatedCount;
+    }
+
+    private async Task<(int CreatedCount, int ExistingCount, int UnassignedCount)> MaterializeOperationalTasksForRangeAsync(
+        DateOnly fromDate, DateOnly toDate, Guid? actorId,
+        IReadOnlyCollection<PoolDutyMeasurementRecurrence> configurations, CancellationToken cancellationToken)
+    {
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var created = 0;
+        var existing = 0;
+        var unassigned = 0;
         for (var date = fromDate; date <= toDate; date = date.AddDays(1))
         {
             foreach (var window in FixedShifts.All)
@@ -404,7 +458,11 @@ public sealed partial class WaterQualityOperations
                 var exists = await _context.PoolDutySchedules.AnyAsync(item =>
                     item.TaskType == PoolDutyTaskTypes.EquipmentChecklist && item.DutyDate == date &&
                     item.InspectionWindow == windowId, cancellationToken);
-                if (exists) continue;
+                if (exists)
+                {
+                    existing++;
+                    continue;
+                }
 
                 var scheduledAt = LocalToUtc(date, window.StartTime);
                 var eligible = await FindEligibleShiftsAsync(scheduledAt, null, null, cancellationToken);
@@ -428,53 +486,55 @@ public sealed partial class WaterQualityOperations
             }
         }
 
-        if (includeMeasurements)
+        foreach (var recurrence in configurations)
         {
-            var recurrences = await _context.PoolDutyMeasurementRecurrences.AsNoTracking()
-                .Where(item => item.IsActive && item.AnchorDate <= toDate)
-                .OrderBy(item => item.AnchorDate).ThenBy(item => item.Id).ToListAsync(cancellationToken);
-            foreach (var recurrence in recurrences)
+            var weekEnd = recurrence.WeekStart!.Value.AddDays(6);
+            var anchor = recurrence.AnchorDate;
+            for (var date = anchor; date <= weekEnd; date = date.AddDays(3))
             {
-                var elapsedDays = Math.Max(0, fromDate.DayNumber - recurrence.AnchorDate.DayNumber);
-                var firstOffset = (elapsedDays + 2) / 3 * 3;
-                for (var date = recurrence.AnchorDate.AddDays(firstOffset); date <= toDate; date = date.AddDays(3))
+                if (date < fromDate || date > toDate) continue;
+                var scheduledAt = LocalToUtc(date, recurrence.ScheduledTime);
+                var exists = await _context.PoolDutySchedules.AnyAsync(item =>
+                    item.TaskType == PoolDutyTaskTypes.Measurement && item.DutyDate == date &&
+                    item.ScheduledAtUtc == scheduledAt && item.ShiftId == recurrence.ShiftId &&
+                    (item.AssignedEmployeeId == recurrence.PreferredEmployeeId ||
+                     item.PreferredEmployeeId == recurrence.PreferredEmployeeId), cancellationToken);
+                if (exists)
                 {
-                    var exists = await _context.PoolDutySchedules.AnyAsync(item =>
-                        item.TaskType == PoolDutyTaskTypes.Measurement && item.MeasurementRecurrenceId == recurrence.Id &&
-                        item.DutyDate == date, cancellationToken);
-                    if (exists) continue;
-
-                    var scheduledAt = LocalToUtc(date, recurrence.ScheduledTime);
-                    var eligible = await FindEligibleShiftAsync(recurrence.PreferredEmployeeId, date, scheduledAt,
-                        recurrence.ShiftId, cancellationToken);
-                    _context.PoolDutySchedules.Add(new PoolDutySchedule
-                    {
-                        Id = Guid.NewGuid(),
-                        TaskType = PoolDutyTaskTypes.Measurement,
-                        DutyDate = date,
-                        ShiftId = recurrence.ShiftId,
-                        PreferredEmployeeId = recurrence.PreferredEmployeeId,
-                        EmployeeShiftId = eligible?.Id,
-                        AssignedEmployeeId = eligible?.EmployeeId,
-                        MeasurementRecurrenceId = recurrence.Id,
-                        ScheduledAtUtc = scheduledAt,
-                        Status = eligible is null ? "Unassigned" : "Scheduled",
-                        UnassignedReason = eligible is null ? "NO_ELIGIBLE_WORK_SHIFT" : null,
-                        AssignmentType = "Auto",
-                        Revision = 1,
-                        CreatedBy = actorId ?? recurrence.CreatedBy,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    });
-                    created++;
+                    existing++;
+                    continue;
                 }
+
+                var eligible = await FindEligibleShiftAsync(recurrence.PreferredEmployeeId, date, scheduledAt,
+                    recurrence.ShiftId, cancellationToken);
+                _context.PoolDutySchedules.Add(new PoolDutySchedule
+                {
+                    Id = Guid.NewGuid(),
+                    TaskType = PoolDutyTaskTypes.Measurement,
+                    DutyDate = date,
+                    ShiftId = recurrence.ShiftId,
+                    PreferredEmployeeId = recurrence.PreferredEmployeeId,
+                    EmployeeShiftId = eligible?.Id,
+                    AssignedEmployeeId = eligible?.EmployeeId,
+                    MeasurementRecurrenceId = recurrence.Id,
+                    ScheduledAtUtc = scheduledAt,
+                    Status = eligible is null ? "Unassigned" : "Scheduled",
+                    UnassignedReason = eligible is null ? "NO_ELIGIBLE_WORK_SHIFT" : null,
+                    AssignmentType = "Auto",
+                    Revision = 1,
+                    CreatedBy = actorId ?? recurrence.CreatedBy,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+                created++;
+                if (eligible is null) unassigned++;
             }
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return created;
+        return (created, existing, unassigned);
     }
+
+    private static DateOnly WeekMonday(DateOnly date) => date.AddDays(-((int)date.DayOfWeek + 6) % 7);
 
     public async Task<IReadOnlyList<PoolDutyEligibleEmployeeDto>> GetOperationalTaskAssigneesAsync(
         Guid taskId, CancellationToken cancellationToken)
@@ -560,6 +620,8 @@ public sealed partial class WaterQualityOperations
         var recurrence = await _context.PoolDutyMeasurementRecurrences
             .SingleOrDefaultAsync(item => item.Id == command.RecurrenceId, cancellationToken);
         if (recurrence is null) throw new KeyNotFoundException("Không tìm thấy lịch đo định kỳ.");
+        if (recurrence.WeekStart.HasValue)
+            throw new StaffConflictException("Cấu hình đo của tuần là bất biến và không thể dừng hoặc thay đổi.");
         if (!recurrence.IsActive) return false;
         recurrence.IsActive = false;
         recurrence.UpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
@@ -712,57 +774,6 @@ public sealed partial class WaterQualityOperations
     {
         var today = VietnamTimeBoundary.GetDate(_timeProvider);
         await EnsureOperationalTasksForRangeAsync(today, today, null, true, cancellationToken);
-
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
-        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        await _context.Database.ExecuteSqlRawAsync(
-            "SELECT pg_advisory_xact_lock(hashtextextended('pool-operational-task-materializer', 0))", cancellationToken);
-        var recurrences = await _context.PoolDutyMeasurementRecurrences.FromSqlInterpolated($"""
-            SELECT * FROM smart_pool.pool_duty_measurement_recurrences
-            WHERE is_active = true AND next_occurrence_date <= {today}
-            ORDER BY id FOR UPDATE SKIP LOCKED
-            """).ToListAsync(cancellationToken);
-
-        foreach (var recurrence in recurrences)
-        {
-            while (recurrence.NextOccurrenceDate <= today)
-            {
-                var occurrenceDate = recurrence.NextOccurrenceDate;
-                var exists = await _context.PoolDutySchedules.AnyAsync(item =>
-                    item.TaskType == PoolDutyTaskTypes.Measurement && item.MeasurementRecurrenceId == recurrence.Id &&
-                    item.DutyDate == occurrenceDate, cancellationToken);
-                if (!exists)
-                {
-                    var scheduledAt = LocalToUtc(occurrenceDate, recurrence.ScheduledTime);
-                    var eligible = await FindEligibleShiftAsync(recurrence.PreferredEmployeeId, occurrenceDate,
-                        scheduledAt, recurrence.ShiftId, cancellationToken);
-                    _context.PoolDutySchedules.Add(new PoolDutySchedule
-                    {
-                        Id = Guid.NewGuid(),
-                        TaskType = PoolDutyTaskTypes.Measurement,
-                        DutyDate = occurrenceDate,
-                        ShiftId = recurrence.ShiftId,
-                        PreferredEmployeeId = recurrence.PreferredEmployeeId,
-                        EmployeeShiftId = eligible?.Id,
-                        AssignedEmployeeId = eligible?.EmployeeId,
-                        MeasurementRecurrenceId = recurrence.Id,
-                        ScheduledAtUtc = scheduledAt,
-                        Status = eligible is null ? "Unassigned" : "Scheduled",
-                        UnassignedReason = eligible is null ? "NO_ELIGIBLE_WORK_SHIFT" : null,
-                        AssignmentType = "Auto",
-                        Revision = 1,
-                        CreatedBy = recurrence.CreatedBy,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    });
-                }
-                recurrence.NextOccurrenceDate = recurrence.NextOccurrenceDate.AddDays(3);
-                recurrence.UpdatedAtUtc = now;
-            }
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         await QueueDueOperationalTaskNoticesAsync(cancellationToken);
     }
 

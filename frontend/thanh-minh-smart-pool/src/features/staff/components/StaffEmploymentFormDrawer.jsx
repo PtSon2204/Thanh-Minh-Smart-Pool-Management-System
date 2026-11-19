@@ -88,8 +88,8 @@ function StaffEmploymentEditForm({ form, data, mutation, onFinish }) {
       <Alert
         type="info"
         showIcon
-        title="Trạng thái Không hoạt động"
-        description="Trạng thái này chặn công việc và chấm công vào, nhưng không khóa đăng nhập hoặc chấm công ra hợp lệ."
+        title="Trạng thái nhân viên và đăng nhập"
+        description="Không hoạt động sẽ khóa tài khoản. Chuyển lại Đang làm việc sẽ mở đăng nhập thủ công, kể cả khi hợp đồng hết hạn, cho đến khi bạn vô hiệu hóa lại. Không áp dụng cho tài khoản Admin."
       />
       {data.detailsEditingBlocked && (
         <Alert
