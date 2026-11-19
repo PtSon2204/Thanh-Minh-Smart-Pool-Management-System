@@ -65,9 +65,13 @@ export default function DailyInspectionPage() {
     staleTime: 30_000,
   })
 
-  const todayTasks = autoTaskLookup.data?.items?.filter(
+  const allTodayItems = autoTaskLookup.data?.items || []
+  const todayTasks = allTodayItems.filter(
     (item) => item.status !== 'Completed' && item.status !== 'Cancelled'
-  ) || []
+  )
+  const completedTodayTask = allTodayItems.find(
+    (item) => item.status === 'Completed'
+  )
   const preferredWindow = dayjs().hour() < 12 ? 'MORNING' : 'AFTERNOON'
   const autoTask = todayTasks.find((t) => t.inspectionWindow === preferredWindow) || todayTasks[0] || null
 
@@ -144,19 +148,35 @@ export default function DailyInspectionPage() {
         {isLifeguard && !rawTaskId && autoTaskLookup.isPending ? (
           <Spin tip="Đang kiểm tra nhiệm vụ kiểm tra thiết bị hôm nay..." />
         ) : isLifeguard && !rawTaskId && !autoTask ? (
-          <div style={{ maxWidth: 640, marginTop: 12 }}>
-            <Alert
-              type="warning"
-              showIcon
-              title="Chưa có ca trực hoặc nhiệm vụ kiểm tra thiết bị hôm nay"
-              description="Bạn chưa được phân công ca trực hoặc nhiệm vụ kiểm tra thiết bị cho ngày hôm nay. Vui lòng liên hệ Quản trị viên để được phân ca, hoặc truy cập trang Công việc vận hành."
-              action={
-                <Button type="primary" onClick={() => navigate('/admin/staff/tasks')}>
-                  Xem công việc vận hành
-                </Button>
-              }
-            />
-          </div>
+          completedTodayTask ? (
+            <div style={{ maxWidth: 640, marginTop: 12 }}>
+              <Alert
+                type="success"
+                showIcon
+                title="Đã hoàn thành kiểm tra thiết bị hôm nay"
+                description={`Nhiệm vụ kiểm tra thiết bị (${completedTodayTask.inspectionWindow === 'MORNING' ? 'Ca sáng' : 'Ca chiều'}) ngày hôm nay đã được bạn nộp thành công (Kết quả: ${completedTodayTask.dailyInspectionStatus === 'Passed' ? 'Đạt chuẩn' : completedTodayTask.dailyInspectionStatus === 'HasIssues' ? 'Có sự cố' : 'Đã nộp'}). Bạn không cần nộp lại.`}
+                action={
+                  <Button type="primary" onClick={() => navigate('/admin/staff/tasks')}>
+                    Xem công việc vận hành
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <div style={{ maxWidth: 640, marginTop: 12 }}>
+              <Alert
+                type="warning"
+                showIcon
+                title="Chưa có ca trực hoặc nhiệm vụ kiểm tra thiết bị hôm nay"
+                description="Bạn chưa được phân công ca trực hoặc nhiệm vụ kiểm tra thiết bị cho ngày hôm nay. Vui lòng liên hệ Quản trị viên để được phân ca, hoặc truy cập trang Công việc vận hành."
+                action={
+                  <Button type="primary" onClick={() => navigate('/admin/staff/tasks')}>
+                    Xem công việc vận hành
+                  </Button>
+                }
+              />
+            </div>
+          )
         ) : operationalTaskId && !task ? (
           taskLookup.isError ? (
             <Alert type="error" showIcon title="Không thể tải công việc" description="Hãy quay lại danh sách công việc và mở lại checklist." />
@@ -166,7 +186,19 @@ export default function DailyInspectionPage() {
             <Alert type="warning" showIcon title="Không tìm thấy công việc được yêu cầu." />
           )
         ) : operationalTaskId && (task.taskType !== 'EquipmentChecklist' || task.status === 'Completed' || task.status === 'Cancelled') ? (
-          <Alert type="warning" showIcon title="Công việc này không thể nộp checklist." />
+          <div style={{ maxWidth: 640, marginTop: 12 }}>
+            <Alert
+              type={task.status === 'Completed' ? 'success' : 'warning'}
+              showIcon
+              title={task.status === 'Completed' ? 'Nhiệm vụ kiểm tra thiết bị này đã hoàn tất' : 'Công việc này không thể nộp checklist.'}
+              description={task.status === 'Completed' ? 'Biên bản kiểm tra an toàn thiết bị cho ca này đã được gửi thành công.' : 'Công việc đã bị hủy hoặc không đúng loại kiểm tra thiết bị.'}
+              action={
+                <Button type="primary" onClick={returnToTasks}>
+                  Quay lại công việc vận hành
+                </Button>
+              }
+            />
+          </div>
         ) : (
           <DailyInspectionForm
             key={operationalTaskId || 'standalone'}

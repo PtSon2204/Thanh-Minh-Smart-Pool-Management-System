@@ -362,7 +362,7 @@ export default function AdminLayout() {
           icon: <ExperimentOutlined />,
           label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
         },
-        (isAdmin || isLifeguard) && {
+        isAdmin && {
           key: "equipments",
           icon: <ToolOutlined />,
           label: "Quản lý thiết bị",
