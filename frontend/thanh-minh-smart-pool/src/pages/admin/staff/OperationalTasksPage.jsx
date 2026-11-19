@@ -26,7 +26,6 @@ import {
   LeftOutlined,
   ReloadOutlined,
   RightOutlined,
-  ScheduleOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
@@ -149,8 +148,9 @@ export default function OperationalTasksPage() {
       ? linkedTask
       : null);
   const [showOverdue, setShowOverdue] = useState(false);
-  const [recurrenceOpen, setRecurrenceOpen] = useState(false);
-  const [recurrenceForm] = Form.useForm();
+  const [weekPreparationOpen, setWeekPreparationOpen] = useState(false);
+  const [weekPreparationForm] = Form.useForm();
+  const [weekPreparationResult, setWeekPreparationResult] = useState(null);
   const handledDeepLink = useRef(null);
   const screens = Grid.useBreakpoint();
   const employees = useScheduleEmployees(isAdmin);
@@ -160,6 +160,24 @@ export default function OperationalTasksPage() {
     (employee) => employee.roleName?.toUpperCase() === "LIFEGUARD",
   );
   const shiftOptions = shifts.data?.items || [];
+  const preparationWeekValue = Form.useWatch("weekStart", weekPreparationForm);
+  const preparationWeekStart = useMemo(
+    () => (preparationWeekValue ? weekMonday(preparationWeekValue) : null),
+    [preparationWeekValue],
+  );
+  const preparationWeekKey = preparationWeekStart?.format("YYYY-MM-DD");
+  const weekConfiguration = useQuery({
+    queryKey: ["operational-task-week-configuration", preparationWeekKey],
+    queryFn: ({ signal }) =>
+      operationalTaskService.getWeekConfiguration(preparationWeekKey, signal),
+    enabled: weekPreparationOpen && isAdmin && Boolean(preparationWeekKey),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const preparedWeekConfiguration = weekConfiguration.data || null;
+  const preparationWeekIsPast =
+    preparationWeekStart?.add(6, "day").isBefore(dayjs(todayVietnam()), "day") ??
+    false;
   const taskParams = useMemo(
     () => ({
       pageIndex: 1,
@@ -196,11 +214,6 @@ export default function OperationalTasksPage() {
       ),
     enabled: isAdmin || isLifeguard,
   });
-  const recurrences = useQuery({
-    queryKey: ["operational-task-recurrences"],
-    queryFn: operationalTaskService.getRecurrences,
-    enabled: isAdmin,
-  });
   const assignees = useQuery({
     queryKey: ["operational-task-assignees", taskForAssignment?.id],
     queryFn: () => operationalTaskService.getAssignees(taskForAssignment.id),
@@ -226,19 +239,26 @@ export default function OperationalTasksPage() {
   );
   const ensureWeek = useMutation({
     mutationFn: operationalTaskService.ensureWeek,
+    retry: false,
     onSuccess: (result) => {
-      if (result.createdCount > 0)
-        message.success(
-          `Đã chuẩn bị ${result.createdCount} công việc cho tuần.`,
-        );
+      const configuration = result.configuration;
+      setWeekPreparationResult(result);
+      queryClient.setQueryData(
+        ["operational-task-week-configuration", configuration.weekStart],
+        configuration,
+      );
       refreshTasks();
     },
-    onError: (error) =>
-      message.error(
-        error.response?.data?.message ||
-          "Không thể chuẩn bị công việc cho tuần.",
-      ),
   });
+  const preparationInputsDisabled =
+    Boolean(preparedWeekConfiguration) ||
+    weekConfiguration.isFetching ||
+    !weekConfiguration.isSuccess ||
+    ensureWeek.isPending;
+  const preparationSubmitDisabled =
+    weekConfiguration.isFetching ||
+    !weekConfiguration.isSuccess ||
+    ensureWeek.isPending;
   const updateSearch = useCallback(
     (update, replace = true) => {
       setSearchParams(
@@ -295,36 +315,76 @@ export default function OperationalTasksPage() {
         error.response?.data?.message || "Không thể hủy công việc.",
       ),
   });
-  const createRecurrence = useMutation({
-    mutationFn: operationalTaskService.createRecurrence,
-    retry: false,
-    onSuccess: () => {
-      recurrenceForm.resetFields();
-      queryClient.invalidateQueries({
-        queryKey: ["operational-task-recurrences"],
-      });
-      message.success("Đã lưu lịch đo định kỳ.");
-    },
-    onError: (error) =>
-      message.error(
-        error.response?.data?.message || "Không thể lưu lịch đo định kỳ.",
-      ),
-  });
-  const stopRecurrence = useMutation({
-    mutationFn: operationalTaskService.stopRecurrence,
-    retry: false,
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["operational-task-recurrences"],
-      }),
-    onError: (error) =>
-      message.error(error.response?.data?.message || "Không thể dừng lịch đo."),
-  });
-
   const openAssignment = (task) => {
     setTaskForAssignment(task);
     setSelectedEmployeeShiftId(task.employeeShiftId || undefined);
   };
+
+  const openWeekPreparation = () => {
+    setWeekPreparationResult(null);
+    const today = dayjs(todayVietnam());
+    const firstAvailableDay = Math.min(
+      7,
+      Math.max(1, today.diff(weekStart, "day") + 1),
+    );
+    weekPreparationForm.setFieldsValue({
+      weekStart,
+      startDayOfWeek: firstAvailableDay,
+      scheduledTime: dayjs().hour(8).minute(0).second(0),
+      shiftId: undefined,
+      preferredEmployeeId: undefined,
+    });
+    setWeekPreparationOpen(true);
+  };
+
+  const submitWeekPreparation = (values) => {
+    if (preparationSubmitDisabled) return;
+    const selectedWeekStart = weekMonday(values.weekStart);
+    ensureWeek.mutate({
+      weekStart: selectedWeekStart.format("YYYY-MM-DD"),
+      startDayOfWeek: values.startDayOfWeek,
+      scheduledTime: values.scheduledTime.format("HH:mm:ss"),
+      shiftId: values.shiftId,
+      preferredEmployeeId: values.preferredEmployeeId,
+    });
+  };
+
+  useEffect(() => {
+    if (!weekPreparationOpen || !weekConfiguration.isSuccess) return;
+    if (preparedWeekConfiguration) {
+      weekPreparationForm.setFieldsValue({
+        weekStart: dayjs(preparedWeekConfiguration.weekStart),
+        startDayOfWeek: preparedWeekConfiguration.startDayOfWeek,
+        scheduledTime: dayjs(
+          preparedWeekConfiguration.scheduledTime,
+          "HH:mm:ss",
+        ),
+        shiftId: preparedWeekConfiguration.shiftId,
+        preferredEmployeeId: preparedWeekConfiguration.preferredEmployeeId,
+      });
+      return;
+    }
+
+    const today = dayjs(todayVietnam());
+    const firstAvailableDay = Math.min(
+      7,
+      Math.max(1, today.diff(preparationWeekStart, "day") + 1),
+    );
+    weekPreparationForm.setFieldsValue({
+      weekStart: preparationWeekStart,
+      startDayOfWeek: firstAvailableDay,
+      scheduledTime: dayjs().hour(8).minute(0).second(0),
+      shiftId: undefined,
+      preferredEmployeeId: undefined,
+    });
+  }, [
+    preparedWeekConfiguration,
+    preparationWeekKey,
+    preparationWeekStart,
+    weekConfiguration.isSuccess,
+    weekPreparationForm,
+    weekPreparationOpen,
+  ]);
 
   const submitAssignment = () => {
     const candidate = (assignees.data || []).find(
@@ -591,7 +651,6 @@ export default function OperationalTasksPage() {
     [taskItems, weekStart],
   );
   const overdueItems = overdueTasks.data?.items || [];
-  const recurrenceItems = recurrences.data || [];
 
   const renderTask = (task) => {
     const [statusLabel, statusColor] = taskStatus(task.status);
@@ -723,7 +782,6 @@ export default function OperationalTasksPage() {
       ),
   }));
 
-  const retryEnsureWeek = () => ensureWeek.mutate(weekStartKey);
   const deepLinkMissing = Boolean(
     taskId && taskLookup.isSuccess && !linkedTask,
   );
@@ -744,22 +802,14 @@ export default function OperationalTasksPage() {
   return (
     <div className="service-list-page staff-schedule-page staff-operational-tasks">
       <ServiceListHeader
-        title="Công việc vận hành"
+        title="Công việc hằng ngày"
         action={
           <div className="staff-schedule-header-actions">
             {isAdmin && (
               <Button
-                icon={<ScheduleOutlined />}
-                onClick={() => setRecurrenceOpen(true)}
-              >
-                Lịch đo định kỳ
-              </Button>
-            )}
-            {isAdmin && (
-              <Button
                 icon={<CalendarOutlined />}
-                loading={ensureWeek.isPending}
-                onClick={retryEnsureWeek}
+                type="primary"
+                onClick={openWeekPreparation}
               >
                 Chuẩn bị tuần
               </Button>
@@ -880,23 +930,6 @@ export default function OperationalTasksPage() {
         className="service-list-table staff-schedule-table"
         aria-label="Danh sách công việc"
       >
-        {ensureWeek.isError && isAdmin && (
-          <Alert
-            className="staff-schedule-feedback"
-            type="warning"
-            showIcon
-            message="Chưa thể chuẩn bị công việc cho tuần này."
-            description={
-              ensureWeek.error?.response?.data?.message ||
-              "Thử chuẩn bị tuần lại. Công việc hiện có vẫn được giữ."
-            }
-            action={
-              <Button size="small" onClick={retryEnsureWeek}>
-                Thử lại
-              </Button>
-            }
-          />
-        )}
         {tasks.isError || (taskId && taskLookup.isError) ? (
           <Alert
             className="staff-schedule-feedback"
@@ -916,8 +949,7 @@ export default function OperationalTasksPage() {
             message="Không tìm thấy công việc được yêu cầu."
           />
         ) : tasks.isLoading ||
-          (taskId && taskLookup.isLoading) ||
-          ensureWeek.isPending ? (
+          (taskId && taskLookup.isLoading) ? (
           <div className="staff-week-loading">
             <Spin tip="Đang tải công việc trong tuần..." />
           </div>
@@ -1144,39 +1176,88 @@ export default function OperationalTasksPage() {
       </Modal>
 
       <Modal
-        title="Lịch đo chất lượng nước định kỳ"
-        open={recurrenceOpen}
-        onCancel={() => setRecurrenceOpen(false)}
-        footer={null}
-        width={760}
+        className="staff-week-preparation-modal"
+        title="Chuẩn bị tuần"
+        open={weekPreparationOpen}
+        onCancel={() => setWeekPreparationOpen(false)}
+        width={800}
+        footer={[
+          <Button
+            key="cancel"
+            disabled={ensureWeek.isPending}
+            onClick={() => setWeekPreparationOpen(false)}
+          >
+            Đóng
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            disabled={preparationWeekIsPast || preparationSubmitDisabled}
+            loading={ensureWeek.isPending}
+            onClick={() => weekPreparationForm.submit()}
+          >
+            {preparedWeekConfiguration
+              ? "Bổ sung công việc còn thiếu"
+              : "Chuẩn bị tuần"}
+          </Button>,
+        ]}
       >
         <Form
-          form={recurrenceForm}
+          form={weekPreparationForm}
           layout="vertical"
-          initialValues={{
-            anchorDate: dayjs(todayVietnam()),
-            scheduledTime: dayjs().hour(8).minute(0).second(0),
-          }}
-          onFinish={(values) =>
-            createRecurrence.mutate({
-              anchorDate: values.anchorDate.format("YYYY-MM-DD"),
-              scheduledTime: values.scheduledTime.format("HH:mm:ss"),
-              shiftId: values.shiftId,
-              preferredEmployeeId: values.preferredEmployeeId,
-            })
-          }
+          onFinish={submitWeekPreparation}
         >
-          <Space wrap align="start">
+          <div className="staff-week-preparation-grid">
             <Form.Item
-              name="anchorDate"
-              label="Ngày bắt đầu"
-              rules={[{ required: true, message: "Chọn ngày bắt đầu." }]}
+              name="weekStart"
+              label="Tuần bắt đầu"
+              rules={[{ required: true, message: "Chọn tuần cần chuẩn bị." }]}
             >
               <DatePicker
+                picker="week"
+                locale={viDatePicker.DatePicker}
                 format="DD/MM/YYYY"
+                disabled={preparationInputsDisabled}
                 disabledDate={(date) =>
-                  date.isBefore(dayjs(todayVietnam()), "day")
+                  weekMonday(date)
+                    .add(6, "day")
+                    .isBefore(dayjs(todayVietnam()), "day")
                 }
+              />
+            </Form.Item>
+            <Form.Item
+              name="startDayOfWeek"
+              label="Ngày đo đầu tiên"
+              rules={[
+                { required: true, message: "Chọn ngày đo đầu tiên." },
+                {
+                  validator: (_, value) => {
+                    const selectedDate = preparationWeekStart?.add(
+                      Number(value) - 1,
+                      "day",
+                    );
+                    return selectedDate?.isBefore(
+                      dayjs(todayVietnam()),
+                      "day",
+                    )
+                      ? Promise.reject(
+                          new Error("Ngày đo đầu tiên không thể ở quá khứ."),
+                        )
+                      : Promise.resolve();
+                  },
+                },
+              ]}
+            >
+              <Select
+                disabled={preparationInputsDisabled}
+                options={Array.from({ length: 7 }, (_, index) => {
+                  const date = preparationWeekStart?.add(index, "day");
+                  return {
+                    value: index + 1,
+                    label: `${date?.locale("vi").format("dddd DD/MM") || `Thứ ${index + 1}`}`,
+                    disabled: date?.isBefore(dayjs(todayVietnam()), "day"),
+                  };
+                })}
               />
             </Form.Item>
             <Form.Item
@@ -1184,7 +1265,10 @@ export default function OperationalTasksPage() {
               label="Giờ đo"
               rules={[{ required: true, message: "Chọn giờ đo." }]}
             >
-              <TimePicker format="HH:mm" />
+              <TimePicker
+                disabled={preparationInputsDisabled}
+                format="HH:mm"
+              />
             </Form.Item>
             <Form.Item
               name="shiftId"
@@ -1192,88 +1276,93 @@ export default function OperationalTasksPage() {
               rules={[{ required: true, message: "Chọn ca làm." }]}
             >
               <Select
-                style={{ minWidth: 160 }}
+                disabled={preparationInputsDisabled}
+                loading={shifts.isLoading}
                 options={shiftOptions.map((item) => ({
                   value: item.id,
-                  label: item.name,
+                  label: `${item.name} (${item.startTime}–${item.endTime})`,
                 }))}
               />
             </Form.Item>
             <Form.Item
+              className="staff-week-preparation-employee"
               name="preferredEmployeeId"
               label="Nhân viên cứu hộ"
               rules={[{ required: true, message: "Chọn nhân viên." }]}
             >
               <Select
+                disabled={preparationInputsDisabled}
                 showSearch
                 optionFilterProp="label"
-                style={{ minWidth: 220 }}
+                loading={employees.isLoading}
                 options={lifeguards.map((item) => ({
                   value: item.employeeId,
                   label: item.name,
                 }))}
               />
             </Form.Item>
-          </Space>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={createRecurrence.isPending}
-          >
-            Tạo lịch lặp mỗi 3 ngày
-          </Button>
+          </div>
         </Form>
-        {recurrences.isError && (
+        {weekConfiguration.isFetching && (
+          <div className="staff-week-loading">
+            <Spin size="small" />
+            <Typography.Text>Đang tải cấu hình tuần...</Typography.Text>
+          </div>
+        )}
+        {weekConfiguration.isError && (
           <Alert
-            className="staff-schedule-alert"
+            className="staff-week-preparation-feedback"
             type="error"
             showIcon
-            title="Không tải được lịch đo lặp"
+            message="Không tải được cấu hình tuần. Các trường vẫn bị khóa."
+            action={
+              <Button size="small" onClick={() => weekConfiguration.refetch()}>
+                Thử lại
+              </Button>
+            }
           />
         )}
-        <Table
-          className="staff-schedule-alert"
-          rowKey="id"
-          size="small"
-          dataSource={recurrenceItems}
-          pagination={false}
-          columns={[
-            { title: "Bắt đầu", dataIndex: "anchorDate", render: displayDate },
-            {
-              title: "Lặp tiếp theo",
-              dataIndex: "nextOccurrenceDate",
-              render: displayDate,
-            },
-            {
-              title: "Ca / giờ",
-              render: (_, item) => `${item.shiftName} · ${item.scheduledTime}`,
-            },
-            { title: "Nhân viên", dataIndex: "preferredEmployeeName" },
-            {
-              title: "Trạng thái",
-              dataIndex: "isActive",
-              render: (active) => (
-                <Tag color={active ? "success" : "default"}>
-                  {active ? "Đang chạy" : "Đã dừng"}
-                </Tag>
-              ),
-            },
-            {
-              title: "",
-              key: "action",
-              render: (_, item) =>
-                item.isActive && (
-                  <Button
-                    type="link"
-                    danger
-                    onClick={() => stopRecurrence.mutate(item.id)}
-                  >
-                    Dừng
-                  </Button>
-                ),
-            },
-          ]}
-        />
+        {preparationWeekIsPast && (
+          <Alert
+            className="staff-week-preparation-feedback"
+            type="warning"
+            showIcon
+            message="Không thể chuẩn bị một tuần đã kết thúc."
+          />
+        )}
+        {ensureWeek.isError && (
+          <Alert
+            className="staff-week-preparation-feedback"
+            type="error"
+            showIcon
+            message="Không thể chuẩn bị công việc cho tuần."
+            description={
+              ensureWeek.error?.response?.data?.message ||
+              "Kiểm tra lại thông tin đã nhập rồi thử lại."
+            }
+          />
+        )}
+        {weekPreparationResult && (
+          <Alert
+            className="staff-week-preparation-feedback"
+            type="success"
+            showIcon
+            message="Kết quả chuẩn bị tuần"
+            description={
+              <Descriptions size="small" column={{ xs: 1, sm: 3 }}>
+                <Descriptions.Item label="Đã tạo">
+                  {weekPreparationResult.createdCount}
+                </Descriptions.Item>
+                <Descriptions.Item label="Đã có">
+                  {weekPreparationResult.existingCount}
+                </Descriptions.Item>
+                <Descriptions.Item label="Chưa phân công">
+                  {weekPreparationResult.unassignedCount}
+                </Descriptions.Item>
+              </Descriptions>
+            }
+          />
+        )}
       </Modal>
 
       <CreateWaterQualityLogModal

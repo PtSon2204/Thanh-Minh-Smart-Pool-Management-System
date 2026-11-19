@@ -42,7 +42,7 @@ public sealed partial class StaffOperations
             {
                 var emailAddress = request.Email?.Trim().ToLowerInvariant() ?? "";
                 if (emailAddress.Length > 150 || !MailAddress.TryCreate(emailAddress, out var parsed) || parsed.Address != emailAddress ||
-                    request.TargetRole is not ("SALES" or "LIFEGUARD" or "COACH") || request.JoinDate is null)
+                    request.TargetRole is not ("SALES" or "LIFEGUARD") || request.JoinDate is null)
                     throw new StaffOnboardingException("INVALID_INVITATION", 400);
                 StaffOnboardingValidation.ValidateJoinDate(request.JoinDate, timeProvider);
                 await ValidateContractAsync(request.Contract, request.JoinDate, cancellationToken);

@@ -137,7 +137,7 @@ export default function DailyInspectionPage() {
 
         {hasTaskContext && (
           <Button onClick={returnToTasks} style={{ marginBottom: 16 }}>
-            Quay lại công việc vận hành
+            Quay lại công việc hằng ngày
           </Button>
         )}
 
@@ -149,10 +149,10 @@ export default function DailyInspectionPage() {
               type="warning"
               showIcon
               title="Chưa có ca trực hoặc nhiệm vụ kiểm tra thiết bị hôm nay"
-              description="Bạn chưa được phân công ca trực hoặc nhiệm vụ kiểm tra thiết bị cho ngày hôm nay. Vui lòng liên hệ Quản trị viên để được phân ca, hoặc truy cập trang Công việc vận hành."
+              description="Bạn chưa được phân công ca trực hoặc nhiệm vụ kiểm tra thiết bị cho ngày hôm nay. Vui lòng liên hệ Quản trị viên để được phân ca, hoặc truy cập trang Công việc hằng ngày."
               action={
                 <Button type="primary" onClick={() => navigate('/admin/staff/tasks')}>
-                  Xem công việc vận hành
+                  Xem công việc hằng ngày
                 </Button>
               }
             />

@@ -72,7 +72,7 @@ export default function StaffInvitationsPanel({
         .catch((failure) => {
           setError(
             [401, 403].includes(failure.response?.status)
-              ? "Bạn không có quyền xem danh sách lời mời. Hãy kiểm tra quyền quản lý nhân viên."
+              ? "Bạn không có quyền xem danh sách tài khoản nhân viên. Hãy kiểm tra quyền quản lý nhân viên."
               : onboardingError(failure),
           );
         })
@@ -173,7 +173,7 @@ export default function StaffInvitationsPanel({
     "request-changes": "Yêu cầu bổ sung",
     reject: "Từ chối hồ sơ",
     resend: "Gửi lại và thay liên kết",
-    cancel: "Hủy lời mời",
+    cancel: "Hủy tạo tài khoản",
     "open-correction": "Mở bản chỉnh sửa",
   };
   const columns = [
@@ -242,7 +242,7 @@ export default function StaffInvitationsPanel({
                   disabled={busy || uncertain}
                   onClick={() => choose("resend", row.invitation)}
                 >
-                  Gửi lại
+                  Gửi lại liên kết
                 </Button>
               )}
               <Button
@@ -261,11 +261,11 @@ export default function StaffInvitationsPanel({
   return (
     <section
       className="staff-invitations-panel"
-      aria-label="Lời mời và duyệt hồ sơ"
+      aria-label="Tài khoản nhân viên và duyệt hồ sơ"
     >
       <div className="onboarding-panel-header">
         <Typography.Title level={3}>
-          Lời mời và hồ sơ chờ duyệt
+          Tài khoản nhân viên và hồ sơ chờ duyệt
         </Typography.Title>
         <Button
           disabled={loading || busy}
@@ -292,7 +292,7 @@ export default function StaffInvitationsPanel({
           type="warning"
           showIcon
           title="Kết quả chưa xác định"
-          description="Không gửi lại ngay. Tải lại trạng thái và kiểm tra lời mời trước khi tiếp tục."
+          description="Không gửi lại ngay. Tải lại trạng thái và kiểm tra tài khoản nhân viên trước khi tiếp tục."
         />
       )}
       <Table
@@ -302,7 +302,7 @@ export default function StaffInvitationsPanel({
         loading={loading}
         pagination={false}
         scroll={{ x: 780 }}
-        locale={{ emptyText: <Empty description="Chưa có lời mời." /> }}
+        locale={{ emptyText: <Empty description="Chưa có tài khoản nhân viên chờ duyệt." /> }}
       />
       <Space wrap className="onboarding-actions">
         <Button
@@ -326,7 +326,7 @@ export default function StaffInvitationsPanel({
         </Button>
       </Space>
       <Drawer
-        title="Mời nhân viên mới"
+        title="Tạo tài khoản nhân viên"
         open={createOpen}
         onClose={() => {
           if (!busy) {
@@ -340,8 +340,8 @@ export default function StaffInvitationsPanel({
         <div className="staff-invitation-content">
           <Alert
             type="info"
-            title="Chỉ dành cho email chưa có tài khoản"
-            description="Không chuyển khách hàng thành nhân viên. Lời mời chưa tạo tài khoản hoặc quyền làm việc."
+            title="Tài khoản chỉ hoạt động sau khi được duyệt"
+            description="Chỉ dùng cho email chưa có tài khoản. Không chuyển khách hàng thành nhân viên. Hệ thống gửi liên kết để nhân viên hoàn thiện và gửi hồ sơ; tài khoản chỉ hoạt động sau khi quản trị viên duyệt."
           />
           {createError && <Alert type="error" title={createError} />}
           {shiftsQuery.isError && (
@@ -349,7 +349,7 @@ export default function StaffInvitationsPanel({
               type="error"
               showIcon
               title="Không thể tải ca làm việc"
-              description="Thử tải lại trước khi tạo lời mời."
+              description="Thử tải lại trước khi tạo tài khoản nhân viên."
               action={
                 <Button size="small" onClick={() => shiftsQuery.refetch()}>
                   Thử lại
@@ -487,7 +487,7 @@ export default function StaffInvitationsPanel({
               invitation
             />
             <Button type="primary" htmlType="submit" loading={busy}>
-              Tạo và gửi lời mời
+              Bắt đầu tạo tài khoản và gửi liên kết
             </Button>
           </Form>
         </div>

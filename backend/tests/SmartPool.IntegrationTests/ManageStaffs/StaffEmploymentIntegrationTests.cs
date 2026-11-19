@@ -57,7 +57,7 @@ public sealed class StaffEmploymentIntegrationTests
             var after = await fixture.ReadUserSnapshotAsync(userId);
             var employee = await fixture.ReadEmployeeAsync(userId);
 
-            Assert.Equal(edited, after);
+            Assert.Equal(edited with { Status = "LOCKED" }, after);
             Assert.Equal((new DateOnly(2025, 1, 1), "Inactive"),
                 (employee.JoinDate, employee.Status));
         }

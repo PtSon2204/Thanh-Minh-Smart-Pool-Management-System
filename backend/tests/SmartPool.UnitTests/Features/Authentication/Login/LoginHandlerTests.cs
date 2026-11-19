@@ -476,12 +476,17 @@ public sealed class LoginHandlerTests
 
         public Task<IActionResult> Handle(LoginCommand? request = null, bool includeMembership = true)
         {
+            var contractAccess = new Mock<IStaffContractAccessPolicy>();
+            contractAccess.Setup(policy => policy.EvaluateAsync(It.IsAny<Guid>(), It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new StaffContractAccessDecision(StaffContractState.Exempt, true));
             var handler = new LoginHandler(
                 Users.Object,
                 PasswordHasher.Object,
                 AccessTokenService.Object,
                 RefreshTokenService.Object,
                 new LoginValidator(),
+                contractAccess.Object,
                 includeMembership ? Membership.Object : null);
 
             return handler.Handle(request ?? new LoginCommand

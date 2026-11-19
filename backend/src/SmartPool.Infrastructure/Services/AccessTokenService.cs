@@ -22,10 +22,13 @@ public sealed class AccessTokenService : IAccessTokenService
     private readonly SigningCredentials _signingCredentials;
     private readonly byte[] _passwordVersionKey;
     private readonly SmartPoolDbContext _context;
+    private readonly IStaffContractAccessPolicy _contractAccess;
 
-    public AccessTokenService(IConfiguration configuration, SmartPoolDbContext context)
+    public AccessTokenService(IConfiguration configuration, SmartPoolDbContext context,
+        IStaffContractAccessPolicy contractAccess)
     {
         _context = context;
+        _contractAccess = contractAccess;
         var secret = configuration["JwtSettings:SecretKey"];
         if (string.IsNullOrWhiteSpace(secret) || Encoding.UTF8.GetByteCount(secret) < 32)
             throw new InvalidOperationException("JwtSettings:SecretKey must contain at least 32 UTF-8 bytes.");
@@ -107,7 +110,8 @@ public sealed class AccessTokenService : IAccessTokenService
             .Select(user => new { user.Id, user.PasswordHash, user.IsCoach,
                 PrimaryRole = user.Role!.Name })
             .FirstOrDefaultAsync(cancellationToken);
-        if (account is null) return false;
+        if (account is null || !(await _contractAccess.EvaluateAsync(userId, account.PrimaryRole,
+                cancellationToken)).IsAllowed) return false;
         var effectiveRoles = new List<string> { account.PrimaryRole };
         if (account.IsCoach && string.Equals(account.PrimaryRole, "CUSTOMER",
                 StringComparison.OrdinalIgnoreCase) &&

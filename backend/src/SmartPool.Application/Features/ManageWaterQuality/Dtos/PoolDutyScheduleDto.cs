@@ -63,6 +63,9 @@ public sealed record PoolDutyMeasurementRecurrenceDto(Guid Id, DateOnly AnchorDa
     TimeOnly ScheduledTime, Guid ShiftId, string ShiftName, Guid PreferredEmployeeId, string PreferredEmployeeName,
     bool IsActive, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 
+public sealed record OperationalTaskWeekConfigurationDto(Guid Id, DateOnly WeekStart, int StartDayOfWeek,
+    TimeOnly ScheduledTime, Guid ShiftId, Guid PreferredEmployeeId);
+
 public sealed class PoolDutyEligibleEmployeeDto
 {
     public Guid EmployeeId { get; set; }

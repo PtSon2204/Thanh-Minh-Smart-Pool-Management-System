@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
 using SmartPool.API.Extensions;
 using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageWaterQuality.Dtos;
 using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Domain.Enums;
@@ -68,15 +69,8 @@ public sealed class OperationalTasksController(ISender sender) : ControllerBase
     [HttpPost("measurement-recurrences")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [RequirePermission("staff_tasks", "create")]
-    public async Task<IActionResult> CreateRecurrence(
-        [FromBody] CreateMeasurementRecurrenceCommand command, CancellationToken cancellationToken)
-    {
-        if (!TryGetActorId(out var actorId)) return Unauthorized();
-        command.ActorId = actorId;
-        try { return Ok(await sender.Send(command, cancellationToken)); }
-        catch (InvalidOperationException exception) { return BadRequest(new { message = exception.Message }); }
-        catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
-    }
+    public IActionResult CreateRecurrence() =>
+        Conflict(new { message = "Lịch đo định kỳ vô hạn đã dừng. Hãy dùng chức năng chuẩn bị tuần." });
 
     [HttpDelete("measurement-recurrences/{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
@@ -84,8 +78,12 @@ public sealed class OperationalTasksController(ISender sender) : ControllerBase
     public async Task<IActionResult> StopRecurrence(Guid id, CancellationToken cancellationToken)
     {
         if (!TryGetActorId(out var actorId)) return Unauthorized();
-        var stopped = await sender.Send(new StopMeasurementRecurrenceCommand(id) { ActorId = actorId }, cancellationToken);
-        return Ok(new { stopped });
+        try
+        {
+            var stopped = await sender.Send(new StopMeasurementRecurrenceCommand(id) { ActorId = actorId }, cancellationToken);
+            return Ok(new { stopped });
+        }
+        catch (StaffConflictException exception) { return Conflict(new { message = exception.Message }); }
     }
 
     [HttpPost("checklists/ensure")]
@@ -109,8 +107,21 @@ public sealed class OperationalTasksController(ISender sender) : ControllerBase
     {
         if (!TryGetActorId(out var actorId)) return Unauthorized();
         command.ActorId = actorId;
-        try { return Ok(new { createdCount = await sender.Send(command, cancellationToken) }); }
+        try { return Ok(await sender.Send(command, cancellationToken)); }
         catch (InvalidOperationException exception) { return BadRequest(new { message = exception.Message }); }
+        catch (StaffConflictException exception) { return Conflict(new { message = exception.Message }); }
+    }
+
+    [HttpGet("weeks/configuration")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [RequirePermission("staff_tasks", "read")]
+    public async Task<ActionResult<OperationalTaskWeekConfigurationDto>> GetWeekConfiguration(
+        [FromQuery] DateOnly weekStart, CancellationToken cancellationToken)
+    {
+        var configuration = await sender.Send(
+            new GetOperationalTaskWeekConfigurationQuery(weekStart), cancellationToken);
+        if (configuration is null) return NoContent();
+        return Ok(configuration);
     }
 
     [HttpPut("{id:guid}/assignment")]

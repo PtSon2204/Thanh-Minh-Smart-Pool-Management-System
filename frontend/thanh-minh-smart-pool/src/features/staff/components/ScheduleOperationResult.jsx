@@ -74,7 +74,7 @@ export default function ScheduleOperationResult({ result, preview = false }) {
       {tasks.length > 0 && (
         <>
           <Typography.Title level={5}>
-            Công việc vận hành bị ảnh hưởng
+            Công việc hằng ngày bị ảnh hưởng
           </Typography.Title>
           <Alert
             type="warning"

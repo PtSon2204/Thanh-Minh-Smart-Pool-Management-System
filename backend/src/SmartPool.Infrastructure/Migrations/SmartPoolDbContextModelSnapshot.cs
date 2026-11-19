@@ -633,6 +633,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<DateTime?>("ContractInactiveSinceUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("contract_inactive_since_utc");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -642,6 +646,12 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Property<DateOnly>("JoinDate")
                         .HasColumnType("date")
                         .HasColumnName("join_date");
+
+                    b.Property<bool>("ManualAccessEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasColumnName("manual_access_enabled")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Status")
                         .ValueGeneratedOnAdd()
@@ -1285,6 +1295,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
 
+                    b.Property<DateOnly?>("WeekStart")
+                        .HasColumnType("date")
+                        .HasColumnName("week_start");
+
                     b.HasKey("Id")
                         .HasName("pool_duty_measurement_recurrences_pkey");
 
@@ -1297,10 +1311,10 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasIndex("IsActive", "NextOccurrenceDate")
                         .HasDatabaseName("ix_pool_duty_measurement_recurrences_active_next_occurrence");
 
-                    b.HasIndex("AnchorDate", "ScheduledTime", "ShiftId", "PreferredEmployeeId")
+                    b.HasIndex("WeekStart")
                         .IsUnique()
-                        .HasDatabaseName("ux_pool_duty_measurement_recurrences_active_pattern")
-                        .HasFilter("is_active = true");
+                        .HasDatabaseName("ux_pool_duty_measurement_recurrences_week_start")
+                        .HasFilter("week_start IS NOT NULL");
 
                     b.ToTable("pool_duty_measurement_recurrences", "smart_pool");
                 });
