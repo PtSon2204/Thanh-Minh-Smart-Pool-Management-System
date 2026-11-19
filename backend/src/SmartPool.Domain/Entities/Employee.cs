@@ -16,6 +16,10 @@ public partial class Employee
 
     public DateTime? UpdatedAt { get; set; }
 
+    public DateTime? ContractInactiveSinceUtc { get; set; }
+
+    public bool ManualAccessEnabled { get; set; }
+
     public Guid? CorrectionRequestId { get; set; }
 
     public string? CorrectionReason { get; set; }

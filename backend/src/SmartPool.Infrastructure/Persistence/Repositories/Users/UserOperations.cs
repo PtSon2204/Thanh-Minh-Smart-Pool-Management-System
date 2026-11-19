@@ -391,8 +391,29 @@ public sealed class UserOperations : IUserOperations
         {
             user.Status = requestedStatus.ToString();
             user.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
         }
+
+        var employee = await _context.Employees.SingleOrDefaultAsync(item => item.UserId == userId, cancellationToken);
+        if (employee is not null &&
+            user.Role is not null && IsStaffRole(user.Role.Name))
+        {
+            if (requestedStatus == UserStatusEnum.ACTIVE &&
+                (currentStatus != nameof(UserStatusEnum.ACTIVE) || employee.Status != "Working"))
+            {
+                employee.Status = "Working";
+                employee.ManualAccessEnabled = true;
+            }
+            else if (requestedStatus == UserStatusEnum.LOCKED)
+            {
+                employee.Status = "Inactive";
+                employee.ManualAccessEnabled = false;
+            }
+            employee.ContractInactiveSinceUtc = null;
+            employee.UpdatedAt = DateTime.UtcNow;
+        }
+
+        if (_context.ChangeTracker.HasChanges())
+            await _context.SaveChangesAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
         return new ChangeUserStatusResponse
@@ -407,6 +428,11 @@ public sealed class UserOperations : IUserOperations
         user.IsDeleted != true && user.Role?.IsDeleted != true &&
         string.Equals(user.Status, nameof(UserStatusEnum.ACTIVE), StringComparison.OrdinalIgnoreCase) &&
         string.Equals(user.Role?.Name, nameof(RoleEnum.ADMIN), StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsStaffRole(string roleName) =>
+        roleName.Equals("SALES", StringComparison.OrdinalIgnoreCase) ||
+        roleName.Equals("LIFEGUARD", StringComparison.OrdinalIgnoreCase) ||
+        roleName.Equals("COACH", StringComparison.OrdinalIgnoreCase);
 
     private async Task<bool> IsLastActiveAdminAsync(CancellationToken cancellationToken) =>
         await _context.Users.CountAsync(item => item.IsDeleted != true && item.Role != null &&

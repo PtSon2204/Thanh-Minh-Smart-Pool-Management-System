@@ -9,6 +9,10 @@ export const workPatternService = {
     apiClient.post(`${path(employeeId)}/preview`, data).then(body),
   confirm: (employeeId, data) =>
     apiClient.post(`${path(employeeId)}/confirm`, data).then(body),
+  previewRenewal: (employeeId, data) =>
+    apiClient.post(`${path(employeeId)}/renewal/preview`, data).then(body),
+  confirmRenewal: (employeeId, data) =>
+    apiClient.post(`${path(employeeId)}/renewal/confirm`, data).then(body),
   previewException: (employeeId, data) =>
     apiClient.post(`${path(employeeId)}/exceptions/preview`, data).then(body),
   confirmException: (employeeId, data) =>

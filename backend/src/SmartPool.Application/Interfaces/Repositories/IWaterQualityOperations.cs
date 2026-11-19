@@ -26,10 +26,11 @@ public interface IWaterQualityOperations
     Task<PagedResponse<PoolDutyScheduleDto>> GetOperationalTasksAsync(GetOperationalTasksQuery query, CancellationToken cancellationToken);
     Task<PoolDutySchedule?> GetOperationalTaskByIdAsync(Guid taskId, CancellationToken cancellationToken);
     Task<IReadOnlyList<PoolDutyEligibleEmployeeDto>> GetOperationalTaskAssigneesAsync(Guid taskId, CancellationToken cancellationToken);
-    Task<PoolDutyMeasurementRecurrenceDto> CreateMeasurementRecurrenceAsync(CreateMeasurementRecurrenceCommand command, CancellationToken cancellationToken);
     Task<IReadOnlyList<PoolDutyMeasurementRecurrenceDto>> GetMeasurementRecurrencesAsync(CancellationToken cancellationToken);
+    Task<OperationalTaskWeekConfigurationDto?> GetOperationalTaskWeekConfigurationAsync(DateOnly weekStart,
+        CancellationToken cancellationToken);
     Task<int> EnsureChecklistTasksAsync(DateOnly date, CancellationToken cancellationToken);
-    Task<int> EnsureOperationalTaskWeekAsync(EnsureOperationalTaskWeekCommand command, CancellationToken cancellationToken);
+    Task<EnsureOperationalTaskWeekResultDto> EnsureOperationalTaskWeekAsync(EnsureOperationalTaskWeekCommand command, CancellationToken cancellationToken);
     Task CompleteOperationalChecklistTaskAsync(DailyInspection inspection,
         OperationalTaskExecutionAuthorization authorization, CancellationToken cancellationToken);
     Task<DailyInspectionDto?> GetOperationalTaskChecklistResultAsync(Guid taskId, Guid? employeeId,

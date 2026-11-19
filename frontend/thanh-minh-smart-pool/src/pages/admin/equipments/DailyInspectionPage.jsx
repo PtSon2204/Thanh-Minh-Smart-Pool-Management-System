@@ -141,7 +141,7 @@ export default function DailyInspectionPage() {
 
         {hasTaskContext && (
           <Button onClick={returnToTasks} style={{ marginBottom: 16 }}>
-            Quay lại công việc vận hành
+            Quay lại công việc hằng ngày
           </Button>
         )}
 
@@ -157,7 +157,7 @@ export default function DailyInspectionPage() {
                 description={`Nhiệm vụ kiểm tra thiết bị (${completedTodayTask.inspectionWindow === 'MORNING' ? 'Ca sáng' : 'Ca chiều'}) ngày hôm nay đã được bạn nộp thành công (Kết quả: ${completedTodayTask.dailyInspectionStatus === 'Passed' ? 'Đạt chuẩn' : completedTodayTask.dailyInspectionStatus === 'HasIssues' ? 'Có sự cố' : 'Đã nộp'}). Bạn không cần nộp lại.`}
                 action={
                   <Button type="primary" onClick={() => navigate('/admin/staff/tasks')}>
-                    Xem công việc vận hành
+                    Xem công việc hằng ngày
                   </Button>
                 }
               />
@@ -168,10 +168,10 @@ export default function DailyInspectionPage() {
                 type="warning"
                 showIcon
                 title="Chưa có ca trực hoặc nhiệm vụ kiểm tra thiết bị hôm nay"
-                description="Bạn chưa được phân công ca trực hoặc nhiệm vụ kiểm tra thiết bị cho ngày hôm nay. Vui lòng liên hệ Quản trị viên để được phân ca, hoặc truy cập trang Công việc vận hành."
+                description="Bạn chưa được phân công ca trực hoặc nhiệm vụ kiểm tra thiết bị cho ngày hôm nay. Vui lòng liên hệ Quản trị viên để được phân ca, hoặc truy cập trang Công việc hằng ngày."
                 action={
                   <Button type="primary" onClick={() => navigate('/admin/staff/tasks')}>
-                    Xem công việc vận hành
+                    Xem công việc hằng ngày
                   </Button>
                 }
               />
@@ -194,7 +194,7 @@ export default function DailyInspectionPage() {
               description={task.status === 'Completed' ? 'Biên bản kiểm tra an toàn thiết bị cho ca này đã được gửi thành công.' : 'Công việc đã bị hủy hoặc không đúng loại kiểm tra thiết bị.'}
               action={
                 <Button type="primary" onClick={returnToTasks}>
-                  Quay lại công việc vận hành
+                  Quay lại công việc hằng ngày
                 </Button>
               }
             />

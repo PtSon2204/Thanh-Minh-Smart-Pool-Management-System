@@ -172,6 +172,9 @@ namespace SmartPool.Infrastructure
 
             // Access token generation for login
             services.AddScoped<IAccessTokenService, AccessTokenService>();
+            services.AddScoped<IStaffContractAccessPolicy, StaffContractAccessPolicy>();
+            services.AddScoped<StaffContractLifecycle>();
+            services.AddHostedService<StaffContractLifecycleWorker>();
             services.AddScoped<IUserRoleMembershipService, UserRoleMembershipService>();
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<IGoogleIdTokenVerifier, GoogleIdTokenVerifier>();

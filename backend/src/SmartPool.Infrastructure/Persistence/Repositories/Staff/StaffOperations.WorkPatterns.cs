@@ -58,15 +58,32 @@ public sealed partial class StaffOperations
         if (request.Action == WorkPatternAction.Receipt)
             return await ReadScheduleReceiptAsync(request.EmployeeId, request.OperationId, request.ActorId, cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        if (request.Action is WorkPatternAction.Confirm or WorkPatternAction.ExceptionConfirm)
+        var isRenewal = request.Action is WorkPatternAction.RenewalPreview or WorkPatternAction.RenewalConfirm;
+        var isContractChange = isRenewal || request.Action is WorkPatternAction.Preview or WorkPatternAction.Confirm;
+        if (request.Action is WorkPatternAction.Confirm or WorkPatternAction.ExceptionConfirm or WorkPatternAction.RenewalConfirm)
             await LockStaffScheduleOperationAsync(request.OperationId, cancellationToken);
         await LockEmployeesAsync([request.EmployeeId], cancellationToken);
+        if (isContractChange)
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM smart_pool.users WHERE id = {request.EmployeeId} FOR UPDATE", cancellationToken);
+            await context.Database.ExecuteSqlInterpolatedAsync($"SELECT user_id FROM smart_pool.employees WHERE user_id = {request.EmployeeId} FOR UPDATE", cancellationToken);
+        }
         var employee = await context.Employees.Include(item => item.User).ThenInclude(item => item.Role)
             .SingleOrDefaultAsync(item => item.UserId == request.EmployeeId, cancellationToken)
             ?? throw new StaffOnboardingException("EMPLOYEE_NOT_FOUND", 404);
         var isException = request.Action is WorkPatternAction.ExceptionPreview or WorkPatternAction.ExceptionConfirm;
-        var isConfirm = request.Action is WorkPatternAction.Confirm or WorkPatternAction.ExceptionConfirm;
-        var proposalHash = ScheduleHash(new
+        if (isContractChange)
+        {
+            await context.Entry(employee).ReloadAsync(cancellationToken);
+            await context.Entry(employee.User).ReloadAsync(cancellationToken);
+        }
+        var isConfirm = request.Action is WorkPatternAction.Confirm or WorkPatternAction.ExceptionConfirm or WorkPatternAction.RenewalConfirm;
+        var previewKind = isRenewal ? "Renewal" : isException ? request.Kind! : "Pattern";
+        var proposalHash = isRenewal ? ScheduleHash(new
+        {
+            Kind = "Renewal", request.EmployeeId, request.ActorId, request.NewStartDate,
+            request.NewEndDate, request.ExpectedVersion
+        }) : ScheduleHash(new
         {
             request.EmployeeId, request.ActorId, isException, request.Contract, request.EffectiveFrom,
             request.ExpectedVersion, request.Kind, request.WorkDate, request.SourceAssignmentIds,
@@ -87,26 +104,31 @@ public sealed partial class StaffOperations
         if (request.Action == WorkPatternAction.Get)
             return await WorkPatternViewOfAsync(state, cancellationToken);
         if (state.Version != request.ExpectedVersion) throw new StaffOnboardingException("STALE_VERSION");
-        if (!isException)
+        if (isRenewal)
+            PrepareContractRenewal(request, state);
+        else if (!isException)
         {
             await ValidateContractAsync(request.Contract, null, cancellationToken);
-            if (request.EffectiveFrom <= VietnamTimeBoundary.GetDate(timeProvider))
+            if (request.EffectiveFrom < VietnamTimeBoundary.GetDate(timeProvider))
                 throw new StaffOnboardingException("EFFECTIVE_DATE_TOO_SOON", 400);
             if (state.Patterns.Any(item => item.EffectiveFrom > request.EffectiveFrom))
                 throw new StaffOnboardingException("EFFECTIVE_DATE_PRECEDES_REVISION", 400);
         }
-        var plan = isException ? PlanException(request, state) : PlanPattern(request, state);
+        var plan = isRenewal ? PlanContractRenewal(request, state) : isException ? PlanException(request, state) : PlanPattern(request, state);
         var stateHash = ScheduleStateHash(state, plan);
         if (!isConfirm)
         {
-            var previewToken = ProtectSchedulePreview(isException ? request.Kind! : "Pattern", request.EmployeeId,
+            var previewToken = ProtectSchedulePreview(previewKind, request.EmployeeId,
                 request.ActorId, proposalHash, stateHash);
             await transaction.CommitAsync(cancellationToken);
             return plan.Result with { PreviewToken = previewToken };
         }
-        ValidateSchedulePreview(request.PreviewToken, isException ? request.Kind! : "Pattern", request.EmployeeId,
+        ValidateSchedulePreview(request.PreviewToken, previewKind, request.EmployeeId,
             request.ActorId, proposalHash, stateHash);
         var response = await ApplySchedulePlanAsync(request, state, plan, proposalHash, isException, cancellationToken);
+        if (response.Version > state.Version &&
+            (isRenewal || isContractChange && request.EffectiveFrom <= state.Today))
+            SynchronizeRenewedEmployment(request, state);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return response;
@@ -151,10 +173,14 @@ public sealed partial class StaffOperations
 
     private sealed record ScheduleState(Employee Employee, List<StaffScheduleChange> Patterns,
         List<StaffScheduleChange> Exceptions, List<EmployeeShift> Assignments, List<PoolDutySchedule> Duties,
-        Dictionary<Guid, Shift> Shifts)
+        Dictionary<Guid, Shift> Shifts, DateOnly Today)
     {
         public long Version => Math.Max(Patterns.Select(item => item.AppliedVersion!.Value).DefaultIfEmpty().Max(), Exceptions.Select(item => item.AppliedVersion!.Value).DefaultIfEmpty().Max());
         public ContractTerms? Contract => Patterns.Count == 0 ? null : ScheduleDeserialize<ContractTerms>(Patterns[^1].ContractJson!);
+        public ContractTerms? CurrentContract => CurrentPattern is null ? null : ScheduleDeserialize<ContractTerms>(CurrentPattern.ContractJson!);
+        public StaffScheduleChange? CurrentPattern => Patterns.Where(item => item.EffectiveFrom <= Today)
+            .OrderByDescending(item => item.EffectiveFrom).ThenByDescending(item => item.AppliedVersion).FirstOrDefault()
+            ?? Patterns.OrderBy(item => item.EffectiveFrom).ThenByDescending(item => item.AppliedVersion).FirstOrDefault();
         public bool IsPatternGenerated(EmployeeShift assignment) => Patterns.Any(item => item.Id == assignment.ScheduleChangeId);
         public bool Eligible => Employee.Status == "Working" && Employee.User.IsDeleted != true &&
             string.Equals(Employee.User.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase);
@@ -165,17 +191,19 @@ public sealed partial class StaffOperations
         var assignmentShiftIds = await context.EmployeeShifts.Where(item => item.EmployeeId == employee.UserId).Select(item => item.ShiftId).Distinct().ToListAsync(cancellationToken);
         var dutyShiftIds = await context.PoolDutySchedules.Where(item => item.AssignedEmployeeId == employee.UserId && item.ShiftId.HasValue)
             .Select(item => item.ShiftId!.Value).Distinct().ToListAsync(cancellationToken);
-        var ids = assignmentShiftIds.Concat(dutyShiftIds).Concat(request.Contract?.WeeklyPattern?.Where(item => item is not null)
+        var patterns = await AppliedPatterns.Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.AppliedVersion).ToListAsync(cancellationToken);
+        var patternShiftIds = patterns.SelectMany(item => ScheduleDeserialize<ContractTerms>(item.ContractJson!).WeeklyPattern)
+            .SelectMany(item => item.ShiftIds);
+        var ids = assignmentShiftIds.Concat(dutyShiftIds).Concat(patternShiftIds).Concat(request.Contract?.WeeklyPattern?.Where(item => item is not null)
             .SelectMany(item => item.ShiftIds ?? []) ?? []).Concat(request.DestinationShiftId.HasValue ? [request.DestinationShiftId.Value] : []).Distinct().Order().ToArray();
         foreach (var id in ids) await LockShiftAsync(id, cancellationToken);
         await context.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM smart_pool.employee_shifts WHERE employee_id = {employee.UserId} ORDER BY id FOR UPDATE", cancellationToken);
         await context.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM smart_pool.pool_duty_schedules WHERE assigned_employee_id = {employee.UserId} ORDER BY id FOR UPDATE", cancellationToken);
-        var patterns = await AppliedPatterns.Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.AppliedVersion).ToListAsync(cancellationToken);
         var exceptions = await AppliedExceptions.Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.AppliedVersion).ToListAsync(cancellationToken);
         var assignments = await context.EmployeeShifts.Include(item => item.Shift).Where(item => item.EmployeeId == employee.UserId).OrderBy(item => item.Id).ToListAsync(cancellationToken);
         var duties = await context.PoolDutySchedules.Include(item => item.Shift).Where(item => item.AssignedEmployeeId == employee.UserId).OrderBy(item => item.Id).ToListAsync(cancellationToken);
         var shifts = await context.Shifts.Where(item => ids.Contains(item.Id)).ToDictionaryAsync(item => item.Id, cancellationToken);
-        return new(employee, patterns, exceptions, assignments, duties, shifts);
+        return new(employee, patterns, exceptions, assignments, duties, shifts, VietnamTimeBoundary.GetDate(timeProvider));
     }
 
     private async Task<WorkPatternView> WorkPatternViewOfAsync(ScheduleState state, CancellationToken cancellationToken)
@@ -201,12 +229,18 @@ public sealed partial class StaffOperations
             state.Exceptions.Select(item => new ScheduleExceptionView(item.Id, item.Kind, item.WorkDate!.Value,
                 ScheduleDeserialize<Guid[]>(item.SourceAssignmentIdsJson!), item.DestinationShiftId, item.Reason!, item.AppliedVersion!.Value,
                 item.DestinationEmployeeId, item.DestinationEmployeeId.HasValue ? replacementNames.GetValueOrDefault(item.DestinationEmployeeId.Value) : null)).ToList(), hours, deliveries,
-            await ContractShiftsAsync(state.Contract, cancellationToken));
+            await ContractShiftsAsync(state.Contract, cancellationToken),
+            new(state.CurrentContract, state.Today, state.CurrentContract is not null && state.Today > state.CurrentContract.EndDate,
+                state.Patterns.Any(item => item.EffectiveFrom > state.Today), state.Employee.Status,
+                RenewalAccountActive(state.Employee), state.Employee.Status == "Inactive" && state.Employee.ContractInactiveSinceUtc is null));
     }
 
     private string ScheduleStateHash(ScheduleState state, SchedulePlan plan) => ScheduleHash(new
     {
         state.Version, state.Eligible, Today = VietnamTimeBoundary.GetDate(timeProvider),
+        state.Employee.Status, state.Employee.ContractInactiveSinceUtc, state.Employee.ManualAccessEnabled,
+        AccountStatus = state.Employee.User.Status, state.Employee.User.IsDeleted,
+        RoleId = state.Employee.User.Role?.Id, RoleDeleted = state.Employee.User.Role?.IsDeleted,
         Patterns = state.Patterns.Select(item => new { item.Id, item.ContractJson, item.EffectiveFrom, item.AppliedVersion }),
         Exceptions = state.Exceptions.Select(item => new { item.Id, item.Kind, item.WorkDate, item.SourceAssignmentIdsJson, item.DestinationShiftId, item.DestinationEmployeeId, item.AppliedVersion }),
         Assignments = state.Assignments.Select(item => new { item.Id, item.ShiftId, item.WorkDate, item.Status, item.CheckInTime, item.CheckOutTime, item.CheckInMethod, item.CheckOutMethod, item.UpdatedAt, item.ScheduleChangeId }),
@@ -217,26 +251,32 @@ public sealed partial class StaffOperations
         plan.Result
     });
 
-    private SchedulePlan PlanPattern(WorkPatternCommand request, ScheduleState state)
+    private SchedulePlan PlanPattern(WorkPatternCommand request, ScheduleState state, DateOnly? appendFrom = null)
     {
         var contract = request.Contract ?? throw new StaffOnboardingException("CONTRACT_REQUIRED", 400);
         var details = new List<ScheduleDetail>();
         var create = new List<ScheduleCandidate>();
         var cancel = new List<EmployeeShift>();
         var unassign = new List<PoolDutySchedule>();
-        if (!state.Eligible)
+        var eligible = appendFrom.HasValue ? RenewalAccountActive(state.Employee) &&
+            (state.Employee.Status == "Working" || state.Employee.Status == "Inactive" && state.Employee.ContractInactiveSinceUtc.HasValue) :
+            state.Eligible || state.Employee.Status == "Inactive" && state.Employee.ContractInactiveSinceUtc.HasValue &&
+                RenewalAccountActive(state.Employee);
+        if (!eligible)
         {
             details.Add(new(contract.StartDate, null, "employee_ineligible", "Không tạo lịch vì nhân viên chưa hoạt động."));
             return new(new ScheduleResult(null, 0, 0, 1, 0, details, [], "skipped_ineligible"), cancel, create, unassign);
         }
         var today = VietnamTimeBoundary.GetDate(timeProvider);
         var firstDate = Max(contract.StartDate, request.EffectiveFrom, today.AddDays(1));
+        if (appendFrom > firstDate) firstDate = appendFrom.Value;
         var generated = new List<ScheduleCandidate>();
 
+        var excludedStart = appendFrom ?? contract.StartDate;
         var lastExcluded = contract.EndDate < today ? contract.EndDate : today;
-        for (var offset = 0; offset <= lastExcluded.DayNumber - contract.StartDate.DayNumber; offset++)
+        for (var offset = 0; offset <= lastExcluded.DayNumber - excludedStart.DayNumber; offset++)
         {
-            var date = contract.StartDate.AddDays(offset);
+            var date = excludedStart.AddDays(offset);
             var day = contract.WeeklyPattern.FirstOrDefault(item => item.DayOfWeek == IsoDay(date));
             if (day is not null && day.ShiftIds.Count > 0)
                 details.Add(new(date, null, "excluded_today_or_past", "Không tạo ca cho ngày hiện tại hoặc đã qua; lịch bắt đầu từ ngày mai."));
@@ -275,7 +315,7 @@ public sealed partial class StaffOperations
             }
         }
 
-        var priorGenerated = state.Assignments.Where(item => state.IsPatternGenerated(item) && item.WorkDate >= request.EffectiveFrom &&
+        var priorGenerated = state.Assignments.Where(item => !appendFrom.HasValue && state.IsPatternGenerated(item) && item.WorkDate > today && item.WorkDate >= request.EffectiveFrom &&
             item.Status == "Scheduled" && item.CheckInTime is null && item.CheckOutTime is null).ToList();
         foreach (var old in priorGenerated)
         {
@@ -315,10 +355,79 @@ public sealed partial class StaffOperations
 
         var conflictCount = details.Count(item => item.Code is "overlap" or "exact_tuple" or "shift_unavailable");
         var skippedCount = details.Count(item => item.Code is "exception_preserved" or "duty_unassigned" or "excluded_today_or_past");
+        var protectedCount = appendFrom.HasValue ? state.Assignments.Count(item => item.WorkDate >= today && item.WorkDate <= contract.EndDate) : 0;
         var result = new ScheduleResult(null, create.Count, cancel.Count, skippedCount, conflictCount, details,
             unassign.Select(item => new AffectedScheduleTask(item.Id, item.DutyDate, request.EmployeeId, item.Status)).ToList(),
-            conflictCount == 0 ? "completed" : create.Count + cancel.Count > 0 ? "partial" : "conflict");
+            appendFrom.HasValue ? conflictCount == 0 ? "completed" : "partial" :
+                conflictCount == 0 ? "completed" : create.Count + cancel.Count > 0 ? "partial" : "conflict",
+            ProtectedCount: protectedCount);
         return new(result, cancel, create, unassign);
+    }
+
+    private static bool RenewalAccountActive(Employee employee) => employee.User.IsDeleted != true &&
+        (string.Equals(employee.User.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase) ||
+         employee.ContractInactiveSinceUtc.HasValue && string.Equals(employee.User.Status, "LOCKED", StringComparison.OrdinalIgnoreCase)) &&
+        employee.User.Role is not null && employee.User.Role.IsDeleted != true && IsEligibleEmploymentRole(employee.User.Role.Name);
+
+    private static void PrepareContractRenewal(WorkPatternCommand request, ScheduleState state)
+    {
+        var previous = state.CurrentContract ?? throw new StaffOnboardingException("RENEWAL_CONTRACT_REQUIRED", 400);
+        if (state.Patterns.Any(item => item.EffectiveFrom > state.Today))
+            throw new StaffOnboardingException("RENEWAL_PENDING_REVISION");
+        if (state.Today < previous.StartDate) throw new StaffOnboardingException("RENEWAL_NOT_STARTED", 400);
+        if (state.Today <= previous.EndDate)
+        {
+            if (request.NewStartDate.HasValue && request.NewStartDate != previous.StartDate)
+                throw new StaffOnboardingException("RENEWAL_START_DATE_FIXED", 400);
+            if (request.NewEndDate <= previous.EndDate) throw new StaffOnboardingException("INVALID_RENEWAL_DATES", 400);
+            request.Contract = previous with { EndDate = request.NewEndDate };
+            request.EffectiveFrom = state.Today;
+        }
+        else
+        {
+            if (request.NewStartDate is null || request.NewStartDate < state.Today || request.NewStartDate <= previous.EndDate ||
+                request.NewEndDate < request.NewStartDate)
+                throw new StaffOnboardingException("INVALID_RENEWAL_DATES", 400);
+            request.Contract = previous with { StartDate = request.NewStartDate.Value, EndDate = request.NewEndDate };
+            request.EffectiveFrom = request.NewStartDate.Value;
+        }
+    }
+
+    private SchedulePlan PlanContractRenewal(WorkPatternCommand request, ScheduleState state)
+    {
+        var previous = state.CurrentContract!;
+        return PlanPattern(request, state, state.Today <= previous.EndDate ? previous.EndDate.AddDays(1) : request.Contract!.StartDate);
+    }
+
+    private void SynchronizeRenewedEmployment(WorkPatternCommand request, ScheduleState state)
+    {
+        var employee = state.Employee;
+        if (employee.ManualAccessEnabled && employee.Status == "Working") return;
+        if (!new[] { "SALES", "LIFEGUARD", "COACH" }.Contains(employee.User.Role?.Name, StringComparer.OrdinalIgnoreCase)) return;
+        var active = state.Today >= request.EffectiveFrom && state.Today >= request.Contract!.StartDate && state.Today <= request.Contract.EndDate;
+        if (employee.Status == "Working" && !active)
+        {
+            employee.Status = "Inactive";
+            var contractOwnsAccountLock = employee.User.IsDeleted != true &&
+                string.Equals(employee.User.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase);
+            employee.ContractInactiveSinceUtc = contractOwnsAccountLock ? OnboardingNow : null;
+            employee.UpdatedAt = OnboardingNow;
+            if (contractOwnsAccountLock)
+            {
+                employee.User.Status = "LOCKED";
+                employee.User.UpdatedAt = OnboardingNow;
+            }
+        }
+        else if (employee.Status == "Inactive" && employee.ContractInactiveSinceUtc.HasValue && active &&
+            employee.User.IsDeleted != true && string.Equals(employee.User.Status, "LOCKED", StringComparison.OrdinalIgnoreCase) &&
+            employee.User.Role is not null && IsEligibleEmploymentRole(employee.User.Role.Name))
+        {
+            employee.Status = "Working";
+            employee.ContractInactiveSinceUtc = null;
+            employee.UpdatedAt = OnboardingNow;
+            employee.User.Status = "ACTIVE";
+            employee.User.UpdatedAt = OnboardingNow;
+        }
     }
 
     private SchedulePlan PlanException(WorkPatternCommand request, ScheduleState state)

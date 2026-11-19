@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 export const invitationRoleOptions = [
   { value: "SALES", label: "Nhân viên bán vé" },
   { value: "LIFEGUARD", label: "Nhân viên cứu hộ" },
-  { value: "COACH", label: "Huấn luyện viên" },
 ];
 
 export const stateLabels = {

@@ -71,6 +71,10 @@ export default function StaffWorkPatternPanel({ employeeId }) {
   const [reason, setReason] = useState("");
   const [exceptionPreview, setExceptionPreview] = useState(null);
   const [exceptionProposal, setExceptionProposal] = useState(null);
+  const [renewalStartDate, setRenewalStartDate] = useState("");
+  const [renewalEndDate, setRenewalEndDate] = useState("");
+  const [renewalPreview, setRenewalPreview] = useState(null);
+  const [renewalProposal, setRenewalProposal] = useState(null);
   const guard = useRef(false);
 
   const refresh = async () => {
@@ -83,11 +87,14 @@ export default function StaffWorkPatternPanel({ employeeId }) {
         );
       form.setFieldsValue({ contract: toContract(refreshed.data.contract) });
       await Promise.all([
+        cache.invalidateQueries({ queryKey: ["staffs"] }),
         cache.invalidateQueries({ queryKey: ["staff-schedule-page"] }),
         cache.invalidateQueries({ queryKey: ["staff-schedule", employeeId] }),
       ]);
       setPreview(null);
       setProposal(null);
+      setRenewalPreview(null);
+      setRenewalProposal(null);
       setPendingOperation(null);
       setUncertain(false);
       return refreshed.data;
@@ -195,6 +202,62 @@ export default function StaffWorkPatternPanel({ employeeId }) {
         setPendingOperation(null);
         await refresh();
         setPreview(result.result);
+      },
+    );
+  };
+
+  const previewRenewal = async () => {
+    const renewal = view?.renewal;
+    if (!renewal?.currentContract) return;
+    if (!renewalEndDate) {
+      setError("Chọn ngày kết thúc mới cho hợp đồng.");
+      return;
+    }
+    if (!renewal.isExpired && renewalEndDate <= renewal.currentContract.endDate) {
+      setError("Ngày kết thúc mới phải sau ngày kết thúc hợp đồng hiện tại.");
+      return;
+    }
+    if (
+      renewal.isExpired &&
+      (!renewalStartDate ||
+        renewalStartDate < renewal.today ||
+        renewalStartDate <= renewal.currentContract.endDate ||
+        renewalEndDate < renewalStartDate)
+    ) {
+      setError("Chọn kỳ hợp đồng mới sau kỳ cũ và không bắt đầu trong quá khứ.");
+      return;
+    }
+    const payload = {
+      newStartDate: renewal.isExpired ? renewalStartDate : undefined,
+      newEndDate: renewalEndDate,
+      expectedVersion: view.version,
+    };
+    setRenewalPreview(null);
+    setRenewalProposal(payload);
+    await mutate(
+      () => workPatternService.previewRenewal(employeeId, payload),
+      (result) => setRenewalPreview(result),
+      { markUncertain: false },
+    );
+  };
+
+  const confirmRenewal = async () => {
+    if (!renewalPreview?.previewToken || !renewalProposal) return;
+    const operationId = pendingOperation?.operationId || crypto.randomUUID();
+    const payload = {
+      ...renewalProposal,
+      previewToken: renewalPreview.previewToken,
+      operationId,
+    };
+    setPendingOperation(payload);
+    await mutate(
+      () => workPatternService.confirmRenewal(employeeId, payload),
+      async (result) => {
+        setRenewalPreview(null);
+        setRenewalProposal(null);
+        setPendingOperation(null);
+        await refresh();
+        setRenewalPreview(result.result);
       },
     );
   };
@@ -337,6 +400,103 @@ export default function StaffWorkPatternPanel({ employeeId }) {
               shifts={view.shifts || []}
             />
           )}
+          {view.renewal?.currentContract && (
+            <section className="staff-contract-stack" aria-labelledby="contract-renewal-title">
+              <Typography.Title id="contract-renewal-title" level={5}>
+                Gia hạn hợp đồng
+              </Typography.Title>
+              {view.renewal.hasPendingRevision ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  title="Có phiên bản hợp đồng chờ áp dụng"
+                  description="Chờ phiên bản này có hiệu lực trước khi gia hạn tiếp."
+                />
+              ) : (
+                <>
+                  {view.renewal.manuallyInactive && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      title="Nhân viên đang không hoạt động thủ công"
+                      description="Gia hạn không tự chuyển trạng thái nhân viên về đang làm việc."
+                    />
+                  )}
+                  {!view.renewal.accountActive && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      title="Tài khoản nhân viên đang bị vô hiệu hóa"
+                      description="Gia hạn không tự kích hoạt lại tài khoản này."
+                    />
+                  )}
+                  <Space wrap align="end">
+                    {view.renewal.isExpired && (
+                      <label className="service-filter-control">
+                        <span>Ngày bắt đầu kỳ mới</span>
+                        <DatePicker
+                          value={renewalStartDate ? dayjs(renewalStartDate) : null}
+                          onChange={(value) => {
+                            setRenewalStartDate(value?.format("YYYY-MM-DD") || "");
+                            setRenewalPreview(null);
+                            setRenewalProposal(null);
+                          }}
+                          format="DD/MM/YYYY"
+                          disabledDate={(date) =>
+                            date.format("YYYY-MM-DD") < view.renewal.today ||
+                            date.format("YYYY-MM-DD") <= view.renewal.currentContract.endDate
+                          }
+                        />
+                      </label>
+                    )}
+                    <label className="service-filter-control">
+                      <span>Ngày kết thúc mới</span>
+                      <DatePicker
+                        value={renewalEndDate ? dayjs(renewalEndDate) : null}
+                        onChange={(value) => {
+                          setRenewalEndDate(value?.format("YYYY-MM-DD") || "");
+                          setRenewalPreview(null);
+                          setRenewalProposal(null);
+                        }}
+                        format="DD/MM/YYYY"
+                        disabledDate={(date) =>
+                          date.format("YYYY-MM-DD") <=
+                          (view.renewal.isExpired
+                            ? renewalStartDate || view.renewal.currentContract.endDate
+                            : view.renewal.currentContract.endDate)
+                        }
+                      />
+                    </label>
+                    <Button
+                      disabled={busy || uncertain}
+                      loading={busy}
+                      onClick={previewRenewal}
+                    >
+                      Xem trước gia hạn
+                    </Button>
+                  </Space>
+                  {renewalPreview && (
+                    <>
+                      <ScheduleOperationResult
+                        result={renewalPreview}
+                        preview={!renewalPreview.operationId}
+                      />
+                      {renewalPreview.previewToken && (
+                        <Button
+                          type="primary"
+                          disabled={busy || uncertain}
+                          loading={busy}
+                          onClick={confirmRenewal}
+                        >
+                          Xác nhận gia hạn
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </section>
+          )}
           <Form
             form={form}
             layout="vertical"
@@ -346,7 +506,7 @@ export default function StaffWorkPatternPanel({ employeeId }) {
             }
             initialValues={{
               contract: toContract(view.contract),
-              effectiveFrom: dayjs(vietnamToday()).add(1, "day"),
+              effectiveFrom: dayjs(vietnamToday()),
             }}
             onValuesChange={() => {
               setPreview(null);
@@ -355,6 +515,12 @@ export default function StaffWorkPatternPanel({ employeeId }) {
             }}
           >
             <ContractTermsFields form={form} shifts={shifts} />
+            <Alert
+              type="info"
+              showIcon
+              title="Áp dụng hợp đồng từ hôm nay"
+              description="Hợp đồng có hiệu lực ngay, nhưng không sinh bù ca hôm nay. Tài khoản bị vô hiệu hóa thủ công vẫn giữ trạng thái đó."
+            />
             <Form.Item
               name="effectiveFrom"
               label="Áp dụng từ ngày"
@@ -362,11 +528,11 @@ export default function StaffWorkPatternPanel({ employeeId }) {
                 { required: true, message: "Chọn ngày bắt đầu áp dụng." },
                 {
                   validator: (_, value) =>
-                    !value || value.format("YYYY-MM-DD") > vietnamToday()
+                    !value || value.format("YYYY-MM-DD") >= vietnamToday()
                       ? Promise.resolve()
                       : Promise.reject(
                           new Error(
-                            "Thay đổi thường kỳ chỉ áp dụng từ ngày mai trở đi.",
+                            "Thay đổi thường kỳ chỉ áp dụng từ hôm nay trở đi.",
                           ),
                         ),
                 },
@@ -375,7 +541,7 @@ export default function StaffWorkPatternPanel({ employeeId }) {
               <DatePicker
                 format="DD/MM/YYYY"
                 disabledDate={(date) =>
-                  date.format("YYYY-MM-DD") <= vietnamToday()
+                  date.format("YYYY-MM-DD") < vietnamToday()
                 }
               />
             </Form.Item>

@@ -1,12 +1,199 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using SmartPool.Application.Features.ManageStaffs.Onboarding;
 using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 using SmartPool.Domain.Entities;
+using SmartPool.Infrastructure.Services;
 
 namespace SmartPool.IntegrationTests.ManageStaffs;
 
 public sealed class StaffWorkPatternIntegrationTests
 {
+    [Fact]
+    public async Task SameDayContractRestoresOnlyContractOwnedLocksAndPreservesTodayShifts()
+    {
+        await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
+        var context = fixture.Context;
+        var employee = await context.Employees.Include(item => item.User)
+            .SingleAsync(item => item.UserId == fixture.EmployeeId);
+        var initialCommand = fixture.PatternCommand(fixture.Contract(fixture.Today.AddDays(1)), fixture.Today, 0);
+        var initial = await fixture.ConfirmAsync(initialCommand, await fixture.PreviewAsync(initialCommand), Guid.NewGuid());
+        Assert.Equal("Working", employee.Status);
+
+        fixture.Clock.Now = fixture.Clock.Now.AddDays(2);
+        var policy = new StaffContractAccessPolicy(context, fixture.Clock);
+        await new StaffContractLifecycle(context, policy, fixture.Clock).SynchronizeEmployeeAsync(fixture.EmployeeId);
+        await context.Entry(employee).ReloadAsync();
+        await context.Entry(employee.User).ReloadAsync();
+        Assert.Equal("Inactive", employee.Status);
+        Assert.Equal("LOCKED", employee.User.Status);
+        Assert.NotNull(employee.ContractInactiveSinceUtc);
+
+        var todayAssignment = await fixture.AddAssignmentAsync(fixture.Today, fixture.MorningShiftId);
+        todayAssignment.ScheduleChangeId = await context.StaffScheduleChanges
+            .Where(item => item.EmployeeId == fixture.EmployeeId && item.AppliedVersion == initial.Version)
+            .Select(item => item.Id).SingleAsync();
+        await context.SaveChangesAsync();
+        var contract = fixture.Contract(fixture.Today.AddDays(3), [fixture.AfternoonShiftId]);
+        var command = fixture.PatternCommand(contract, fixture.Today, initial.Version);
+        var preview = await fixture.PreviewAsync(command);
+        Assert.Equal(3, preview.CreatedCount);
+        Assert.Equal(0, preview.CancelledCount);
+        var confirmed = await fixture.ConfirmAsync(command, preview, Guid.NewGuid());
+        Assert.Equal("Working", employee.Status);
+        Assert.Equal("ACTIVE", employee.User.Status);
+        Assert.Null(employee.ContractInactiveSinceUtc);
+        Assert.True((await policy.EvaluateAsync(fixture.EmployeeId, "SALES")).IsAllowed);
+        Assert.Equal("Scheduled", todayAssignment.Status);
+        Assert.False(await context.EmployeeShifts.AnyAsync(item => item.EmployeeId == fixture.EmployeeId &&
+            item.WorkDate == fixture.Today && item.ShiftId == fixture.AfternoonShiftId));
+
+        await fixture.Operations.UpdateStaffAsync(new()
+        { UserId = fixture.EmployeeId, Status = "Inactive" }, default);
+        var manualCommand = fixture.PatternCommand(contract with { EndDate = contract.EndDate.AddDays(1) },
+            fixture.Today, confirmed.Version);
+        var manualPreview = await fixture.PreviewAsync(manualCommand);
+        Assert.Equal("skipped_ineligible", manualPreview.Status);
+        var manual = await fixture.ConfirmAsync(manualCommand, manualPreview, Guid.NewGuid());
+        Assert.Equal("Inactive", employee.Status);
+        Assert.Equal("LOCKED", employee.User.Status);
+        Assert.Null(employee.ContractInactiveSinceUtc);
+        Assert.False((await policy.EvaluateAsync(fixture.EmployeeId, "SALES")).IsAllowed);
+
+        employee.Status = "Working";
+        employee.User.Status = "ACTIVE";
+        await context.SaveChangesAsync();
+        var futureCommand = fixture.PatternCommand(contract with
+        { StartDate = fixture.Today.AddDays(1), EndDate = fixture.Today.AddDays(5) },
+            fixture.Today.AddDays(1), manual.Version);
+        await fixture.ConfirmAsync(futureCommand, await fixture.PreviewAsync(futureCommand), Guid.NewGuid());
+        Assert.Equal("Working", employee.Status);
+        Assert.Equal("ACTIVE", employee.User.Status);
+        Assert.True((await policy.EvaluateAsync(fixture.EmployeeId, "SALES")).IsAllowed);
+    }
+
+    [Fact]
+    public async Task RenewalPreservesPeriodsReceiptsAndEmploymentBlocks()
+    {
+        await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
+        var context = fixture.Context;
+        var policy = new StaffContractAccessPolicy(context, fixture.Clock);
+        var lifecycle = new StaffContractLifecycle(context, policy, fixture.Clock);
+        var employee = await context.Employees.Include(item => item.User).SingleAsync(item => item.UserId == fixture.EmployeeId);
+
+        WorkPatternCommand Renewal(long version, DateOnly end, DateOnly? start = null) => new()
+        {
+            EmployeeId = fixture.EmployeeId, ActorId = fixture.AdminId, Action = WorkPatternAction.RenewalPreview,
+            ExpectedVersion = version, NewEndDate = end, NewStartDate = start
+        };
+        async Task<ScheduleResult> Preview(WorkPatternCommand command) =>
+            Assert.IsType<ScheduleResult>(await fixture.Operations.ExecuteWorkPatternAsync(command, default));
+        async Task<WorkPatternResponse> Confirm(WorkPatternCommand command, ScheduleResult preview)
+        {
+            command.Action = WorkPatternAction.RenewalConfirm;
+            command.PreviewToken = preview.PreviewToken;
+            command.OperationId = Guid.NewGuid();
+            return Assert.IsType<WorkPatternResponse>(await fixture.Operations.ExecuteWorkPatternAsync(command, default));
+        }
+        async Task Reject(WorkPatternCommand command, string code)
+        {
+            var exception = await Assert.ThrowsAsync<StaffOnboardingException>(() => fixture.Operations.ExecuteWorkPatternAsync(command, default));
+            Assert.Equal(code, exception.Code);
+        }
+
+        await Reject(Renewal(0, fixture.Today.AddDays(5)), "RENEWAL_CONTRACT_REQUIRED");
+        var initial = Contract(fixture, fixture.Today.AddDays(4), [fixture.MorningShiftId]);
+        var setup = fixture.PatternCommand(initial, fixture.Today.AddDays(1), 0);
+        var first = await fixture.ConfirmAsync(setup, await fixture.PreviewAsync(setup), Guid.NewGuid());
+        fixture.Clock.Now = fixture.Clock.Now.AddDays(1);
+        var original = await context.StaffScheduleChanges.AsNoTracking().SingleAsync(item => item.EmployeeId == fixture.EmployeeId);
+        var cancelled = await fixture.AddAssignmentAsync(initial.EndDate.AddDays(1), fixture.MorningShiftId, "Cancelled");
+        var attended = await fixture.AddAssignmentAsync(initial.EndDate.AddDays(2), fixture.AfternoonShiftId, "Present", fixture.Clock.Now.UtcDateTime);
+        var duty = await fixture.AddDutyAsync(initial.EndDate.AddDays(1), fixture.MorningShiftId);
+
+        await Reject(Renewal(first.Version, initial.EndDate), "INVALID_RENEWAL_DATES");
+        var extensionCommand = Renewal(first.Version, initial.EndDate.AddDays(3));
+        var extensionPreview = await Preview(extensionCommand);
+        Assert.Equal(2, extensionPreview.CreatedCount);
+        Assert.Equal(0, extensionPreview.CancelledCount);
+        Assert.True(extensionPreview.ProtectedCount >= 2);
+        Assert.Empty(extensionPreview.AffectedTasks);
+        var extension = await Confirm(extensionCommand, extensionPreview);
+        Assert.Equal(initial.StartDate, extension.Contract!.StartDate);
+        Assert.Equal(initial.EmploymentType, extension.Contract.EmploymentType);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(initial.WeeklyPattern), System.Text.Json.JsonSerializer.Serialize(extension.Contract.WeeklyPattern));
+        Assert.Equal(original.ContractJson, (await context.StaffScheduleChanges.AsNoTracking().SingleAsync(item => item.Id == original.Id)).ContractJson);
+        Assert.Equal("Cancelled", cancelled.Status);
+        Assert.Equal("Present", attended.Status);
+        Assert.Equal("Scheduled", duty.Status);
+        var count = await context.EmployeeShifts.CountAsync(item => item.EmployeeId == fixture.EmployeeId);
+        var replay = Assert.IsType<WorkPatternResponse>(await fixture.Operations.ExecuteWorkPatternAsync(extensionCommand, default));
+        Assert.Equal(extension.Version, replay.Version);
+        Assert.Equal(count, await context.EmployeeShifts.CountAsync(item => item.EmployeeId == fixture.EmployeeId));
+        Assert.Equal(2, await context.StaffScheduleChanges.CountAsync(item => item.EmployeeId == fixture.EmployeeId));
+        var receipt = Assert.IsType<WorkPatternResponse>(await fixture.Operations.ExecuteWorkPatternAsync(new()
+        {
+            Action = WorkPatternAction.Receipt, EmployeeId = fixture.EmployeeId, ActorId = fixture.AdminId, OperationId = extensionCommand.OperationId
+        }, default));
+        Assert.Equal(extension.Version, receipt.Version);
+        await Reject(Renewal(first.Version, extension.Contract.EndDate.AddDays(1)), "STALE_VERSION");
+        var stale = Renewal(extension.Version, extension.Contract.EndDate.AddDays(1));
+        var stalePreview = await Preview(stale);
+        await fixture.AddAssignmentAsync(stale.NewEndDate, fixture.AfternoonShiftId);
+        stale.Action = WorkPatternAction.RenewalConfirm;
+        stale.PreviewToken = stalePreview.PreviewToken;
+        stale.OperationId = Guid.NewGuid();
+        await Reject(stale, "STALE_PREVIEW");
+        Assert.Equal(2, await context.StaffScheduleChanges.CountAsync(item => item.EmployeeId == fixture.EmployeeId));
+
+        fixture.Clock.Now = fixture.Clock.Now.AddDays(extension.Contract.EndDate.DayNumber - fixture.Today.DayNumber + 1);
+        await lifecycle.SynchronizeEmployeeAsync(fixture.EmployeeId);
+        var todayRenewal = Renewal(extension.Version, fixture.Today.AddDays(2), fixture.Today);
+        var renewed = await Confirm(todayRenewal, await Preview(todayRenewal));
+        Assert.Equal(fixture.Today, renewed.Contract!.StartDate);
+        Assert.Equal("Working", employee.Status);
+        Assert.Null(employee.ContractInactiveSinceUtc);
+        Assert.True((await policy.EvaluateAsync(fixture.EmployeeId, "SALES")).IsAllowed);
+        Assert.False(await context.EmployeeShifts.AnyAsync(item => item.EmployeeId == fixture.EmployeeId && item.WorkDate == fixture.Today && item.ScheduleChangeId != null));
+
+        fixture.Clock.Now = fixture.Clock.Now.AddDays(3);
+        await lifecycle.SynchronizeEmployeeAsync(fixture.EmployeeId);
+        var futureCommand = Renewal(renewed.Version, fixture.Today.AddDays(4), fixture.Today.AddDays(2));
+        var future = await Confirm(futureCommand, await Preview(futureCommand));
+        Assert.Equal("Inactive", employee.Status);
+        Assert.NotNull(employee.ContractInactiveSinceUtc);
+        Assert.False((await policy.EvaluateAsync(fixture.EmployeeId, "SALES")).IsAllowed);
+        var view = Assert.IsType<WorkPatternView>(await fixture.Operations.ExecuteWorkPatternAsync(new()
+        { EmployeeId = fixture.EmployeeId, ActorId = fixture.AdminId, Action = WorkPatternAction.Get }, default));
+        Assert.True(view.Renewal!.HasPendingRevision);
+        Assert.Equal(renewed.Contract.EndDate, view.Renewal.CurrentContract!.EndDate);
+        await Reject(Renewal(future.Version, future.Contract!.EndDate.AddDays(1)), "RENEWAL_PENDING_REVISION");
+        fixture.Clock.Now = fixture.Clock.Now.AddDays(2);
+        Assert.True((await policy.EvaluateAsync(fixture.EmployeeId, "SALES")).IsAllowed);
+        await lifecycle.SynchronizeEmployeeAsync(fixture.EmployeeId);
+        await context.Entry(employee).ReloadAsync();
+        Assert.Equal("Working", employee.Status);
+
+        employee.Status = "Inactive";
+        employee.ContractInactiveSinceUtc = null;
+        await context.SaveChangesAsync();
+        var manualCommand = Renewal(future.Version, future.Contract.EndDate.AddDays(1));
+        var manual = await Confirm(manualCommand, await Preview(manualCommand));
+        Assert.Equal("skipped_ineligible", manual.Result.Status);
+        Assert.Equal("Inactive", employee.Status);
+        Assert.Null(employee.ContractInactiveSinceUtc);
+        Assert.False((await policy.EvaluateAsync(fixture.EmployeeId, "SALES")).IsAllowed);
+        employee.User.Status = "Inactive";
+        employee.ContractInactiveSinceUtc = fixture.Clock.Now.UtcDateTime;
+        await context.SaveChangesAsync();
+        var disabledCommand = Renewal(manual.Version, manual.Contract!.EndDate.AddDays(1));
+        var disabled = await Confirm(disabledCommand, await Preview(disabledCommand));
+        Assert.Equal("skipped_ineligible", disabled.Result.Status);
+        Assert.Equal("Inactive", employee.Status);
+        Assert.Equal("Inactive", employee.User.Status);
+        Assert.NotNull(employee.ContractInactiveSinceUtc);
+    }
+
     [Fact]
     public async Task ExtensionAddsOnlyNewDatesAndReplayDoesNotDuplicateRowsOrNotices()
     {

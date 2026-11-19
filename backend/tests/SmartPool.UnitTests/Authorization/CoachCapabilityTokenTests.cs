@@ -50,7 +50,8 @@ public sealed class CoachCapabilityTokenTests
                 ["JwtSettings:Audience"] = "SmartPoolClients",
                 ["JwtSettings:AccessTokenExpirationMinutes"] = "60"
             }).Build();
-        var service = new AccessTokenService(configuration, new SmartPoolDbContext());
+        var service = new AccessTokenService(configuration, new SmartPoolDbContext(),
+            Mock.Of<IStaffContractAccessPolicy>());
         var user = new User { Id = Guid.NewGuid() };
 
         var token = service.CreateToken(user, "CUSTOMER", ["CUSTOMER", "COACH"]);

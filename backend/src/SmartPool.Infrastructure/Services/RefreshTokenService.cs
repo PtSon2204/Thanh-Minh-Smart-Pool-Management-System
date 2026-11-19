@@ -17,14 +17,17 @@ public sealed class RefreshTokenService : IRefreshTokenService
     private readonly IAccessTokenService _accessTokens;
     private readonly SmartPoolDbContext _context;
     private readonly int _expirationDays;
+    private readonly IStaffContractAccessPolicy _contractAccess;
 
     public RefreshTokenService(
         IConfiguration configuration,
         IAccessTokenService accessTokens,
-        SmartPoolDbContext context)
+        SmartPoolDbContext context,
+        IStaffContractAccessPolicy contractAccess)
     {
         _accessTokens = accessTokens;
         _context = context;
+        _contractAccess = contractAccess;
 
         if (!int.TryParse(configuration["JwtSettings:RefreshTokenExpirationDays"], out _expirationDays) ||
             _expirationDays <= 0 || _expirationDays > 36500)
@@ -45,6 +48,13 @@ public sealed class RefreshTokenService : IRefreshTokenService
         if (user is null || user.IsDeleted == true ||
             !string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(user.PasswordHash, expectedPasswordHash, StringComparison.Ordinal))
+            return null;
+
+        var primaryRole = await _context.Roles.AsNoTracking()
+            .Where(item => item.Id == user.RoleId && item.IsDeleted != true)
+            .Select(item => item.Name).SingleOrDefaultAsync(cancellationToken);
+        if (primaryRole is null || !(await _contractAccess.EvaluateAsync(userId, primaryRole,
+                cancellationToken)).IsAllowed)
             return null;
 
         var token = GenerateToken(Guid.NewGuid());
@@ -111,6 +121,9 @@ public sealed class RefreshTokenService : IRefreshTokenService
         var role = await _context.Roles.AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == user.RoleId.Value, cancellationToken);
         if (role is null || role.IsDeleted == true || string.IsNullOrWhiteSpace(role.Name))
+            return null;
+
+        if (!(await _contractAccess.EvaluateAsync(user.Id, role.Name, cancellationToken)).IsAllowed)
             return null;
 
         var coachAvailable = user.IsCoach && string.Equals(role.Name, "CUSTOMER",

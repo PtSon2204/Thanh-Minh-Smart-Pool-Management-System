@@ -20,6 +20,14 @@ public sealed partial class StaffsController
     public Task<IActionResult> ConfirmWorkPattern(Guid employeeId, [FromBody] WorkPatternCommand command, CancellationToken cancellationToken)
     { command.EmployeeId = employeeId; command.Action = WorkPatternAction.Confirm; return WorkPatternAsync(command, cancellationToken); }
 
+    [HttpPost("{employeeId:guid}/work-pattern/renewal/preview"), Authorize(Policy = AuthorizationPolicies.AdminOnly), RequirePermission("staff_schedule", "create")]
+    public Task<IActionResult> PreviewContractRenewal(Guid employeeId, [FromBody] WorkPatternCommand command, CancellationToken cancellationToken)
+    { command.EmployeeId = employeeId; command.Action = WorkPatternAction.RenewalPreview; return WorkPatternAsync(command, cancellationToken); }
+
+    [HttpPost("{employeeId:guid}/work-pattern/renewal/confirm"), Authorize(Policy = AuthorizationPolicies.AdminOnly), RequirePermission("staff_schedule", "create")]
+    public Task<IActionResult> ConfirmContractRenewal(Guid employeeId, [FromBody] WorkPatternCommand command, CancellationToken cancellationToken)
+    { command.EmployeeId = employeeId; command.Action = WorkPatternAction.RenewalConfirm; return WorkPatternAsync(command, cancellationToken); }
+
     [HttpPost("{employeeId:guid}/work-pattern/exceptions/preview"), Authorize(Policy = AuthorizationPolicies.AdminOnly), RequirePermission("staff_schedule", "create")]
     public Task<IActionResult> PreviewScheduleException(Guid employeeId, [FromBody] WorkPatternCommand command, CancellationToken cancellationToken)
     { command.EmployeeId = employeeId; command.Action = WorkPatternAction.ExceptionPreview; return WorkPatternAsync(command, cancellationToken); }

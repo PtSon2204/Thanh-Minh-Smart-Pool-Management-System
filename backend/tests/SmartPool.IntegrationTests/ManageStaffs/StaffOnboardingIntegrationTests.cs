@@ -23,6 +23,28 @@ namespace SmartPool.IntegrationTests.ManageStaffs;
 public sealed class StaffOnboardingIntegrationTests
 {
     [Fact]
+    public async Task CreateAccountRejectsCoachRole()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var startDate = VietnamTimeBoundary.GetDate(fixture.Clock);
+
+        var failure = await Assert.ThrowsAsync<StaffOnboardingException>(() => fixture.Run(new()
+        {
+            Action = OnboardingAction.Create,
+            ActorId = fixture.AdminId,
+            Email = $"coach-account-{Guid.NewGuid():N}@example.test",
+            TargetRole = "COACH",
+            JoinDate = startDate,
+            Contract = fixture.ContractFor(startDate, startDate),
+            FullName = "Coach account",
+            Phone = "0901234567",
+        }));
+
+        Assert.Equal("INVALID_INVITATION", failure.Code);
+        Assert.False(await fixture.Context.StaffInvitations.AnyAsync(item => item.TargetRole == "COACH"));
+    }
+
+    [Fact]
     public async Task OwnWorkspaceAndDocumentsCannotSelectAnotherEmployeesRecords()
     {
         await using var fixture = await Fixture.CreateAsync();
@@ -121,19 +143,19 @@ public sealed class StaffOnboardingIntegrationTests
     public async Task ApprovalUsesExistingRoleRegardlessOfCasing()
     {
         await using var fixture = await Fixture.CreateAsync();
-        var existingCoachRoles = await fixture.Context.Roles
-            .Where(item => EF.Functions.ILike(item.Name, "COACH") && item.IsDeleted != true)
+        var existingSalesRoles = await fixture.Context.Roles
+            .Where(item => EF.Functions.ILike(item.Name, "SALES") && item.IsDeleted != true)
             .Select(item => new { item.Id, item.Name })
             .ToListAsync();
-        var canonicalCoachRoleId = existingCoachRoles.FirstOrDefault(item => item.Name == "COACH")?.Id;
-        if (existingCoachRoles.Count > 0)
+        var canonicalSalesRoleId = existingSalesRoles.FirstOrDefault(item => item.Name == "SALES")?.Id;
+        if (existingSalesRoles.Count > 0)
         {
-            var existingIds = existingCoachRoles.Select(item => item.Id).ToList();
+            var existingIds = existingSalesRoles.Select(item => item.Id).ToList();
             await fixture.Context.Roles.Where(item => existingIds.Contains(item.Id))
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsDeleted, true));
         }
 
-        var role = new Role { Id = Guid.NewGuid(), Name = "Coach", IsDeleted = false };
+        var role = new Role { Id = Guid.NewGuid(), Name = "Sales", IsDeleted = false };
         fixture.Context.Roles.Add(role);
         await fixture.Context.SaveChangesAsync();
         try
@@ -141,7 +163,7 @@ public sealed class StaffOnboardingIntegrationTests
             var workspace = await fixture.Run(new()
             {
                 Action = OnboardingAction.Create, ActorId = fixture.AdminId,
-                Email = $"synthetic-role-{Guid.NewGuid():N}@example.test", TargetRole = "COACH", JoinDate = VietnamTimeBoundary.GetDate(fixture.Clock),
+                Email = $"synthetic-role-{Guid.NewGuid():N}@example.test", TargetRole = "SALES", JoinDate = VietnamTimeBoundary.GetDate(fixture.Clock),
                 Contract = fixture.ContractFor(VietnamTimeBoundary.GetDate(fixture.Clock), VietnamTimeBoundary.GetDate(fixture.Clock).AddDays(8)),
                 FullName = "Synthetic staff", Phone = "0901234567"
             });
@@ -171,13 +193,13 @@ public sealed class StaffOnboardingIntegrationTests
             Assert.Equal(completedEmployeeId, delivery.RecipientId);
             Assert.Contains("06:00-12:00", delivery.HtmlBody);
             Assert.Single(await fixture.Context.Notifications.Where(item => item.UserId == delivery.RecipientId && item.Type == "StaffSchedule").ToListAsync());
-            Assert.Equal("Coach", (await fixture.Context.Roles.SingleAsync(item => item.Id == role.Id)).Name);
+            Assert.Equal("Sales", (await fixture.Context.Roles.SingleAsync(item => item.Id == role.Id)).Name);
         }
         finally
         {
             await fixture.Context.Roles.Where(item => item.Id == role.Id)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsDeleted, true));
-            if (canonicalCoachRoleId is Guid restoredRoleId)
+            if (canonicalSalesRoleId is Guid restoredRoleId)
             {
                 await fixture.Context.Roles.Where(item => item.Id == restoredRoleId)
                     .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsDeleted, false));
@@ -350,9 +372,10 @@ public sealed class StaffOnboardingIntegrationTests
         var workspace = await fixture.InviteAsync();
         var credentials = fixture.Credentials(workspace);
         workspace = await fixture.Submit(workspace, credentials);
-        var approved = await Task.WhenAll(fixture.Approve(workspace), fixture.ApproveInNewContext(workspace));
+        var approved = await Task.WhenAll(fixture.ApproveInNewContext(workspace), fixture.ApproveInNewContext(workspace));
         Assert.Contains(approved, item => item.Code == "ALREADY_APPROVED");
         workspace = approved[0];
+        fixture.Context.ChangeTracker.Clear();
         var employeeId = workspace.Invitation!.CompletedUserId!.Value;
         var own = await fixture.Run(new() { Action = OnboardingAction.RequestCorrection, ActorId = employeeId, Reason = "Synthetic bank correction" });
         var opened = await fixture.Run(new() { Action = OnboardingAction.OpenCorrection, ActorId = fixture.AdminId, EmployeeId = employeeId,
