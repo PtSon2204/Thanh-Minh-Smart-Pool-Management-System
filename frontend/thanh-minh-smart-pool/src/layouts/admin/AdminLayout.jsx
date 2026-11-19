@@ -48,6 +48,7 @@ import { getSessionRoles } from "../../features/auth/utils/sessionRoles";
 import { useAlarmSound } from "../../features/safety/hooks/useAlarmSound";
 import { useSafetyAlertSignalR } from "../../features/safety/hooks/useSafetyAlertSignalR";
 import GlobalSafetyAlertsHost from "../../features/safety/components/GlobalSafetyAlertsHost";
+import MandatoryChecklistOverlay from "../../features/equipments/components/MandatoryChecklistOverlay";
 import logoImg from "../../assets/logo-be-boi-thanh-minh.png";
 import "./AdminLayout.css";
 
@@ -561,6 +562,7 @@ export default function AdminLayout() {
     <>
       {notifContextHolder}
       <GlobalSafetyAlertsHost />
+      <MandatoryChecklistOverlay />
       <Layout
         className="admin-layout"
         style={{ minHeight: "100vh", background: "#e2e8f0" }}

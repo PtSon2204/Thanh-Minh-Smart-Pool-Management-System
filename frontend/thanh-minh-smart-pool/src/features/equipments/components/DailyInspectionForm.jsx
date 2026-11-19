@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Card,
   Table,
@@ -90,6 +90,36 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
     formData?.currentShiftId ||
     shifts.find((s) => s.isOpenNow && !s.isAlreadySubmittedToday)?.shiftId ||
     shifts[0]?.shiftId
+
+  const draftKey = effectiveShiftId ? `smartpool_checklist_draft_${effectiveShiftId}` : null
+
+  // Khôi phục bản nháp từ sessionStorage khi chọn ca
+  useEffect(() => {
+    if (!draftKey) return
+    try {
+      const saved = sessionStorage.getItem(draftKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object') {
+          setItemEdits((prev) => (Object.keys(prev).length === 0 ? parsed : prev))
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [draftKey])
+
+  // Tự động lưu bản nháp vào sessionStorage
+  useEffect(() => {
+    if (!draftKey) return
+    try {
+      if (Object.keys(itemEdits).length > 0) {
+        sessionStorage.setItem(draftKey, JSON.stringify(itemEdits))
+      }
+    } catch {
+      // ignore storage full errors
+    }
+  }, [itemEdits, draftKey])
 
   const selectedShift =
     shifts.find((s) => s.shiftId === effectiveShiftId) || shifts[0]
@@ -305,6 +335,14 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
     try {
       await submitMutation.mutateAsync(payload)
       setConfirmation(null)
+
+      if (draftKey) {
+        try {
+          sessionStorage.removeItem(draftKey)
+        } catch {
+          // ignore
+        }
+      }
 
       notification.success({
         message: 'Nộp biên bản kiểm tra thành công!',

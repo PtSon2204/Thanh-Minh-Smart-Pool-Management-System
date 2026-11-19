@@ -9,6 +9,7 @@ using SmartPool.Application.Features.ManageEquipments.Inspections.Commands.Submi
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspectionForm;
 using SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspections;
+using SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetMandatoryChecklistStatus;
 using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.API.Controllers;
@@ -43,6 +44,25 @@ public sealed class EquipmentInspectionsController : ControllerBase
         {
             _logger.LogError(ex, "Lỗi lấy form kiểm tra thiết bị đầu ca.");
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Không thể lấy danh mục thiết bị và thông tin ca trực. Vui lòng thử lại." });
+        }
+    }
+
+    /// <summary>
+    /// Kiểm tra trạng thái checklist bắt buộc đầu ca cho tài khoản nhân viên cứu hộ.
+    /// </summary>
+    [HttpGet("pending-mandatory-status")]
+    [ProducesResponseType(typeof(MandatoryChecklistStatusDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPendingMandatoryStatus(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new GetMandatoryChecklistStatusQuery(), cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Lỗi kiểm tra trạng thái checklist bắt buộc đầu ca.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Không thể kiểm tra trạng thái checklist bắt buộc." });
         }
     }
 

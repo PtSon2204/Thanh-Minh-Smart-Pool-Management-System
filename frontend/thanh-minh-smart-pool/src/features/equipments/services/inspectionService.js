@@ -7,6 +7,10 @@ export const inspectionService = {
     const { data } = await apiClient.get(`${base}/form`, { signal })
     return data
   },
+  async getPendingMandatoryStatus(signal) {
+    const { data } = await apiClient.get(`${base}/pending-mandatory-status`, { signal })
+    return data
+  },
   async submit(payload) {
     const { data } = await apiClient.post(base, payload)
     return data
