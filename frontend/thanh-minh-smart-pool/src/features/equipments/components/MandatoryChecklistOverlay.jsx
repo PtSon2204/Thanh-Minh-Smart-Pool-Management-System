@@ -10,7 +10,7 @@ const { Title, Text } = Typography
 
 export default function MandatoryChecklistOverlay() {
   const queryClient = useQueryClient()
-  const { data: status, isLoading } = useMandatoryChecklistStatus()
+  const { data: status } = useMandatoryChecklistStatus()
 
   const isLocked = Boolean(status?.hasPendingMandatoryChecklist)
 

@@ -101,6 +101,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
       if (saved) {
         const parsed = JSON.parse(saved)
         if (parsed && typeof parsed === 'object') {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setItemEdits((prev) => (Object.keys(prev).length === 0 ? parsed : prev))
         }
       }
