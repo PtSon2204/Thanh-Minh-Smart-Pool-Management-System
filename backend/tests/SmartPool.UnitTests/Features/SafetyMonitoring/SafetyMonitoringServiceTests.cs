@@ -47,6 +47,7 @@ public sealed class SafetyMonitoringServiceTests
         Assert.Equal(warning.Id, incident.WarningId);
         Assert.Equal(warning.ImageUrl, incident.ImageIncidents);
         Assert.Equal(user, incident.ReportedBy);
+        Assert.Equal("Resolved", incident.Status);
         await Assert.ThrowsAsync<MonitoringConflictException>(() => Service.HandleAsync(warning.Id, "ACKNOWLEDGED", user, true, default));
         Assert.Single(incidents);
         notifications.Verify(x => x.SendToGroupAsync("safety-operators", "incident_created", It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -54,12 +55,17 @@ public sealed class SafetyMonitoringServiceTests
 
     [Theory]
     [InlineData("WARNING")]
-    public async Task WarningAcknowledgement_DoesNotCreateIncident(string severity)
+    public async Task WarningAcknowledgement_CreatesWarningIncident_WithResolvedStatus(string severity)
     {
         warning.SeverityLevel = severity;
-        await Service.HandleAsync(warning.Id, "ACKNOWLEDGED", Guid.NewGuid(), true, default, severity);
-        Assert.Empty(incidents);
-        notifications.Verify(x => x.SendToGroupAsync(It.IsAny<string>(), "incident_created", It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
+        var user = Guid.NewGuid();
+        var dto = await Service.HandleAsync(warning.Id, "ACKNOWLEDGED", user, true, default, severity);
+        var incident = Assert.Single(incidents);
+        Assert.Equal(incident.Id, dto.IncidentId);
+        Assert.Equal("WARNING", incident.SeverityLevel);
+        Assert.Equal("Resolved", incident.Status);
+        Assert.Equal(warning.ImageUrl, incident.ImageIncidents);
+        notifications.Verify(x => x.SendToGroupAsync("safety-operators", "incident_created", It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

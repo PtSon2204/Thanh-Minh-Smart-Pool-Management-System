@@ -1,48 +1,125 @@
-import { useEffect, useState } from 'react'
-import { signalRIdentity } from '../../../services/signalrClient'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AlertOutlined, StopOutlined } from '@ant-design/icons'
+import { getSignalRConnection, signalRIdentity } from '../../../services/signalrClient'
 import { useAuthStore } from '../../auth/store/authStore'
-import { useAlarmSound } from '../hooks/useAlarmSound'
+import { setGlobalAlarmDucking, useAlarmSound } from '../hooks/useAlarmSound'
 import { useGlobalSafetyAlerts } from '../hooks/useGlobalSafetyAlerts'
 import { useSafetyTts } from '../hooks/useSafetyTts'
 import GlobalAlertPopup from './GlobalAlertPopup'
 import LiveAlertDetailsModal from './LiveAlertDetailsModal'
 import '../styles/safetyResponsive.css'
 
+const CONFIRMED_OVERLAY_MS = 30_000
+
 /**
- * Khung gắn popup + còi + giọng nói cảnh báo an toàn toàn cục. Mount trong
- * MainLayout (trang công khai) và AdminLayout (trang vận hành) nên hiện trên
- * mọi trang. Chỉ hoạt động với người dùng có quyền vận hành an toàn
- * (ADMIN/LIFEGUARD) — các vai khác không nhận sự kiện cảnh báo AI, nên host này tự tắt.
- * Còi dùng singleton module; TTS (speechSynthesis) đọc ngắn bằng tiếng Việt.
+ * Khung gắn popup + còi + overlay + giọng nói cảnh báo an toàn toàn cục.
+ * - Khi AI phát hiện (PENDING): chỉ hiện popup để nhân viên kiểm tra, chưa hú còi.
+ * - Khi cứu hộ bấm Xác nhận (WARNING hoặc CRITICAL): lưu lịch sử sự cố, đồng thời
+ *   bật còi + overlay toàn màn hình + TTS đọc vị trí (tắt cảnh báo không chuyển trang).
  */
 export default function GlobalSafetyAlertsHost() {
   const role = useAuthStore(state => state.session?.role?.toUpperCase())
   const identity = useAuthStore(state => signalRIdentity(state.session))
   const [selection, setSelection] = useState(null)
+  const [confirmed, setConfirmed] = useState(null)
+  const stopTimerRef = useRef(null)
+  const seenIncidentsRef = useRef(new Set())
   const selectedAlert = selection && selection.identity === identity ? selection.alert : null
+  const confirmedAlert = confirmed && confirmed.identity === identity ? confirmed.alert : null
   const enabled = role === 'ADMIN' || role === 'LIFEGUARD'
   const { alerts, top, dismiss, isCritical } = useGlobalSafetyAlerts(enabled)
-  const alarmAlert = alerts.find(isCritical) || top
   const { startAlarm, stopAlarm } = useAlarmSound()
   // Mode camera-test mặc định im lặng; chỉ client test được chỉ định mới bật âm thanh.
   const audioAllowed = import.meta.env.MODE !== 'camera-test' || import.meta.env.VITE_SAFETY_TEST_AUDIO === 'true'
   useSafetyTts(enabled && audioAllowed)
 
-  const critical = isCritical(alarmAlert)
+  const stopConfirmedAlert = useCallback(() => {
+    if (stopTimerRef.current) {
+      clearTimeout(stopTimerRef.current)
+      stopTimerRef.current = null
+    }
+    stopAlarm()
+    setGlobalAlarmDucking(false)
+    try { window.speechSynthesis?.cancel() } catch { /* Không hỗ trợ. */ }
+    setConfirmed(null)
+  }, [stopAlarm])
+
   useEffect(() => {
-    if (!enabled || !audioAllowed || !alarmAlert?.id) return undefined
-    startAlarm(critical ? 'EMERGENCY' : 'WARNING')
-    return () => stopAlarm()
-  }, [enabled, audioAllowed, alarmAlert?.id, critical, startAlarm, stopAlarm])
+    if (!enabled || !identity) return undefined
+    const seen = seenIncidentsRef.current
+    const onConfirmed = alert => {
+      if (alert?.status !== 'ACKNOWLEDGED' || !alert?.incidentId) return
+      const key = `${identity}:${alert.incidentId}`
+      if (seen.has(key)) return
+      seen.add(key)
+      setConfirmed({ identity, alert })
+      if (audioAllowed) {
+        const critical = ['CRITICAL', 'EMERGENCY'].includes(String(alert.severity || '').toUpperCase())
+        startAlarm(critical ? 'EMERGENCY' : 'WARNING')
+      }
+      if (stopTimerRef.current) clearTimeout(stopTimerRef.current)
+      stopTimerRef.current = setTimeout(() => {
+        stopTimerRef.current = null
+        stopAlarm()
+        setConfirmed(null)
+      }, CONFIRMED_OVERLAY_MS)
+    }
+    const onLocalAck = event => onConfirmed(event.detail)
+    const connection = getSignalRConnection()
+    connection.on('incident_created', onConfirmed)
+    window.addEventListener('safety:acknowledged', onLocalAck)
+    return () => {
+      connection.off('incident_created', onConfirmed)
+      window.removeEventListener('safety:acknowledged', onLocalAck)
+      if (stopTimerRef.current) {
+        clearTimeout(stopTimerRef.current)
+        stopTimerRef.current = null
+      }
+      stopAlarm()
+    }
+  }, [enabled, identity, audioAllowed, startAlarm, stopAlarm])
 
   const viewLive = alert => { setSelection({ identity, alert }); dismiss(alert.id) }
   if (!enabled) return null
+
+  const confirmedIsCritical = confirmedAlert ? isCritical(confirmedAlert) : false
+
   return <>
     {top && <div className="safety-global-popup" role="alertdialog" aria-label="Cảnh báo an toàn">
       <div className="safety-popup-stack" style={{ width: 'min(560px, 100%)' }}>
         {alerts.map(alert => <GlobalAlertPopup key={alert.id} alert={alert} isCritical={isCritical} onDismiss={dismiss} onViewLive={viewLive} />)}
       </div>
     </div>}
+    {confirmedAlert && (
+      <div
+        className={`safety-confirmed-overlay ${confirmedIsCritical ? 'level-emergency' : 'level-warning'}`}
+        role="alertdialog"
+        aria-label="Cảnh báo cứu hộ đã xác nhận"
+      >
+        <div className="safety-confirmed-inner">
+          <div className="safety-confirmed-icon"><AlertOutlined /></div>
+          <div className="safety-confirmed-level">
+            {confirmedIsCritical ? 'KHẨN CẤP' : 'CẢNH BÁO'}
+          </div>
+          <div className="safety-confirmed-zone">
+            {confirmedAlert.location || confirmedAlert.cameraName || 'Khu vực bể bơi'}
+          </div>
+          {confirmedAlert.cameraName && (
+            <div className="safety-confirmed-meta">Camera: {confirmedAlert.cameraName}</div>
+          )}
+          {confirmedAlert.imageUrl && (
+            <img
+              className="safety-confirmed-img"
+              src={confirmedAlert.imageUrl}
+              alt="Ảnh chụp sự cố"
+            />
+          )}
+          <button type="button" className="safety-confirmed-stop-btn" onClick={stopConfirmedAlert}>
+            <StopOutlined /> Tắt cảnh báo
+          </button>
+        </div>
+      </div>
+    )}
     {selectedAlert && <LiveAlertDetailsModal key={selectedAlert.id} alert={selectedAlert} onClose={() => setSelection(null)} />}
   </>
 }

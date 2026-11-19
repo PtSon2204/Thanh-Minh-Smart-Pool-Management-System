@@ -34,8 +34,6 @@ import {
   ScheduleOutlined,
   // BookOutlined,
   ExperimentOutlined,
-  PlusCircleOutlined,
-  UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/store/authStore";
@@ -45,6 +43,7 @@ import {
   startSignalRConnection,
 } from "../../services/signalrClient";
 import authService from "../../features/auth/services/authService";
+import { isLocalSafetyAlertEcho } from "../../features/safety/utils/localAlertEcho";
 import { getSessionRoles } from "../../features/auth/utils/sessionRoles";
 import { useAlarmSound } from "../../features/safety/hooks/useAlarmSound";
 import { useSafetyAlertSignalR } from "../../features/safety/hooks/useSafetyAlertSignalR";
@@ -153,6 +152,7 @@ export default function AdminLayout() {
 
   const handleGlobalAlert = useCallback(
     (payload) => {
+      if (isLocalSafetyAlertEcho(payload)) return;
       startAlarm(payload.level);
       notifApi.error({
         message:
@@ -271,20 +271,6 @@ export default function AdminLayout() {
           key: "/admin/coach-applications",
           icon: <AuditOutlined />,
           label: <Link to="/admin/coach-applications">Duyệt Coach</Link>,
-        },
-        isAdmin && {
-          key: "/admin/classes/create",
-          icon: <PlusCircleOutlined />,
-          label: <Link to="/admin/classes/create">Tạo lớp dạy bơi</Link>,
-        },
-        (isAdmin || isCoach) && {
-          key: "/admin/classes",
-          icon: <UnorderedListOutlined />,
-          label: (
-            <Link to="/admin/classes">
-              {isAdmin ? "Danh sách lớp dạy bơi" : "Lớp được phân công"}
-            </Link>
-          ),
         },
       ].filter(Boolean),
     },

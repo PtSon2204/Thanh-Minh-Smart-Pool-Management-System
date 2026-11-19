@@ -49,6 +49,68 @@
 .safety-live-detail-video { width: 100%; min-width: 0; }
 .safety-live-detail-video .camera-video-container { width: 100%; max-width: none; max-height: 50dvh; margin-bottom: 0; }
 
+/* Overlay toàn màn hình sau khi cứu hộ xác nhận cảnh báo Camera AI */
+.safety-confirmed-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+  animation: safetyOverlayPulse 0.9s ease-in-out infinite alternate;
+}
+.safety-confirmed-overlay.level-emergency { background: rgba(185, 28, 28, 0.96); }
+.safety-confirmed-overlay.level-warning { background: rgba(180, 83, 9, 0.96); }
+@keyframes safetyOverlayPulse {
+  from { opacity: 0.9; }
+  to { opacity: 1; }
+}
+.safety-confirmed-inner {
+  text-align: center;
+  color: #fff;
+  padding: 28px 24px;
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.safety-confirmed-icon { font-size: 64px; line-height: 1; }
+.safety-confirmed-level { font-size: 30px; font-weight: 900; letter-spacing: 3px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+.safety-confirmed-zone {
+  font-size: 20px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 6px 18px;
+}
+.safety-confirmed-meta { font-size: 14px; opacity: 0.9; }
+.safety-confirmed-img {
+  max-width: 100%;
+  max-height: 36dvh;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  object-fit: contain;
+}
+.safety-confirmed-stop-btn {
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.safety-confirmed-stop-btn:hover { background: rgba(255, 255, 255, 0.32); }
+
 @media (max-width: 767px) {
   .monitoring-page { gap: 16px; }
   .monitoring-page h2.ant-typography { font-size: 24px; margin-bottom: 0; }

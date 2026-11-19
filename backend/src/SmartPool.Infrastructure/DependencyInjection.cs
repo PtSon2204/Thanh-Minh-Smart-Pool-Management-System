@@ -160,8 +160,11 @@ namespace SmartPool.Infrastructure
             services.AddHostedService<StaffOnboarding.StaffScheduleDeliveryWorker>();
             services.AddHostedService<StaffOnboarding.OperationalTaskMaterializerWorker>();
 
-            // Email — MailKit
-            services.AddScoped<IEmailService, EmailService>();
+            // Email — Brevo HTTP API (nếu có EmailSettings:BrevoApiKey) hoặc MailKit SMTP
+            services.AddHttpClient<IEmailService, EmailService>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(15);
+            });
             services.AddSingleton<IEmailHistoryStore, EmailHistoryStore>();
 
             // Password hashing — ASP.NET Core Identity (salt và hash do PasswordHasher quản lý)

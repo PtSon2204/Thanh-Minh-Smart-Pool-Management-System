@@ -24,30 +24,29 @@ public sealed class GetIncidentStatisticsHandler
     {
         var now = DateTime.UtcNow;
 
-        var allIncidents = await _reportOps.GetIncidentsAsync(cancellationToken);
+        var allIncidents = (await _reportOps.GetIncidentsAsync(cancellationToken))
+            .Where(i => !IsPendingStatus(i.Status))
+            .ToList();
         var allUsers = (await _reportOps.GetUsersAsync(cancellationToken)).ToDictionary(u => u.Id, u => u);
         var allProfiles = (await _reportOps.GetUserProfilesAsync(cancellationToken)).ToDictionary(p => p.UserId, p => p);
 
         // === 1. TÍNH TOÁN 4 KPI CARDS ===
         int totalIncidents = allIncidents.Count;
-        int resolvedIncidents = allIncidents.Count(i =>
-            string.Equals(i.Status, "RESOLVED", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Status, "Đã giải quyết", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase));
+        int resolvedIncidents = allIncidents.Count(i => IsResolvedStatus(i.Status));
 
         double resolvedPercentage = totalIncidents > 0
             ? Math.Round((double)resolvedIncidents / totalIncidents * 100, 1)
             : 0;
 
         int inProgressIncidents = allIncidents.Count(i =>
-            string.Equals(i.Status, "IN_PROGRESS", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Status, "Đang xử lý", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Status, "PENDING", StringComparison.OrdinalIgnoreCase));
+            string.Equals(i.Status?.Trim(), "IN_PROGRESS", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(i.Status?.Trim(), "IN PROGRESS", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(i.Status?.Trim(), "PROCESSING", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(i.Status?.Trim(), "Đang xử lý", StringComparison.OrdinalIgnoreCase));
 
         // Tính thời gian xử lý bình quân (MTTR)
         var resolvedWithTimes = allIncidents
-            .Where(i => (string.Equals(i.Status, "RESOLVED", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(i.Status, "Đã giải quyết", StringComparison.OrdinalIgnoreCase)) &&
+            .Where(i => IsResolvedStatus(i.Status) &&
                         i.IncidentTime.HasValue && i.UpdatedAt.HasValue &&
                         i.UpdatedAt.Value >= i.IncidentTime.Value)
             .Select(i => (i.UpdatedAt!.Value - i.IncidentTime!.Value).TotalHours)
@@ -183,17 +182,28 @@ public sealed class GetIncidentStatisticsHandler
         return "Dịch vụ & Khiếu nại khách hàng";
     }
 
+    private static bool IsPendingStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return true;
+        return status.Trim().ToLowerInvariant() is "pending" or "chờ xử lý" or "đang chờ";
+    }
+
+    private static bool IsResolvedStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return false;
+        return status.Trim().ToLowerInvariant() is "resolved" or "đã giải quyết" or "đã xử lý" or "completed" or "đã ghi nhận";
+    }
+
     private static string NormalizeStatus(string? status)
     {
         if (string.IsNullOrWhiteSpace(status)) return "Đang xử lý";
-        return status.ToUpperInvariant() switch
+        if (IsResolvedStatus(status)) return "Đã giải quyết";
+        return status.Trim().ToUpperInvariant() switch
         {
-            "RESOLVED" => "Đã giải quyết",
-            "ĐÃ GIẢI QUYẾT" => "Đã giải quyết",
-            "COMPLETED" => "Đã giải quyết",
             "IN_PROGRESS" => "Đang xử lý",
+            "IN PROGRESS" => "Đang xử lý",
+            "PROCESSING" => "Đang xử lý",
             "ĐANG XỬ LÝ" => "Đang xử lý",
-            "PENDING" => "Chờ tiếp nhận",
             _ => status
         };
     }
@@ -201,10 +211,13 @@ public sealed class GetIncidentStatisticsHandler
     private static string NormalizeSeverity(string? severity)
     {
         if (string.IsNullOrWhiteSpace(severity)) return "Trung bình";
-        return severity.ToUpperInvariant() switch
+        return severity.Trim().ToUpperInvariant() switch
         {
             "CRITICAL" => "Khẩn cấp",
+            "EMERGENCY" => "Khẩn cấp",
             "KHẨN CẤP" => "Khẩn cấp",
+            "WARNING" => "Cảnh báo",
+            "CẢNH BÁO" => "Cảnh báo",
             "HIGH" => "Nghiêm trọng",
             "NGHIÊM TRỌNG" => "Nghiêm trọng",
             "MEDIUM" => "Trung bình",
@@ -217,8 +230,7 @@ public sealed class GetIncidentStatisticsHandler
 
     private static string CalculateResolutionTime(DateTime? start, DateTime? end, string? status)
     {
-        if (!string.Equals(status, "RESOLVED", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(status, "Đã giải quyết", StringComparison.OrdinalIgnoreCase))
+        if (!IsResolvedStatus(status))
         {
             return "Đang tiến hành";
         }
@@ -237,7 +249,7 @@ public sealed class GetIncidentStatisticsHandler
         return filter?.ToLowerInvariant() switch
         {
             "critical_urgent" => list.Where(i => i.SeverityLevel == "Khẩn cấp" || i.SeverityLevel == "Nghiêm trọng").ToList(),
-            "in_progress" => list.Where(i => i.Status == "Đang xử lý" || i.Status == "Chờ tiếp nhận").ToList(),
+            "in_progress" => list.Where(i => i.Status == "Đang xử lý").ToList(),
             _ => list
         };
     }

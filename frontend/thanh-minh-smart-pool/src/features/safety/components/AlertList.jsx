@@ -41,7 +41,7 @@ export default function AlertList({ onDetail }) {
         { title: 'Thao tác', render: (_, row) => <Space wrap>
           <Button onClick={() => { setDetailId(row.id); setSelectedId(row.id); onDetail?.(row) }}>Xem chi tiết</Button>
           {canHandleAlert(row, now) && <>
-            <Popconfirm title={row.severity === 'CRITICAL' ? 'Xác nhận và tạo sự cố cứu hộ?' : 'Xác nhận cảnh báo?'}
+            <Popconfirm title="Xác nhận và lưu vào lịch sử sự cố?"
               onConfirm={() => action.mutate({ alert: row, verb: 'acknowledge' })}><Button loading={action.isPending}>Xác nhận</Button></Popconfirm>
             <Popconfirm title="Hủy cảnh báo này?" onConfirm={() => action.mutate({ alert: row, verb: 'cancel' })}><Button danger disabled={action.isPending}>Hủy</Button></Popconfirm>
           </>}

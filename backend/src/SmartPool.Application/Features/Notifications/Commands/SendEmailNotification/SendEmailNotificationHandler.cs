@@ -104,8 +104,11 @@ public sealed class SendEmailNotificationHandler : IRequestHandler<SendEmailNoti
             ? "[Bể bơi Thanh Minh] Thông báo từ hệ thống"
             : request.Subject;
 
+        var brevoApiKey = _config["EmailSettings:BrevoApiKey"];
         var smtpUser = _config["EmailSettings:Username"];
-        var isMock = string.IsNullOrWhiteSpace(smtpUser) || smtpUser.Contains("placeholder", StringComparison.OrdinalIgnoreCase);
+        var hasBrevo = !string.IsNullOrWhiteSpace(brevoApiKey);
+        var hasSmtp = !string.IsNullOrWhiteSpace(smtpUser) && !smtpUser.Contains("placeholder", StringComparison.OrdinalIgnoreCase);
+        var isMock = !hasBrevo && !hasSmtp;
 
         int successCount = 0;
         int failCount = 0;

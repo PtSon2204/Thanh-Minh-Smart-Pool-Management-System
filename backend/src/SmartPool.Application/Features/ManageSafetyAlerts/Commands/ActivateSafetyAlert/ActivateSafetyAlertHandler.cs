@@ -29,7 +29,7 @@ public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyA
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Zone) || request.Zone.Trim().Length > 200 ||
-            request.Level is not ("WARNING" or "EMERGENCY"))
+            !string.Equals(request.Level, "EMERGENCY", StringComparison.Ordinal))
             throw new ArgumentException("Khu vực hoặc mức độ cảnh báo không hợp lệ.");
         var alertId = Guid.NewGuid();
         var triggeredAt = DateTime.UtcNow;
@@ -45,7 +45,7 @@ public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyA
             TriggeredAt = triggeredAt,
         };
 
-        // 1. Lưu bản ghi sự cố vào DB
+        // 1. Lưu bản ghi sự cố vào DB (kích hoạt thủ công đồng nghĩa đã có cứu hộ viên tiếp nhận xử lý)
         var incident = new Incident
         {
             Id = alertId,
@@ -55,7 +55,10 @@ public sealed class ActivateSafetyAlertHandler : IRequestHandler<ActivateSafetyA
             SeverityLevel = request.Level,
             IncidentTime = triggeredAt,
             ReportedBy = Guid.TryParse(request.TriggeredByUserId, out var uid) ? uid : null,
-            Status = "Pending",
+            ImageIncidents = request.ImageIncidents,
+            Status = "Resolved",
+            CreatedAt = triggeredAt,
+            UpdatedAt = triggeredAt,
         };
 
         await _operations.AddIncidentAsync(incident, cancellationToken);
