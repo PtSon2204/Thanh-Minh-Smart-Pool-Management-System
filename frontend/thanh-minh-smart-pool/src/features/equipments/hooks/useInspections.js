@@ -19,6 +19,7 @@ export function useSubmitInspection() {
       queryClient.invalidateQueries({ queryKey: ['equipments'] })
       queryClient.invalidateQueries({ queryKey: ['operational-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['operational-task-overdue'] })
+      queryClient.invalidateQueries({ queryKey: ['mandatory-checklist-status'] })
     },
   })
 }
