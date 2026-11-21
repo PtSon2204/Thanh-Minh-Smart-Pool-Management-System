@@ -23,7 +23,7 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
   const { data, isLoading, error } = usePaymentDetail(paymentId)
 
   const isSuccess = data?.status === 'COMPLETED'
-  const isFailed = data?.status === 'FAILED'
+  const isFailed = data?.status === 'FAILED' || data?.status === 'CANCELLED'
   const isTransfer = data?.paymentMethod === 'BANK_TRANSFER' || data?.paymentMethod === 'TRANSFER'
 
   const itemColumns = [
@@ -136,7 +136,7 @@ export default function PaymentDetailModal({ paymentId, open, onCancel }) {
               color={isSuccess ? 'success' : isFailed ? 'error' : 'warning'}
               style={{ borderRadius: 12, padding: '2px 10px' }}
             >
-              {isSuccess ? 'Thành công' : isFailed ? 'Thất bại' : 'Chờ xử lý'}
+              {isSuccess ? 'Thành công' : isFailed ? 'Hủy giao dịch' : 'Chờ xử lý'}
             </Tag>
           )}
         </div>

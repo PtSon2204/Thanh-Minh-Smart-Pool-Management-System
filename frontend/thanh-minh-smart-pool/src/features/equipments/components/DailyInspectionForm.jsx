@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import {
   Card,
   Table,
@@ -38,6 +38,32 @@ import inspectionService from '../services/inspectionService'
 import { FIXED_INSPECTION_SHIFT_IDS } from '../inspectionConstants'
 
 const { Text } = Typography
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
+const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png']
+
+const validateImageFiles = (files) => {
+  return Array.from(files).filter((f) => {
+    const ext = '.' + f.name.split('.').pop().toLowerCase()
+    return !ALLOWED_IMAGE_TYPES.includes(f.type) || !ALLOWED_IMAGE_EXTS.includes(ext)
+  })
+}
+
+function InspectionNoteInput({ equipmentId, isPassed, note, onNoteChange }) {
+  return (
+    <Input
+      placeholder={
+        isPassed
+          ? 'Ghi chú bổ sung (nếu có)...'
+          : 'Mô tả hư hỏng (bắt buộc: xịt hơi, nứt, chập điện...)'
+      }
+      status={!isPassed && !note?.trim() ? 'error' : ''}
+      value={note}
+      onChange={(e) => onNoteChange(equipmentId, e.target.value)}
+      allowClear
+    />
+  )
+}
 
 // 2 Ca cố định của bể bơi
 const FIXED_SHIFTS_FALLBACK = [
@@ -133,21 +159,23 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
   const canSubmitSelectedShift = isSelectedShiftOpen && !isSelectedShiftAlreadySubmitted && isTaskDateToday
 
   // Tính toán checklist
-  const checklist = formItems.map((item) => {
-    const edit = itemEdits[item.equipmentId]
-    return {
-      equipmentId: item.equipmentId,
-      equipmentName: item.name,
-      category: item.category,
-      priorityLevel: item.priorityLevel || 'Normal',
-      location: item.location,
-      isPassed: edit?.isPassed !== undefined ? edit.isPassed : true,
-      note: edit?.note !== undefined ? edit.note : '',
-      defectImageUrls: edit?.defectImageUrls || [],
-    }
-  })
+  const checklist = useMemo(() => {
+    return formItems.map((item) => {
+      const edit = itemEdits[item.equipmentId]
+      return {
+        equipmentId: item.equipmentId,
+        equipmentName: item.name,
+        category: item.category,
+        priorityLevel: item.priorityLevel || 'Normal',
+        location: item.location,
+        isPassed: edit?.isPassed !== undefined ? edit.isPassed : true,
+        note: edit?.note !== undefined ? edit.note : '',
+        defectImageUrls: edit?.defectImageUrls || [],
+      }
+    })
+  }, [formItems, itemEdits])
 
-  const handleStatusChange = (equipmentId, isPassed) => {
+  const handleStatusChange = useCallback((equipmentId, isPassed) => {
     setItemEdits((prev) => ({
       ...prev,
       [equipmentId]: {
@@ -157,9 +185,9 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
         defectImageUrls: isPassed ? [] : (prev[equipmentId]?.defectImageUrls || []),
       },
     }))
-  }
+  }, [])
 
-  const handleNoteChange = (equipmentId, note) => {
+  const handleNoteChange = useCallback((equipmentId, note) => {
     setItemEdits((prev) => ({
       ...prev,
       [equipmentId]: {
@@ -167,20 +195,9 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
         note,
       },
     }))
-  }
+  }, [])
 
-  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
-  const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png']
-
-  const validateImageFiles = (files) => {
-    const invalid = Array.from(files).filter((f) => {
-      const ext = '.' + f.name.split('.').pop().toLowerCase()
-      return !ALLOWED_IMAGE_TYPES.includes(f.type) || !ALLOWED_IMAGE_EXTS.includes(ext)
-    })
-    return invalid
-  }
-
-  const handleImageFileSelected = async (equipmentId, files) => {
+  const handleImageFileSelected = useCallback(async (equipmentId, files) => {
     if (!files || files.length === 0) return
 
     const invalidFiles = validateImageFiles(files)
@@ -226,9 +243,9 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
     } finally {
       setUploadingByEqId((prev) => ({ ...prev, [equipmentId]: false }))
     }
-  }
+  }, [itemEdits])
 
-  const handleRemoveImage = (equipmentId, indexToRemove) => {
+  const handleRemoveImage = useCallback((equipmentId, indexToRemove) => {
     setItemEdits((prev) => ({
       ...prev,
       [equipmentId]: {
@@ -236,7 +253,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
         defectImageUrls: (prev[equipmentId]?.defectImageUrls || []).filter((_, idx) => idx !== indexToRemove),
       },
     }))
-  }
+  }, [])
 
   const handleMarkAllPassed = () => {
     setItemEdits({})
@@ -373,40 +390,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
     }
   }
 
-  if (isLoading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '60px 0' }}>
-        <Spin size="large" tip="Đang tải danh sách thiết bị cần kiểm tra..." />
-      </div>
-    )
-  }
-
-  if (isError) {
-    return (
-      <Alert
-        type="error"
-        message="Không thể tải danh mục thiết bị"
-        description="Đã xảy ra lỗi khi lấy danh sách thiết bị vận hành và an toàn. Vui lòng bấm thử lại."
-        action={
-          <Button size="small" type="primary" onClick={() => refetch()}>
-            Thử lại
-          </Button>
-        }
-        showIcon
-      />
-    )
-  }
-
-  if (!formItems || formItems.length === 0) {
-    return (
-      <Empty
-        description="Hiện không có thiết bị vận hành hoặc an toàn nào cần kiểm tra đầu ca."
-        style={{ padding: '40px 0' }}
-      />
-    )
-  }
-
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: 'Thiết bị & Khu vực',
       key: 'equipment',
@@ -466,16 +450,11 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
 
         return (
           <div>
-            <Input
-              placeholder={
-                record.isPassed
-                  ? 'Ghi chú bổ sung (nếu có)...'
-                  : 'Mô tả hư hỏng (bắt buộc: xịt hơi, nứt, chập điện...)'
-              }
-              status={!record.isPassed && !record.note?.trim() ? 'error' : ''}
-              value={record.note}
-              onChange={(e) => handleNoteChange(record.equipmentId, e.target.value)}
-              allowClear
+            <InspectionNoteInput
+              equipmentId={record.equipmentId}
+              isPassed={record.isPassed}
+              note={record.note}
+              onNoteChange={handleNoteChange}
             />
             {!record.isPassed && !record.note?.trim() && (
               <div style={{ color: '#dc2626', fontSize: 11, marginTop: 4 }}>
@@ -496,7 +475,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
 
                 {images.length > 0 && (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                    <Image.PreviewGroup>
+                    <Image.PreviewGroup preview={{ zIndex: 2500 }}>
                       {images.map((url, idx) => (
                         <div key={idx} style={{ position: 'relative', width: 56, height: 56 }}>
                           <Image
@@ -578,7 +557,46 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
         )
       },
     },
-  ]
+  ], [
+    handleStatusChange,
+    handleNoteChange,
+    handleRemoveImage,
+    uploadingByEqId,
+    handleImageFileSelected,
+  ])
+
+  if (isLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 0' }}>
+        <Spin size="large" tip="Đang tải danh sách thiết bị cần kiểm tra..." />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <Alert
+        type="error"
+        message="Không thể tải danh mục thiết bị"
+        description="Đã xảy ra lỗi khi lấy danh sách thiết bị vận hành và an toàn. Vui lòng bấm thử lại."
+        action={
+          <Button size="small" type="primary" onClick={() => refetch()}>
+            Thử lại
+          </Button>
+        }
+        showIcon
+      />
+    )
+  }
+
+  if (!formItems || formItems.length === 0) {
+    return (
+      <Empty
+        description="Hiện không có thiết bị vận hành hoặc an toàn nào cần kiểm tra đầu ca."
+        style={{ padding: '40px 0' }}
+      />
+    )
+  }
 
   return (
     <div>
@@ -672,6 +690,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
             size="large"
             value={effectiveShiftId}
             onChange={(val) => setSelectedShiftId(val)}
+            getPopupContainer={(trigger) => trigger.parentNode}
             options={shifts.map((s) => ({
               value: s.shiftId,
               label: (
@@ -762,6 +781,11 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
       <Modal
         title={adminTaskExecution ? 'Xác nhận thực hiện công việc' : 'Xác nhận gửi biên bản có thiết bị hư hỏng'}
         open={Boolean(confirmation)}
+        zIndex={2500}
+        styles={{
+          mask: { zIndex: 2500 },
+          wrapper: { zIndex: 2501 },
+        }}
         onOk={() => confirmation && executeSubmit(confirmation.payload)}
         confirmLoading={submitMutation.isPending}
         onCancel={() => { if (!submitLock.current) setConfirmation(null) }}
@@ -822,6 +846,7 @@ export default function DailyInspectionForm({ onSuccess, operationalTaskId, oper
         <CameraCaptureModal
           open={Boolean(cameraModalTarget)}
           onClose={() => setCameraModalTarget(null)}
+          zIndex={2500}
           onCapture={async (file) => {
             await handleImageFileSelected(cameraModalTarget.equipmentId, [file])
           }}

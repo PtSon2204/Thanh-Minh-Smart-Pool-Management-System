@@ -40,6 +40,7 @@ export default function MandatoryChecklistOverlay() {
       footer={null}
       centered
       width={1160}
+      zIndex={2000}
       className="mandatory-checklist-modal"
       styles={{
         mask: {
@@ -79,9 +80,6 @@ export default function MandatoryChecklistOverlay() {
                 <strong>{status?.shiftName || 'ca trực hôm nay'}</strong> ({status?.timeRange || 'đầu ca'}).
                 Theo quy chuẩn an toàn bể bơi, biên bản kiểm tra phải được nộp trước khi mở cửa đón khách.
               </Text>
-              <div style={{ marginTop: 4, color: '#8c8c8c', fontSize: 13 }}>
-                * Mọi chức năng khác tạm thời khóa lại cho đến khi biên bản được gửi đi thành công.
-              </div>
             </div>
           }
           style={{
