@@ -5,7 +5,7 @@ const ticks = (a, b) => (a - b) | 0 // signed distance across the uint32 RTP wra
 const validBox = box => Array.isArray(box) && box.length === 4 && box.every(Number.isFinite) && box[2] > box[0] && box[3] > box[1]
 const MAX_HOLD_TICKS = 81000 // 900 ms: bridge the ~300 ms playout delay and a delayed push.
 const MAX_PREDICTION_TICKS = 18000 // Predict motion briefly, then hold until the next observation.
-const MAX_UNOBSERVED_TICKS = 45000 // Bridge a brief detector confidence dip for at most 500 ms.
+const MAX_UNOBSERVED_TICKS = 45000 // 90 kHz RTP: bridge missing geometry for at most 500 ms.
 
 function predictBox(risk, past, previous, behind) {
   const detection = previous?.detections?.find(d => d.trackId === risk.trackId)
@@ -55,6 +55,8 @@ export class CameraRiskFrameBuffer {
       if (!measuredRisks.has(id)) {
         const detection = data.detections?.find(d => d.trackId === id && validBox(d.box))
         if (detection) {
+          // Renew geometry only. Keep the risk's timestamp, episode and severity
+          // from its evidence; activeRiskTrackIds controls the backend risk latch.
           entry.risk = { ...entry.risk, box: detection.box }
           entry.observed = data.rtpTimestamp
         } else {
@@ -93,8 +95,10 @@ export class CameraRiskFrameBuffer {
       else if (this.latest.displayRisks?.length) reason = 'held-risk-expired'
       else reason = 'no-visible-risks'
     }
-    return { risks, reason: reason || 'risks-present', metadataAgeMs: age,
-      metadataRtpTimestamp: this.latest?.rtpTimestamp ?? null }
+    return {
+      risks, reason: reason || 'risks-present', metadataAgeMs: age,
+      metadataRtpTimestamp: this.latest?.rtpTimestamp ?? null
+    }
   }
 
   sample(timestamp, now = Date.now()) {
@@ -138,10 +142,12 @@ export class CameraRiskFrameBuffer {
           || item.risks?.find(d => d.trackId === risk.trackId && d.episode === risk.episode)
         if (validBox(detection?.box)) { following = { box: detection.box, timestamp: item.rtpTimestamp }; followingDistance = distance }
       }
-      return { ...risk, box: interpolateCameraBox({ box: risk.box, timestamp: past.rtpTimestamp },
-        { box: next.box, timestamp: future.rtpTimestamp }, weight,
-        !held.has(risk.trackId) && validBox(earlier?.box) ? { box: earlier.box, timestamp: previous.rtpTimestamp } : undefined,
-        held.has(risk.trackId) ? undefined : following) }
+      return {
+        ...risk, box: interpolateCameraBox({ box: risk.box, timestamp: past.rtpTimestamp },
+          { box: next.box, timestamp: future.rtpTimestamp }, weight,
+          !held.has(risk.trackId) && validBox(earlier?.box) ? { box: earlier.box, timestamp: previous.rtpTimestamp } : undefined,
+          held.has(risk.trackId) ? undefined : following)
+      }
     })
   }
 }

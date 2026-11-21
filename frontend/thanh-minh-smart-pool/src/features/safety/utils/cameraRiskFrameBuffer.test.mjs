@@ -162,6 +162,51 @@ test('confirmed recovery or a changed track removes the old box even within the 
   }
 })
 
+test('missing-geometry updates preserve the inclusive 500 ms deadline across RTP wrap', () => {
+  const buffer = new CameraRiskFrameBuffer()
+  const start = 0xfffff000
+  const at = delta => (start + delta) >>> 0
+  buffer.add(frame(1, start, [.1, .1, .3, .3]), origin)
+  for (const [id, delta] of [[2, 27001], [3, 45000], [4, 45001]]) {
+    buffer.add(frame(id, at(delta), null, { risks: [], activeRiskTrackIds: [7] }), origin)
+    assert.equal(buffer.sample(at(delta), origin).length, delta <= 45000 ? 1 : 0)
+  }
+})
+
+test('geometry updates preserve risk evidence and cannot survive confirmed recovery', () => {
+  const buffer = new CameraRiskFrameBuffer()
+  const risk = { trackId: 7, episode: 3, severity: 'CRITICAL', timestamp: 123,
+    ratio: .8, box: [.1, .1, .3, .3] }
+  const box = [.2, .2, .4, .4]
+  buffer.add(frame(1, 10000, null, { risks: [risk] }), origin)
+  buffer.add(frame(2, 28000, null, { risks: [], activeRiskTrackIds: [7],
+    detections: [{ trackId: 7, box }] }), origin)
+  assert.deepEqual(buffer.sample(28000, origin), [{ ...risk, box }])
+  assert.deepEqual(buffer.samples[0].risks, [risk])
+  assert.deepEqual(buffer.latest.risks, [])
+  buffer.add(frame(3, 37000, null, { risks: [], activeRiskTrackIds: [],
+    detections: [{ trackId: 7, box }] }), origin)
+  assert.deepEqual(buffer.sample(37000, origin), [])
+  buffer.add(frame(4, 46000, null, { risks: [], activeRiskTrackIds: [7],
+    detections: [{ trackId: 7, box }] }), origin)
+  assert.deepEqual(buffer.sample(46000, origin), [], 'Geometry alone must not recreate a cleared risk')
+})
+
+test('a delayed older risk frame cannot renew carried geometry or undo recovery', () => {
+  const buffer = new CameraRiskFrameBuffer()
+  const old = frame(1, 10000, [.1, .1, .3, .3])
+  buffer.add(old, origin)
+  buffer.add(frame(3, 28000, null, { risks: [], activeRiskTrackIds: [7] }), origin)
+  buffer.add(frame(2, 19000, [.2, .2, .4, .4]), origin + 100)
+  assert.equal(buffer.latest.frameId, 3)
+  assert.equal(buffer.sample(55000, origin + 100).length, 1)
+  assert.deepEqual(buffer.sample(55001, origin + 100), [])
+  buffer.add(frame(4, 37000, null, { risks: [], activeRiskTrackIds: [] }), origin + 100)
+  buffer.add(old, origin + 200)
+  assert.equal(buffer.latched.size, 0)
+  assert.deepEqual(buffer.sample(37000, origin + 200), [])
+})
+
 test('multiple active tracks bridge one missing observation without duplicating boxes', () => {
   const buffer = new CameraRiskFrameBuffer()
   buffer.add(frame(1, 10000, [.1, .1, .3, .3], { risks: [

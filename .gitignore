@@ -102,6 +102,9 @@ coverage/
 # ==============================================================================
 # 5. BACKEND (.NET / C#) - FILE BUILD VÀ TEMP
 # ==============================================================================
+# Temporary .NET build verification
+**/.build-verify*/
+**/..build-verify*/
 # Build kết quả (File chạy dự án)
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -194,3 +197,9 @@ ARCHITECTURE.md
 !/tools/camera-simulator/VERIFICATION.md
 !/docs/LUONG_GIAM_SAT_AN_TOAN.md
 !/docs/KIEM_TRA_GIAM_SAT_AN_TOAN.md
+
+# Local diagnostics and generated reports
+/camera-diagnostics.json
+/camera-diagnostics.zip
+/camera-diagnostics/
+/outputs/
