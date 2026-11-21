@@ -141,35 +141,26 @@ export default function HomePage() {
         </div>
 
         <div className="hero-content">
-          <div className="container">
-            {isMaintenance && (
-              <div
-                style={{
-                  background: '#fef2f2',
-                  border: '1px solid #f87171',
-                  borderRadius: 12,
-                  padding: '16px 20px',
-                  marginBottom: 24,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.15)',
-                  animation: 'fadeIn 0.3s ease-in-out',
-                }}
-              >
-                <span style={{ fontSize: 32 }}>⚠️</span>
-                <div>
-                  <div style={{ fontWeight: 700, color: '#b91c1c', fontSize: 16 }}>
+          {isMaintenance && (
+            <div className="container hero-maintenance-container">
+              <div className="hero-maintenance-banner">
+                <span className="hero-maintenance-icon" role="img" aria-label="Cảnh báo">
+                  ⚠️
+                </span>
+                <div className="hero-maintenance-body">
+                  <div className="hero-maintenance-title">
                     THÔNG BÁO: BỂ BƠI TẠM DỪNG HOẠT ĐỘNG ĐỂ BẢO TRÌ THIẾT BỊ AN TOÀN
                   </div>
-                  <div style={{ color: '#7f1d1d', fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
+                  <div className="hero-maintenance-desc">
                     {statusReason ||
                       'Hệ thống đang tiến hành bảo dưỡng thiết bị an toàn kỹ thuật theo quy định. Quý khách vui lòng tạm hoãn đặt vé cho đến khi có thông báo mở cửa trở lại.'}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
+          <div className="container hero-grid">
             {/* Text side */}
             <div className="hero-text">
               <div className="hero-badge">
