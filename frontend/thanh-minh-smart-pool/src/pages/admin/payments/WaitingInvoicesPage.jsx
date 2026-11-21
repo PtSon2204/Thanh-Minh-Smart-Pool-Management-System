@@ -185,18 +185,6 @@ export default function WaitingInvoicesPage() {
     ? `https://img.vietqr.io/image/${bankId}-${accNo}-compact2.png?amount=${qrAmount}&addInfo=${activeTxRef}&accountName=${encodeURIComponent(accName)}`
     : ''
 
-  // Tính countdown cho active record trong modal
-  const activeCreatedMs = activeRecord
-    ? (activeRecord.createdAt ? new Date(activeRecord.createdAt).getTime() : new Date(activeRecord.paymentTime).getTime())
-    : 0
-  const activeExpiresMs = activeRecord?.expiresAtUtc
-    ? new Date(activeRecord.expiresAtUtc).getTime()
-    : activeCreatedMs + 5 * 60 * 1000
-  const activeSecondsLeft = Math.max(0, Math.floor((activeExpiresMs - now) / 1000))
-  const activeMinutes = Math.floor(activeSecondsLeft / 60)
-  const activeSeconds = activeSecondsLeft % 60
-  const activeTimeDisplay = `${String(activeMinutes).padStart(2, '0')}:${String(activeSeconds).padStart(2, '0')}`
-
   const columns = [
     {
       title: 'Mã HĐ / Ref',
