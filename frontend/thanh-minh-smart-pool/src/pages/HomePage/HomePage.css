@@ -69,7 +69,50 @@
   padding: 120px 0 100px;
 }
 
-.hero-content .container {
+/* Maintenance Banner */
+.hero-maintenance-container {
+  margin-bottom: 28px;
+}
+
+.hero-maintenance-banner {
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  border-radius: 14px;
+  padding: 16px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 18px rgba(239, 68, 68, 0.12);
+  animation: fadeIn 0.3s ease-in-out;
+  text-align: left;
+}
+
+.hero-maintenance-icon {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.hero-maintenance-body {
+  flex: 1;
+}
+
+.hero-maintenance-title {
+  font-weight: 700;
+  color: #b91c1c;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.hero-maintenance-desc {
+  color: #7f1d1d;
+  font-size: 0.88rem;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.hero-content .hero-grid,
+.hero-content .container.hero-grid {
   display: grid;
   grid-template-columns: 1.25fr 0.75fr;
   gap: 48px;
@@ -773,7 +816,8 @@
    7. RESPONSIVE LAYOUT
    ──────────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
-  .hero-content .container {
+  .hero-content .hero-grid,
+  .hero-content .container.hero-grid {
     grid-template-columns: 1fr;
     gap: 40px;
     text-align: center;

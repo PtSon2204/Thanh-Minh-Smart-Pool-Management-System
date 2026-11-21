@@ -19,9 +19,9 @@ export default function InvoicePrintPage() {
   const { id } = useParams()
   const { data, isLoading, error } = usePaymentDetail(id)
 
-  // Auto trigger print once data is ready
+  // Auto trigger print once data is ready and completed
   useEffect(() => {
-    if (data) {
+    if (data && data.status === 'COMPLETED') {
       const timer = setTimeout(() => {
         window.print()
       }, 600)
@@ -48,6 +48,33 @@ export default function InvoicePrintPage() {
           description="Vui lòng kiểm tra lại mã hóa đơn hoặc thử lại sau."
           showIcon
         />
+      </div>
+    )
+  }
+
+  if (data && data.status !== 'COMPLETED') {
+    const isCancelledOrFailed = data.status === 'FAILED' || data.status === 'CANCELLED'
+    return (
+      <div className="invoice-loading" style={{ padding: 32, maxWidth: 640, margin: '40px auto' }}>
+        <Alert
+          type="error"
+          message="Không thể in hóa đơn điện tử"
+          description={
+            isCancelledOrFailed
+              ? 'Giao dịch này đã bị hủy do hết hạn thanh toán (hoặc thất bại). Hệ thống không hỗ trợ in hóa đơn cho giao dịch chưa hoàn thành.'
+              : 'Giao dịch này đang ở trạng thái chờ thanh toán. Vui lòng hoàn tất thanh toán trước khi in hóa đơn.'
+          }
+          showIcon
+        />
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <button
+            className="invoice-btn invoice-btn-close"
+            style={{ display: 'inline-block', padding: '8px 20px', cursor: 'pointer' }}
+            onClick={() => window.close()}
+          >
+            Đóng trang
+          </button>
+        </div>
       </div>
     )
   }

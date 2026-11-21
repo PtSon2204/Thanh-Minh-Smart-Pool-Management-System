@@ -16,6 +16,7 @@ export default function CameraCaptureModal({
   maxPhotos = 5,
   currentCount = 0,
   captureHint = 'Hướng camera vào thiết bị rồi bấm nút chụp',
+  zIndex = 2500,
 }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -248,6 +249,11 @@ export default function CameraCaptureModal({
 
   return (
     <Modal
+      zIndex={zIndex}
+      styles={{
+        mask: { zIndex },
+        wrapper: { zIndex: zIndex + 1 },
+      }}
       title={
         <div
           style={{
