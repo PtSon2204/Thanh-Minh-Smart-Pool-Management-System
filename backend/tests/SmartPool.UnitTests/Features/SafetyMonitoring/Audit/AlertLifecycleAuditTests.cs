@@ -145,7 +145,9 @@ public sealed class AlertLifecycleAuditTests
     }
 
     [Theory]
-    [InlineData("L26", "ACKNOWLEDGED", "WARNING", "WARNING")]
+    // Acknowledgement records receipt; only critical/emergency alerts create a
+    // pending incident. Resolution belongs to ConfirmSafetyIncidentHandler.
+    [InlineData("L26", "ACKNOWLEDGED", "WARNING", null)]
     [InlineData("L27", "ACKNOWLEDGED", "CRITICAL", "EMERGENCY")]
     [InlineData("L28", "ACKNOWLEDGED", "EMERGENCY", "EMERGENCY")]
     [InlineData("L29", "CANCELLED", "CRITICAL", null)]
@@ -158,10 +160,19 @@ public sealed class AlertLifecycleAuditTests
         Assert.Equal(action, result.Status); Assert.Equal(user, current.VerifiedBy);
         Assert.Equal(clock.GetUtcNow().UtcDateTime, current.VerifiedAt);
         Assert.Equal(clock.GetUtcNow().UtcDateTime, current.UpdatedAt);
-        if (incidentSeverity == null) { Assert.Empty(incidents); Assert.Equal(new[] { "alert_updated" }, events); }
+        Assert.Equal(severity, current.SeverityLevel);
+        Assert.Equal(severity, result.Severity);
+        if (incidentSeverity == null) {
+            Assert.Empty(incidents); Assert.Null(current.IncidentId); Assert.Null(result.IncidentId);
+            Assert.Equal(new[] { "alert_updated" }, events);
+            session.Verify(x => x.GetCameraAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
         else { var incident = Assert.Single(incidents); Assert.Equal(incidentSeverity, incident.SeverityLevel);
-            Assert.Equal("Resolved", incident.Status); Assert.Equal(current.Id, incident.WarningId); Assert.Equal(current.ImageUrl, incident.ImageIncidents);
-            Assert.Equal(incident.Id, current.IncidentId); Assert.Equal(new[] { "alert_updated", "incident_created" }, events); }
+            Assert.Equal("Pending", incident.Status); Assert.Equal(current.Id, incident.WarningId); Assert.Equal(current.ImageUrl, incident.ImageIncidents);
+            Assert.Equal(camera, incident.CameraId); Assert.Equal(user, incident.ReportedBy);
+            Assert.Equal(clock.GetUtcNow().UtcDateTime, incident.CreatedAt); Assert.Equal(clock.GetUtcNow().UtcDateTime, incident.UpdatedAt);
+            Assert.Equal(incident.Id, current.IncidentId); Assert.Equal(incident.Id, result.IncidentId);
+            Assert.Equal(new[] { "alert_updated", "incident_created" }, events); }
     }
 
     [Theory]
@@ -184,11 +195,14 @@ public sealed class AlertLifecycleAuditTests
         Assert.False(committed); Assert.Empty(events);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("WARNING")]
+    [InlineData("CRITICAL")]
+    [InlineData("EMERGENCY")]
     [Trait("Function", "SafetyMonitoringService.HandleAsync")]
-    public async Task HandleAsync_ExistingIncident_DoesNotCreateAnother()
+    public async Task HandleAsync_ExistingIncident_DoesNotCreateAnother(string severity)
     {
-        current = Existing(); current.IncidentId = Guid.NewGuid(); var id = current.IncidentId;
+        current = Existing(severity: severity); current.IncidentId = Guid.NewGuid(); var id = current.IncidentId;
         await Service.HandleAsync(current.Id, "ACKNOWLEDGED", user, true, cancellation.Token);
         Assert.Equal(id, current.IncidentId); Assert.Empty(incidents); Assert.Equal(new[] { "alert_updated" }, events);
     }
