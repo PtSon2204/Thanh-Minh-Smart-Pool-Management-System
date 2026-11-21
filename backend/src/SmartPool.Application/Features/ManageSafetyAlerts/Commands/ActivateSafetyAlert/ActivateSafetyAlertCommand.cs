@@ -12,7 +12,7 @@ public sealed record ActivateSafetyAlertCommand : IRequest<ActivateSafetyAlertRe
     /// <summary>Khu vực xảy ra sự cố: e.g. "Bể chính", "Bể trẻ em", "Khu thay đồ"</summary>
     public string Zone { get; init; } = string.Empty;
 
-    /// <summary>Mức độ: chỉ hỗ trợ "EMERGENCY" (khẩn cấp)</summary>
+    /// <summary>Mức độ: "WARNING" (cảnh báo nhẹ) | "EMERGENCY" (khẩn cấp)</summary>
     public string Level { get; init; } = "EMERGENCY";
 
     /// <summary>Mô tả ngắn tình huống (tuỳ chọn)</summary>
