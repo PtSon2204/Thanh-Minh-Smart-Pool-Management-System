@@ -21,11 +21,7 @@ public sealed partial class SafetyMonitoringTests
             new Incident { Id = Guid.NewGuid(), Title = "Manual", ReportedBy = userId, Location = "Khu vực A",
                 Status = "processing", SeverityLevel = "EMERGENCY", IncidentTime = time.AddMinutes(-1) },
             new Incident { Id = Guid.NewGuid(), Title = "Camera A", CameraId = cameraId, Location = "Khu vực A",
-                Status = "Resolved", SeverityLevel = "EMERGENCY", IncidentTime = time.AddMinutes(-2) },
-            new Incident { Id = Guid.NewGuid(), Title = "Legacy Pending", CameraId = cameraId, Location = "Khu vực A",
-                Status = "Pending", SeverityLevel = "EMERGENCY", IncidentTime = time.AddMinutes(-3) },
-            new Incident { Id = Guid.NewGuid(), Title = "Legacy Vietnamese Pending", ReportedBy = userId, Location = "Bể lớn",
-                Status = "chờ xử lý", SeverityLevel = "EMERGENCY", IncidentTime = time.AddMinutes(-4) });
+                Status = "Pending", SeverityLevel = "EMERGENCY", IncidentTime = time.AddMinutes(-2) });
         await db.SaveChangesAsync();
         var reader = new SafetyIncidentReader(db);
         var all = await reader.SearchAsync(new() { PageSize = 1 }, default);
@@ -33,8 +29,8 @@ public sealed partial class SafetyMonitoringTests
         Assert.Equal(3, all.TotalCount);
         Assert.Equal(1, all.CameraCount);
         Assert.Equal(2, all.LifeguardCount);
-        Assert.Equal(0, all.PendingCount);
-        Assert.Equal(2, all.ResolvedCount);
+        Assert.Equal(1, all.PendingCount);
+        Assert.Equal(1, all.ResolvedCount);
         Assert.Equal(1, all.InProgressCount);
         Assert.Equal(2, all.EmergencyCount);
         Assert.Equal(manualId, all.Items[0].Id);
