@@ -1,11 +1,13 @@
 import { Button, Descriptions, Modal, Tag } from 'antd'
 import { EditOutlined, VideoCameraOutlined } from '@ant-design/icons'
 import { cameraStates, equipmentStatuses, isCamera } from '../utils/equipmentDisplay'
+import { parseEquipmentMetadata } from '../utils/equipmentSpecifications'
 import EquipmentSpecificationsDetails from './EquipmentSpecificationsDetails'
 
 export default function EquipmentDetailsModal({ equipment, onClose, onEdit, onViewCamera }) {
   const status = equipmentStatuses[equipment?.status]
   const connection = equipment?.cameraConnection && cameraStates[equipment.cameraConnection.state]
+  const hasSpecifications = Boolean(equipment && parseEquipmentMetadata(equipment.metadata) != null)
 
   return <Modal title="Chi tiết thiết bị" open={Boolean(equipment)} onCancel={onClose} width={640} className="equipment-modal"
     footer={<>
@@ -35,7 +37,12 @@ export default function EquipmentDetailsModal({ equipment, onClose, onEdit, onVi
         ...(isCamera(equipment.category) ? [{ key: 'source', label: 'Nguồn camera', children: equipment.cameraSource === 'Browser' ? 'Webcam trên máy đang mở trang' : 'Camera IP — RTSP' }] : []),
         ...(equipment.cameraConnection ? [{ key: 'camera', label: 'Kết nối camera', children: <Tag color={connection?.color || 'default'}>{connection?.label || 'Chưa xác định'}</Tag> }] : []),
       ]} />
-      <div className="equipment-detail-specifications"><h3>Thông số thiết bị</h3><EquipmentSpecificationsDetails metadata={equipment.metadata} /></div>
+      {hasSpecifications && (
+        <div className="equipment-detail-specifications">
+          <h3>Thông số thiết bị</h3>
+          <EquipmentSpecificationsDetails metadata={equipment.metadata} />
+        </div>
+      )}
     </>}
   </Modal>
 }
