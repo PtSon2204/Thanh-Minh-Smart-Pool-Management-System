@@ -3,8 +3,6 @@ import { Alert, AutoComplete, Button, Form, Input, Modal, Select } from 'antd'
 import { useEquipmentFilters } from '../hooks/useEquipments'
 import { useUpdateEquipment } from '../hooks/useEquipmentMutations'
 import { isCamera } from '../utils/equipmentDisplay'
-import { specificationError, specificationsFromMetadata, specificationsToMetadata } from '../utils/equipmentSpecifications'
-import EquipmentSpecificationsEditor from './EquipmentSpecificationsEditor'
 
 export default function EquipmentUpdateModal({ equipment, onClose }) {
   const [form] = Form.useForm()
@@ -22,7 +20,6 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
         category: equipment.category,
         priorityLevel: equipment.priorityLevel || 'Normal',
         location: equipment.location || '',
-        specifications: specificationsFromMetadata(equipment.metadata),
       })
       reset()
     }
@@ -37,7 +34,7 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
       category: values.category.trim(),
       priorityLevel: values.priorityLevel || 'Normal',
       location: values.location?.trim() || null,
-      metadata: specificationsToMetadata(values.specifications),
+      metadata: null,
     }, {
       onSuccess: onClose,
       onError: error => {
@@ -45,8 +42,10 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
         if (errors && typeof errors === 'object') {
           form.setFields(Object.entries(errors).flatMap(([key, messages]) => {
             const field = key.split('.').at(-1)
-            const name = field.toLowerCase() === 'metadata' ? 'specifications' : field.charAt(0).toLowerCase() + field.slice(1)
-            return ['name', 'category', 'location', 'priorityLevel', 'specifications'].includes(name) ? [{ name, errors: Array.isArray(messages) ? messages : [String(messages)] }] : []
+            const name = field.charAt(0).toLowerCase() + field.slice(1)
+            return ['name', 'category', 'location', 'priorityLevel'].includes(name)
+              ? [{ name, errors: Array.isArray(messages) ? messages : [String(messages)] }]
+              : []
           }))
         }
       },
@@ -90,14 +89,6 @@ export default function EquipmentUpdateModal({ equipment, onClose }) {
         />
       </Form.Item>
       <Form.Item label="Khu vực" name="location" rules={[{ transform: value => value?.trim(), max: 255, message: 'Khu vực không được vượt quá 255 ký tự.' }]}><Input maxLength={255} placeholder="Nhập khu vực đặt thiết bị" /></Form.Item>
-      <Form.Item label="Thông số thiết bị" name="specifications" extra="Mỗi thiết bị có thông số riêng. Thêm, sửa hoặc xóa từng dòng theo nhu cầu." rules={[{
-        validator: (_, value) => {
-          const error = specificationError(value)
-          return error ? Promise.reject(new Error(error)) : Promise.resolve()
-        },
-      }]}>
-        <EquipmentSpecificationsEditor disabled={mutation.isPending} />
-      </Form.Item>
     </Form>
   </Modal>
 }
