@@ -14,8 +14,9 @@ const CONFIRMED_OVERLAY_MS = 30_000
 /**
  * Khung gắn popup + còi + overlay + giọng nói cảnh báo an toàn toàn cục.
  * - Khi AI phát hiện (PENDING): chỉ hiện popup để nhân viên kiểm tra, chưa hú còi.
- * - Khi cứu hộ bấm Xác nhận (WARNING hoặc CRITICAL): lưu lịch sử sự cố, đồng thời
- *   bật còi + overlay toàn màn hình + TTS đọc vị trí (tắt cảnh báo không chuyển trang).
+ * - Khi cứu hộ bấm Xác nhận WARNING: TTS đọc vị trí, KHÔNG hú còi, KHÔNG overlay.
+ * - Khi cứu hộ bấm Xác nhận CRITICAL/EMERGENCY: hú còi + overlay toàn màn hình + TTS
+ *   đọc vị trí (tắt cảnh báo không chuyển trang, tự tắt sau 30s).
  */
 export default function GlobalSafetyAlertsHost() {
   const role = useAuthStore(state => state.session?.role?.toUpperCase())
@@ -52,11 +53,17 @@ export default function GlobalSafetyAlertsHost() {
       const key = `${identity}:${alert.incidentId}`
       if (seen.has(key)) return
       seen.add(key)
-      setConfirmed({ identity, alert })
-      if (audioAllowed) {
-        const critical = ['CRITICAL', 'EMERGENCY'].includes(String(alert.severity || '').toUpperCase())
-        startAlarm(critical ? 'EMERGENCY' : 'WARNING')
+
+      const critical = ['CRITICAL', 'EMERGENCY'].includes(String(alert.severity || '').toUpperCase())
+
+      if (!critical) {
+        // WARNING: TTS đọc vị trí tự động qua useSafetyTts — không hú còi, không overlay
+        return
       }
+
+      // CRITICAL/EMERGENCY: hú còi + overlay toàn màn hình, tự tắt sau 30s
+      setConfirmed({ identity, alert })
+      if (audioAllowed) startAlarm('EMERGENCY')
       if (stopTimerRef.current) clearTimeout(stopTimerRef.current)
       stopTimerRef.current = setTimeout(() => {
         stopTimerRef.current = null
