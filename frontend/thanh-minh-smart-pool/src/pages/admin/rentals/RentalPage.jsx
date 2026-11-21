@@ -292,6 +292,11 @@ export default function RentalPage() {
         title="Giao dịch cho thuê"
         action={
           <Space wrap>
+            {paymentState.hasUncertainOutcome && (
+              <Button onClick={paymentState.resume}>
+                Tiếp tục yêu cầu QR
+              </Button>
+            )}
             <Button
               icon={<QrcodeOutlined />}
               onClick={() => setPaymentQueueOpen(true)}

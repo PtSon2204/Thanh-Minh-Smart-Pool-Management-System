@@ -15,10 +15,6 @@ public sealed partial class ServiceOperations
 
     public async Task<RentalPaymentStatusResponse> CreateQrAsync(CreateRentalQrCommand command, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_paymentOptions.ApiKey) || string.IsNullOrWhiteSpace(_paymentOptions.AccountNumber)
-            || string.IsNullOrWhiteSpace(_paymentOptions.BankId))
-            throw new ServiceConflictException("Thanh toán QR chưa được cấu hình. Hãy dùng tiền mặt hoặc liên hệ quản trị.");
-
         await new CheckoutRentalValidator().ValidateAndThrowAsync(new CheckoutRentalCommand
         {
             RequestId = command.RequestId, OperatorId = command.OperatorId, CustomerName = command.CustomerName,
@@ -62,6 +58,11 @@ public sealed partial class ServiceOperations
             throw new ValidationException([new ValidationFailure("Items", "Tổng tiền QR phải là số nguyên VND. Không tự làm tròn báo giá.")]);
 
         var employeeExists = await _context.Employees.AnyAsync(item => item.UserId == command.OperatorId, cancellationToken);
+        await _context.Database.ExecuteSqlRawAsync(
+            "SELECT pg_advisory_xact_lock(hashtextextended('RentalPaymentReference', 0))", cancellationToken);
+        var reference = $"RN{command.RequestId:N}"[..8].ToUpperInvariant();
+        while (await _context.RentalPaymentIntents.AnyAsync(item => item.Reference == reference, cancellationToken))
+            reference = $"RN{Guid.NewGuid():N}"[..8].ToUpperInvariant();
         var order = new Order
         {
             Id = Guid.NewGuid(), UserId = null, EmployeeId = employeeExists ? command.OperatorId : null,
@@ -71,7 +72,7 @@ public sealed partial class ServiceOperations
         };
         var intent = new RentalPaymentIntent
         {
-            Id = command.RequestId, OrderId = order.Id, RequestHash = hash, Reference = $"RN{command.RequestId:N}".ToUpperInvariant(),
+            Id = command.RequestId, OrderId = order.Id, RequestHash = hash, Reference = reference,
             Status = RentalPaymentPolicy.Pending, FeeAmount = fee, DepositAmount = deposit,
             LinesJson = JsonSerializer.Serialize(lines), InitiatedByUserId = command.OperatorId,
             CreatedAtUtc = now, ExpiresAtUtc = now.Add(RentalPaymentPolicy.Lifetime)

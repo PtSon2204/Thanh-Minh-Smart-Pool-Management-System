@@ -81,7 +81,10 @@ public sealed partial class StaffOperations : IStaffOperations
     public async Task<SaveShiftResponse> SaveShiftAsync(SaveShiftCommand request, CancellationToken cancellationToken)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7130421)", cancellationToken);
         Shift shift;
+        var normalizedName = request.Name.Trim();
+        var isNew = request.Id is null;
         if (request.Id is null)
         {
             shift = new Shift { Id = Guid.NewGuid() };
@@ -97,7 +100,26 @@ public sealed partial class StaffOperations : IStaffOperations
                 throw new StaffConflictException("Ca đã được phân công nên không thể đổi giờ. Hãy tạo ca mới.");
         }
 
-        shift.Name = request.Name.Trim();
+        var timeChanged = isNew || shift.StartTime != request.StartTime || shift.EndTime != request.EndTime;
+        var nameChanged = isNew || !string.Equals(shift.Name?.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase);
+        var legacyInvalid = shift.StartTime >= shift.EndTime;
+        if ((timeChanged || isNew) && request.EndTime <= request.StartTime)
+            throw new StaffConflictException("Giờ kết thúc phải sau giờ bắt đầu trong cùng ngày.");
+        if (!isNew && legacyInvalid && (timeChanged || nameChanged || request.IsActive))
+            throw new StaffConflictException("Ca cũ không hợp lệ chỉ có thể được ngừng hoạt động. Hãy sửa giờ trước khi kích hoạt hoặc đổi tên.");
+        if (isNew || timeChanged || nameChanged)
+        {
+            var duplicateName = await context.Shifts.AnyAsync(item => item.Id != shift.Id &&
+                item.Name.Trim().ToUpper() == normalizedName.ToUpper(), cancellationToken);
+            if (duplicateName)
+                throw new StaffConflictException("Tên ca làm việc đã tồn tại.");
+            var duplicateTimeRange = await context.Shifts.AnyAsync(item => item.Id != shift.Id &&
+                item.StartTime == request.StartTime && item.EndTime == request.EndTime, cancellationToken);
+            if (duplicateTimeRange)
+                throw new StaffConflictException("Khung giờ ca làm việc đã tồn tại.");
+        }
+
+        shift.Name = normalizedName;
         shift.StartTime = request.StartTime;
         shift.EndTime = request.EndTime;
         shift.IsActive = request.IsActive;

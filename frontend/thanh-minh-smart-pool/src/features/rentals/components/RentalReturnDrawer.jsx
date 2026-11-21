@@ -52,6 +52,8 @@ export default function RentalReturnDrawer({
   const normalQuantity = Form.useWatch("normalQuantity", form) || 0;
   const damagedQuantity = Form.useWatch("damagedQuantity", form) || 0;
   const lostQuantity = Form.useWatch("lostQuantity", form) || 0;
+  const cashRefundConfirmed = Form.useWatch("cashRefundConfirmed", form);
+  const settlementConfirmed = Form.useWatch("settlementConfirmed", form);
   const selectedQuantity = normalQuantity + damagedQuantity + lostQuantity;
   const maximum = Math.min(details?.outstandingQuantity || 0, 100);
   const isLegacy = details?.collectionVerified === false;
@@ -100,6 +102,8 @@ export default function RentalReturnDrawer({
     (total, id) => total + (depositByRentalId.get(id) ?? DEPOSIT_PER_UNIT),
     0,
   );
+  const confirmationsComplete =
+    settlementConfirmed && (refundAmount <= 0 || cashRefundConfirmed);
   const canConfirm =
     isLocked ||
     (!isLegacy &&
@@ -408,7 +412,7 @@ export default function RentalReturnDrawer({
           <Button
             type="primary"
             loading={mutation.isPending}
-            disabled={!canConfirm || mutation.isPending}
+              disabled={!canConfirm || !confirmationsComplete || mutation.isPending}
             onClick={handleSubmit}
           >
             {isLocked

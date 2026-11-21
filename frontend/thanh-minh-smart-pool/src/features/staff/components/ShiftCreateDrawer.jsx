@@ -25,14 +25,6 @@ function getShiftErrorMessage(error) {
   return data?.detail || data?.message || "Máy chủ không thể lưu ca làm việc.";
 }
 
-function isOvernight(startTime, endTime) {
-  return Boolean(
-    startTime &&
-    endTime &&
-    endTime.format("HH:mm:ss") < startTime.format("HH:mm:ss"),
-  );
-}
-
 const clockRule = {
   validator: (_, value) =>
     value && !value.isValid()
@@ -107,9 +99,6 @@ export default function ShiftCreateDrawer({ open, onClose, shift = null }) {
       },
     });
   };
-
-  const startTime = Form.useWatch("startTime", form);
-  const endTime = Form.useWatch("endTime", form);
 
   return (
     <Drawer
@@ -201,9 +190,9 @@ export default function ShiftCreateDrawer({ open, onClose, shift = null }) {
                   const start = getFieldValue("startTime");
                   return start &&
                     value &&
-                    value.format("HH:mm:ss") === start.format("HH:mm:ss")
+                    value.format("HH:mm:ss") <= start.format("HH:mm:ss")
                     ? Promise.reject(
-                        new Error("Giờ kết thúc phải khác giờ bắt đầu."),
+                        new Error("Giờ kết thúc phải sau giờ bắt đầu trong cùng ngày."),
                       )
                     : Promise.resolve();
                 },
@@ -213,9 +202,6 @@ export default function ShiftCreateDrawer({ open, onClose, shift = null }) {
             <TimePicker className="staff-shift-time-picker" format="HH:mm" />
           </Form.Item>
         </div>
-        {isOvernight(startTime, endTime) && (
-          <Alert type="info" showIcon message="Kết thúc vào ngày hôm sau" />
-        )}
         <Form.Item
           label="Đang hoạt động"
           name="isActive"

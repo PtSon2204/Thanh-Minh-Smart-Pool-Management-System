@@ -52,12 +52,33 @@ public sealed class PaymentManagementApiTests
                 content = transactionRef, referenceCode = fixture.Name("QA_RENTAL_BANK")
             })
         };
-        webhookRequest.Headers.Authorization = new AuthenticationHeaderValue("Apikey", "test-only");
+        fixture.Client.DefaultRequestHeaders.Authorization = null;
         Assert.Equal(HttpStatusCode.OK, (await fixture.Client.SendAsync(webhookRequest)).StatusCode);
 
         fixture.Use("ADMIN");
-        var issue = await fixture.Client.PostAsync($"/api/rentals/payments/{intentId}/issue", null);
-        Assert.Equal(HttpStatusCode.OK, issue.StatusCode);
+        var status = await fixture.Client.GetAsync($"/api/rentals/payments/{intentId}");
+        Assert.Equal(HttpStatusCode.OK, status.StatusCode);
+        using var statusBody = System.Text.Json.JsonDocument.Parse(await status.Content.ReadAsStringAsync());
+        Assert.Equal("ISSUED", statusBody.RootElement.GetProperty("status").GetString());
+        Assert.Single(statusBody.RootElement.GetProperty("issuedResult").GetProperty("rentals").EnumerateArray());
+
+        var ignored = await fixture.Client.PostAsJsonAsync("/api/sepay/rental/webhook", new
+        {
+            id = fixture.NextBankEventId(), content = "rn12345", transferAmount = 30000
+        });
+        Assert.Equal(HttpStatusCode.OK, ignored.StatusCode);
+        using var ignoredBody = System.Text.Json.JsonDocument.Parse(await ignored.Content.ReadAsStringAsync());
+        Assert.True(ignoredBody.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("No valid rental TransactionRef found. Ignored.", ignoredBody.RootElement.GetProperty("message").GetString());
+
+        var wrongRoute = await fixture.Client.PostAsJsonAsync("/api/sepay/webhook", new
+        {
+            id = fixture.NextBankEventId(), content = transactionRef, transferAmount = 30000
+        });
+        Assert.Equal(HttpStatusCode.OK, wrongRoute.StatusCode);
+        using var wrongRouteBody = System.Text.Json.JsonDocument.Parse(await wrongRoute.Content.ReadAsStringAsync());
+        Assert.True(wrongRouteBody.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("No valid TransactionRef found. Ignored.", wrongRouteBody.RootElement.GetProperty("message").GetString());
 
         var paymentId = await fixture.PaymentIdForOrderAsync(orderId);
         var detail = await fixture.Client.GetAsync($"/api/payments/{paymentId}");

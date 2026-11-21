@@ -20,7 +20,11 @@ public sealed class RentalQrPaymentIntegrationTests
         await using var db = fixture.Context();
         var rentalOperations = fixture.Operations(db);
         var intent = await rentalOperations.CreateQrAsync(fixture.QrRequest(1), default);
-        var transfer = fixture.Transfer(intent.TransactionRef, 30000);
+        var legacyReference = $"RN{intent.Id:N}".ToUpperInvariant();
+        var storedIntent = await db.RentalPaymentIntents.SingleAsync(item => item.Id == intent.Id);
+        storedIntent.Reference = legacyReference;
+        await db.SaveChangesAsync();
+        var transfer = fixture.Transfer(legacyReference, 30000);
         await using var firstEventDb = fixture.Context();
         await using var secondEventDb = fixture.Context();
         var firstOperations = fixture.Operations(firstEventDb);
@@ -34,11 +38,33 @@ public sealed class RentalQrPaymentIntegrationTests
         Assert.True(replay.Success);
         Assert.True(collision.Success);
         var status = await rentalOperations.GetPaymentAsync(intent.Id, default);
-        Assert.Equal(RentalPaymentPolicy.Paid, status.Status);
+        Assert.Equal(RentalPaymentPolicy.Issued, status.Status);
         Assert.Equal(30000m, status.PaidAmount);
         Assert.True(status.RequiresReconciliation);
         Assert.Equal(1, await db.BankTransferReceipts.CountAsync(item => item.OrderId == intent.OrderId && item.Disposition == "RENTAL_APPLIED"));
-        Assert.False(await db.Rentals.AnyAsync(item => item.OrderId == intent.OrderId));
+        Assert.Equal(1, await db.Rentals.CountAsync(item => item.OrderId == intent.OrderId));
+    }
+
+    [Fact]
+    public async Task GivenConcurrentRequestsWithTheSameShortPrefix_WhenCreatingQr_ThenReferencesRemainUnique()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var first = fixture.QrRequest(1);
+        var second = fixture.QrRequest(1);
+        first.RequestId = Guid.Parse("7a3f2c00-0000-4000-8000-000000000001");
+        second.RequestId = Guid.Parse("7a3f2c00-0000-4000-8000-000000000002");
+        await using var firstDb = fixture.Context();
+        await using var secondDb = fixture.Context();
+
+        var results = await Task.WhenAll(
+            fixture.Operations(firstDb).CreateQrAsync(first, default),
+            fixture.Operations(secondDb).CreateQrAsync(second, default));
+        var replay = await fixture.Operations(firstDb).CreateQrAsync(first, default);
+
+        Assert.All(results, result => Assert.Matches("^RN[0-9A-F]{6}$", result.TransactionRef));
+        Assert.NotEqual(results[0].TransactionRef, results[1].TransactionRef);
+        Assert.Equal(results[0].TransactionRef, replay.TransactionRef);
+        Assert.Equal(3, await fixture.ReadStockAsync());
     }
 
     [Fact]
@@ -82,7 +108,7 @@ public sealed class RentalQrPaymentIntegrationTests
         var operations = fixture.Operations(issueDb);
         var concurrentIssueOperations = fixture.Operations(concurrentIssueDb);
         var paid = await operations.GetPaymentAsync(intent.Id, default);
-        Assert.Equal(RentalPaymentPolicy.Paid, paid.Status);
+        Assert.Equal(RentalPaymentPolicy.Issued, paid.Status);
         Assert.Equal((65000m, 0m, 5000m, true),
             (paid.PaidAmount, paid.RemainingAmount, paid.ExcessAmount, paid.RequiresReconciliation));
 
@@ -173,12 +199,7 @@ public sealed class RentalQrPaymentIntegrationTests
 
         public ServiceOperations Operations(SmartPoolDbContext context) => new(context,
             new MapperConfiguration(_ => { }, NullLoggerFactory.Instance).CreateMapper(), Clock,
-            Options.Create(SePayOptions));
-
-        private SePayOptions SePayOptions { get; } = new()
-        {
-            ApiKey = "test-only", AccountNumber = "test-account", BankId = "test-bank", AccountName = "Test"
-        };
+            Options.Create(new SePayOptions()));
 
         public CreateRentalQrCommand QrRequest(int quantity) => new()
         {

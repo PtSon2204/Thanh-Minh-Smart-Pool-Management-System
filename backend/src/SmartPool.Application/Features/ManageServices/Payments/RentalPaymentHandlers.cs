@@ -7,6 +7,36 @@ using SmartPool.Application.Interfaces.Repositories;
 
 namespace SmartPool.Application.Features.ManageServices.Payments
 {
+    public sealed class ConfirmRentalPaymentHandler : IRequestHandler<ConfirmRentalPaymentCommand, BankTransferResult>
+    {
+        private readonly IServiceOperations _operations;
+
+        public ConfirmRentalPaymentHandler(IServiceOperations operations)
+        {
+            _operations = operations;
+        }
+
+        public Task<BankTransferResult> Handle(ConfirmRentalPaymentCommand request, CancellationToken cancellationToken)
+        {
+            if (string.Equals(request.TransferType, "out", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(new BankTransferResult(true, "Ignored non-collection event."));
+            }
+
+            if (request.EventId <= 0 || !RentalPaymentPolicy.IsWholeVnd(request.ActualAmount)
+                || string.IsNullOrWhiteSpace(request.AccountNumber)
+                || !string.Equals(request.TransferType, "in", StringComparison.OrdinalIgnoreCase)
+                || !RentalPaymentPolicy.IsRentalReference(request.TransactionRef))
+            {
+                return Task.FromResult(new BankTransferResult(false, "Invalid bank transaction metadata."));
+            }
+
+            var transfer = new BankTransferEvent(request.EventId, request.AccountNumber.Trim(),
+                request.ActualAmount, request.TransactionRef, request.BankReferenceCode);
+            return _operations.ApplyTransferAsync(transfer, cancellationToken);
+        }
+    }
+
     public sealed class CreateRentalQrHandler : IRequestHandler<CreateRentalQrCommand, RentalPaymentStatusResponse>
     {
         private readonly IServiceOperations _operations;

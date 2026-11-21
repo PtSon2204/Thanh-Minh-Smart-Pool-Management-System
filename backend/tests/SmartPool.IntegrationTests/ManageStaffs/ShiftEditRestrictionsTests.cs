@@ -77,6 +77,27 @@ public sealed class ShiftEditRestrictionsTests
         }
     }
 
+    [Fact]
+    public async Task GivenConflictingShiftInput_WhenSaving_ThenRejectsInvalidNameAndTimeCombinations()
+    {
+        await using var fixture = await ShiftFixture.CreateAsync();
+        var invalidCommands = new[]
+        {
+            CreateCommand(new TimeOnly(9, 0), new TimeOnly(17, 0), " original SHIFT "),
+            CreateCommand(fixture.OriginalStart, fixture.OriginalEnd, "Other range"),
+            CreateCommand(new TimeOnly(10, 0), new TimeOnly(10, 0), "Equal time"),
+            CreateCommand(new TimeOnly(18, 0), new TimeOnly(9, 0), "Overnight")
+        };
+
+        foreach (var command in invalidCommands)
+            await Assert.ThrowsAsync<StaffConflictException>(() => fixture.Operations.SaveShiftAsync(command, CancellationToken.None));
+
+        static SaveShiftCommand CreateCommand(TimeOnly start, TimeOnly end, string name) => new()
+        {
+            Name = name, StartTime = start, EndTime = end, IsActive = true
+        };
+    }
+
     private sealed class ShiftFixture : IAsyncDisposable
     {
         private readonly StaffEmploymentFixture employment;
