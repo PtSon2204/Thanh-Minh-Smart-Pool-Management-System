@@ -114,7 +114,9 @@ namespace SmartPool.Application.Features.ManageTickets.Ticket.Commands.ConfirmPe
                 };
             }
 
-            if (order.Status is "CANCELLED" or "COMPLETED")
+            var isEnded = string.Equals(order.Status, "CANCELLED", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(order.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase);
+            if (isEnded)
             {
                 // Persist additional/late receipts for reconciliation, without issuing tickets again.
                 await _ticketOrderOperations.SaveIncomingPaymentAsync(bankPayment, cancellationToken);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Table,
   Button,
@@ -65,6 +65,35 @@ export default function WaitingInvoicesPage() {
 
   const { data, isLoading, refetch } = usePayments(queryParams)
 
+  // Lọc chỉ hiển thị những giao dịch chưa hết hạn 5 phút
+  const activeItems = useMemo(() => {
+    return (data?.items || []).filter((record) => {
+      const createdMs = record.createdAt
+        ? new Date(record.createdAt).getTime()
+        : new Date(record.paymentTime).getTime()
+      const expiresMs = record.expiresAtUtc
+        ? new Date(record.expiresAtUtc).getTime()
+        : createdMs + 5 * 60 * 1000
+      return expiresMs > now
+    })
+  }, [data?.items, now])
+
+  // Tự động refetch khi có giao dịch hết hạn để backend cập nhật FAILED
+  useEffect(() => {
+    const hasExpired = (data?.items || []).some((record) => {
+      const createdMs = record.createdAt
+        ? new Date(record.createdAt).getTime()
+        : new Date(record.paymentTime).getTime()
+      const expiresMs = record.expiresAtUtc
+        ? new Date(record.expiresAtUtc).getTime()
+        : createdMs + 5 * 60 * 1000
+      return expiresMs <= now
+    })
+    if (hasExpired) {
+      refetch()
+    }
+  }, [data?.items, now, refetch])
+
   // Polling order status khi modal QR đang mở
   const activeOrderId = activeRecord?.orderId
   const { data: orderStatusData } = useOrderStatus(activeOrderId, {
@@ -77,9 +106,32 @@ export default function WaitingInvoicesPage() {
     enabled: Boolean(qrModalOpen && activeOrderId),
   })
 
+  // Tính countdown cho active record trong modal
+  const activeCreatedMs = activeRecord
+    ? (activeRecord.createdAt ? new Date(activeRecord.createdAt).getTime() : new Date(activeRecord.paymentTime).getTime())
+    : 0
+  const activeExpiresMs = activeRecord?.expiresAtUtc
+    ? new Date(activeRecord.expiresAtUtc).getTime()
+    : activeCreatedMs + 5 * 60 * 1000
+  const activeSecondsLeft = Math.max(0, Math.floor((activeExpiresMs - now) / 1000))
+  const activeMinutes = Math.floor(activeSecondsLeft / 60)
+  const activeSeconds = activeSecondsLeft % 60
+  const activeTimeDisplay = `${String(activeMinutes).padStart(2, '0')}:${String(activeSeconds).padStart(2, '0')}`
+
   // Theo dõi khi đơn hàng hoàn thành hoặc bị hết hạn trong modal
   useEffect(() => {
-    if (!qrModalOpen || !orderStatusData) return
+    if (!qrModalOpen) return
+
+    // Khi thời gian trong modal đếm lùi về 0: lập tức đóng modal, thông báo hủy và refetch
+    if (activeSecondsLeft <= 0) {
+      message.warning('Giao dịch đã tự động hết hạn sau 5 phút và đã bị hủy.')
+      setQrModalOpen(false)
+      setActiveRecord(null)
+      refetch()
+      return
+    }
+
+    if (!orderStatusData) return
 
     if (orderStatusData.status === 'COMPLETED') {
       message.success('Thanh toán thành công!')
@@ -92,11 +144,21 @@ export default function WaitingInvoicesPage() {
       setActiveRecord(null)
       refetch()
     }
-  }, [orderStatusData, qrModalOpen, refetch])
-
+  }, [orderStatusData, qrModalOpen, activeSecondsLeft, refetch])
 
   // Xử lý mở modal tiếp tục thanh toán
   const handleOpenPayment = (record) => {
+    const createdMs = record.createdAt
+      ? new Date(record.createdAt).getTime()
+      : new Date(record.paymentTime).getTime()
+    const expiresMs = record.expiresAtUtc
+      ? new Date(record.expiresAtUtc).getTime()
+      : createdMs + 5 * 60 * 1000
+    if (expiresMs <= Date.now()) {
+      message.error('Giao dịch đã hết hạn thanh toán và đã được chuyển vào lịch sử với trạng thái hủy.')
+      refetch()
+      return
+    }
     setActiveRecord(record)
     setPaymentSuccessData(null)
     setQrModalOpen(true)
@@ -248,17 +310,35 @@ export default function WaitingInvoicesPage() {
       key: 'action',
       width: 170,
       align: 'center',
-      render: (_, record) => (
-        <Button
-          type="primary"
-          icon={<QrcodeOutlined />}
-          size="middle"
-          className="action-btn-pay"
-          onClick={() => handleOpenPayment(record)}
-        >
-          Tiếp tục thanh toán
-        </Button>
-      ),
+      render: (_, record) => {
+        const createdMs = record.createdAt
+          ? new Date(record.createdAt).getTime()
+          : new Date(record.paymentTime).getTime()
+        const expiresMs = record.expiresAtUtc
+          ? new Date(record.expiresAtUtc).getTime()
+          : createdMs + 5 * 60 * 1000
+        const isExpired = expiresMs <= now
+
+        if (isExpired) {
+          return (
+            <Tag color="default" style={{ fontSize: '12px' }}>
+              Đã hết hạn
+            </Tag>
+          )
+        }
+
+        return (
+          <Button
+            type="primary"
+            icon={<QrcodeOutlined />}
+            size="middle"
+            className="action-btn-pay"
+            onClick={() => handleOpenPayment(record)}
+          >
+            Tiếp tục thanh toán
+          </Button>
+        )
+      },
     },
   ]
 
@@ -309,12 +389,12 @@ export default function WaitingInvoicesPage() {
         <Table
           rowKey="paymentId"
           columns={columns}
-          dataSource={data?.items || []}
+          dataSource={activeItems}
           loading={isLoading}
           pagination={{
             current: pageIndex,
             pageSize,
-            total: data?.totalCount || 0,
+            total: activeItems.length,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
             onChange: (p, s) => {

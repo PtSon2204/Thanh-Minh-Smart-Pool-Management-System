@@ -43,6 +43,10 @@ test('UTCID08 (A) - getStatusLabel FAILED -> Thất bại', () => {
   assert.deepEqual(getStatusLabel('FAILED'), { label: 'Thất bại', cls: 'status-failed' })
 })
 
+test('UTCID08B (A) - getStatusLabel CANCELLED -> Đã hủy', () => {
+  assert.deepEqual(getStatusLabel('CANCELLED'), { label: 'Đã hủy', cls: 'status-failed' })
+})
+
 test('UTCID09 (N) - getStatusLabel trạng thái khác -> Chờ xử lý', () => {
   assert.deepEqual(getStatusLabel('PENDING'), { label: 'Chờ xử lý', cls: 'status-pending' })
 })

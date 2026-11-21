@@ -5,6 +5,7 @@ export const formatCurrency = (val) => {
 
 export const getStatusLabel = (status) => {
   if (status === 'COMPLETED') return { label: 'Đã thanh toán', cls: 'status-completed' }
+  if (status === 'CANCELLED') return { label: 'Đã hủy', cls: 'status-failed' }
   if (status === 'FAILED') return { label: 'Thất bại', cls: 'status-failed' }
   return { label: 'Chờ xử lý', cls: 'status-pending' }
 }
