@@ -21,6 +21,7 @@ import {
   SearchOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
+  CloseCircleOutlined,
   LoadingOutlined,
   PrinterOutlined,
   CreditCardOutlined,
@@ -46,7 +47,6 @@ export default function WaitingInvoicesPage() {
   // Modal tiếp tục thanh toán
   const [activeRecord, setActiveRecord] = useState(null)
   const [qrModalOpen, setQrModalOpen] = useState(false)
-  const [paymentSuccessData, setPaymentSuccessData] = useState(null)
 
   // Real-time ticking for countdowns
   useEffect(() => {
@@ -118,33 +118,25 @@ export default function WaitingInvoicesPage() {
   const activeSeconds = activeSecondsLeft % 60
   const activeTimeDisplay = `${String(activeMinutes).padStart(2, '0')}:${String(activeSeconds).padStart(2, '0')}`
 
+  const orderStatus = orderStatusData?.status
+  const isPaymentSuccess = orderStatus === 'COMPLETED'
+  const isPaymentExpired =
+    activeSecondsLeft <= 0 ||
+    orderStatus === 'CANCELLED' ||
+    orderStatus === 'FAILED'
+
   // Theo dõi khi đơn hàng hoàn thành hoặc bị hết hạn trong modal
   useEffect(() => {
-    if (!qrModalOpen) return
+    if (!qrModalOpen || !orderStatus) return
 
-    // Khi thời gian trong modal đếm lùi về 0: lập tức đóng modal, thông báo hủy và refetch
-    if (activeSecondsLeft <= 0) {
-      message.warning('Giao dịch đã tự động hết hạn sau 5 phút và đã bị hủy.')
-      setQrModalOpen(false)
-      setActiveRecord(null)
-      refetch()
-      return
-    }
-
-    if (!orderStatusData) return
-
-    if (orderStatusData.status === 'COMPLETED') {
+    if (orderStatus === 'COMPLETED') {
       message.success('Thanh toán thành công!')
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPaymentSuccessData(orderStatusData)
       refetch()
-    } else if (orderStatusData.status === 'CANCELLED' || orderStatusData.status === 'FAILED') {
+    } else if (orderStatus === 'CANCELLED' || orderStatus === 'FAILED') {
       message.error('Giao dịch đã tự động hết hạn sau 5 phút.')
-      setQrModalOpen(false)
-      setActiveRecord(null)
       refetch()
     }
-  }, [orderStatusData, qrModalOpen, activeSecondsLeft, refetch])
+  }, [orderStatus, qrModalOpen, refetch])
 
   // Xử lý mở modal tiếp tục thanh toán
   const handleOpenPayment = (record) => {
@@ -160,7 +152,6 @@ export default function WaitingInvoicesPage() {
       return
     }
     setActiveRecord(record)
-    setPaymentSuccessData(null)
     setQrModalOpen(true)
   }
 
@@ -168,7 +159,6 @@ export default function WaitingInvoicesPage() {
   const handleCloseModal = () => {
     setQrModalOpen(false)
     setActiveRecord(null)
-    setPaymentSuccessData(null)
   }
 
   const bankId = import.meta.env.VITE_VIETQR_BANK_ID || '970422'
@@ -418,7 +408,20 @@ export default function WaitingInvoicesPage() {
         width={420}
         maskClosable={false}
       >
-        {paymentSuccessData ? (
+        {isPaymentExpired ? (
+          <div style={{ textAlign: 'center', padding: '24px 8px' }}>
+            <CloseCircleOutlined style={{ fontSize: 56, color: '#ef4444', marginBottom: 16 }} />
+            <Title level={4} style={{ color: '#ef4444', margin: '0 0 8px' }}>
+              Giao dịch đã hết hạn!
+            </Title>
+            <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
+              Đơn hàng đã tự động bị hủy sau 5 phút và chuyển vào lịch sử thanh toán.
+            </p>
+            <Button type="primary" onClick={handleCloseModal}>
+              Đóng
+            </Button>
+          </div>
+        ) : isPaymentSuccess ? (
           <div style={{ textAlign: 'center', padding: '24px 8px' }}>
             <CheckCircleOutlined style={{ fontSize: 56, color: '#10b981', marginBottom: 16 }} />
             <Title level={4} style={{ color: '#10b981', margin: '0 0 8px' }}>
