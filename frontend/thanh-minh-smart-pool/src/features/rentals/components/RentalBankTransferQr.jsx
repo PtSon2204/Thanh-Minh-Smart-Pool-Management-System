@@ -14,6 +14,7 @@ function getBankTransferQrUrl({
   if (
     !bankId ||
     !accountNumber ||
+    !accountName ||
     !transactionRef ||
     !Number.isFinite(Number(amount)) ||
     Number(amount) <= 0
@@ -99,7 +100,7 @@ export default function RentalBankTransferQr({
         type="warning"
         showIcon
         message="Không có thông tin QR hợp lệ"
-        description="Máy chủ chưa trả về đủ thông tin ngân hàng hoặc số tiền cần thu."
+          description="Thiếu VITE_VIETQR_BANK_ID, VITE_VIETQR_ACCOUNT_NO hoặc VITE_VIETQR_ACCOUNT_NAME."
       />
     );
 

@@ -1,7 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Moq;
 using SmartPool.API.Controllers;
 using SmartPool.Application.Features.ManageServices.Payments;
@@ -11,34 +10,57 @@ namespace SmartPool.UnitTests.Features.ManageServices;
 
 public sealed class RentalSePayWebhookTests
 {
+    [Theory]
+    [InlineData("12345678")]
+    [InlineData("another-account")]
+    public async Task GivenIncomingRentalEvent_WhenNoApiKeyOrConfiguredAccount_ThenItUsesRentalOperations(string accountNumber)
+    {
+        var reference = $"RN{Guid.NewGuid():N}".ToUpperInvariant();
+        var rentals = new Mock<IServiceOperations>(MockBehavior.Strict);
+        rentals.Setup(item => item.ApplyTransferAsync(It.Is<BankTransferEvent>(transfer =>
+                    transfer.Reference == reference && transfer.EventId == 42 && transfer.Amount == 80000 && transfer.AccountNumber == accountNumber),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BankTransferResult(true, "Recorded."));
+        var controller = CreateController(rentals.Object);
+
+        var result = await controller.RentalWebhook(Incoming(reference.ToLowerInvariant(), accountNumber: accountNumber));
+
+        Assert.IsType<OkObjectResult>(result);
+        rentals.Verify(item => item.ApplyTransferAsync(It.IsAny<BankTransferEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+        rentals.VerifyNoOtherCalls();
+    }
+
     [Fact]
-    public async Task GivenInvalidWebhookKey_WhenReceivingWebhook_ThenUnauthorizedWithoutDispatch()
+    public async Task GivenFailedRentalCollection_WhenReceivingWebhook_ThenReturnsTicketStyleFailure()
     {
         var sender = new Mock<IServiceOperations>(MockBehavior.Strict);
-        var controller = CreateController();
+        sender.Setup(item => item.ApplyTransferAsync(It.IsAny<BankTransferEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BankTransferResult(false, "Not collected."));
+        var controller = CreateController(sender.Object);
 
-        var result = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}"), sender.Object, ConfiguredOptions());
+        var result = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}"));
 
-        Assert.IsType<UnauthorizedObjectResult>(result);
+        var response = Assert.IsType<OkObjectResult>(result);
+        var json = System.Text.Json.JsonSerializer.Serialize(response.Value);
+        Assert.Contains("\"success\":false", json);
+        sender.Verify(item => item.ApplyTransferAsync(It.IsAny<BankTransferEvent>(), It.IsAny<CancellationToken>()), Times.Once);
         sender.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task GivenOutgoingOrWrongAccountEvent_WhenReceivingWebhook_ThenItIsIgnoredWithoutDispatch()
+    public async Task GivenOutgoingEvent_WhenReceivingWebhook_ThenItIsIgnoredWithoutDispatch()
     {
         var sender = new Mock<IServiceOperations>(MockBehavior.Strict);
-        var controller = CreateController(authenticated: true);
+        var controller = CreateController(sender.Object);
 
-        var outgoing = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}", transferType: "out"), sender.Object, ConfiguredOptions());
-        var wrongAccount = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}", accountNumber: "other"), sender.Object, ConfiguredOptions());
+        var outgoing = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}", transferType: "out"));
 
         Assert.IsType<OkObjectResult>(outgoing);
-        Assert.IsType<OkObjectResult>(wrongAccount);
         sender.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task GivenAuthenticatedRentalEvent_WhenReceivingWebhook_ThenItUsesOnlyRentalOperations()
+    public async Task GivenRentalEvent_WhenReceivingWebhook_ThenItPreservesReceiptFields()
     {
         var reference = $"RN{Guid.NewGuid():N}".ToUpperInvariant();
         BankTransferEvent? dispatched = null;
@@ -46,9 +68,9 @@ public sealed class RentalSePayWebhookTests
         sender.Setup(item => item.ApplyTransferAsync(It.IsAny<BankTransferEvent>(), It.IsAny<CancellationToken>()))
             .Callback<BankTransferEvent, CancellationToken>((request, _) => dispatched = request)
             .ReturnsAsync(new BankTransferResult(true, "Recorded."));
-        var controller = CreateController(authenticated: true);
+        var controller = CreateController(sender.Object);
 
-        var result = await controller.RentalWebhook(Incoming(reference), sender.Object, ConfiguredOptions());
+        var result = await controller.RentalWebhook(Incoming(reference));
 
         Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(dispatched);
@@ -64,22 +86,22 @@ public sealed class RentalSePayWebhookTests
     public async Task GivenTicketReference_WhenReceivingRentalWebhook_ThenItDoesNotApplyPayment()
     {
         var rentals = new Mock<IServiceOperations>(MockBehavior.Strict);
-        var controller = CreateController(authenticated: true);
+        var controller = CreateController(rentals.Object);
 
-        Assert.IsType<OkObjectResult>(await controller.RentalWebhook(Incoming("SPABC123"), rentals.Object, ConfiguredOptions()));
+        Assert.IsType<OkObjectResult>(await controller.RentalWebhook(Incoming("SPABC123")));
         rentals.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task GivenInvalidIncomingAmount_WhenReceivingWebhook_ThenNoPaymentCommandIsSent()
+    public async Task GivenInvalidIncomingAmount_WhenReceivingWebhook_ThenHandlerRejectsItWithoutCollecting()
     {
         var sender = new Mock<IServiceOperations>(MockBehavior.Strict);
-        var controller = CreateController(authenticated: true);
+        var controller = CreateController(sender.Object);
 
-        var result = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}", amount: 1000.5m), sender.Object, ConfiguredOptions());
+        var result = await controller.RentalWebhook(Incoming($"RN{Guid.NewGuid():N}", amount: 1000.5m));
 
-        var rejection = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal(StatusCodes.Status400BadRequest, rejection.StatusCode);
+        var rejection = Assert.IsType<OkObjectResult>(result);
+        Assert.Contains("\"success\":false", System.Text.Json.JsonSerializer.Serialize(rejection.Value));
         sender.VerifyNoOtherCalls();
     }
 
@@ -89,17 +111,14 @@ public sealed class RentalSePayWebhookTests
         content = $"Thanh toan {reference}", referenceCode = "BANK-REF-42"
     };
 
-    private static IOptions<SePayOptions> ConfiguredOptions() => Options.Create(new SePayOptions
+    private static SePayController CreateController(IServiceOperations operations)
     {
-        ApiKey = "unit-test-key", AccountNumber = "12345678", BankId = "test-bank", AccountName = "Test Counter"
-    });
-
-    private static SePayController CreateController(bool authenticated = false)
-    {
-        var controller = new SePayController(new Mock<ISender>(MockBehavior.Strict).Object);
+        var handler = new ConfirmRentalPaymentHandler(operations);
+        var sender = new Mock<ISender>(MockBehavior.Strict);
+        sender.Setup(item => item.Send(It.IsAny<ConfirmRentalPaymentCommand>(), It.IsAny<CancellationToken>()))
+            .Returns<ConfirmRentalPaymentCommand, CancellationToken>(handler.Handle);
+        var controller = new SePayController(sender.Object);
         var context = new DefaultHttpContext();
-        if (authenticated)
-            context.Request.Headers.Authorization = "Apikey unit-test-key";
         controller.ControllerContext = new ControllerContext { HttpContext = context };
         return controller;
     }

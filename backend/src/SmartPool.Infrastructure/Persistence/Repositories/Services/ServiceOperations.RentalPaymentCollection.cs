@@ -15,7 +15,7 @@ public sealed partial class ServiceOperations
     public async Task<BankTransferResult> ApplyTransferAsync(BankTransferEvent transfer, CancellationToken cancellationToken)
     {
         if (transfer.EventId <= 0 || !RentalPaymentPolicy.IsWholeVnd(transfer.Amount)
-            || transfer.AccountNumber != _paymentOptions.AccountNumber || !RentalPaymentPolicy.IsRentalReference(transfer.Reference))
+            || string.IsNullOrWhiteSpace(transfer.AccountNumber) || !RentalPaymentPolicy.IsRentalReference(transfer.Reference))
             return new(false, "Thông tin giao dịch ngân hàng không hợp lệ.");
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         await BankTransferReceipts.LockAsync(_context, transfer.EventId, cancellationToken);
@@ -43,6 +43,8 @@ public sealed partial class ServiceOperations
             if (intent.Status == RentalPaymentPolicy.Paid) intent.PaidAtUtc = _clock.GetUtcNow().UtcDateTime;
             if (received > due) registration.Receipt.NeedsReconciliation = true;
             await _context.SaveChangesAsync(cancellationToken);
+            if (intent.Status == RentalPaymentPolicy.Paid)
+                await IssueLockedPaymentAsync(intent, intent.InitiatedByUserId, cancellationToken);
         }
         await transaction.CommitAsync(cancellationToken);
         return new(true, registration.IsNew ? "Đã ghi nhận chuyển khoản." : "Giao dịch đã được ghi nhận; không thu tiền lần nữa.");
@@ -54,22 +56,24 @@ public sealed partial class ServiceOperations
             throw new ValidationException([new ValidationFailure("OperatorId", "Không xác định được nhân viên xuất đồ.")]);
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         var intent = await LockRentalPaymentAsync(id, cancellationToken);
+        await ExpireRentalPaymentAsync(intent, cancellationToken);
+        var result = await IssueLockedPaymentAsync(intent, operatorId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    private async Task<CheckoutRentalResponse> IssueLockedPaymentAsync(RentalPaymentIntent intent, Guid operatorId, CancellationToken cancellationToken)
+    {
         if (intent.Status == RentalPaymentPolicy.Issued)
         {
             var saved = await _context.RentalTransactions.AsNoTracking().Where(item => item.OrderId == intent.OrderId && item.Kind == "Collection")
                 .Select(item => item.ResultJson).SingleAsync(cancellationToken);
             var replay = JsonSerializer.Deserialize<CheckoutRentalResponse>(saved)
                 ?? throw new InvalidOperationException("Stored rental issue outcome is invalid.");
-            await transaction.CommitAsync(cancellationToken);
             return replay;
         }
-        await ExpireRentalPaymentAsync(intent, cancellationToken);
         if (intent.Status != RentalPaymentPolicy.Paid)
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
             throw new ServiceConflictException("Chưa xác nhận đủ tiền hoặc giao dịch đã hết hạn. Không được xuất đồ.");
-        }
         var received = await _context.BankTransferReceipts.Where(item => item.OrderId == intent.OrderId && item.Disposition == "RENTAL_APPLIED")
             .SumAsync(item => (decimal?)item.Amount, cancellationToken) ?? 0;
         if (received < intent.FeeAmount + intent.DepositAmount)
@@ -122,7 +126,6 @@ public sealed partial class ServiceOperations
         await _context.Orders.Where(item => item.Id == intent.OrderId).ExecuteUpdateAsync(setters => setters
             .SetProperty(item => item.Status, "Renting").SetProperty(item => item.UpdatedAt, now), cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return result;
     }
 }

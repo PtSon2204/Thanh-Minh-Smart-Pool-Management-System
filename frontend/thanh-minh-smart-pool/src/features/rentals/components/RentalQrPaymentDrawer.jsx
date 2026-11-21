@@ -74,9 +74,6 @@ export default function RentalQrPaymentDrawer({ paymentState }) {
     secondsLeft,
     close,
     finish,
-    issue,
-    issuing,
-    issueError,
     cancel,
     cancelling,
     cancelError,
@@ -88,7 +85,7 @@ export default function RentalQrPaymentDrawer({ paymentState }) {
   const waiting = isRentalPaymentWaiting(payment?.status);
   const reconciliationRequired = requiresRentalPaymentReconciliation(payment);
   const closeDrawer = () => {
-    if (!hasUncertainOutcome && !issuing && !cancelling) close();
+    if (!hasUncertainOutcome && !cancelling) close();
   };
 
   return (
@@ -97,8 +94,8 @@ export default function RentalQrPaymentDrawer({ paymentState }) {
       title="Thu tiền QR cho đơn thuê"
       open={open}
       onClose={closeDrawer}
-      closable={!hasUncertainOutcome && !issuing && !cancelling}
-      mask={{ closable: !hasUncertainOutcome && !issuing && !cancelling }}
+      closable={!hasUncertainOutcome && !cancelling}
+      mask={{ closable: !hasUncertainOutcome && !cancelling }}
       size="large"
     >
       {loading && !payment && (
@@ -189,17 +186,6 @@ export default function RentalQrPaymentDrawer({ paymentState }) {
               }
             />
           )}
-          {issueError && (
-            <Alert
-              type="error"
-              showIcon
-              message="Không thể xuất đồ"
-              description={getRentalErrorMessage(
-                issueError,
-                "Hãy kiểm tra lại cùng yêu cầu trước khi thử lại.",
-              )}
-            />
-          )}
           {cancelError && (
             <Alert
               type="error"
@@ -227,19 +213,7 @@ export default function RentalQrPaymentDrawer({ paymentState }) {
             <Result
               status="success"
               title="Đã nhận đủ tiền"
-              subTitle={`Đã nhận ${formatAmount(payment.paidAmount)}. Nhân viên cần xác nhận xuất đồ.`}
-              extra={
-                <Button
-                  type="primary"
-                  loading={issuing}
-                  disabled={hasUncertainOutcome || issuing}
-                  onClick={() => {
-                    void issue().catch(() => {});
-                  }}
-                >
-                  Xác nhận xuất đồ
-                </Button>
-              }
+              subTitle="Máy chủ đang hoàn tất xuất đồ."
             />
           ) : waiting && secondsLeft > 0 ? (
             <>
@@ -255,9 +229,9 @@ export default function RentalQrPaymentDrawer({ paymentState }) {
                 Quét mã QR để thanh toán
               </h3>
               <RentalBankTransferQr
-                bankId={payment.bankId}
-                accountNumber={payment.accountNumber}
-                accountName={payment.accountName}
+                bankId={import.meta.env.VITE_VIETQR_BANK_ID}
+                accountNumber={import.meta.env.VITE_VIETQR_ACCOUNT_NO}
+                accountName={import.meta.env.VITE_VIETQR_ACCOUNT_NAME}
                 amount={payment.remainingAmount}
                 transactionRef={payment.transactionRef}
                 downloadName={`rental-qr-${payment.id}.png`}

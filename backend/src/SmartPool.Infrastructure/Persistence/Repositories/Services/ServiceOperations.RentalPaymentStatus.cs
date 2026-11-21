@@ -138,7 +138,6 @@ public sealed partial class ServiceOperations
             RemainingAmount = RentalPaymentPolicy.Remaining(due, received), ExcessAmount = RentalPaymentPolicy.Excess(due, received),
             RequiresReconciliation = receipts.Any(item => item.NeedsReconciliation) || received > due,
             CreatedAtUtc = intent.CreatedAtUtc, ExpiresAtUtc = intent.ExpiresAtUtc, ServerTimeUtc = _clock.GetUtcNow().UtcDateTime,
-            BankId = _paymentOptions.BankId, AccountNumber = _paymentOptions.AccountNumber, AccountName = _paymentOptions.AccountName,
             Items = ReadRentalPaymentLines(intent).Select(line => new RentalPaymentLine
             {
                 ProductId = line.ProductId, Name = line.Name, Quantity = line.Quantity, UnitPrice = line.UnitPrice
