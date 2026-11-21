@@ -17,14 +17,25 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Payments
     public sealed class PaymentOperations : IPaymentOperations
     {
         private readonly SmartPoolDbContext _context;
+        private readonly IOrderPaymentOperations _orderPaymentOperations;
 
-        public PaymentOperations(SmartPoolDbContext context)
+        public PaymentOperations(SmartPoolDbContext context, IOrderPaymentOperations orderPaymentOperations)
         {
             _context = context;
+            _orderPaymentOperations = orderPaymentOperations;
         }
 
         public async Task<PagedResponse<PaymentSummaryDto>> GetAllPaymentsAsync(GetAllPaymentsQuery request, CancellationToken cancellationToken)
         {
+            try
+            {
+                await _orderPaymentOperations.ExpireDueOrdersAsync(cancellationToken);
+            }
+            catch
+            {
+                // Best effort expiry so query is not blocked if lock contention occurs
+            }
+
             var query = _context.Payments.AsNoTracking()
                 .Include(p => p.Order)
                     .ThenInclude(o => o.User!)
@@ -43,7 +54,16 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Payments
             if (!string.IsNullOrWhiteSpace(request.Status))
             {
                 var statusUpper = request.Status.Trim().ToUpper();
-                query = query.Where(p => p.Status != null && p.Status.ToUpper() == statusUpper);
+                if (statusUpper == "PENDING")
+                {
+                    var cutoff = DateTime.UtcNow.Subtract(OnlineOrderPaymentPolicy.Lifetime);
+                    query = query.Where(p => p.Status != null && p.Status.ToUpper() == "PENDING"
+                        && (p.CreatedAt == null || p.CreatedAt > cutoff || (p.PaymentMethod.ToUpper() != "TRANSFER" && p.PaymentMethod.ToUpper() != "BANK_TRANSFER")));
+                }
+                else
+                {
+                    query = query.Where(p => p.Status != null && p.Status.ToUpper() == statusUpper);
+                }
             }
             else if (request.ExcludePending == true)
             {
@@ -207,6 +227,21 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Payments
                 return null;
             }
 
+            var isOnlineMethod = payment.PaymentMethod != null && 
+                (payment.PaymentMethod.ToUpper() == "TRANSFER" || payment.PaymentMethod.ToUpper() == "BANK_TRANSFER");
+            var isPendingStatus = string.Equals(payment.Status?.Trim(), "PENDING", StringComparison.OrdinalIgnoreCase);
+            var isExpired = isOnlineMethod && payment.CreatedAt.HasValue &&
+                DateTime.UtcNow >= payment.CreatedAt.Value.Add(OnlineOrderPaymentPolicy.Lifetime);
+
+            if (isPendingStatus && isExpired)
+            {
+                payment.Status = "FAILED";
+                if (payment.Order.Status?.ToUpper() is "PENDING" or "PARTIAL")
+                {
+                    payment.Order.Status = "CANCELLED";
+                }
+            }
+
             // 1. Tải thông tin các mặt hàng (TicketTypes và Products)
             var details = payment.Order.OrderDetails.ToList();
             var ticketTypeIds = details.Where(d => d.ItemType == "TICKET").Select(d => d.ItemId).Distinct().ToList();
@@ -302,7 +337,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.Payments
                 OrderId = payment.OrderId,
                 InvoiceCode = $"INV-{payment.Id.ToString("N")[..8].ToUpper()}",
                 Amount = payment.Amount,
-                PaymentMethod = payment.PaymentMethod,
+                PaymentMethod = payment.PaymentMethod ?? "CASH",
                 Status = payment.Status ?? "PENDING",
                 TransactionRef = payment.TransactionRef,
                 PaymentTime = payment.PaymentTime,

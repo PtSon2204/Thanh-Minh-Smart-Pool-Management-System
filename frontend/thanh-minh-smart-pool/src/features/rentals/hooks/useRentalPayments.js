@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../auth/store/authStore";
+import { PAYMENTS_QUERY_KEY } from "../../payments/hooks/usePayments";
 import {
   INVENTORY_HISTORY_QUERY_KEY,
   SERVICES_QUERY_KEY,
@@ -60,7 +61,7 @@ export function useRentalPayment() {
   const [activePaymentId, setActivePaymentId] = useState(
     restoredState.activePaymentId,
   );
-  const [open, setOpen] = useState(Boolean(restoredState.activePaymentId));
+  const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now);
   const [restoredCreateUncertain, setRestoredCreateUncertain] = useState(
     restoredState.createUncertain,
@@ -75,7 +76,7 @@ export function useRentalPayment() {
     const next = restorePaymentState(staffId);
     setRestoredState(next);
     setActivePaymentId(next.activePaymentId);
-    setOpen(Boolean(next.activePaymentId));
+    setOpen(false);
     setRestoredCreateUncertain(next.createUncertain);
     setClock(null);
   }
@@ -104,6 +105,18 @@ export function useRentalPayment() {
       error.response?.status !== 403 &&
       attempt < 2,
   });
+
+  const paymentId = paymentQuery.data?.id;
+  const paymentStatus = paymentQuery.data?.status;
+  useEffect(() => {
+    if (paymentId !== activePaymentId || paymentStatus !== "ISSUED") return;
+    queryClient.invalidateQueries({ queryKey: RENTALS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: RENTAL_DETAILS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: INVENTORY_HISTORY_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: RENTAL_PAYMENTS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_KEY });
+  }, [activePaymentId, paymentId, paymentStatus, queryClient]);
 
   if (restoredCreateUncertain && paymentQuery.data?.id === activePaymentId) {
     setRestoredCreateUncertain(false);
@@ -159,10 +172,14 @@ export function useRentalPayment() {
     async (payload) => {
       if (!staffId)
         throw new Error("Phiên nhân viên đã hết hạn. Vui lòng đăng nhập lại.");
-      if (activePaymentId && !frozenCreate.current) {
+      if (
+        activePaymentId === payload.requestId &&
+        activePaymentId &&
+        !frozenCreate.current
+      ) {
         setOpen(true);
-        await paymentQuery.refetch();
-        return paymentQuery.data;
+        const result = await paymentQuery.refetch();
+        return result.data;
       }
       const frozen = frozenCreate.current || freezeQrRequest(payload);
       frozenCreate.current = frozen;
@@ -235,11 +252,6 @@ export function useRentalPayment() {
         (current) =>
           current ? { ...current, status: "ISSUED", issuedResult } : current,
       );
-      queryClient.invalidateQueries({ queryKey: RENTALS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: RENTAL_DETAILS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: INVENTORY_HISTORY_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: RENTAL_PAYMENTS_QUERY_KEY });
       frozenIssue.current = null;
       return issuedResult;
     } catch (error) {
@@ -322,6 +334,7 @@ export function useRentalPayment() {
     issue,
     cancel,
     openPayment,
+    resume: () => setOpen(true),
     close: () => setOpen(false),
     finish: () => {
       saveRentalPaymentIntent(staffId, null);

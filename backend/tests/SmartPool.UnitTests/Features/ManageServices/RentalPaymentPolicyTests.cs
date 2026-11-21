@@ -36,14 +36,24 @@ public sealed class RentalPaymentPolicyTests
         Assert.Equal(expectedExcess, RentalPaymentPolicy.Excess(due, received));
     }
 
-    [Fact]
-    public void GivenOneRentalReference_WhenExtractingBankMemo_ThenTheCompleteReferenceIsReturned()
+    [Theory]
+    [InlineData("RN7A3F2C")]
+    [InlineData("RN482D16E17473446697F51369712D2BBC")]
+    public void GivenOneRentalReference_WhenExtractingBankMemo_ThenTheCompleteReferenceIsReturned(string reference)
     {
-        var reference = $"RN{Guid.NewGuid():N}".ToUpperInvariant();
-
-        Assert.Equal(reference, RentalPaymentPolicy.ExtractReference(null, $"Chuyen tien {reference} SmartPool"));
+        Assert.Equal(reference, RentalPaymentPolicy.ExtractReference(null, $"Chuyen tien {reference.ToLowerInvariant()} SmartPool"));
         Assert.True(RentalPaymentPolicy.IsRentalReference(reference));
         Assert.False(RentalPaymentPolicy.IsTicketReference(reference));
+    }
+
+    [Fact]
+    public void GivenShortProviderCodeAndLegacyMemo_WhenExtracting_ThenTheLegacyReferenceIsPreserved()
+    {
+        const string reference = "RN482D16E17473446697F51369712D2BBC";
+
+        Assert.Equal(reference, RentalPaymentPolicy.ExtractReference("RN482D16", $"Thanh toan {reference}"));
+        Assert.Null(RentalPaymentPolicy.ExtractReference("RNABC123", reference));
+        Assert.Null(RentalPaymentPolicy.ExtractReference(null, $"RN482D16 {reference}"));
     }
 
     [Fact]

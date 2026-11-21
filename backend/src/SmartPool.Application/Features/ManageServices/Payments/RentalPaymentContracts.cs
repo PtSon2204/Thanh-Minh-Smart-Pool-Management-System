@@ -11,6 +11,16 @@ namespace SmartPool.Application.Features.ManageServices.Payments
 
     public sealed record BankTransferResult(bool Success, string Message);
 
+    public sealed class ConfirmRentalPaymentCommand : IRequest<BankTransferResult>
+    {
+        public string TransactionRef { get; set; } = string.Empty;
+        public decimal ActualAmount { get; set; }
+        public string? BankReferenceCode { get; set; }
+        public long EventId { get; set; }
+        public string? AccountNumber { get; set; }
+        public string? TransferType { get; set; }
+    }
+
     public sealed class SePayOptions
     {
         public const string SectionName = "SePay";
@@ -93,9 +103,6 @@ namespace SmartPool.Application.Features.ManageServices.Payments
         public DateTime CreatedAtUtc { get; set; }
         public DateTime ExpiresAtUtc { get; set; }
         public DateTime ServerTimeUtc { get; set; }
-        public string BankId { get; set; } = string.Empty;
-        public string AccountNumber { get; set; } = string.Empty;
-        public string AccountName { get; set; } = string.Empty;
         public List<RentalPaymentLine> Items { get; set; } = [];
         public CheckoutRentalResponse? IssuedResult { get; set; }
     }

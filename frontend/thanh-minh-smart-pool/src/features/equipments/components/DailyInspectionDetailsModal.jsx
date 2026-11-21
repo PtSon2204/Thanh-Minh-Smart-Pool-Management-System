@@ -30,7 +30,7 @@ import {
   LoadingOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import CameraCaptureModal from './CameraCaptureModal'
 import { useResolveInspectionItem } from '../hooks/useInspections'
 import { useAuthStore } from '../../../features/auth/store/authStore'
@@ -69,8 +69,17 @@ export default function DailyInspectionDetailsModal({
   const [resolveImages, setResolveImages] = useState([])
   const [isUploadingResolve, setIsUploadingResolve] = useState(false)
   const [suspendingPool, setSuspendingPool] = useState(false)
+  const [resumingPool, setResumingPool] = useState(false)
   const [cameraModalOpen, setCameraModalOpen] = useState(false)
   const queryClient = useQueryClient()
+
+  const { data: liveStatus } = useQuery({
+    queryKey: ['poolLiveStatus'],
+    queryFn: poolAccessService.getLiveStatus,
+    enabled: Boolean(open),
+  })
+
+  const isPoolMaintenance = liveStatus?.operationalStatus === 'Maintenance'
 
   const handleSuspendPool = () => {
     Modal.confirm({
@@ -96,10 +105,48 @@ export default function DailyInspectionDetailsModal({
           await poolAccessService.toggleMaintenance('Maintenance', reason)
           message.success('Đã chuyển trạng thái bể bơi sang Bảo trì khẩn cấp.')
           queryClient.invalidateQueries({ queryKey: ['poolLiveStatus'] })
+          queryClient.invalidateQueries({ queryKey: ['poolOperationalConfig'] })
         } catch (err) {
           message.error(err?.response?.data?.message || 'Lỗi khi tạm dừng hoạt động bể bơi.')
         } finally {
           setSuspendingPool(false)
+        }
+      },
+    })
+  }
+
+  const handleResumePool = () => {
+    Modal.confirm({
+      title: 'Mở lại hoạt động đón khách bình thường?',
+      icon: <CheckCircleOutlined style={{ color: '#16a34a' }} />,
+      content: (
+        <div>
+          <p>
+            Bạn có chắc chắn muốn mở lại hoạt động đón khách bình thường cho bể bơi?
+          </p>
+          <p style={{ color: '#15803d', fontSize: 13, marginBottom: 0 }}>
+            Hệ thống sẽ gỡ thông báo bảo trì tại trang chủ và mở lại tính năng đặt vé online cho khách hàng.
+          </p>
+        </div>
+      ),
+      okText: 'Mở hoạt động bình thường',
+      cancelText: 'Hủy bỏ',
+      okButtonProps: {
+        type: 'primary',
+        style: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
+      },
+      onOk: async () => {
+        try {
+          setResumingPool(true)
+          await poolAccessService.toggleMaintenance('Operating', null)
+          message.success('Đã mở lại hoạt động đón khách bình thường cho bể bơi.')
+          queryClient.invalidateQueries({ queryKey: ['poolLiveStatus'] })
+          queryClient.invalidateQueries({ queryKey: ['poolOperationalConfig'] })
+          queryClient.invalidateQueries({ queryKey: ['equipment-inspections'] })
+        } catch (err) {
+          message.error(err?.response?.data?.message || 'Lỗi khi mở lại hoạt động bể bơi.')
+        } finally {
+          setResumingPool(false)
         }
       },
     })
@@ -120,6 +167,8 @@ export default function DailyInspectionDetailsModal({
   const criticalIssueItems = useMemo(
     () =>
       issueItems.filter((i) => {
+        const isHandled = i.resolutionStatus === 'Repaired' || i.resolutionStatus === 'Replaced'
+        if (isHandled) return false
         const name = (i.equipmentName || '').toLowerCase()
         return (
           i.priorityLevel === 'Critical' ||
@@ -203,10 +252,12 @@ export default function DailyInspectionDetailsModal({
       return
     }
 
+    const currentTarget = resolveTarget
+
     try {
       const updatedInspection = await resolveMutation.mutateAsync({
         inspectionId: inspection.id,
-        equipmentId: resolveTarget.equipmentId,
+        equipmentId: currentTarget.equipmentId,
         action: resolveAction,
         note: resolveNote.trim() || null,
         resolutionImageUrls: resolveImages,
@@ -214,13 +265,59 @@ export default function DailyInspectionDetailsModal({
 
       notification.success({
         message: 'Cập nhật thành công',
-        description: `Đã xác nhận ${resolveAction === 'Replaced' ? 'thay thế' : 'sửa chữa'} thiết bị "${resolveTarget.equipmentName}". Thiết bị đã được hoàn trả về trạng thái hoạt động (Active).`,
+        description: `Đã xác nhận ${resolveAction === 'Replaced' ? 'thay thế' : 'sửa chữa'} thiết bị "${currentTarget.equipmentName}". Thiết bị đã được hoàn trả về trạng thái hoạt động (Active).`,
         placement: 'topRight',
       })
 
       setResolveTarget(null)
       if (onInspectionUpdated) {
         onInspectionUpdated(updatedInspection)
+      }
+
+      // Sau khi xác nhận xử lý sự cố thiết bị: nếu bể bơi đang tạm dừng hoạt động thì hỏi xác nhận mở lại đón khách
+      try {
+        const latestStatus = await poolAccessService.getLiveStatus()
+        if (latestStatus?.operationalStatus === 'Maintenance') {
+          Modal.confirm({
+            title: 'Mở lại hoạt động đón khách?',
+            icon: <CheckCircleOutlined style={{ color: '#16a34a' }} />,
+            content: (
+              <div>
+                <p>
+                  Sự cố thiết bị <strong>&ldquo;{currentTarget.equipmentName}&rdquo;</strong> đã được xác nhận xử lý xong.
+                </p>
+                <p style={{ fontWeight: 600, color: '#0f172a', fontSize: 14 }}>
+                  Bạn có muốn mở hoạt động đón khách bình thường không?
+                </p>
+                <p style={{ color: '#64748b', fontSize: 13, marginBottom: 0 }}>
+                  Khi chọn &quot;Mở hoạt động bình thường&quot;, hệ thống sẽ gỡ thông báo bảo trì trên trang chủ và tiếp tục cho phép khách hàng đặt vé online.
+                </p>
+              </div>
+            ),
+            okText: 'Mở hoạt động bình thường',
+            cancelText: 'Vẫn giữ tạm dừng',
+            okButtonProps: {
+              type: 'primary',
+              style: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
+            },
+            onOk: async () => {
+              try {
+                await poolAccessService.toggleMaintenance('Operating', null)
+                message.success('Đã mở lại hoạt động đón khách bình thường cho bể bơi.')
+                queryClient.invalidateQueries({ queryKey: ['poolLiveStatus'] })
+                queryClient.invalidateQueries({ queryKey: ['poolOperationalConfig'] })
+                queryClient.invalidateQueries({ queryKey: ['equipment-inspections'] })
+              } catch (err) {
+                notification.error({
+                  message: 'Lỗi mở lại hoạt động bể bơi',
+                  description: err?.response?.data?.message || err.message,
+                })
+              }
+            },
+          })
+        }
+      } catch (checkErr) {
+        console.error('Không thể kiểm tra trạng thái vận hành bể:', checkErr)
       }
     } catch (error) {
       const serverMsg =
@@ -520,7 +617,77 @@ export default function DailyInspectionDetailsModal({
         width={980}
         destroyOnClose
       >
-        {criticalIssueItems.length > 0 && !isResolved && (
+        {/* Trường hợp 1: Bể bơi đang trong trạng thái tạm dừng bảo trì */}
+        {isPoolMaintenance && (
+          <Alert
+            type={isResolved ? 'success' : 'warning'}
+            showIcon
+            icon={
+              isResolved ? (
+                <CheckCircleOutlined style={{ fontSize: 20, color: '#16a34a' }} />
+              ) : (
+                <WarningOutlined style={{ fontSize: 20, color: '#f59e0b' }} />
+              )
+            }
+            style={{
+              marginBottom: 16,
+              border: isResolved ? '1px solid #86efac' : '1px solid #fcd34d',
+              background: isResolved ? '#f0fdf4' : '#fffbeb',
+            }}
+            message={
+              <strong style={{ color: isResolved ? '#15803d' : '#b45309' }}>
+                {isResolved
+                  ? 'SỰ CỐ ĐÃ KHẮC PHỤC XONG - BỂ BƠI ĐANG TẠM DỪNG'
+                  : 'BỂ BƠI ĐANG TẠM DỪNG HOẠT ĐỘNG'}
+              </strong>
+            }
+            description={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                  marginTop: 4,
+                }}
+              >
+                <div
+                  style={{
+                    maxWidth: '75%',
+                    color: isResolved ? '#166534' : '#92400e',
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {isResolved ? (
+                    <span>
+                      Tất cả sự cố thiết bị trong biên bản đã được xử lý xong. Bể bơi hiện vẫn đang trong trạng thái{' '}
+                      <strong>Tạm dừng bảo trì</strong> ({liveStatus?.statusReason || 'Bảo trì thiết bị'}). Bạn có muốn mở lại đón khách bình thường không?
+                    </span>
+                  ) : (
+                    <span>
+                      Bể bơi hiện đang tạm dừng đón khách để xử lý sự cố thiết bị ({liveStatus?.statusReason || 'Đang bảo trì'}). Sau khi xử lý xong các thiết bị gặp sự cố, bạn có thể mở lại hoạt động đón khách bình thường.
+                    </span>
+                  )}
+                </div>
+                {isAdmin && !readOnly && (
+                  <Button
+                    type="primary"
+                    loading={resumingPool}
+                    onClick={handleResumePool}
+                    style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+                  >
+                    ✅ Mở lại hoạt động đón khách
+                  </Button>
+                )}
+              </div>
+            }
+          />
+        )}
+
+        {/* Trường hợp 2: Bể bơi chưa tạm dừng nhưng có thiết bị cốt lõi bị sự cố */}
+        {!isPoolMaintenance && criticalIssueItems.length > 0 && !isResolved && (
           <Alert
             type="error"
             showIcon
@@ -532,7 +699,7 @@ export default function DailyInspectionDetailsModal({
                 <div style={{ maxWidth: '75%', color: '#991b1b', fontSize: 13, lineHeight: 1.5 }}>
                   Biên bản ghi nhận <strong>{criticalIssueItems.length} thiết bị cốt lõi</strong> ({criticalIssueItems.map((c) => c.equipmentName).join(', ')}) bị hư hỏng, có nguy cơ vi phạm quy chuẩn an toàn bơi lội (Thông tư 03/2018/TT-BVHTTDL). Bạn có thể chủ động bấm tạm dừng hoạt động bể bơi để bảo trì ngay bên dưới.
                 </div>
-            {isAdmin && !readOnly && (
+                {isAdmin && !readOnly && (
                   <Button
                     type="primary"
                     danger

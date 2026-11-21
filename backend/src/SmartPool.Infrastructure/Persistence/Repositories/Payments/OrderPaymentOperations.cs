@@ -29,9 +29,9 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
                     && payment.TransactionRef.Length == 8));
 
         if (normalizedStatus == "WAITING")
-            query = query.Where(order => order.Status == "PENDING" || order.Status == "PARTIAL");
+            query = query.Where(order => order.Status != null && (order.Status.ToUpper() == "PENDING" || order.Status.ToUpper() == "PARTIAL"));
         else if (!string.IsNullOrEmpty(normalizedStatus) && normalizedStatus != "ALL")
-            query = query.Where(order => order.Status == normalizedStatus);
+            query = query.Where(order => order.Status != null && order.Status.ToUpper() == normalizedStatus);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var unpaidCount = await GetCustomerUnpaidOrderCountAsync(userId, cancellationToken);
@@ -103,11 +103,10 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
         var cutoff = timeProvider.GetUtcNow().UtcDateTime.Subtract(OnlineOrderPaymentPolicy.Lifetime);
         return context.Orders.AsNoTracking()
             .Where(order => order.UserId == userId && order.IsDeleted != true
-                && (order.Status == "PENDING" || order.Status == "PARTIAL")
+                && order.Status != null && (order.Status.ToUpper() == "PENDING" || order.Status.ToUpper() == "PARTIAL")
                 && order.CreatedAt > cutoff
-                && order.Payments.Any(payment => (payment.PaymentMethod == "TRANSFER" || payment.PaymentMethod == "BANK_TRANSFER")
-                    && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
-                    && payment.TransactionRef.Length == 8))
+                && order.Payments.Any(payment => payment.PaymentMethod != null
+                    && (payment.PaymentMethod.ToUpper() == "TRANSFER" || payment.PaymentMethod.ToUpper() == "BANK_TRANSFER")))
             .CountAsync(cancellationToken);
     }
 
@@ -130,11 +129,11 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
     {
         var cutoff = timeProvider.GetUtcNow().UtcDateTime.Subtract(OnlineOrderPaymentPolicy.Lifetime);
         var ids = await context.Orders.AsNoTracking()
-            .Where(order => order.IsDeleted != true && (order.Status == "PENDING" || order.Status == "PARTIAL")
+            .Where(order => order.IsDeleted != true 
+                && order.Status != null && (order.Status.ToUpper() == "PENDING" || order.Status.ToUpper() == "PARTIAL")
                 && order.CreatedAt <= cutoff
-                && order.Payments.Any(payment => (payment.PaymentMethod == "TRANSFER" || payment.PaymentMethod == "BANK_TRANSFER")
-                    && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
-                    && payment.TransactionRef.Length == 8))
+                && order.Payments.Any(payment => payment.PaymentMethod != null 
+                    && (payment.PaymentMethod.ToUpper() == "TRANSFER" || payment.PaymentMethod.ToUpper() == "BANK_TRANSFER")))
             .OrderBy(order => order.CreatedAt).Select(order => order.Id).Take(100)
             .ToListAsync(cancellationToken);
 
@@ -144,13 +143,20 @@ public sealed class OrderPaymentOperations(SmartPoolDbContext context, TimeProvi
             expired += await ExecuteLockedAsync(id, async (order, token) =>
             {
                 if (order == null) return 0;
-                var payment = await context.Payments
-                    .Where(payment => payment.OrderId == id && (payment.PaymentMethod == "TRANSFER" || payment.PaymentMethod == "BANK_TRANSFER")
-                        && payment.TransactionRef != null && payment.TransactionRef.StartsWith("SP")
-                        && payment.TransactionRef.Length == 8)
-                    .OrderBy(payment => payment.CreatedAt).FirstOrDefaultAsync(token);
+                var payments = await context.Payments
+                    .Where(payment => payment.OrderId == id && payment.PaymentMethod != null
+                        && (payment.PaymentMethod.ToUpper() == "TRANSFER" || payment.PaymentMethod.ToUpper() == "BANK_TRANSFER"))
+                    .OrderBy(payment => payment.CreatedAt).ToListAsync(token);
+                var payment = payments.FirstOrDefault();
                 if (!OnlineOrderPaymentPolicy.TryExpire(order, payment, timeProvider.GetUtcNow().UtcDateTime))
                     return 0;
+                foreach (var p in payments)
+                {
+                    if (string.Equals(p.Status?.Trim(), "PENDING", StringComparison.OrdinalIgnoreCase))
+                    {
+                        p.Status = "FAILED";
+                    }
+                }
                 await context.SaveChangesAsync(token);
                 return 1;
             }, cancellationToken);

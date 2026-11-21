@@ -75,7 +75,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
     const totalCount = data?.totalCount || 0
     const completed = items.filter((x) => x.status === 'COMPLETED')
     const completedRevenue = completed.reduce((sum, item) => sum + (item.amount || 0), 0)
-    const failedCount = items.filter((x) => x.status === 'FAILED').length
+    const failedCount = items.filter((x) => x.status === 'FAILED' || x.status === 'CANCELLED').length
 
     return {
       totalCount,
@@ -190,8 +190,8 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
       width: 140,
       render: (st) => {
         const isSuccess = st === 'COMPLETED'
-        const isFailed = st === 'FAILED'
-        const label = isSuccess ? 'Thành công' : isFailed ? 'Thất bại' : 'Chờ xử lý'
+        const isFailed = st === 'FAILED' || st === 'CANCELLED'
+        const label = isSuccess ? 'Thành công' : isFailed ? 'Hủy giao dịch' : 'Chờ xử lý'
         const statusType = isSuccess ? 'success' : isFailed ? 'error' : 'warning'
         const badgeClass = isSuccess ? 'status-success' : isFailed ? 'status-failed' : 'status-warning'
 
@@ -302,7 +302,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
           <Col xs={12} sm={6}>
             <Card className="payment-stat-card payment-stat-pending">
               <Statistic
-                title="Thất bại (trang này)"
+                title="Hủy giao dịch (trang này)"
                 value={stats.failedCount}
                 prefix={<CloseCircleOutlined style={{ color: '#ef4444' }} />}
                 valueStyle={{ color: '#ef4444' }}
@@ -344,7 +344,7 @@ export default function PaymentHistoryPage({ isCustomerView = false }) {
               }}
               options={[
                 { value: 'COMPLETED', label: 'Thành công' },
-                { value: 'FAILED', label: 'Thất bại' },
+                { value: 'FAILED', label: 'Hủy giao dịch' },
 
               ]}
             />
