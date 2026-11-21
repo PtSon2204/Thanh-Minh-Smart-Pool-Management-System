@@ -34,12 +34,11 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
             warning.Status = action; warning.VerifiedBy = userId; warning.VerifiedAt = now; warning.UpdatedAt = now;
             var createdIncident = false;
             if (action == "ACKNOWLEDGED" && warning.IncidentId == null &&
-                warning.SeverityLevel.ToUpperInvariant() is "WARNING" or "CRITICAL" or "EMERGENCY" && warning.CamId is Guid cameraId) {
+                warning.SeverityLevel.ToUpperInvariant() is "CRITICAL" or "EMERGENCY" && warning.CamId is Guid cameraId) {
                 var camera = await session.GetCameraAsync(cameraId, token);
-                var incidentSeverity = warning.SeverityLevel.ToUpperInvariant() is "CRITICAL" or "EMERGENCY" ? "EMERGENCY" : "WARNING";
                 var incident = new Incident { Id = Guid.NewGuid(), WarningId = warning.Id, CameraId = camera.Id, Location = camera.Location,
                     Title = $"Cảnh báo cứu hộ: {camera.Name}", Description = $"AI phát hiện nguy cơ tại {camera.Location}. Track {warning.TrackId}.",
-                    SeverityLevel = incidentSeverity, ReportedBy = userId, IncidentTime = warning.WarningTime, Status = "Resolved",
+                    SeverityLevel = "EMERGENCY", ReportedBy = userId, IncidentTime = warning.WarningTime, Status = "Pending",
                     ImageIncidents = warning.ImageUrl, CreatedAt = now, UpdatedAt = now };
                 session.AddIncident(incident); warning.IncidentId = incident.Id; createdIncident = true;
             }

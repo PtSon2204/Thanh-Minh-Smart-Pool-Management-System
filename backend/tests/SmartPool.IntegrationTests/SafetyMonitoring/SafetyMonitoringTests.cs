@@ -124,9 +124,9 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("WARNING", "CANCELLED")]
+    [InlineData("WARNING", "ACKNOWLEDGED")]
     [InlineData("CRITICAL", "CANCELLED")]
-    public async Task Cancellation_DoesNotCreateIncident(string severity, string action)
+    public async Task WarningAcknowledgementAndCancellation_DoNotCreateIncident(string severity, string action)
     {
         await using var db = new SmartPoolDbContext(options);
         var alert = await Repo(db).RecordAsync(Event(severity), default);
@@ -192,14 +192,11 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         Assert.Equal("ACKNOWLEDGED", (await repo.GetAsync(warning.Alert.Id, userId, true, default)).Status);
         Assert.Equal(critical.Alert.Id, (await repo.RecordAsync(Event("CRITICAL"), default)).Alert.Id);
         await repo.HandleAsync(critical.Alert.Id, "ACKNOWLEDGED", userId, true, default);
-        var saved = await db.Incidents.AsNoTracking().ToListAsync();
-        Assert.Equal(2, saved.Count);
-        Assert.Contains(saved, x => x.WarningId == warning.Alert.Id && x.SeverityLevel == "WARNING" && x.Status == "Resolved");
-        Assert.Contains(saved, x => x.WarningId == critical.Alert.Id && x.SeverityLevel == "EMERGENCY" && x.Status == "Resolved");
+        Assert.Equal(1, await db.Incidents.CountAsync());
     }
 
     [Fact]
-    public async Task VisibleWarningAck_RacingEscalation_NeverSilentlyHandlesTheCriticalAlert()
+    public async Task VisibleWarningAck_RacingEscalation_NeverCreatesAnIncidentOrSilentlyHandlesTheCriticalAlert()
     {
         Guid id;
         await using (var setup = new SmartPoolDbContext(options)) id = (await Repo(setup).RecordAsync(Event(), default)).Alert.Id;
@@ -214,12 +211,10 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         });
         await Task.WhenAll(ack, escalation);
         await using var verify = new SmartPoolDbContext(options);
+        Assert.Empty(await verify.Incidents.ToListAsync());
         var critical = await verify.Warnings.AsNoTracking().SingleAsync(x => x.Id == escalation.Result.Alert.Id);
         Assert.Equal("CRITICAL", critical.SeverityLevel);
         Assert.Equal("PENDING", critical.Status);
-        Assert.Null(critical.IncidentId);
-        var savedIncidents = await verify.Incidents.AsNoTracking().ToListAsync();
-        Assert.All(savedIncidents, inc => Assert.Equal("WARNING", inc.SeverityLevel));
         if (critical.Id != id) Assert.Equal("WARNING", (await verify.Warnings.SingleAsync(x => x.Id == id)).SeverityLevel);
     }
 

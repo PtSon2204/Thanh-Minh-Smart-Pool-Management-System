@@ -19,10 +19,6 @@ public sealed class GetSafetyIncidentByIdHandler(
             ? await operations.GetProfileByUserIdAsync(incident.ReportedBy.Value, cancellationToken)
             : null;
 
-        var dto = SafetyIncidentMapper.ToDto(incident, user, profile);
-        if (string.Equals(dto.Status, "Pending", StringComparison.OrdinalIgnoreCase))
-            throw new KeyNotFoundException("Không tìm thấy sự cố.");
-
-        return dto;
+        return SafetyIncidentMapper.ToDto(incident, user, profile);
     }
 }
