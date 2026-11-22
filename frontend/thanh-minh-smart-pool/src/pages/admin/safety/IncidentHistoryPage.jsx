@@ -76,14 +76,6 @@ export default function IncidentHistoryPage() {
   const [selectedSource, setSelectedSource] = useState('Tất cả')
   const [dateRange, setDateRange] = useState(null)
 
-  // Counters
-  const [stats, setStats] = useState({
-    total: 0,
-    emergency: 0,
-    cameraCount: 0,
-    lifeguardCount: 0,
-  })
-
   // Modal Chi tiết sự cố
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState(null)
@@ -115,29 +107,14 @@ export default function IncidentHistoryPage() {
         const res = await safetyAlertService.getIncidents(params)
         if (!ignore && res) {
           const items = res.items || []
-          const cameraCount =
-            res.cameraCount ??
-            items.filter((x) => x.sourceType === 'Camera AI giám sát').length
-          const emergencyCount =
-            res.emergencyCount ?? items.filter((x) => x.severityLevel === 'EMERGENCY').length
-          const total = res.totalIncidents ?? res.totalCount ?? items.length
-          const lifeguardCount = res.lifeguardCount ?? Math.max(0, total - cameraCount)
-
           setData(items)
           setTotalCount(res.totalCount || 0)
-          setStats({
-            total,
-            emergency: emergencyCount,
-            cameraCount,
-            lifeguardCount,
-          })
         }
       } catch (err) {
         if (!ignore) {
           setError(err.response?.data?.message || 'Không tải được lịch sử sự cố. Vui lòng thử lại.')
           setData([])
           setTotalCount(0)
-          setStats({ total: 0, emergency: 0, cameraCount: 0, lifeguardCount: 0 })
         }
       } finally {
         if (!ignore) {
@@ -282,62 +259,6 @@ export default function IncidentHistoryPage() {
           Làm mới
         </Button>
       </div>
-
-      {/* ── Thẻ thống kê nhanh ── */}
-      <Row gutter={[16, 16]} className="incident-stats-row">
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-total" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-total">
-                <HistoryOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Tổng sự cố</div>
-                <div className="stat-number">{stats.total}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-emergency" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-emergency">
-                <AlertOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Khẩn cấp</div>
-                <div className="stat-number">{stats.emergency}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-camera" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-camera">
-                <VideoCameraOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Camera AI</div>
-                <div className="stat-number">{stats.cameraCount}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-lifeguard" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-lifeguard">
-                <UserOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Cứu hộ viên</div>
-                <div className="stat-number">{stats.lifeguardCount}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
 
       {/* ── Bộ lọc tìm kiếm ── */}
       <Card className="incident-filter-card" bordered={false}>
