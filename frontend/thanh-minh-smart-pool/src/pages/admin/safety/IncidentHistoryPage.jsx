@@ -62,8 +62,6 @@ export default function IncidentHistoryPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [resolutionNote, setResolutionNote] = useState('')
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -75,14 +73,6 @@ export default function IncidentHistoryPage() {
   const [selectedSeverity, setSelectedSeverity] = useState('Tất cả')
   const [selectedSource, setSelectedSource] = useState('Tất cả')
   const [dateRange, setDateRange] = useState(null)
-
-  // Counters
-  const [stats, setStats] = useState({
-    total: 0,
-    emergency: 0,
-    cameraCount: 0,
-    lifeguardCount: 0,
-  })
 
   // Modal Chi tiết sự cố
   const [detailModalOpen, setDetailModalOpen] = useState(false)
@@ -115,29 +105,14 @@ export default function IncidentHistoryPage() {
         const res = await safetyAlertService.getIncidents(params)
         if (!ignore && res) {
           const items = res.items || []
-          const cameraCount =
-            res.cameraCount ??
-            items.filter((x) => x.sourceType === 'Camera AI giám sát').length
-          const emergencyCount =
-            res.emergencyCount ?? items.filter((x) => x.severityLevel === 'EMERGENCY').length
-          const total = res.totalIncidents ?? res.totalCount ?? items.length
-          const lifeguardCount = res.lifeguardCount ?? Math.max(0, total - cameraCount)
-
           setData(items)
           setTotalCount(res.totalCount || 0)
-          setStats({
-            total,
-            emergency: emergencyCount,
-            cameraCount,
-            lifeguardCount,
-          })
         }
       } catch (err) {
         if (!ignore) {
           setError(err.response?.data?.message || 'Không tải được lịch sử sự cố. Vui lòng thử lại.')
           setData([])
           setTotalCount(0)
-          setStats({ total: 0, emergency: 0, cameraCount: 0, lifeguardCount: 0 })
         }
       } finally {
         if (!ignore) {
@@ -158,7 +133,6 @@ export default function IncidentHistoryPage() {
   // Mở modal xem chi tiết
   const handleOpenDetail = useCallback(async (record) => {
     setSelectedIncident(null)
-    setResolutionNote('')
     setDetailModalOpen(true)
     setDetailLoading(true)
     try {
@@ -170,18 +144,6 @@ export default function IncidentHistoryPage() {
       setDetailLoading(false)
     }
   }, [])
-
-  const updateIncident = async status => {
-    setSaving(true)
-    try {
-      await safetyAlertService.confirmIncident(selectedIncident.id, { status, resolutionNote: resolutionNote.trim() || null })
-      message.success('Đã cập nhật sự cố')
-      setDetailModalOpen(false)
-      triggerRefresh()
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Không cập nhật được sự cố')
-    } finally { setSaving(false) }
-  }
 
   // Cấu hình các cột hiển thị trên bảng danh sách (chỉ giữ các trường đại diện)
   const columns = useMemo(
@@ -283,62 +245,6 @@ export default function IncidentHistoryPage() {
         </Button>
       </div>
 
-      {/* ── Thẻ thống kê nhanh ── */}
-      <Row gutter={[16, 16]} className="incident-stats-row">
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-total" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-total">
-                <HistoryOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Tổng sự cố</div>
-                <div className="stat-number">{stats.total}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-emergency" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-emergency">
-                <AlertOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Khẩn cấp</div>
-                <div className="stat-number">{stats.emergency}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-camera" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-camera">
-                <VideoCameraOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Camera AI</div>
-                <div className="stat-number">{stats.cameraCount}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={12} xl={6}>
-          <Card className="stat-card stat-card-lifeguard" bordered={false}>
-            <div className="stat-card-inner">
-              <div className="stat-icon-box stat-icon-lifeguard">
-                <UserOutlined />
-              </div>
-              <div className="stat-info">
-                <div className="stat-label">Cứu hộ viên</div>
-                <div className="stat-number">{stats.lifeguardCount}</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
       {/* ── Bộ lọc tìm kiếm ── */}
       <Card className="incident-filter-card" bordered={false}>
         <Row gutter={[12, 12]} align="middle">
@@ -429,8 +335,6 @@ export default function IncidentHistoryPage() {
         open={detailModalOpen}
         onCancel={() => setDetailModalOpen(false)}
         footer={[
-          selectedIncident?.status === 'Pending' && <Button key="start" loading={saving} onClick={() => updateIncident('In Progress')}>Bắt đầu xử lý</Button>,
-          selectedIncident?.status !== 'Resolved' && <Button key="resolve" type="primary" loading={saving} onClick={() => updateIncident('Resolved')}>Xác nhận đã xử lý</Button>,
           <Button key="close" type="primary" onClick={() => setDetailModalOpen(false)}>
             Đóng
           </Button>,
@@ -502,7 +406,6 @@ export default function IncidentHistoryPage() {
               </Descriptions.Item>
             </Descriptions>
 
-            {selectedIncident.status !== 'Resolved' && <Input.TextArea aria-label="Ghi chú xử lý" placeholder="Ghi chú xử lý sự cố" value={resolutionNote} onChange={e => setResolutionNote(e.target.value)} style={{ marginTop: 16 }} />}
             <Divider style={{ margin: '16px 0' }} />
 
             <div>

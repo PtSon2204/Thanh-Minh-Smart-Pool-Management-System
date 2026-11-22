@@ -32,7 +32,7 @@ public sealed class SafetyAlertsAuthorizationTests
             new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()), new Claim(ClaimTypes.Role, role)
         }, "test"));
         foreach (var action in new[] { nameof(SafetyAlertsController.ActivateAlert), nameof(SafetyAlertsController.GetIncidents),
-            nameof(SafetyAlertsController.GetIncidentById), nameof(SafetyAlertsController.ConfirmIncident) })
+            nameof(SafetyAlertsController.GetIncidentById) })
         {
             var metadata = typeof(SafetyAlertsController).GetCustomAttributes<AuthorizeAttribute>()
                 .Concat(typeof(SafetyAlertsController).GetMethod(action)!.GetCustomAttributes<AuthorizeAttribute>());
