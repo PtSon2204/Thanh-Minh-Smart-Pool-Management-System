@@ -146,7 +146,7 @@ public sealed class AlertLifecycleAuditTests
 
     [Theory]
     // Acknowledgement records receipt; only critical/emergency alerts create a
-    // pending incident. Resolution belongs to ConfirmSafetyIncidentHandler.
+    // pending incident.
     [InlineData("L26", "ACKNOWLEDGED", "WARNING", null)]
     [InlineData("L27", "ACKNOWLEDGED", "CRITICAL", "EMERGENCY")]
     [InlineData("L28", "ACKNOWLEDGED", "EMERGENCY", "EMERGENCY")]

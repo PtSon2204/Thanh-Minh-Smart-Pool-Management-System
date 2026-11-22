@@ -1,6 +1,5 @@
 using Moq;
 using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSafetyAlert;
-using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ConfirmSafetyIncident;
 using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidents;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
@@ -77,21 +76,5 @@ public sealed class SafetyIncidentFlowTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             new ActivateSafetyAlertHandler(notifications.Object, operations.Object).Handle(new() { Zone = "Bể lớn" }, default));
         notifications.Verify(x => x.SendToAllAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task ConfirmMissingIncident_DoesNotReportSuccessOrBroadcast()
-    {
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() { IncidentId = Guid.NewGuid() }, default));
-        operations.Verify(x => x.UpdateIncidentAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()), Times.Never);
-        notifications.Verify(x => x.SendToAllAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task ConfirmInvalidStatus_IsRejected()
-    {
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() { Status = "arbitrary" }, default));
     }
 }
