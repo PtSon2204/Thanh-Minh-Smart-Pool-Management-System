@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments;
 using SmartPool.Application.Features.ManageEquipments.Queries.GetCameraList;
@@ -20,10 +21,12 @@ public sealed class CameraListRepository(SmartPoolDbContext db) : ICameraListRep
         if (request.CameraId is Guid id) query = query.Where(x => x.Id == id);
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            var term = request.Search.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
-            var pattern = $"%{term}%";
-            query = query.Where(x => EF.Functions.ILike(x.Name, pattern, "\\") ||
-                x.Location != null && EF.Functions.ILike(x.Location, pattern, "\\"));
+            var term = GetCameraListValidator.NormalizeSearch(request.Search);
+            // Treat whitespace as optional between literal characters, in both
+            // the entered term and stored name/location. Never interpret user regex.
+            var pattern = string.Join(@"\s*", term.Select(c => Regex.Escape(c.ToString())));
+            query = query.Where(x => Regex.IsMatch(x.Name, pattern, RegexOptions.IgnoreCase) ||
+                x.Location != null && Regex.IsMatch(x.Location, pattern, RegexOptions.IgnoreCase));
         }
         if (!string.IsNullOrWhiteSpace(request.Status)) query = query.Where(x => x.Status == request.Status);
         if (!string.IsNullOrWhiteSpace(request.Area)) query = query.Where(x => x.Location == request.Area);

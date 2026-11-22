@@ -11,9 +11,19 @@ public sealed record AlertDto(Guid Id, Guid? CameraId, string? CameraName,
     double[]? Box = null)
 {
     public DateTime? ObservedAt { get; init; }
+    public string? HandledByName { get; init; }
 }
 public sealed record GetAlertsQuery(Guid? CameraId = null,
-    string? Status = null, int Page = 1, int PageSize = 20) : IRequest<PagedResponse<AlertDto>>;
+    string? Status = null, int Page = 1, int PageSize = 20, string? Area = null,
+    string? Severity = null, DateTimeOffset? FromTime = null, DateTimeOffset? ToTime = null) : IRequest<PagedResponse<AlertDto>>;
+public sealed record AlertCameraOption(Guid Id, string Name);
+public sealed record AlertFilterOptions(string[] Areas, string[] Severities, string[] Statuses,
+    AlertCameraOption[] Cameras, string[] Dates);
+public sealed record GetAlertFiltersQuery : IRequest<AlertFilterOptions>;
+public sealed class GetAlertFiltersHandler(IMonitoringRepository repository) : IRequestHandler<GetAlertFiltersQuery, AlertFilterOptions>
+{
+    public Task<AlertFilterOptions> Handle(GetAlertFiltersQuery request, CancellationToken ct) => repository.FiltersAsync(ct);
+}
 public sealed record GetAlertQuery(Guid Id) : IRequest<AlertDto>;
 public sealed record HandleAlertCommand(Guid Id, string Action, string? ExpectedSeverity = null) : IRequest<AlertDto>;
 public sealed record RecordRiskCommand(Guid CameraId, RiskDecision Decision, double Confidence,
@@ -26,6 +36,7 @@ public sealed class MonitoringConflictException(string message, AlertDto? curren
 }
 public interface IMonitoringRepository
 {
+    Task<AlertFilterOptions> FiltersAsync(CancellationToken ct);
     Task<PagedResponse<AlertDto>> ListAsync(GetAlertsQuery query, Guid userId, bool admin, CancellationToken ct);
     Task<AlertDto> GetAsync(Guid id, Guid userId, bool admin, CancellationToken ct);
     Task<Warning?> FindEpisodeAsync(string prefix, CancellationToken ct);
@@ -60,7 +71,9 @@ public sealed class GetAlertsHandler(ISafetyMonitoringService service, ICurrentU
     public Task<PagedResponse<AlertDto>> Handle(GetAlertsQuery request, CancellationToken ct)
     {
         if (request.Page is < 1 or > 100000 || request.PageSize is < 1 or > 100 ||
-            request.Status is not (null or "PENDING" or "ACKNOWLEDGED" or "CANCELLED")) throw new ArgumentException("Bộ lọc không hợp lệ.");
+            request.Status is not (null or "PENDING" or "ACKNOWLEDGED" or "CANCELLED") ||
+            request.Severity is not (null or "WARNING" or "CRITICAL" or "EMERGENCY") || request.Area?.Length > 200 ||
+            request.FromTime > request.ToTime) throw new ArgumentException("Bộ lọc không hợp lệ.");
         return service.ListAsync(request, user.UserId ?? throw new UnauthorizedAccessException(), user.IsInRole("ADMIN"), ct);
     }
 }

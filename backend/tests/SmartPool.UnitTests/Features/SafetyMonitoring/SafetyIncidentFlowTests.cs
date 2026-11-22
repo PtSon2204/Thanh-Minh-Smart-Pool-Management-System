@@ -94,4 +94,42 @@ public sealed class SafetyIncidentFlowTests
         await Assert.ThrowsAsync<ArgumentException>(() =>
             new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() { Status = "arbitrary" }, default));
     }
+
+    [Theory]
+    [InlineData("Pending")]
+    [InlineData("In Progress")]
+    [InlineData("Resolved")]
+    public async Task ConfirmValidIncident_PersistsStatusAndNoteBeforeNotification(string status)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var incident = new Incident { Id = Guid.NewGuid(), Status = "Pending", Description = "Original report" };
+        var saved = false;
+        operations.Setup(x => x.GetIncidentByIdAsync(incident.Id, cancellation.Token)).ReturnsAsync(incident);
+        operations.Setup(x => x.UpdateIncidentAsync(incident, cancellation.Token))
+            .Callback(() => saved = true).Returns(Task.CompletedTask);
+        notifications.Setup(x => x.SendToAllAsync("safety_incident_confirmed", It.IsAny<object>(), cancellation.Token))
+            .Callback(() => Assert.True(saved)).Returns(Task.CompletedTask);
+        var result = await new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object).Handle(new() {
+            IncidentId = incident.Id, Status = status, ResolutionNote = "Đã kiểm tra tại hiện trường", ConfirmedByName = "Cứu hộ A"
+        }, cancellation.Token);
+        Assert.Equal(status, incident.Status);
+        Assert.Equal(status, result.Status);
+        Assert.Equal(incident.Id, result.IncidentId);
+        Assert.Equal(result.ConfirmedAt, incident.UpdatedAt);
+        Assert.StartsWith("Original report\n", incident.Description);
+        Assert.Contains("Cứu hộ A", incident.Description);
+        Assert.Contains("Đã kiểm tra tại hiện trường", incident.Description);
+        notifications.Verify(x => x.SendToAllAsync("safety_incident_confirmed", It.IsAny<object>(), cancellation.Token), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConfirmSaveFailure_DoesNotPublishSuccessfulResolution()
+    {
+        var incident = new Incident { Id = Guid.NewGuid(), Status = "Pending" };
+        operations.Setup(x => x.GetIncidentByIdAsync(incident.Id, default)).ReturnsAsync(incident);
+        operations.Setup(x => x.UpdateIncidentAsync(incident, default)).ThrowsAsync(new IOException("write failed"));
+        await Assert.ThrowsAsync<IOException>(() => new ConfirmSafetyIncidentHandler(operations.Object, notifications.Object)
+            .Handle(new() { IncidentId = incident.Id, Status = "Resolved" }, default));
+        notifications.VerifyNoOtherCalls();
+    }
 }

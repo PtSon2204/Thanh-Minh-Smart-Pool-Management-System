@@ -15,13 +15,35 @@ public sealed class MonitoringRepository(SmartPoolDbContext db) : IMonitoringRep
         x.Id, x.CamId, x.Cam == null ? null : x.Cam.Name, x.Cam == null ? null : x.Cam.Location,
         x.TrackId, x.RiskEpisode, x.SeverityLevel.ToUpper(), x.Status.ToUpper(), x.ImageUrl, x.SnapshotStatus,
         x.IncidentId, x.VerifiedBy, x.VerifiedAt, x.CreatedAt, x.Box)
-        { ObservedAt = DateTime.SpecifyKind(x.WarningTime, DateTimeKind.Utc) };
+        { ObservedAt = DateTime.SpecifyKind(x.WarningTime, DateTimeKind.Utc),
+            HandledByName = x.Verifier == null ? null :
+                x.Verifier.UserProfile != null && x.Verifier.UserProfile.FullName.Trim() != ""
+                    ? x.Verifier.UserProfile.FullName : x.Verifier.Username };
+
+    public async Task<AlertFilterOptions> FiltersAsync(CancellationToken ct)
+    {
+        var query = Visible();
+        var areas = await query.Where(x => x.Cam != null && x.Cam.Location != null && x.Cam.Location != "")
+            .Select(x => x.Cam!.Location!).Distinct().OrderBy(x => x).ToArrayAsync(ct);
+        var severities = await query.Select(x => x.SeverityLevel.ToUpper()).Distinct().OrderBy(x => x).ToArrayAsync(ct);
+        var statuses = await query.Select(x => x.Status.ToUpper()).Distinct().OrderBy(x => x).ToArrayAsync(ct);
+        var cameras = await query.Where(x => x.Cam != null).Select(x => new { x.Cam!.Id, x.Cam.Name })
+            .Distinct().OrderBy(x => x.Name).ThenBy(x => x.Id).ToArrayAsync(ct);
+        // The UI presents calendar dates in Vietnam; filter bounds are sent as UTC instants.
+        var dates = await query.Select(x => x.WarningTime.AddHours(7).Date).Distinct().OrderByDescending(x => x).ToArrayAsync(ct);
+        return new(areas, severities, statuses, cameras.Select(x => new AlertCameraOption(x.Id, x.Name)).ToArray(),
+            dates.Select(x => x.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)).ToArray());
+    }
 
     public async Task<PagedResponse<AlertDto>> ListAsync(GetAlertsQuery request, Guid userId, bool admin, CancellationToken ct)
     {
         var query = Visible();
         if (request.CameraId.HasValue) query = query.Where(x => x.CamId == request.CameraId);
         if (request.Status != null) query = query.Where(x => x.Status.ToUpper() == request.Status);
+        if (request.Area != null) query = query.Where(x => x.Cam != null && x.Cam.Location == request.Area);
+        if (request.Severity != null) query = query.Where(x => x.SeverityLevel.ToUpper() == request.Severity);
+        if (request.FromTime is { } from) query = query.Where(x => x.WarningTime >= from.UtcDateTime);
+        if (request.ToTime is { } to) query = query.Where(x => x.WarningTime <= to.UtcDateTime);
         return new() { Items = await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
             .Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).Select(Projection).ToListAsync(ct),
             TotalCount = await query.CountAsync(ct), PageIndex = request.Page, PageSize = request.PageSize };

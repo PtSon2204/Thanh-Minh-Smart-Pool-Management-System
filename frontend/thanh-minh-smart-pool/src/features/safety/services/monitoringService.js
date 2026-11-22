@@ -4,6 +4,7 @@ export const monitoringService = {
   cameras: (params, signal) => apiClient.get('/api/cameras', { params, signal }).then(r => r.data),
   areas: signal => apiClient.get('/api/cameras/areas', { signal }).then(r => r.data),
   alerts: (params, signal) => apiClient.get('/api/alerts', { params, signal }).then(r => r.data),
+  alertFilters: signal => apiClient.get('/api/alerts/filters', { signal }).then(r => r.data),
   handleAlert: (id, action, expectedSeverity) => apiClient.patch(`/api/alerts/${id}/${action}`,
     { expectedSeverity }).then(({ data }) => {
     // Fallback cho client xác nhận nếu SignalR mất kết nối; dedupe theo IncidentId.
