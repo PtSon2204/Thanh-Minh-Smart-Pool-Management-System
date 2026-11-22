@@ -52,13 +52,10 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         }
 
         var identifier = request.Identifier.Trim().ToLowerInvariant();
-        var candidates = await _userOperations.FindUsersByIdentifierAsync(identifier, cancellationToken);
-
-        var matches = candidates.Where(candidate => IsEligible(candidate) &&
-            _passwordHasher.VerifyPassword(candidate, candidate.PasswordHash!, request.Password)).ToList();
-        if (matches.Count != 1)
+        var authenticatedUser = await _userOperations.FindUserByIdentifierAsync(identifier, cancellationToken);
+        if (authenticatedUser is null || !IsEligible(authenticatedUser) ||
+            !_passwordHasher.VerifyPassword(authenticatedUser, authenticatedUser.PasswordHash!, request.Password))
             return InvalidCredentials();
-        var authenticatedUser = matches[0];
 
         if (authenticatedUser.RoleId is null)
             return InvalidCredentials();

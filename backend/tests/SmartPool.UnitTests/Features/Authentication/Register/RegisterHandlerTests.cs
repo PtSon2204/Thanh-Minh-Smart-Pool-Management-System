@@ -100,6 +100,18 @@ public sealed class RegisterHandlerTests
             It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact(DisplayName = "Số điện thoại trùng username → 409 PHONE_TAKEN, không gửi OTP")]
+    public async Task Handle_PhoneMatchesExistingUsername_ReturnsConflictWithoutStartingOtp()
+    {
+        var harness = new Harness();
+        harness.Users.Setup(repository => repository.ExistsByPhoneAsync(
+                "0912345678", "+84912345678", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        AssertProblem(await harness.Handle(), 409, "PHONE_TAKEN");
+        harness.AssertNoOtpStartOrEmail();
+    }
+
     [Fact(DisplayName = "UTCID04 (A) - Thiếu role CUSTOMER -> Trả 500 CUSTOMER_ROLE_NOT_CONFIGURED")]
     public async Task Handle_CustomerRoleMissing_ReturnsConfigurationError()
     {

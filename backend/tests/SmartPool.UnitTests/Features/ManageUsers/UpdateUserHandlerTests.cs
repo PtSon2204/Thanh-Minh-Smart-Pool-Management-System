@@ -100,6 +100,16 @@ public sealed class UpdateUserHandlerTests
         AssertConflict(await h.Handle(), "phone", "Số điện thoại đã được sử dụng.");
     }
 
+    [Fact(DisplayName = "Đổi số điện thoại trùng username tài khoản khác → 409 phone")]
+    public async Task Handle_PhoneMatchesOtherUsername_ReturnsConflict()
+    {
+        var h = new Harness();
+        h.Users.Setup(x => x.UpdateUserAsync(It.IsAny<UpdateUserValues>(), h.Token))
+            .ThrowsAsync(new UniqueUserFieldException("phone"));
+
+        AssertConflict(await h.Handle(), "phone", "Số điện thoại đã được sử dụng.");
+    }
+
     [Fact(DisplayName = "UTCID07 (A) - Repository lỗi bất ngờ → exception được truyền tiếp")]
     public async Task Handle_RepositoryThrows_PropagatesException()
     {
