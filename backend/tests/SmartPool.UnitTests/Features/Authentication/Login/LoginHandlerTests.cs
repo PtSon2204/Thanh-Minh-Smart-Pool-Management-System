@@ -185,8 +185,8 @@ public sealed class LoginHandlerTests
         harness.AccessTokenService.VerifyNoOtherCalls();
     }
 
-    [Fact(DisplayName = "UTCID14 (B) - SDT trùng Username, chỉ 1 tài khoản khớp mật khẩu → Chọn đúng tài khoản")]
-    public async Task Handle_OverlappingPhoneAndUsername_OnlyOneMatchesPassword_ReturnsOk()
+    [Fact(DisplayName = "UTCID14 (A) - SDT trùng Username, chỉ 1 mật khẩu khớp → 401 vì định danh mơ hồ")]
+    public async Task Handle_OverlappingPhoneAndUsername_OnlyOneMatchesPassword_ReturnsUnauthorized()
     {
         var harness = new Harness();
         var user2 = new User
@@ -201,12 +201,12 @@ public sealed class LoginHandlerTests
 
         var result = await harness.Handle(new LoginCommand { Identifier = "0912345678", Password = "Password123" });
 
-        var okResult = Assert.IsType<OkObjectResult>(result);
-        var response = Assert.IsType<LoginResponse>(okResult.Value);
-        Assert.Equal(harness.DefaultUsers[0].Id, response.Id);
+        AssertProblem(result, StatusCodes.Status401Unauthorized);
+        harness.PasswordHasher.Verify(h => h.VerifyPassword(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        harness.AssertNoTokensCreated();
     }
 
-    [Fact(DisplayName = "UTCID15 (B) - SDT trùng Username, cả 2 tài khoản khớp mật khẩu → Trả 401")]
+    [Fact(DisplayName = "UTCID15 (A) - SDT +84 trùng Username dạng 0, cả 2 mật khẩu khớp → 401")]
     public async Task Handle_OverlappingPhoneAndUsername_BothMatchPassword_ReturnsUnauthorized()
     {
         var harness = new Harness();
@@ -220,7 +220,7 @@ public sealed class LoginHandlerTests
         harness.PasswordHasher.Setup(h => h.VerifyPassword(harness.DefaultUsers[0], "hashed", "Password123")).Returns(true);
         harness.PasswordHasher.Setup(h => h.VerifyPassword(user2, "hashed2", "Password123")).Returns(true);
 
-        var result = await harness.Handle(new LoginCommand { Identifier = "0912345678", Password = "Password123" });
+        var result = await harness.Handle(new LoginCommand { Identifier = "+84912345678", Password = "Password123" });
 
         AssertProblem(result, StatusCodes.Status401Unauthorized);
         harness.AssertNoTokensCreated();
@@ -249,7 +249,7 @@ public sealed class LoginHandlerTests
     public async Task Handle_UserRepositoryThrowsException_ThrowsException()
     {
         var harness = new Harness();
-        harness.Users.Setup(r => r.FindUsersByIdentifierAsync(
+        harness.Users.Setup(r => r.FindUserByIdentifierAsync(
                 It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("DB Failure"));
 
@@ -438,14 +438,21 @@ public sealed class LoginHandlerTests
                 RoleId = roleId
             });
 
-            Users.Setup(repository => repository.FindUsersByIdentifierAsync(
+            Users.Setup(repository => repository.FindUserByIdentifierAsync(
                     It.IsAny<string>(), CancellationToken.None))
                 .ReturnsAsync((string identifier, CancellationToken _) =>
-                    DefaultUsers.Where(u => string.Equals(u.Username, identifier, StringComparison.OrdinalIgnoreCase)
+                {
+                    var localPhone = identifier.StartsWith("+84", StringComparison.Ordinal)
+                        ? "0" + identifier[3..] : identifier;
+                    var internationalPhone = localPhone.StartsWith('0') && localPhone.Length == 10
+                        ? "+84" + localPhone[1..] : identifier;
+                    var matches = DefaultUsers.Where(u => string.Equals(u.Username, identifier, StringComparison.OrdinalIgnoreCase)
                         || string.Equals(u.Email, identifier, StringComparison.OrdinalIgnoreCase)
-                        || u.Phone == identifier
-                        || (identifier.StartsWith("+84", StringComparison.Ordinal)
-                            && u.Phone == "0" + identifier[3..])).ToList());
+                        || u.Phone == localPhone || u.Phone == internationalPhone
+                        || (identifier.StartsWith("+84", StringComparison.Ordinal) && u.Username == localPhone))
+                        .Take(2).ToList();
+                    return matches.Count == 1 ? matches[0] : null;
+                });
 
             Users.Setup(repository => repository.GetRoleByIdAsync(
                     It.IsAny<Guid>(), CancellationToken.None))

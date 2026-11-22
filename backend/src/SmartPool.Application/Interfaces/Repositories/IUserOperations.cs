@@ -49,7 +49,7 @@ public interface IUserOperations
     // Lookups
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken);
     Task<User?> GetUserByUsernameAsync(string username, CancellationToken cancellationToken);
-    Task<List<User>> FindUsersByIdentifierAsync(string identifier, CancellationToken cancellationToken);
+    Task<User?> FindUserByIdentifierAsync(string identifier, CancellationToken cancellationToken);
     Task<User?> FindActiveUserByEmailWithPasswordAsync(string email, CancellationToken cancellationToken);
     Task<User?> GetActiveUserWithPasswordAsync(Guid userId, string email, CancellationToken cancellationToken);
 

@@ -107,6 +107,28 @@ public sealed class CreateUserHandlerTests
         h.AssertNoCreate();
     }
 
+    [Fact(DisplayName = "Username trùng số điện thoại tài khoản khác → 409 username")]
+    public async Task Handle_UsernameMatchesExistingPhone_ReturnsConflict()
+    {
+        var h = new Harness();
+        h.Users.Setup(x => x.ExistsByUsernameAsync("0912345678", h.Token)).ReturnsAsync(true);
+
+        AssertConflict(await h.Handle(Request(username: "0912345678", phone: "0987654321")),
+            "username", "Tên đăng nhập đã được sử dụng.");
+        h.AssertNoCreate();
+    }
+
+    [Fact(DisplayName = "Số điện thoại trùng username tài khoản khác → 409 phone")]
+    public async Task Handle_PhoneMatchesExistingUsername_ReturnsConflict()
+    {
+        var h = new Harness();
+        h.Users.Setup(x => x.ExistsByPhoneAsync("0912345678", "+84912345678", h.Token))
+            .ReturnsAsync(true);
+
+        AssertConflict(await h.Handle(), "phone", "Số điện thoại đã được sử dụng.");
+        h.AssertNoCreate();
+    }
+
     [Fact(DisplayName = "UTCID07 (A) - Role chưa cấu hình → 409, không hash/lưu")]
     public async Task Handle_RoleUnavailable_ReturnsConflict()
     {
