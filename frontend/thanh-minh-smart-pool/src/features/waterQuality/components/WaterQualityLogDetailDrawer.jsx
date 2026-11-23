@@ -141,6 +141,35 @@ export default function WaterQualityLogDetailDrawer({ visible, log, onClose }) {
         </Paragraph>
       </div>
 
+      {log.threeDayTrendDetected && (
+        <>
+          <Divider style={{ margin: '16px 0' }} />
+          <Alert
+            type="warning"
+            showIcon
+            title="Phân tích xu hướng 3 ngày gần nhất"
+            description={
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span>{log.threeDayTrendSummary}</span>
+                {log.trendSuggestedChemicals?.length > 0 && (
+                  <Space size={[4, 4]} wrap>
+                    <Text strong style={{ fontSize: 12 }}>Hóa chất đề xuất:</Text>
+                    {log.trendSuggestedChemicals.map((chem, idx) => (
+                      <Tag color="geekblue" key={`drawer-chem-${idx}`}>{chem}</Tag>
+                    ))}
+                  </Space>
+                )}
+                {log.generatedNextDayDutyDate && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Đã tự tạo Lịch trực bể cho ngày {dayjs(log.generatedNextDayDutyDate).format('DD/MM/YYYY')}.
+                  </Text>
+                )}
+              </div>
+            }
+          />
+        </>
+      )}
+
       {log.notes && (
         <>
           <Divider style={{ margin: '16px 0' }} />

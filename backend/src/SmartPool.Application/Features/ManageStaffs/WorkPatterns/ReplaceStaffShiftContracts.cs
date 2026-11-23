@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using MediatR;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Application.Interfaces.Services;
 
 namespace SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 
@@ -39,8 +40,17 @@ public sealed record StaffShiftReplacementResult(
     string? PreviewToken = null,
     Guid? OperationId = null);
 
-public sealed class ReplaceStaffShiftHandler(IStaffOperations operations) : IRequestHandler<ReplaceStaffShiftCommand, StaffShiftReplacementResult>
+public sealed class ReplaceStaffShiftHandler(
+    IStaffOperations operations,
+    INotificationService? notificationService = null) : IRequestHandler<ReplaceStaffShiftCommand, StaffShiftReplacementResult>
 {
-    public Task<StaffShiftReplacementResult> Handle(ReplaceStaffShiftCommand request, CancellationToken cancellationToken) =>
-        operations.ReplaceStaffShiftAsync(request, cancellationToken);
+    public async Task<StaffShiftReplacementResult> Handle(ReplaceStaffShiftCommand request, CancellationToken cancellationToken)
+    {
+        var result = await operations.ReplaceStaffShiftAsync(request, cancellationToken);
+        if (request.Action == StaffShiftReplacementAction.Confirm)
+        {
+            await StaffScheduleBroadcast.NotifyWaterQualityDutyChangedAsync(notificationService, "SHIFT_REPLACED", cancellationToken);
+        }
+        return result;
+    }
 }

@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
+import { Spin } from 'antd'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { hasValidAccessToken, hasValidRefreshToken, useAuthStore } from '../features/auth/store/authStore'
 import { refreshSession } from '../services/apiClient'
 import { getSessionRoles } from '../features/auth/utils/sessionRoles'
+import { useTodayWaterQualityGate } from '../features/waterQuality/hooks/useTodayWaterQualityGate'
 
 export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
   const session = useAuthStore((state) => state.session)
   const [refreshFailed, setRefreshFailed] = useState(false)
   const location = useLocation()
+  const waterGate = useTodayWaterQualityGate()
+  const isWaterQualityRoute = location.pathname === '/admin/water-quality'
   const unauthenticatedRedirectTo = redirectTo ?? '/dang-nhap'
   const forbiddenRedirectTo = redirectTo ?? '/401'
 
@@ -71,6 +75,27 @@ export default function ProtectedRoute({ allowedRoles, redirectTo, children }) {
         />
       )
     }
+  }
+
+  if (!isWaterQualityRoute && waterGate.isCheckingGate) {
+    return (
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spin description="Đang kiểm tra nhiệm vụ đo nước hôm nay..." />
+      </div>
+    )
+  }
+
+  if (!isWaterQualityRoute && waterGate.mustMeasureWater) {
+    return (
+      <Navigate
+        to="/admin/water-quality"
+        replace
+        state={{
+          from: location,
+          waterGateReason: waterGate.data?.reason,
+        }}
+      />
+    )
   }
 
   return children ? children : <Outlet />

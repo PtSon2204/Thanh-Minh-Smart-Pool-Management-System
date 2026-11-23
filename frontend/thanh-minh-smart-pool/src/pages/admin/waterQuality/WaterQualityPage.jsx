@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
+  Alert,
   Card,
   Table,
   Button,
@@ -12,8 +13,8 @@ import {
   Tooltip,
   message,
 } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  PlusOutlined,
   ExperimentOutlined,
   ReloadOutlined,
   EyeOutlined,
@@ -31,6 +32,11 @@ import WaterQualityAnalyticsTab from '../../../features/waterQuality/components/
 import PoolDutyScheduleTab from '../../../features/waterQuality/components/PoolDutyScheduleTab';
 import { useAuthStore } from '../../../features/auth/store/authStore';
 import { useSearchParams } from 'react-router-dom';
+import { startSignalRConnection, onWaterQualityUpdated } from '../../../services/signalrClient';
+import {
+  TODAY_WATER_QUALITY_GATE_QUERY_KEY,
+  useTodayWaterQualityGate,
+} from '../../../features/waterQuality/hooks/useTodayWaterQualityGate';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
@@ -38,8 +44,14 @@ const { Title, Text } = Typography;
 export default function WaterQualityPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const linkedLogId = searchParams.get('logId');
-  const isAdmin = useAuthStore((state) => state.session?.role?.toUpperCase() === 'ADMIN');
-  const [activeTab, setActiveTab] = useState('logs');
+  const queryClient = useQueryClient();
+  const role = useAuthStore((state) => state.session?.role?.toUpperCase());
+  const isAdmin = role === 'ADMIN';
+  const isLifeguard = role === 'LIFEGUARD';
+  const waterGate = useTodayWaterQualityGate();
+  const mustMeasureWater = isLifeguard && waterGate.mustMeasureWater;
+  const autoOpenedGateRef = useRef(false);
+  const [activeTab, setActiveTab] = useState(() => (role === 'ADMIN' && !linkedLogId ? 'analytics' : 'logs'));
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -55,6 +67,40 @@ export default function WaterQualityPage() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+  const lastLocalUpdateIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!mustMeasureWater) {
+      if (!waterGate.isCheckingGate) {
+        autoOpenedGateRef.current = false;
+      }
+      return undefined;
+    }
+
+    if (autoOpenedGateRef.current) {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      autoOpenedGateRef.current = true;
+      setActiveTab('logs');
+      setCreateModalVisible(true);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [mustMeasureWater, waterGate.isCheckingGate]);
+
+  useEffect(() => {
+    startSignalRConnection();
+    const unsub = onWaterQualityUpdated((payload) => {
+      if (payload?.id && lastLocalUpdateIdRef.current === payload.id) {
+        lastLocalUpdateIdRef.current = null;
+        return;
+      }
+      setReloadKey((prev) => prev + 1);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (!linkedLogId) return undefined;
@@ -114,14 +160,35 @@ export default function WaterQualityPage() {
     setDetailDrawerVisible(true);
   };
 
+  const handleOpenLogById = async (logId) => {
+    if (!logId) return;
+    try {
+      const log = await waterQualityService.getLogById(logId);
+      setSelectedLog(log);
+      setDetailDrawerVisible(true);
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Không thể mở chi tiết phiếu đo.');
+    }
+  };
+
   const handleManualRefresh = () => {
     setLoading(true);
     setReloadKey((prev) => prev + 1);
   };
 
-  const handleCreateSuccess = () => {
+  const handleCreateSuccess = async (createdLog) => {
+    const wasGated = mustMeasureWater;
+    if (createdLog?.id) {
+      lastLocalUpdateIdRef.current = createdLog.id;
+    }
     setPageIndex(1);
     handleManualRefresh();
+    await queryClient.invalidateQueries({
+      queryKey: [TODAY_WATER_QUALITY_GATE_QUERY_KEY],
+    });
+    if (wasGated) {
+      message.info('Đã hoàn thành đo chất lượng nước hôm nay! Bạn đã có thể truy cập các chức năng khác.');
+    }
   };
 
   const columns = [
@@ -224,14 +291,24 @@ export default function WaterQualityPage() {
       key: 'recommendation',
       ellipsis: true,
       render: (rec, record) => (
-        <span
-          style={{
-            color: record.status === 'Danger' ? '#cf1322' : '#262626',
-            fontWeight: record.status === 'Danger' ? 600 : 'normal',
-          }}
-        >
-          {rec}
-        </span>
+        <Space direction="vertical" size={2}>
+          <span
+            style={{
+              color: record.status === 'Danger' ? '#cf1322' : '#262626',
+              fontWeight: record.status === 'Danger' ? 600 : 'normal',
+            }}
+          >
+            {rec}
+          </span>
+          {record.threeDayTrendDetected && (
+            <Tag color="volcano" style={{ width: 'fit-content', margin: 0 }}>
+              Xu hướng 3 ngày đi xuống → Đã tạo lịch trực bể ngày{' '}
+              {record.generatedNextDayDutyDate
+                ? dayjs(record.generatedNextDayDutyDate).format('DD/MM')
+                : 'hôm sau'}
+            </Tag>
+          )}
+        </Space>
       ),
     },
     {
@@ -266,24 +343,38 @@ export default function WaterQualityPage() {
       >
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            Kiểm soát chất lượng nước
+            {isAdmin ? 'Thống kê chất lượng nước' : 'Kiểm soát chất lượng nước'}
           </Title>
           <Text type="secondary">
-            Theo dõi nồng độ pH, Clo tự do, nhận gợi ý châm hóa chất và quản lý lịch trực bể định kỳ
+            {isAdmin
+              ? 'Theo dõi thống kê xu hướng chỉ số pH, Clo tự do, lịch sử đo và cảnh báo chất lượng nước'
+              : 'Theo dõi nồng độ pH, Clo tự do, nhận gợi ý châm hóa chất và quản lý lịch trực bể định kỳ'}
           </Text>
         </div>
-
-        {isAdmin && <Space>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateModalVisible(true)}
-            size="large"
-          >
-            Tạo phiếu đo mới
-          </Button>
-        </Space>}
       </div>
+
+      {mustMeasureWater && (
+        <Alert
+          type="warning"
+          showIcon
+          title="Nhiệm vụ bắt buộc đầu ngày: Đo chất lượng nước"
+          description={
+            waterGate.data?.reason ||
+            'Bạn được phân công lịch trực/đo nước hôm nay. Vui lòng hoàn thành đo chất lượng nước trước khi sử dụng các chức năng làm việc khác.'
+          }
+          action={
+            <Button
+              type="primary"
+              size="small"
+              icon={<ExperimentOutlined />}
+              onClick={() => setCreateModalVisible(true)}
+            >
+              Đo nước ngay
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <Tabs
         activeKey={activeTab}
@@ -376,7 +467,7 @@ export default function WaterQualityPage() {
                 <span>Phân tích & Giám sát chỉ số</span>
               </Space>
             ),
-            children: <WaterQualityAnalyticsTab onViewDetail={handleOpenDetail} />,
+            children: <WaterQualityAnalyticsTab reloadKey={reloadKey} onViewDetail={handleOpenDetail} />,
           },
           {
             key: 'duty-schedule',
@@ -388,18 +479,24 @@ export default function WaterQualityPage() {
             ),
             children: (
               <PoolDutyScheduleTab
-                onOpenCreateMeasurement={() => setCreateModalVisible(true)}
+                reloadKey={reloadKey}
+                readOnly={!isLifeguard}
+                isAdmin={isAdmin}
+                onViewLogById={handleOpenLogById}
+                onOpenCreateMeasurement={isLifeguard ? () => setCreateModalVisible(true) : undefined}
               />
             ),
           },
         ]}
       />
 
-      <CreateWaterQualityLogModal
-        visible={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
-        onSuccess={handleCreateSuccess}
-      />
+      {isLifeguard && (
+        <CreateWaterQualityLogModal
+          visible={createModalVisible}
+          onCancel={() => setCreateModalVisible(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
 
       <WaterQualityLogDetailDrawer
         visible={detailDrawerVisible}

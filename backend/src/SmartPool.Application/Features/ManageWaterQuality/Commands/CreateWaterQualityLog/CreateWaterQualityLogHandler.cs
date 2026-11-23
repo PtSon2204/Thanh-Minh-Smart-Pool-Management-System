@@ -54,12 +54,11 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
         {
             throw new UnauthorizedAccessException("Người đo không hợp lệ hoặc phiên đăng nhập đã hết hạn.");
         }
-        var isAdmin = _currentUser.IsInRole("ADMIN");
         var isLifeguard = _currentUser.IsInRole("LIFEGUARD");
-        if (request.OperationalTaskId.HasValue && !isAdmin && !isLifeguard)
-            throw new UnauthorizedAccessException("Chỉ quản trị viên hoặc nhân viên cứu hộ mới có thể thực hiện công việc.");
-        if (isLifeguard && !request.OperationalTaskId.HasValue)
-            throw new UnauthorizedAccessException("Nhân viên cứu hộ chỉ có thể đo từ công việc đã được phân công.");
+        if (!isLifeguard)
+        {
+            throw new UnauthorizedAccessException("Chỉ nhân viên cứu hộ mới có quyền thực hiện đo chất lượng nước.");
+        }
 
         var evaluation = _evaluator.Evaluate(request.PhValue, request.FreeChlorineMgL, request.IsWaterClear);
 
@@ -83,10 +82,12 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
         };
 
         var taskExecution = request.OperationalTaskId.HasValue
-            ? new OperationalTaskExecutionAuthorization(isAdmin, isLifeguard, request.AdminExecutionConfirmed,
+            ? new OperationalTaskExecutionAuthorization(false, true, false,
                 request.ExpectedTaskRevision, request.ExpectedAssigneeId)
             : null;
         var createdDto = await _operations.CreateWaterQualityLogAsync(log, cancellationToken, taskExecution);
+
+        await BroadcastWaterQualityUpdatedAsync(createdDto, cancellationToken);
 
         // Nếu trạng thái là Danger, phát cảnh báo khẩn cấp tới Admin
         if (evaluation.Status == WaterQualityConstants.StatusDanger)
@@ -94,7 +95,92 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
             await TriggerDangerAlertAsync(createdDto, cancellationToken);
         }
 
+        // Nếu phát hiện xu hướng nước đi xuống 3 ngày gần nhất và đã tạo Lịch trực bể ngày mai -> báo Admin phân công
+        if (createdDto.ThreeDayTrendDetected)
+        {
+            await TriggerTrendDutyNoticeAsync(createdDto, cancellationToken);
+        }
+
         return createdDto;
+    }
+
+    private async Task BroadcastWaterQualityUpdatedAsync(WaterQualityLogDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _notificationService.SendToAllAsync("WaterQualityUpdated", new
+            {
+                id = dto.Id,
+                status = dto.Status,
+                phValue = dto.PhValue,
+                freeChlorineMgL = dto.FreeChlorineMgL,
+                inspectionTime = dto.InspectionTime,
+                operationalTaskId = dto.OperationalTaskId,
+                threeDayTrendDetected = dto.ThreeDayTrendDetected,
+                generatedNextDayDutyId = dto.GeneratedNextDayDutyId,
+                generatedNextDayDutyDate = dto.GeneratedNextDayDutyDate
+            }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[CreateWaterQualityLogHandler] Không thể phát SignalR WaterQualityUpdated cho log {Id}", dto.Id);
+        }
+    }
+
+    private async Task TriggerTrendDutyNoticeAsync(WaterQualityLogDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var admins = await _userOperations.GetUsersByRoleAsync("ADMIN", cancellationToken);
+            if (admins.Count == 0)
+            {
+                return;
+            }
+
+            var dutyDateText = dto.GeneratedNextDayDutyDate.HasValue
+                ? dto.GeneratedNextDayDutyDate.Value.ToString("dd/MM/yyyy")
+                : "ngày mai";
+            var chemicalsText = dto.TrendSuggestedChemicals.Count > 0
+                ? $" Hóa chất đề xuất: {string.Join(", ", dto.TrendSuggestedChemicals)}."
+                : string.Empty;
+            var title = "PHÁT HIỆN NƯỚC ĐI XUỐNG 3 NGÀY — ĐÃ TẠO LỊCH TRỰC BỂ";
+            var content = $"{dto.ThreeDayTrendSummary}{chemicalsText} Hệ thống đã tạo lịch trực bể ngày {dutyDateText} ở trạng thái chờ Admin phân công.";
+
+            var now = _timeProvider.GetUtcNow().UtcDateTime;
+            var notifs = admins.Select(admin => new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = admin.Id,
+                Title = title,
+                Content = content,
+                Type = "WATER_QUALITY_TREND_DUTY",
+                IsRead = false,
+                CreatedAt = now
+            }).ToList();
+
+            await _notificationOperations.AddRangeAsync(notifs, cancellationToken);
+
+            foreach (var notif in notifs)
+            {
+                await _notificationService.SendToUserAsync(
+                    notif.UserId.ToString(),
+                    "ReceiveNotification",
+                    new
+                    {
+                        id = notif.Id,
+                        title = notif.Title,
+                        content = notif.Content,
+                        type = notif.Type,
+                        isRead = false,
+                        createdAt = notif.CreatedAt
+                    },
+                    cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[CreateWaterQualityLogHandler] Không thể gửi thông báo lịch trực xu hướng 3 ngày cho log {Id}", dto.Id);
+        }
     }
 
     private async Task TriggerDangerAlertAsync(WaterQualityLogDto dto, CancellationToken cancellationToken)
@@ -119,6 +205,23 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
             if (notifs.Count > 0)
             {
                 await _notificationOperations.AddRangeAsync(notifs, cancellationToken);
+
+                foreach (var notif in notifs)
+                {
+                    await _notificationService.SendToUserAsync(
+                        notif.UserId.ToString(),
+                        "ReceiveNotification",
+                        new
+                        {
+                            id = notif.Id,
+                            title = notif.Title,
+                            content = notif.Content,
+                            type = notif.Type,
+                            isRead = false,
+                            createdAt = notif.CreatedAt
+                        },
+                        cancellationToken);
+                }
             }
 
             await _notificationService.SendToAllAsync("water_quality_danger", new

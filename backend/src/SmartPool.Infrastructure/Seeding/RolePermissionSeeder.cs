@@ -46,7 +46,7 @@ public static class RolePermissionSeeder
                 ["reports"]          = ["read"],
                 ["notifications"]    = ["read", "create", "update"],
                 ["safety_alerts"]    = ["read", "create"],
-                ["water_quality"]    = ["read", "create", "update"],
+                ["water_quality"]    = ["read"],
             },
 
             ["LIFEGUARD"] = new(StringComparer.Ordinal)
@@ -56,7 +56,7 @@ public static class RolePermissionSeeder
                 ["staff_tasks"]      = ["read"],
                 ["attendance"]       = ["read", "update"],
                 ["safety_alerts"]    = ["read", "create"],
-                ["water_quality"]    = ["read", "create"],
+                ["water_quality"]    = ["read", "create", "update"],
             },
 
             ["SALES"] = new(StringComparer.Ordinal)
@@ -156,6 +156,11 @@ public static class RolePermissionSeeder
                 changed = current.Remove("class_sessions") || changed;
                 changed = current.Remove("class_registrations") || changed;
                 changed = current.Remove("class_attendances") || changed;
+                if (current.TryGetValue("water_quality", out var adminWaterQuality))
+                {
+                    changed = adminWaterQuality.Remove("create") || changed;
+                    changed = adminWaterQuality.Remove("update") || changed;
+                }
             }
             if (roleName is "LIFEGUARD" or "SALES")
                 changed = current.Remove("shifts") || changed;

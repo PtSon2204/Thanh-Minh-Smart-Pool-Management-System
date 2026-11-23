@@ -1,0 +1,101 @@
+Phần C: Kịch bản quay chi tiết (6 Cảnh)
+Cảnh 1: Admin vào Công việc vận hành & Phân công lịch đo nước hằng ngày (0:00 – 1:30)
+Thao tác (Cửa sổ 1 — admin)
+Vào menu Công việc vận hành (/admin/staff/tasks).
+Chỉ vào các ngày trong tuần hiện tại:
+Hôm nay có 1 Đo chất lượng nước (08:00 · Ca sáng) đã gán cho Nhân Viên Cứu Hộ (lifeguard_staff).
+Thứ Ba (ngày mai) và các ngày sau chỉ có đúng 1 Đo chất lượng nước / ngày đang ở trạng thái Chưa phân công (giống Kiểm tra thiết bị — hệ thống không tự gán tên ai trước khi Admin phân).
+Thực hiện Admin phân công cho ngày mai (Thứ Ba):
+Ở thẻ Đo chất lượng nước của Thứ Ba, bấm nút Phân công.
+Trong modal "Phân công công việc", chọn Nguyễn A · Ca sáng (06:00–11:30) → bấm Lưu phân công.
+Thẻ lập tức chuyển sang Đã lên lịch · Nhân viên: Nguyễn A (cùng nút Đổi người để minh họa đổi sang Trần B rồi đổi lại nếu muốn).
+Bấm nhanh nút Lịch đo định kỳ (góc trên bên phải) rồi đóng ngay:
+Chỉ ra ghi chú hướng dẫn: chỉ dùng nếu muốn tự động gán cố định 1 người hằng ngày (hệ thống chặn tạo trùng nhiều lịch/ngày); còn thông thường dùng Chuẩn bị tuần → Admin tự bấm Phân công từng ngày, và qua ngày mới nếu ngày cũ chưa đo hệ thống sẽ tự bỏ qua (Đã hủy), không dồn sang hôm nay.
+Chuyển sang Báo cáo & Thống kê → Thống kê chất lượng nước → tab Lịch trực bể:
+Chỉ vào hàng Đo nước trong ngày: ô Hôm nay hiện đúng Nhân Viên Cứu Hộ (Chưa đo (0/1)), ô Thứ Ba vừa phân công chỉ hiện Nguyễn A (tuyệt đối không gộp Trần B dù Trần B cũng có ca trực trong Lịch làm việc), các ngày chưa phân hiện Chờ Admin phân công.
+Lời thoại gợi ý
+
+"Xin chào thầy/cô và anh/chị. Theo góp ý của anh/thầy và quy chuẩn Thông tư 02/2011, 14/2014/TT-BVHTTDL cùng hướng dẫn WHO/CDC, luồng kiểm soát chất lượng nước được tách rõ làm 2 phần:
+
+Thứ nhất, lịch đo nước cố định 1 lần/ngày được quản lý tại Công việc vận hành. Qua ngày mới mà ngày cũ chưa đo thì hệ thống tự động bỏ qua, không dồn việc cũ sang hôm nay. Khi chuẩn bị tuần, các ngày chưa phân công đều ở trạng thái Chưa phân công — Admin chủ động bấm Phân công để giao cụ thể cho Nguyễn A hay Trần B, và tab Lịch trực bể sẽ đồng bộ chính xác đúng người được giao đo nước đó chứ không gộp các cứu hộ làm ca khác."
+
+Cảnh 2: Phân quyền & Khóa đầu ngày có chọn lọc (1:30 – 2:30)
+Thao tác (Cửa sổ 2 — phía Nhân viên)
+Đăng nhập sales_staff / Lifeguard@123:
+Chỉ ra không có menu Chất lượng nước, gõ thẳng http://localhost:5173/admin/water-quality → bị chặn về 401 Unauthorized. Bấm Đăng xuất.
+Đăng nhập lifeguard_staff / Lifeguard@123 (đúng người được Admin giao đo hôm nay):
+Hệ thống tự động chuyển thẳng tới /admin/water-quality, hiện banner "Nhiệm vụ bắt buộc đầu ngày: Đo chất lượng nước" và tự bật form đo.
+Bấm Hủy (đóng tạm modal) để chỉ vào Sidebar bên trái: mọi mục khác (Lịch làm việc, Công việc vận hành, Giám sát an toàn, Quản lý thiết bị, Hồ sơ cá nhân) đều đang bị khóa — chỉ khi đo xong nhiệm vụ hôm nay mới mở. (Nhấn mạnh: cứu hộ khác như Nguyễn A hay Trần B không được giao đo hôm nay sẽ không bị khóa màn hình này.)
+Lời thoại gợi ý
+
+"Về phân quyền và kiểm soát đầu ngày: nhân viên bán vé sales_staff bị chặn 401, còn các nhân viên cứu hộ không được giao nhiệm vụ đo nước hôm nay vẫn làm việc bình thường. Riêng tài khoản cứu hộ được giao lịch đo hôm nay (lifeguard_staff) khi đăng nhập lần đầu trong ngày sẽ bị chuyển thẳng sang trang đo nước và khóa tạm các menu khác cho đến khi hoàn thành lần đo bắt buộc."
+
+Cảnh 3: Test Validate, Live Preview & Bộ phân tích Xu hướng 3 ngày (2:30 – 4:15)
+Thao tác (Cửa sổ 2 — lifeguard_staff)
+Bấm nút Đo nước ngay trên banner cảnh báo đầu trang để mở lại modal đo (nút tạo phiếu lẻ ở góc trên bên phải đã được bỏ).
+Test Validate nhanh:
+Nhập pH = -1, Clo = 25 → chỉ lỗi đỏ "pH từ 0 đến 14", "Clo từ 0 đến 20 mg/L"; chỉ vào ô Thời điểm đo bị khóa disabled chạy theo giờ thực tế từng giây.
+Test Live Preview Nguy hiểm (không lưu):
+Nhập pH = 6.50, Clo = 5.50, Trong vắt → thẻ preview lập tức chuyển đỏ NGUY HIỂM — CẦN XỬ LÝ GẤP kèm hướng dẫn dừng bơi / Sodium Thiosulfate / Soda Ash.
+Nhập bộ số kịch bản Leader (D = Hôm nay):
+Độ trong của nước: Bị đục / Có cặn
+Độ pH: 7.40 (vẫn nằm trong chuẩn 7.20 – 7.80)
+Clo tự do: 1.80 (vẫn nằm trong chuẩn 1.00 – 3.00)
+Ghi chú: Ngày thứ 3 pH giảm nhẹ, nước bắt đầu hơi đục
+Dừng 4–5 giây chỉ rõ vào khối Phát hiện xu hướng chất lượng nước đi xuống 3 ngày gần nhất vừa bật trong modal:
+Đọc rõ 3 dòng phát hiện:
+pH giảm liên tục 3 ngày (7.70 → 7.60 → 7.40, -0.30) (vượt ngưỡng suy giảm tích lũy 3 ngày >= 0.20)
+Clo tự do giảm liên tục 3 ngày (2.40 → 2.05 → 1.80 mg/L, -0.60) (vượt ngưỡng suy giảm tích lũy 3 ngày >= 0.40 mg/L)
+Nước chuyển sang hơi đục / có cặn ở ngày thứ 3
+Chỉ vào 5 Hóa chất / giải pháp đề xuất: Soda Ash (Na2CO3), Sodium Bicarbonate (ổn định độ kiềm TA), Clo (TCCA / Calcium Hypochlorite), Trợ lắng PAC / Phèn nhôm, Rửa ngược bình lọc cát (Backwash).
+Bấm Lưu phiếu đo:
+Quan sát toast: "Phát hiện nước đi xuống 3 ngày gần nhất! Hệ thống đã tự tạo Lịch trực bể ngày ... chờ Admin phân công kèm hóa chất đề xuất."
+Quan sát Sidebar bên trái tự động mở khóa toàn bộ các mục!
+Lời thoại gợi ý
+
+"Trên form đo nước, ngoài cảnh báo tức thì khi vượt ngưỡng như pH 6.50, Clo 5.50, điểm cốt lõi là bộ phân tích xu hướng 3 ngày liên tiếp (D-2 → D-1 → D).
+
+Trong cơ sở dữ liệu mẫu, 2 ngày trước nước đều Đạt chuẩn và trong vắt: hôm kia pH 7.70, Clo 2.40, hôm qua pH 7.60, Clo 2.05. Hôm nay em nhập pH 7.40, Clo 1.80 — cả hai chỉ số vẫn nằm gọn trong ngưỡng chuẩn an toàn — kèm Bị đục / Có cặn. Ngay lập tức hệ thống phát hiện pH đã trượt giảm liên tục -0.30 (vượt ngưỡng 0.20), Clo tiêu hao liên tục -0.60 mg/L (vượt ngưỡng 0.40 mg/L) cộng thêm nước đục ngày thứ 3, từ đó kết luận nước đang mất cân bằng kiềm/pH và thiếu Clo, đồng thời đề xuất đúng nhóm hóa chất và tự động tạo một Lịch trực bể ngày mai ở trạng thái chờ Admin phân công. Ngay sau khi lưu, Sidebar của nhân viên cũng được mở khóa."
+
+Cảnh 4: Góc nhìn Lifeguard — Lịch sử đo & Tab Lịch trực bể (4:15 – 5:00)
+Thao tác (Cửa sổ 2 — lifeguard_staff)
+Ở tab Lịch sử đo chất lượng nước:
+Chỉ vào badge Xu hướng 3 ngày đi xuống → Đã tạo lịch trực bể ngày <ngày mai>, bấm Xem mở Drawer kiểm tra khối phân tích 3 ngày rồi đóng.
+Chuyển sang tab Lịch trực bể:
+Chỉ vào 3 thẻ KPI (Ngày có lịch đo trong tuần, Ngày đã đo nước 1/1, Lịch trực phát sinh (Xu hướng 3 ngày) đang 1 chờ phân công).
+Chỉ vào Bảng lịch tuần 2 hàng:
+Hàng 1 (Đo nước trong ngày): ô Hôm nay chuyển xanh Đã đo (1/1) (pH 7.40 | Clo 1.80).
+Hàng 2 (Xử lý nước (Xu hướng 3 ngày)): ô Ngày mai tự động xuất hiện thẻ cam Chờ Admin phân công kèm tóm tắt biến thiên 3 ngày và các Tag hóa chất đề xuất.
+Lời thoại gợi ý
+
+"Tại tab Lịch trực bể, hàng trên ghi nhận tiến độ đo nước hằng ngày hôm nay đã Đã đo (1/1). Hàng dưới là Xử lý nước (Xu hướng 3 ngày): ô ngày mai vừa tự sinh ở trạng thái Chờ Admin phân công, đính kèm sẵn chẩn đoán xu hướng 3 ngày và các hóa chất đề xuất."
+
+Cảnh 5: Góc nhìn Admin — Nhận thông báo, Thống kê 3 ngày & Phân công Lịch trực bể (5:00 – 6:45)
+Thao tác (Cửa sổ 1 — admin)
+Mở chuông/bảng thông báo trên Dashboard của Admin:
+Chỉ vào thông báo vừa đẩy real-time nhờ SignalR: PHÁT HIỆN NƯỚC ĐI XUỐNG 3 NGÀY — ĐÃ TẠO LỊCH TRỰC BỂ.
+Vào Thống kê chất lượng nước (/admin/water-quality) → tab Phân tích & Giám sát chỉ số:
+Chỉ ngay khối cảnh báo đầu trang Cảnh báo xu hướng 3 ngày gần nhất: Chất lượng nước đang đi xuống với 3 Tag theo từng ngày (D-2: pH 7.70 · Clo 2.40 · Trong → D-1: pH 7.60 · Clo 2.05 · Trong → Hôm nay: pH 7.40 · Clo 1.80 · Hơi đục), các hóa chất đề xuất và dòng trạng thái "Chờ Admin phân công trong tab Lịch trực bể".
+Lướt xuống biểu đồ đường pH & Clo cho thấy rõ độ dốc đi xuống 3 ngày gần nhất.
+Chuyển sang tab Lịch trực bể:
+Ở hàng Xử lý nước (Xu hướng 3 ngày), ô Ngày mai, bấm nút Phân công.
+Trong Modal "Phân công Lịch trực bể (Xu hướng 3 ngày)":
+Chỉ ra hệ thống hiển thị lại Ngày thực hiện, Phân tích xu hướng, và Hóa chất đề xuất để Admin nắm rõ công việc trước khi giao.
+Mục Chọn nhân viên cứu hộ phụ trách: chọn Nhân Viên Cứu Hộ (lifeguard_staff) (hoặc Nguyễn A); mục Ca trực ưu tiên (tuỳ chọn): chọn Ca sáng (hoặc để trống tự khớp ca của nhân viên).
+Bấm Xác nhận phân công.
+Thẻ ngày mai chuyển sang màu xanh dương Đã phân công xử lý với tên nhân viên được giao!
+Lời thoại gợi ý
+
+"Chuyển sang giao diện của Admin: hệ thống đã đẩy thông báo real-time ngay lập tức. Tại tab Phân tích & Giám sát chỉ số, Admin thấy chi tiết 3 ngày D-2 → D-1 → Hôm nay trên từng Tag và đường biểu đồ đi xuống, từ đó chuyển sang tab Lịch trực bể bấm Phân công giao nhân viên cứu hộ phụ trách xử lý hóa chất cho ngày mai."
+
+Cảnh 6: Hoàn tất quy trình khép kín ở Công việc vận hành & Lịch trực bể (6:45 – 7:45)
+Thao tác
+Tại Cửa sổ 1 (admin), mở Công việc vận hành (/admin/staff/tasks):
+Chỉ vào thẻ Đo chất lượng nước của Hôm nay đã tự chuyển thành Hoàn tất (Kết quả: Cảnh báo kèm giờ đo thực tế) nhờ phiếu đo vừa nộp của lifeguard_staff.
+Đồng thời chỉ sang Thứ Ba (ngày mai): vẫn giữ lịch đo hằng ngày riêng biệt mà Admin đã phân công cho Nguyễn A ở Cảnh 1.
+Quay lại Cửa sổ 2 (lifeguard_staff) → tab Lịch trực bể (dữ liệu tự cập nhật hoặc bấm Làm mới):
+Thẻ Xử lý nước (Xu hướng 3 ngày) ngày mai đã hiện tên Nhân Viên Cứu Hộ (Đã phân công xử lý) cùng nút Hoàn thành xử lý.
+Bấm Hoàn thành xử lý → thẻ chuyển xanh Đã xử lý (100% khép kín từ phát hiện → phân công → xử lý xong).
+Lời thoại gợi ý
+
+"Cuối cùng, quay lại Công việc vận hành, nhiệm vụ đo nước hôm nay của lifeguard_staff đã tự động chuyển Hoàn tất, tách biệt hoàn toàn với lịch đo ngày mai đã giao cho Nguyễn A. Bên giao diện cứu hộ, thẻ Lịch trực bể xử lý hóa chất ngày mai đã hiển thị tên người phụ trách và sau khi châm hóa chất theo đề xuất, nhân viên bấm Hoàn thành xử lý để khép kín quy trình. Em xin cảm ơn thầy/cô và anh/chị đã theo dõi!"
