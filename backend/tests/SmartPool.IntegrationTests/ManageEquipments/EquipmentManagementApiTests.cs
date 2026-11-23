@@ -14,6 +14,7 @@ using SmartPool.API.Extensions;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Domain.Constants;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;
 using SmartPool.Infrastructure.Persistence.DbContext;

@@ -637,6 +637,30 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("contract_inactive_since_utc");
 
+                    b.Property<string>("CorrectionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("correction_reason");
+
+                    b.Property<Guid?>("CorrectionRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correction_request_id");
+
+                    b.Property<DateTime?>("CorrectionRequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("correction_requested_at_utc");
+
+                    b.Property<Guid?>("CorrectionRevisionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correction_revision_id");
+
+                    b.Property<long>("CorrectionVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("correction_version");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -650,8 +674,8 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Property<bool>("ManualAccessEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasColumnName("manual_access_enabled")
-                        .HasDefaultValue(false);
+                        .HasDefaultValue(false)
+                        .HasColumnName("manual_access_enabled");
 
                     b.Property<string>("Status")
                         .ValueGeneratedOnAdd()
@@ -669,7 +693,12 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasKey("UserId")
                         .HasName("employees_pkey");
 
-                    b.ToTable("employees", "smart_pool");
+                    b.HasIndex("CorrectionRevisionId");
+
+                    b.ToTable("employees", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_employees_correction_active", "(correction_request_id IS NULL AND correction_reason IS NULL AND correction_requested_at_utc IS NULL AND correction_revision_id IS NULL) OR (correction_request_id IS NOT NULL AND correction_reason IS NOT NULL AND btrim(correction_reason) <> '' AND correction_requested_at_utc IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.EmployeeShift", b =>
@@ -708,9 +737,9 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("employee_id");
 
-                    b.Property<Guid?>("ScheduleExceptionId")
+                    b.Property<Guid?>("ScheduleChangeId")
                         .HasColumnType("uuid")
-                        .HasColumnName("schedule_exception_id");
+                        .HasColumnName("schedule_change_id");
 
                     b.Property<Guid>("ShiftId")
                         .HasColumnType("uuid")
@@ -733,18 +762,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("date")
                         .HasColumnName("work_date");
 
-                    b.Property<Guid?>("WorkPatternId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("work_pattern_id");
-
                     b.HasKey("Id")
                         .HasName("employee_shifts_pkey");
 
-                    b.HasIndex("ScheduleExceptionId");
+                    b.HasIndex("ScheduleChangeId");
 
                     b.HasIndex("ShiftId");
-
-                    b.HasIndex("WorkPatternId");
 
                     b.HasIndex(new[] { "EmployeeId", "ShiftId", "WorkDate" }, "ux_employee_shifts_employee_id_shift_id_work_date")
                         .IsUnique();
@@ -1308,13 +1331,13 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.HasIndex("ShiftId");
 
-                    b.HasIndex("IsActive", "NextOccurrenceDate")
-                        .HasDatabaseName("ix_pool_duty_measurement_recurrences_active_next_occurrence");
-
                     b.HasIndex("WeekStart")
                         .IsUnique()
                         .HasDatabaseName("ux_pool_duty_measurement_recurrences_week_start")
                         .HasFilter("week_start IS NOT NULL");
+
+                    b.HasIndex("IsActive", "NextOccurrenceDate")
+                        .HasDatabaseName("ix_pool_duty_measurement_recurrences_active_next_occurrence");
 
                     b.ToTable("pool_duty_measurement_recurrences", "smart_pool");
                 });
@@ -1349,6 +1372,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid?>("DailyInspectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("daily_inspection_id");
+
                     b.Property<DateTime?>("DueAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("due_at_utc");
@@ -1370,6 +1397,22 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
                         .HasColumnName("inspection_window");
+
+                    b.Property<DateTime?>("LastExecutedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_executed_at_utc");
+
+                    b.Property<Guid?>("LastExecutedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_executed_by");
+
+                    b.Property<Guid?>("LastExecutionAssigneeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_execution_assignee_id");
+
+                    b.Property<bool?>("LastExecutionWasAdminOverride")
+                        .HasColumnType("boolean")
+                        .HasColumnName("last_execution_was_admin_override");
 
                     b.Property<Guid?>("MeasurementRecurrenceId")
                         .HasColumnType("uuid")
@@ -1438,7 +1481,13 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pool_duty_schedules_pkey");
 
+                    b.HasIndex("DailyInspectionId");
+
                     b.HasIndex("EmployeeShiftId");
+
+                    b.HasIndex("LastExecutedBy");
+
+                    b.HasIndex("LastExecutionAssigneeId");
 
                     b.HasIndex("PreferredEmployeeId");
 
@@ -1485,83 +1534,6 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_pool_duty_schedules_task_type", "task_type IS NULL OR task_type IN ('Measurement', 'EquipmentChecklist', 'Cleaning')");
 
                             t.HasCheckConstraint("ck_pool_duty_schedules_unassigned_cleaning", "task_type <> 'Cleaning' OR assigned_employee_id IS NULL OR (employee_shift_id IS NOT NULL AND due_at_utc IS NOT NULL)");
-                        });
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.PoolDutyTaskExecution", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("actor_id");
-
-                    b.Property<Guid?>("DailyInspectionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("daily_inspection_id");
-
-                    b.Property<DateTime>("ExecutedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("executed_at_utc");
-
-                    b.Property<bool>("IsAdminOverride")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_admin_override");
-
-                    b.Property<Guid>("OperationalTaskId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("operational_task_id");
-
-                    b.Property<Guid?>("OriginalAssigneeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("original_assignee_id");
-
-                    b.Property<string>("ResultStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("result_status");
-
-                    b.Property<long>("TaskRevision")
-                        .HasColumnType("bigint")
-                        .HasColumnName("task_revision");
-
-                    b.Property<Guid?>("WaterQualityLogId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("water_quality_log_id");
-
-                    b.HasKey("Id")
-                        .HasName("pool_duty_task_executions_pkey");
-
-                    b.HasIndex("ActorId");
-
-                    b.HasIndex("DailyInspectionId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_pool_duty_task_executions_inspection_result")
-                        .HasFilter("daily_inspection_id IS NOT NULL");
-
-                    b.HasIndex("OriginalAssigneeId");
-
-                    b.HasIndex("WaterQualityLogId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_pool_duty_task_executions_water_result")
-                        .HasFilter("water_quality_log_id IS NOT NULL");
-
-                    b.HasIndex("OperationalTaskId", "TaskRevision")
-                        .IsUnique()
-                        .HasDatabaseName("ux_pool_duty_task_executions_task_revision");
-
-                    b.ToTable("pool_duty_task_executions", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_pool_duty_task_executions_result", "(water_quality_log_id IS NOT NULL AND daily_inspection_id IS NULL) OR (water_quality_log_id IS NULL AND daily_inspection_id IS NOT NULL)");
-
-                            t.HasCheckConstraint("ck_pool_duty_task_executions_result_status", "(water_quality_log_id IS NOT NULL AND result_status IN ('NotEvaluated', 'Incomplete', 'WithinLimits', 'Warning', 'Danger')) OR (daily_inspection_id IS NOT NULL AND result_status IN ('Passed', 'HasIssues'))");
-
-                            t.HasCheckConstraint("ck_pool_duty_task_executions_revision", "task_revision > 0");
                         });
                 });
 
@@ -2189,64 +2161,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("shifts", "smart_pool");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffCorrectionRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid?>("RevisionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId")
-                        .IsUnique()
-                        .HasFilter("\"State\" IN ('REQUESTED','OPENED')");
-
-                    b.HasIndex("RevisionId");
-
-                    b.ToTable("staff_correction_requests", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_staff_correction_state", "\"State\" IN ('REQUESTED','OPENED','CLOSED')");
-                        });
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffIdentityClaim", b =>
-                {
-                    b.Property<string>("Digest")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Digest");
-
-                    b.HasIndex("OwnerId");
-
-                    b.ToTable("staff_identity_claims", "smart_pool");
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.StaffInvitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2449,6 +2363,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ReservedCccdDigest")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateTime?>("ReviewedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2475,6 +2393,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("\"State\" IN ('DRAFT','SUBMITTED','CHANGES_REQUESTED')");
 
+                    b.HasIndex("ReservedCccdDigest")
+                        .IsUnique()
+                        .HasFilter("\"ReservedCccdDigest\" IS NOT NULL");
+
                     b.HasIndex("ReviewerId");
 
                     b.HasIndex("EmployeeId", "RevisionNumber")
@@ -2488,6 +2410,96 @@ namespace SmartPool.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_staff_revision_owner", "(\"InvitationId\" IS NOT NULL) <> (\"EmployeeId\" IS NOT NULL)");
 
                             t.HasCheckConstraint("ck_staff_revision_state", "\"State\" IN ('DRAFT','SUBMITTED','APPROVED','CHANGES_REQUESTED','REJECTED')");
+                        });
+                });
+
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("AppliedVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContractJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DestinationEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DestinationShiftId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProposalHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ResponseJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("SourceAssignmentIdsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateOnly?>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("DestinationEmployeeId");
+
+                    b.HasIndex("DestinationShiftId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique()
+                        .HasFilter("\"OperationId\" IS NOT NULL");
+
+                    b.HasIndex("EmployeeId", "AppliedVersion")
+                        .IsUnique()
+                        .HasFilter("\"AppliedVersion\" IS NOT NULL");
+
+                    b.HasIndex("EmployeeId", "WorkDate")
+                        .HasFilter("\"AppliedVersion\" IS NOT NULL AND \"WorkDate\" IS NOT NULL");
+
+                    b.ToTable("staff_schedule_changes", "smart_pool", t =>
+                        {
+                            t.HasCheckConstraint("ck_staff_schedule_change_applied_version", "\"AppliedVersion\" IS NULL OR \"AppliedVersion\" > 0");
+
+                            t.HasCheckConstraint("ck_staff_schedule_change_destination", "\"AppliedVersion\" IS NULL OR \"Kind\" = 'Pattern'\r\nOR (\"Kind\" = 'Leave' AND \"DestinationShiftId\" IS NULL AND \"DestinationEmployeeId\" IS NULL)\r\nOR (\"Kind\" = 'Move' AND \"DestinationShiftId\" IS NOT NULL AND \"DestinationEmployeeId\" IS NULL\r\n    AND jsonb_array_length(\"SourceAssignmentIdsJson\") = 1)\r\nOR (\"Kind\" = 'Replace' AND \"DestinationShiftId\" IS NOT NULL AND \"DestinationEmployeeId\" IS NOT NULL\r\n    AND \"DestinationEmployeeId\" <> \"EmployeeId\" AND jsonb_array_length(\"SourceAssignmentIdsJson\") = 1)");
+
+                            t.HasCheckConstraint("ck_staff_schedule_change_instruction", "(\"AppliedVersion\" IS NULL AND \"OperationId\" IS NOT NULL)\r\nOR (\"Kind\" = 'Pattern' AND \"ContractJson\" IS NOT NULL AND jsonb_typeof(\"ContractJson\") = 'object'\r\n    AND \"EffectiveFrom\" IS NOT NULL AND \"WorkDate\" IS NULL AND \"SourceAssignmentIdsJson\" IS NULL\r\n    AND \"DestinationShiftId\" IS NULL AND \"DestinationEmployeeId\" IS NULL AND \"Reason\" IS NULL)\r\nOR (\"Kind\" IN ('Leave','Move','Replace') AND \"ContractJson\" IS NULL AND \"EffectiveFrom\" IS NULL\r\n    AND \"WorkDate\" IS NOT NULL AND \"SourceAssignmentIdsJson\" IS NOT NULL\r\n    AND jsonb_typeof(\"SourceAssignmentIdsJson\") = 'array' AND \"Reason\" IS NOT NULL AND btrim(\"Reason\") <> '')");
+
+                            t.HasCheckConstraint("ck_staff_schedule_change_kind", "\"Kind\" IN ('Pattern','Leave','Move','Replace')");
+
+                            t.HasCheckConstraint("ck_staff_schedule_change_outcome", "\"AppliedVersion\" IS NOT NULL OR \"OperationId\" IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_staff_schedule_change_receipt", "(\"OperationId\" IS NULL AND \"ProposalHash\" IS NULL AND \"ResponseJson\" IS NULL)\r\nOR (\"OperationId\" IS NOT NULL AND \"ProposalHash\" IS NOT NULL AND \"ResponseJson\" IS NOT NULL\r\n    AND \"ProposalHash\" ~ '^[0-9A-Fa-f]{64}$' AND jsonb_typeof(\"ResponseJson\") = 'object')");
                         });
                 });
 
@@ -2563,163 +2575,6 @@ namespace SmartPool.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_staff_schedule_delivery_status", "\"Status\" IN ('Pending','Sending','Sent','Failed','Unknown')");
                         });
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleException", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("DestinationEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("DestinationShiftId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("SourceAssignmentIdsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<long>("Version")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateOnly>("WorkDate")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("DestinationEmployeeId");
-
-                    b.HasIndex("DestinationShiftId");
-
-                    b.HasIndex("EmployeeId", "Version")
-                        .IsUnique();
-
-                    b.HasIndex("EmployeeId", "WorkDate");
-
-                    b.ToTable("staff_schedule_exceptions", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_schedule_exception_kind", "\"Kind\" IN ('Leave','Move','Replace')");
-                        });
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleOperation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ProposalHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("ResponseJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId", "CreatedAtUtc");
-
-                    b.ToTable("staff_schedule_operations", "smart_pool");
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffSchedulePreview", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ProposalHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("StateHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.ToTable("staff_schedule_previews", "smart_pool");
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffWorkPattern", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContractJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("Version")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("EmployeeId", "Version")
-                        .IsUnique();
-
-                    b.ToTable("staff_work_patterns", "smart_pool");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.SwimClass", b =>
@@ -3547,6 +3402,11 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
+                    b.HasOne("SmartPool.Domain.Entities.StaffOnboardingRevision", null)
+                        .WithMany()
+                        .HasForeignKey("CorrectionRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SmartPool.Domain.Entities.User", "User")
                         .WithOne("Employee")
                         .HasForeignKey("SmartPool.Domain.Entities.Employee", "UserId")
@@ -3564,9 +3424,9 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("employee_shifts_employee_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.StaffScheduleException", null)
+                    b.HasOne("SmartPool.Domain.Entities.StaffScheduleChange", "ScheduleChange")
                         .WithMany()
-                        .HasForeignKey("ScheduleExceptionId")
+                        .HasForeignKey("ScheduleChangeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("SmartPool.Domain.Entities.Shift", "Shift")
@@ -3575,12 +3435,9 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("employee_shifts_shift_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.StaffWorkPattern", null)
-                        .WithMany()
-                        .HasForeignKey("WorkPatternId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Employee");
+
+                    b.Navigation("ScheduleChange");
 
                     b.Navigation("Shift");
                 });
@@ -3740,11 +3597,29 @@ namespace SmartPool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("pool_duty_schedules_assigned_employee_id_fkey");
 
+                    b.HasOne("SmartPool.Domain.Entities.DailyInspection", null)
+                        .WithMany()
+                        .HasForeignKey("DailyInspectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("pool_duty_schedules_daily_inspection_id_fkey");
+
                     b.HasOne("SmartPool.Domain.Entities.EmployeeShift", null)
                         .WithMany()
                         .HasForeignKey("EmployeeShiftId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("pool_duty_schedules_employee_shift_id_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("LastExecutedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("pool_duty_schedules_last_executed_by_fkey");
+
+                    b.HasOne("SmartPool.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("LastExecutionAssigneeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("pool_duty_schedules_last_execution_assignee_id_fkey");
 
                     b.HasOne("SmartPool.Domain.Entities.PoolDutyMeasurementRecurrence", null)
                         .WithMany()
@@ -3781,36 +3656,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Navigation("Shift");
 
                     b.Navigation("WaterQualityLog");
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.PoolDutyTaskExecution", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartPool.Domain.Entities.DailyInspection", null)
-                        .WithMany()
-                        .HasForeignKey("DailyInspectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SmartPool.Domain.Entities.PoolDutySchedule", null)
-                        .WithMany()
-                        .HasForeignKey("OperationalTaskId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartPool.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("OriginalAssigneeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SmartPool.Domain.Entities.WaterQualityLog", null)
-                        .WithMany()
-                        .HasForeignKey("WaterQualityLogId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.RefreshToken", b =>
@@ -3893,20 +3738,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffCorrectionRequest", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartPool.Domain.Entities.StaffOnboardingRevision", null)
-                        .WithMany()
-                        .HasForeignKey("RevisionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
             modelBuilder.Entity("SmartPool.Domain.Entities.StaffInvitation", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", null)
@@ -3948,21 +3779,7 @@ namespace SmartPool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleDelivery", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SmartPool.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("RecipientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleException", b =>
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleChange", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.User", null)
                         .WithMany()
@@ -3987,35 +3804,16 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleOperation", b =>
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleDelivery", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.Employee", null)
                         .WithMany()
                         .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
+                        .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffSchedulePreview", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffWorkPattern", b =>
-                {
                     b.HasOne("SmartPool.Domain.Entities.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartPool.Domain.Entities.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
+                        .HasForeignKey("RecipientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

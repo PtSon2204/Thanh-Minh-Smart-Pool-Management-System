@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -8,6 +8,7 @@ using SmartPool.Application.Features.ManageStaffs.Queries.GetShifts;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.IntegrationTests.ManageStaffs;
 

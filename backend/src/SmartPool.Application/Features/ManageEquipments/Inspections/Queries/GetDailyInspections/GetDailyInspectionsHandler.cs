@@ -1,9 +1,10 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using MediatR;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspections;
 
