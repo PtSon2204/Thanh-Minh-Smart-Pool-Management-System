@@ -54,7 +54,7 @@
 
 @container staff-profiles (min-width: 1200px) {
   .staff-profiles-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -230,6 +230,37 @@
 .staff-profiles-drawer .ant-tabs,
 .staff-employment-drawer .ant-form {
   min-width: 0;
+}
+
+.staff-profiles-drawer .ant-tabs-content-holder {
+  padding-top: var(--space-2);
+}
+
+.staff-profiles-drawer .service-list-filters {
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.staff-profiles-drawer .admin-management-pagination {
+  margin-top: var(--space-4);
+}
+
+.staff-profiles-drawer .staff-contract-stack {
+  gap: var(--space-5);
+}
+
+.staff-profiles-drawer .staff-contract-stack .ant-form-vertical > .ant-form-item {
+  margin-bottom: var(--space-4);
+}
+
+.staff-profiles-drawer .staff-contract-stack .ant-form-item-label {
+  padding-bottom: var(--space-1);
+}
+
+.staff-profiles-drawer .staff-contract-stack > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .staff-profiles-drawer .ant-descriptions-item-content {
