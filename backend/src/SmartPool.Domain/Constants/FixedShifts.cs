@@ -1,4 +1,4 @@
-namespace SmartPool.Domain.Entities;
+namespace SmartPool.Domain.Constants;
 
 public sealed record FixedShiftDefinition(Guid Id, string Name, TimeOnly StartTime, TimeOnly EndTime)
 {

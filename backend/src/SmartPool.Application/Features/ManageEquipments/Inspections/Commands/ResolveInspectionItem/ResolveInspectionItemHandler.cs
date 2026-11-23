@@ -10,6 +10,7 @@ using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.ResolveInspectionItem;
 

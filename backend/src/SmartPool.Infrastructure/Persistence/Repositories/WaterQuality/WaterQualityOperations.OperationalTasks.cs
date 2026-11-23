@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Mail;
 using System.Text.Json;
 using FluentValidation;
@@ -12,6 +12,7 @@ using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.WaterQuality;
 

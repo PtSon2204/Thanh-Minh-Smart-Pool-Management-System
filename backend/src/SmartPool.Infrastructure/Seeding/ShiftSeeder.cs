@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.Infrastructure.Seeding;
 
