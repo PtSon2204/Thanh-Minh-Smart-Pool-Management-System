@@ -1,8 +1,9 @@
-using DotNetEnv;
+﻿using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.IntegrationTests;
 

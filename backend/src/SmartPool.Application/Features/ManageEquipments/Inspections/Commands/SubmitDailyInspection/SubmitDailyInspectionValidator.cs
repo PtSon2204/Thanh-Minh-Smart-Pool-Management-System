@@ -1,5 +1,6 @@
-using FluentValidation;
+﻿using FluentValidation;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 

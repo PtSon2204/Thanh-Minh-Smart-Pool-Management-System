@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SmartPool.Application.Common.Models;
@@ -9,6 +9,7 @@ using SmartPool.Application.Features.ManageWaterQuality.Queries.GetPoolDutySched
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
 using Xunit;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.UnitTests.Features.ManageWaterQuality;
 

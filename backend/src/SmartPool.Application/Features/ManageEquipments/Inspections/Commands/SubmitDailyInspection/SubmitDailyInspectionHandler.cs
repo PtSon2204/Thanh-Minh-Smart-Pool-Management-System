@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -12,6 +12,7 @@ using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Commands.SubmitDailyInspection;
 
