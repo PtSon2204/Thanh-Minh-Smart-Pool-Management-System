@@ -2,29 +2,39 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using SmartPool.Application.Common.Exceptions;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
+using System.Security.Cryptography;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace SmartPool.Application.Features.ManageUsers.Commands.CreateUser;
 
 public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActionResult>
 {
+    private const string CredentialsEmailSubject = "[Thanh Minh Smart Pool] Thông tin tài khoản";
     private readonly IUserOperations _userOperations;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IEmailService _emailService;
     private readonly IValidator<CreateUserCommand> _validator;
+    private readonly ILogger<CreateUserHandler> _logger;
 
     public CreateUserHandler(
         IUserOperations userOperations,
         IPasswordHasher passwordHasher,
-        IValidator<CreateUserCommand> validator)
+        IEmailService emailService,
+        IValidator<CreateUserCommand> validator,
+        ILogger<CreateUserHandler> logger)
     {
         _userOperations = userOperations;
         _passwordHasher = passwordHasher;
+        _emailService = emailService;
         _validator = validator;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Handle(CreateUserCommand request, CancellationToken cancellationToken)
@@ -63,12 +73,13 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
                 "Vai trò chưa được cấu hình hoặc đã ngừng sử dụng.");
         }
 
+        var generatedPassword = GeneratePassword();
         var user = CreateUser(
-            request,
             username,
             email,
             phone,
-            role.Id);
+            role.Id,
+            generatedPassword);
 
         var profile = CreateUserProfile(request, user);
 
@@ -85,6 +96,22 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
                 GetConflictMessage(exception.Field));
         }
 
+        try
+        {
+            await _emailService.SendAsync(
+                email, CredentialsEmailSubject,
+                BuildCredentialsEmailBody(username, generatedPassword), cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Created user {UserId}, but credentials email delivery failed.", user.Id);
+            return EmailDeliveryFailed();
+        }
+
         return CreatedResponse(
             user,
             profile,
@@ -93,11 +120,11 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
 
     
     private User CreateUser(
-        CreateUserCommand request,
         string username,
         string email,
         string phone,
-        Guid roleId)
+        Guid roleId,
+        string generatedPassword)
     {
         var user = new User
         {
@@ -112,9 +139,34 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, IActi
 
         user.PasswordHash = _passwordHasher.HashPassword(
             user,
-            request.Password);
+            generatedPassword);
 
         return user;
+    }
+
+    private static string GeneratePassword() =>
+        "Tm1!" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+
+    private static string BuildCredentialsEmailBody(string username, string password) =>
+        "<p>Tài khoản Thanh Minh Smart Pool của bạn đã được tạo.</p>" +
+        $"<p>Tên đăng nhập: <strong>{HtmlEncoder.Default.Encode(username)}</strong></p>" +
+        $"<p>Mật khẩu tạm thời: <strong>{HtmlEncoder.Default.Encode(password)}</strong></p>" +
+        "<p>Vui lòng đổi mật khẩu sau khi đăng nhập.</p>";
+
+    private static IActionResult EmailDeliveryFailed()
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status503ServiceUnavailable,
+            Title = "Tài khoản đã được tạo nhưng chưa gửi được email.",
+            Detail = "Người dùng có thể dùng chức năng quên mật khẩu để thiết lập mật khẩu mới."
+        };
+        problem.Extensions["code"] = "ACCOUNT_CREATED_EMAIL_FAILED";
+        return new ObjectResult(problem)
+        {
+            StatusCode = StatusCodes.Status503ServiceUnavailable,
+            ContentTypes = { "application/problem+json" }
+        };
     }
 
     private static string NormalizeUsername(string username)

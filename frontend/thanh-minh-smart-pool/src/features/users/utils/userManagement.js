@@ -12,6 +12,19 @@ export const USER_ROLE_FILTERS = [
 
 export const USER_ROLE_COLORS = { ADMIN: 'purple', CUSTOMER: 'cyan', LIFEGUARD: 'blue', SALES: 'geekblue', COACH: 'gold' }
 
+export function normalizeUserStatus(status) {
+  return typeof status === 'string' ? status.trim().toUpperCase() : ''
+}
+
+export function getUserStatusDisplay(status) {
+  switch (normalizeUserStatus(status)) {
+    case 'ACTIVE': return { label: 'Hoạt động', color: 'success' }
+    case 'LOCKED': return { label: 'Đã khóa', color: 'default' }
+    case 'INACTIVE': return { label: 'Không hoạt động', color: 'warning' }
+    default: return { label: status || 'Không rõ', color: 'warning' }
+  }
+}
+
 export function getUserError(error) {
   const data = error?.response?.data
   const firstFieldError = Object.values(data?.errors || {}).flat()[0]
