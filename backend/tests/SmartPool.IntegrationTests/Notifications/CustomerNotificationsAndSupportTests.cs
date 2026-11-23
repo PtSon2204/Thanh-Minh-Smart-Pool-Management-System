@@ -176,11 +176,14 @@ public sealed class CustomerNotificationsAndSupportTests
             templateType = "announcement"
         });
         Assert.Equal(HttpStatusCode.OK, massStaffResp.StatusCode);
+        var massStaffResult = await massStaffResp.Content.ReadFromJsonAsync<SendEmailResult>();
+        Assert.NotNull(massStaffResult);
         Assert.Contains(fixture.CapturedEmails, m => m.To == fixture.Email("STAFF"));
         Assert.DoesNotContain(fixture.CapturedEmails, m => m.To == fixture.Email("CUSTOMER"));
 
-        // 6. Lịch sử email đã gửi (GET /api/v1/notifications/email/history) ghi nhận đầy đủ
-        var history = await fixture.Client.GetFromJsonAsync<List<EmailHistoryItem>>("/api/v1/notifications/email/history?limit=20");
+        // 6. Lịch sử email đã gửi (GET /api/v1/notifications/email/history) ghi nhận đầy đủ kể cả khi DB tích lũy nhiều user từ các test khác
+        var historyLimit = Math.Max(100, massCustResult.TotalRecipients + massStaffResult.TotalRecipients + 20);
+        var history = await fixture.Client.GetFromJsonAsync<List<EmailHistoryItem>>($"/api/v1/notifications/email/history?limit={historyLimit}");
         Assert.NotNull(history);
         Assert.Contains(history, h => h.Subject == closureSubject && h.Recipient == fixture.Email("CUSTOMER") && h.Status == "Thành công");
         Assert.Contains(history, h => h.Subject == staffSubject && h.Recipient == fixture.Email("STAFF") && h.Status == "Thành công");
