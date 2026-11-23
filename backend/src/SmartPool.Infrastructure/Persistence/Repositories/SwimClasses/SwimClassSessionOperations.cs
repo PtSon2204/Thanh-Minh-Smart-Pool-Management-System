@@ -117,22 +117,38 @@ public sealed partial class SwimClassOperations
             throw new SwimClassStateConflictException("Chỉ có thể kích hoạt lớp đang ở trạng thái Draft.");
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var upcomingSessions = await context.ClassSessions.AsNoTracking()
-            .Where(item => item.ClassId == classId &&
-                item.Status == "Scheduled" && item.StartsAt > now && item.EndsAt > item.StartsAt)
-            .Select(item => new { item.CoachUserId, item.StartsAt })
-            .ToArrayAsync(cancellationToken);
-        var upcomingCoachIds = upcomingSessions.Select(item => item.CoachUserId).Distinct().ToArray();
-        var hasValidSession = upcomingCoachIds.Length != 0 &&
-            await EligibleCoaches().AnyAsync(
-                user => upcomingCoachIds.Contains(user.Id), cancellationToken);
-        if (!hasValidSession)
-            throw new SwimClassStateConflictException(
-                "Lớp cần ít nhất một buổi học sắp tới với Coach đang hoạt động trước khi kích hoạt.");
 
-        if (swimClass.RegistrationEndAt > upcomingSessions.Min(item => item.StartsAt))
-            throw new SwimClassStateConflictException(
-                "Hạn đăng ký phải kết thúc không muộn hơn buổi học đầu tiên.");
+// 1. Tìm các buổi học sắp diễn ra do Coach tạo lớp phụ trách
+var upcomingSessions = await context.ClassSessions
+    .AsNoTracking()
+    .Where(item =>
+        item.ClassId == classId &&
+        item.CoachUserId == coachUserId &&
+        item.Status == "Scheduled" &&
+        item.StartsAt > now &&
+        item.EndsAt > item.StartsAt)
+    .Select(item => item.StartsAt)
+    .ToArrayAsync(cancellationToken);
+
+// 2. Kiểm tra có ít nhất một buổi học
+if (upcomingSessions.Length == 0)
+    throw new SwimClassStateConflictException(
+        "Lớp cần ít nhất một buổi học hợp lệ trong tương lai.");
+
+// 3. Kiểm tra Coach vẫn hoạt động và có quyền COACH
+var eligibleCoach = await EligibleCoaches()
+    .AnyAsync(user => user.Id == coachUserId, cancellationToken);
+
+if (!eligibleCoach)
+    throw new SwimClassStateConflictException(
+        "Coach tạo lớp phải có tài khoản hoạt động và quyền COACH.");
+
+// 4. Kiểm tra hạn đăng ký
+var earliestStart = upcomingSessions.Min();
+
+if (swimClass.RegistrationEndAt > earliestStart)
+    throw new SwimClassStateConflictException(
+        "Hạn đăng ký phải kết thúc không muộn hơn buổi học đầu tiên.");
 
         swimClass.Status = "Active";
         swimClass.UpdatedAt = NextVersionTimestamp(now, swimClass.UpdatedAt);
