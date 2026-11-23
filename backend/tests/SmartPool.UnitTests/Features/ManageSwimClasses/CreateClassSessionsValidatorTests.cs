@@ -74,20 +74,12 @@ public sealed class CreateClassSessionsValidatorTests
     public void Validate_AfterAfternoonShift_HasError() =>
         AssertError(Command(Session(18, 30, 19, 31)), "Sessions[0].EndsAt", ShiftMessage);
 
-    [Fact(DisplayName = "UTCID12 (A) - CoachUserId = Guid.Empty → báo mã Coach không hợp lệ")]
-    public void Validate_EmptyCoachId_HasError()
-    {
-        var session = Session(6, 0, 7, 0);
-        session.CoachUserId = Guid.Empty;
-        AssertError(Command(session), "Sessions[0].CoachUserId", "Mã Coach không hợp lệ.");
-    }
-
     [Fact(DisplayName = "UTCID13 (A) - Buổi thứ hai sai → lỗi có chỉ số Sessions[1]")]
     public void Validate_SecondSessionError_ReportsCorrectIndex()
     {
         var second = Session(13, 30, 14, 30);
-        second.CoachUserId = Guid.Empty;
-        AssertError(Command(Session(6, 0, 7, 0), second), "Sessions[1].CoachUserId", "Mã Coach không hợp lệ.");
+        second.EndsAt = second.StartsAt;
+        AssertError(Command(Session(6, 0, 7, 0), second), "Sessions[1].EndsAt", "Giờ kết thúc phải sau giờ bắt đầu.");
     }
 
     private const string ShiftMessage = "Buổi học phải nằm trọn trong ca sáng 06:00–11:30 hoặc ca chiều 13:30–19:30 (giờ Việt Nam).";

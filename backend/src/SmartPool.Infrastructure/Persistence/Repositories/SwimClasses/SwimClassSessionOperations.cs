@@ -36,46 +36,29 @@ public sealed partial class SwimClassOperations
             .ToList();
         if (expiredStarts.Count != 0) throw new ValidationException(expiredStarts);
 
-        var assignedToOtherCoach = request.Sessions
-            .Select((item, index) => (item, index))
-            .Where(entry => entry.item.CoachUserId is { } id && id != coachUserId)
-            .Select(entry => new ValidationFailure($"Sessions[{entry.index}].CoachUserId",
-                "Buổi học phải do Coach tạo lớp phụ trách."))
-            .ToList();
-        if (assignedToOtherCoach.Count != 0) throw new ValidationException(assignedToOtherCoach);
-
         var proposed = request.Sessions.Select((item, index) => new ProposedClassSession(
             index,
             coachUserId,
             item.StartsAt.UtcDateTime,
             item.EndsAt.UtcDateTime)).ToArray();
 
-        if (swimClass.Status == "Active" &&
+        if (
             proposed.Any(item => item.StartsAt < swimClass.RegistrationEndAt))
             throw new SwimClassStateConflictException(
                 "Buổi học của lớp Active không được bắt đầu trước hạn kết thúc đăng ký.");
 
-        var coachIds = proposed.Select(item => item.CoachUserId).Distinct().Order().ToArray();
-        foreach (var coachId in coachIds)
-            await LockCoachAsync(coachId, cancellationToken);
-
-        var eligibleCoachIds = await EligibleCoaches()
-            .Where(user => coachIds.Contains(user.Id))
-            .Select(user => user.Id)
-            .ToListAsync(cancellationToken);
-        var eligibleCoaches = eligibleCoachIds.ToHashSet();
-        var invalidCoaches = proposed
-            .Where(item => !eligibleCoaches.Contains(item.CoachUserId))
-            .Select(item => new ValidationFailure($"Sessions[{item.Index}].CoachUserId",
-                "Coach phải có tài khoản hoạt động và quyền COACH."))
-            .ToList();
-        if (invalidCoaches.Count != 0) throw new ValidationException(invalidCoaches);
+        await LockCoachAsync(coachUserId, cancellationToken);
+        var eligibleCoach = await EligibleCoaches()
+            .AnyAsync(user => user.Id == coachUserId, cancellationToken);
+        if (!eligibleCoach)
+            throw new ValidationException([new ValidationFailure("CreatedByUserId",
+                "Người tạo lớp phải có tài khoản hoạt động và là Coach.")]);
 
         var earliestStart = proposed.Min(item => item.StartsAt);
         var latestEnd = proposed.Max(item => item.EndsAt);
         var storedSessions = await context.ClassSessions.AsNoTracking()
             .Where(item => item.Status != "Cancelled" &&
-                (item.ClassId == request.ClassId || coachIds.Contains(item.CoachUserId)) &&
+                (item.ClassId == request.ClassId || item.CoachUserId == coachUserId) &&
                 item.StartsAt < latestEnd && item.EndsAt > earliestStart)
             .Select(item => new ExistingClassSession(
                 item.Id, item.ClassId, item.CoachUserId, item.StartsAt, item.EndsAt))
@@ -100,7 +83,7 @@ public sealed partial class SwimClassOperations
         context.ClassSessions.AddRange(sessions);
         swimClass.UpdatedAt = NextVersionTimestamp(now, swimClass.UpdatedAt);
         var notifications = swimClass.Status == "Active"
-            ? await AddClassNotificationsAsync(request.ClassId, coachIds,
+            ? await AddClassNotificationsAsync(request.ClassId, [coachUserId],
                 "Lịch lớp dạy bơi thay đổi",
                 $"Lịch học của lớp {swimClass.Name} đã có buổi mới. Vui lòng xem lại thời khóa biểu.",
                 "swim_class_session_updated", now, cancellationToken)

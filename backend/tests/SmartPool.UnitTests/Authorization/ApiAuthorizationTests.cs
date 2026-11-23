@@ -347,8 +347,8 @@ public sealed class ApiAuthorizationTests
     [Theory]
     [InlineData("COACH", true, true)]
     [InlineData("COACH", false, false)]
-    [InlineData("ADMIN", true, false)]
-    public async Task CreateSwimClass_RequiresAdminAndCreatePermission(
+    [InlineData("ADMIN", true, true)]
+    public async Task CreateSwimClass_RequiresCreatePermissionWithoutRoleNameGate(
         string role, bool hasPermission, bool expected)
     {
         var reader = new Mock<IRolePermissionReader>();

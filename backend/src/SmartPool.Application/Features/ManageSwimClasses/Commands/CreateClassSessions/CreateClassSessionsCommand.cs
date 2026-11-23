@@ -19,5 +19,4 @@ public sealed class CreateClassSessionItem
 
     [JsonConverter(typeof(OffsetRequiredDateTimeOffsetConverter))]
     public DateTimeOffset EndsAt { get; set; }
-    public Guid? CoachUserId { get; set; }
 }

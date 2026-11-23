@@ -33,19 +33,23 @@ public sealed class CreateSwimClassHandlerTests
 
         var error = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => h.Handle());
 
-        Assert.Equal("Chỉ Coach được tạo lớp dạy bơi.", error.Message);
+        Assert.Equal("Cần đăng nhập để tạo lớp dạy bơi.", error.Message);
         h.Operations.VerifyNoOtherCalls();
     }
 
-    [Fact(DisplayName = "UTCID03 (A) - User không có quyền COACH → từ chối, không tạo lớp")]
-    public async Task Handle_NonCoach_RejectsBeforeRepository()
+    [Fact(DisplayName = "UTCID03 (N) - Không có claim COACH → repository vẫn xác minh IsCoach")]
+    public async Task Handle_WithoutCoachRole_UsesRepositoryEligibility()
     {
         var h = new Harness();
         h.CurrentUser.Setup(x => x.IsInRole("COACH")).Returns(false);
+        var request = Request();
+        var expected = Response(h.CoachId, request);
+        h.Operations.Setup(x => x.CreateAsync(request, h.CoachId, h.Token)).ReturnsAsync(expected);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => h.Handle());
+        Assert.Same(expected, await h.Handle(request));
 
-        h.Operations.VerifyNoOtherCalls();
+        h.Operations.Verify(x => x.CreateAsync(request, h.CoachId, h.Token), Times.Once);
+        h.CurrentUser.Verify(x => x.IsInRole("COACH"), Times.Never);
     }
 
     [Fact(DisplayName = "UTCID04 (A) - Sức chứa sai → ValidationException, không tạo lớp")]
@@ -64,11 +68,11 @@ public sealed class CreateSwimClassHandlerTests
     {
         var h = new Harness();
         h.Operations.Setup(x => x.CreateAsync(It.IsAny<CreateSwimClassCommand>(), h.CoachId, h.Token))
-            .ThrowsAsync(new ValidationException([new ValidationFailure("CoachUserId", "Coach phải có tài khoản hoạt động và quyền COACH.")]));
+            .ThrowsAsync(new ValidationException([new ValidationFailure("CreatedByUserId", "Người tạo lớp phải có tài khoản hoạt động và là Coach.")]));
 
         var error = await Assert.ThrowsAsync<ValidationException>(() => h.Handle());
 
-        Assert.Contains(error.Errors, x => x.PropertyName == "CoachUserId");
+        Assert.Contains(error.Errors, x => x.PropertyName == "CreatedByUserId");
     }
 
     [Fact(DisplayName = "UTCID06 (A) - Repository lỗi bất ngờ → truyền tiếp exception")]
@@ -104,7 +108,6 @@ public sealed class CreateSwimClassHandlerTests
         public Harness()
         {
             CurrentUser.SetupGet(x => x.UserId).Returns(CoachId);
-            CurrentUser.Setup(x => x.IsInRole("COACH")).Returns(true);
             _handler = new CreateSwimClassHandler(Operations.Object, CurrentUser.Object, new CreateSwimClassValidator());
         }
 
