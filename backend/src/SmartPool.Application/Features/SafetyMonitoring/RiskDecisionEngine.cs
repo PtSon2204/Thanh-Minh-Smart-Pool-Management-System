@@ -62,6 +62,12 @@ public sealed record RiskDecision(string TrackId, string Episode, string Severit
 // One engine per camera/video; timestamps are source timestamps, never inference duration.
 public sealed class RiskDecisionEngine(RiskOptions options)
 {
+    // Mỗi TrackId có một State riêng để theo dõi lịch sử nguy cơ.
+    // Window lưu kết quả normal/drowning theo timestamp.
+    // Severity lưu mức nguy cơ hiện tại.
+    // CriticalSince và RecoverySince dùng để tính thời gian duy trì điều kiện.
+    // Episode phân biệt các đợt nguy cơ của cùng một đối tượng.
+    // CooldownUntil ngăn tái kích hoạt ngay sau khi hồi phục.
     private sealed class State
     {
         public Queue<(double Time, bool Drowning)> Window { get; } = new();
@@ -84,11 +90,19 @@ public sealed class RiskDecisionEngine(RiskOptions options)
         // One coherent threshold version for this entire observation, shared
         // safely with CopyFrom without resetting the track's temporal state.
         var thresholds = options.Clone();
+        // Lấy bản sao ngưỡng tại đầu mỗi lần Observe,
+        // tránh sử dụng lẫn ngưỡng cũ và ngưỡng mới trong cùng lượt xử lý.
         // Absence never emits NORMAL or resolves an alert.
         foreach (var key in states.Where(x => timestamp - x.Value.Last > 120).Select(x => x.Key).ToArray()) states.Remove(key);
         var decisions = new List<RiskDecision>();
         foreach (var detection in detections.GroupBy(x => x.TrackId).Select(x => x.MaxBy(d => d.Confidence)!))
+        // Gom detection theo TrackId.
+        // Nếu một TrackId xuất hiện nhiều lần trong cùng frame,
+        // chỉ chọn detection có confidence cao nhất để tránh đếm trùng.
         {
+            // Chỉ nhận detection hợp lệ: đúng class, confidence đạt ngưỡng,
+            // box chuẩn hóa trong [0,1], tọa độ có diện tích dương và TrackId hợp lệ.
+            // Detection không hợp lệ sẽ bị bỏ qua, không được tính là normal.
             if (detection.Class is not ("normal" or "drowning") || !double.IsFinite(detection.Confidence) ||
                 detection.Confidence < thresholds.ConfidenceThreshold || detection.Confidence > 1 ||
                 detection.Box.Length != 4 || detection.Box.Any(x => !double.IsFinite(x) || x < 0 || x > 1) ||
@@ -107,10 +121,20 @@ public sealed class RiskDecisionEngine(RiskOptions options)
                 // Retain severity and episode across a gap. Unknown is not recovery.
             }
             state.Last = timestamp;
+            // Sliding Window:
+            // 1. Thêm observation của frame hiện tại.
+            // 2. Loại observation cũ hơn WindowSeconds.
+            // 3. Chỉ đánh giá khi có ít nhất MinObservations.
+            // 4. Ratio = số observation drowning / tổng observation hợp lệ.
             state.Window.Enqueue((timestamp, detection.Class == "drowning"));
             while (state.Window.Count > 0 && timestamp - state.Window.Peek().Time > thresholds.WindowSeconds) state.Window.Dequeue();
             if (state.Window.Count < thresholds.MinObservations) continue;
             var ratio = state.Window.Count(x => x.Drowning) / (double)state.Window.Count;
+            // NORMAL -> WARNING khi ratio >= 40% và đã hết cooldown.
+            // WARNING/NORMAL -> CRITICAL chỉ khi ratio >= 70%
+            // được duy trì đủ 3 giây theo timestamp observation.
+            // Nếu ratio giảm dưới ngưỡng CRITICAL, reset timer hold,
+            // nhưng không tự hạ Severity từ CRITICAL về WARNING.
             if (ratio >= thresholds.WarningRatio && timestamp >= state.CooldownUntil && state.Severity == "NORMAL") state.Severity = "WARNING";
             if (ratio >= thresholds.CriticalRatio && timestamp >= state.CooldownUntil)
             {
@@ -118,6 +142,10 @@ public sealed class RiskDecisionEngine(RiskOptions options)
                 if (timestamp - state.CriticalSince >= thresholds.CriticalHoldSeconds) state.Severity = "CRITICAL";
             }
             else state.CriticalSince = null;
+            // Chỉ chuyển về NORMAL khi tỷ lệ drowning <= 20%
+            // được duy trì đủ 5 giây với các observation hợp lệ.
+            // Khi recovery: tạo Episode mới và đặt cooldown 15 giây.
+            // Không dùng việc mất detection để xác nhận hồi phục.
             if (ratio <= thresholds.RecoveryRatio)
             {
                 state.RecoverySince ??= timestamp;
@@ -128,6 +156,9 @@ public sealed class RiskDecisionEngine(RiskOptions options)
                 }
             }
             else state.RecoverySince = null;
+            // Chỉ phát RiskDecision cho track đang WARNING hoặc CRITICAL.
+            // Decision chứa TrackId, Episode, Severity, Ratio, Timestamp và Box.
+            // NORMAL không tạo decision cảnh báo.
             if (state.Severity != "NORMAL") decisions.Add(new(detection.TrackId, state.Episode, state.Severity, ratio, timestamp, detection.Box));
         }
         return decisions;

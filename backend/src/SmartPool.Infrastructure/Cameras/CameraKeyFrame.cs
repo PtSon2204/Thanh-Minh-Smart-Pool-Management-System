@@ -6,9 +6,9 @@ namespace SmartPool.Infrastructure.Cameras;
 // library returns its pooled buffers. FFmpeg receives one independent Annex B frame.
 internal sealed class CameraKeyFrame
 {
-    private const int Limit = 4 * 1024 * 1024;
-    private readonly Dictionary<int, byte[]> parameters = [];
-    private string? format;
+    private const int Limit = 4 * 1024 * 1024; //giới hạn kích thước khung hình 4MB, tránh lỗi OutOfMemoryException khi nhận khung hình quá lớn
+    private readonly Dictionary<int, byte[]> parameters = []; //lưu trữ các tham số của codec (SPS, PPS, VPS) để ghép vào khung hình khi cần thiết
+    private string? format;//lưu trữ định dạng codec của khung hình (h264, h265, mjpeg)
 
     public void Configure(string codec, IStreamConfigurationData? configuration)
     {
@@ -22,14 +22,14 @@ internal sealed class CameraKeyFrame
     {
         if (format == null) return null;
         var parts = new List<ReadOnlyMemory<byte>>();
-        var length = 0;
+        var length = 0;//lưu trữ tổng kích thước của các phần dữ liệu khung hình
         var keyFrame = format == "mjpeg";
         var hasPicture = format == "mjpeg";
         foreach (var segment in segments)
         {
             var part = format == "mjpeg" ? segment : StripStartCode(segment);
             if (part.IsEmpty) continue;
-            length += part.Length + 4;
+            length += part.Length + 4;//tăng tổng kích thước của các phần dữ liệu khung hình, cộng thêm 4 byte cho start code
             if (length > Limit) return null;
             var type = format == "hevc" ? (part.Span[0] >> 1) & 63 : part.Span[0] & 31;
             if (format == "hevc" && type is 32 or 33 or 34 || format == "h264" && type is 7 or 8)

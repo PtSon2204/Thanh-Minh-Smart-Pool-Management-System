@@ -43,19 +43,7 @@ public sealed class RiskThresholds(IServiceScopeFactory scopes, IOptions<RiskOpt
         await gate.WaitAsync(ct);
         try
         {
-            var options = new RiskOptions
-            {
-                ConfidenceThreshold = input.ConfidenceThreshold,
-                WarningRatio = input.WarningRatio,
-                CriticalRatio = input.CriticalRatio,
-                RecoveryRatio = input.RecoveryRatio,
-                CriticalHoldSeconds = input.CriticalHoldSeconds,
-                RecoveryHoldSeconds = input.RecoveryHoldSeconds,
-                CooldownSeconds = input.CooldownSeconds,
-                WindowSeconds = input.WindowSeconds,
-                MaxObservationGapSeconds = input.MaxObservationGapSeconds,
-                MinObservations = input.MinObservations,
-            };
+            var options = input.ToOptions();
             if (!options.IsValid()) throw new ArgumentException("Bộ ngưỡng không hợp lệ.");
 
             using var scope = scopes.CreateScope();

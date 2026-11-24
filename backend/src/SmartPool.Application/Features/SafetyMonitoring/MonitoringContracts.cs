@@ -96,7 +96,7 @@ public sealed class RecordRiskHandler(ISafetyMonitoringService service) : IReque
     public Task<RiskWriteResult> Handle(RecordRiskCommand request, CancellationToken ct) => service.RecordAsync(request, ct);
 }
 
-// ——— Phân tích camera LIVE (truyền từ VideoContracts.cs trước khi xóa file) ———
+// Live camera analysis queries and metadata.
 public sealed record GetCameraAnalysisQuery(Guid Id) : IRequest<CameraAnalysisDto>;
 public sealed record GetCameraAnalysisFrameQuery(Guid Id, string FrameId) : IRequest<byte[]?>;
 public sealed record CameraAnalysisDto(string State, string? FrameId, DateTimeOffset? ObservedAt, DateTimeOffset? ProcessedAt,

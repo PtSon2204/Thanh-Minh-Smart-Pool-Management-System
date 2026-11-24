@@ -69,8 +69,7 @@ public sealed class AlertSnapshotQueue(MonitoringFiles files, IOptions<Monitorin
         if (jpeg.Length < 4 || jpeg[0] != 0xff || jpeg[1] != 0xd8) throw new ArgumentException("Snapshot phải là JPEG thực tế.");
         if (renderedJpeg != null && !ValidRendered(renderedJpeg)) throw new ArgumentException("Ảnh đã vẽ phải là JPEG hợp lệ.");
         var key = $"LIVE:{command.CameraId}:{command.Decision.TrackId}:{command.Decision.Episode}:{command.Decision.Severity}";
-        var second = new DateTimeOffset(DateTime.SpecifyKind(command.ObservedAt, DateTimeKind.Utc)).ToUnixTimeSeconds();
-        var slot = second;
+        var slot = new DateTimeOffset(DateTime.SpecifyKind(command.ObservedAt, DateTimeKind.Utc)).ToUnixTimeSeconds();
         await gate.WaitAsync(ct);
         try
         {

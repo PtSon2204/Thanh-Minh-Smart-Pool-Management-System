@@ -14,7 +14,7 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
     IOptions<MonitoringOptions> options, IOptions<RiskOptions> risk, AlertSnapshotQueue snapshots, ILogger<LiveMonitoringWorker> logger,
     CameraDiagnostics? diagnostics = null) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)//overide ghi đè phương thức ExecuteAsync của BackgroundService để thực hiện công việc giám sát trực tiếp
     {
         var workers = new Dictionary<Guid, (CancellationTokenSource Stop, Task Run)>();
         try
@@ -104,9 +104,9 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
                         state.Remove(id);
                     }
                     lastObserved = timestamp;
-                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);//timeout để hủy bỏ tác vụ nếu quá thời gian chờ
                     timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
-                    var inferenceStart = Stopwatch.GetTimestamp();
+                    var inferenceStart = Stopwatch.GetTimestamp();//bắt đầu đo thời gian inference
                     using var result = await ai.InferAsync(id, captured.Jpeg, resetTracker, timeout.Token);
                     var inferenceMs = Stopwatch.GetElapsedTime(inferenceStart).TotalMilliseconds;
                     var detections = AiWorkerClient.Detections(result);
