@@ -8,7 +8,7 @@ namespace SmartPool.Infrastructure.Cameras;
 public sealed class CameraFrameDecoder(IOptions<CameraOptions> options) : ICameraFrameDecoder
 {
     public async Task<byte[]?> DecodeAsync(byte[] encodedFrame, string format, CancellationToken cancellationToken)
-    {
+    {//nhận một khung hình được mã hóa (encodedFrame) và định dạng của nó (format), sau đó giải mã khung hình này thành JPEG bằng cách sử dụng FFmpeg.
         if (format is not ("h264" or "hevc" or "mjpeg") || encodedFrame.Length > 4 * 1024 * 1024) return null;
         if (string.IsNullOrWhiteSpace(options.Value.FfmpegPath) || !Path.IsPathFullyQualified(options.Value.FfmpegPath) || !File.Exists(options.Value.FfmpegPath))
             throw new CameraConnectionException("NotConfigured", "Chưa cấu hình đường dẫn FFmpeg cho camera.");
@@ -16,13 +16,17 @@ public sealed class CameraFrameDecoder(IOptions<CameraOptions> options) : ICamer
         timeout.CancelAfter(TimeSpan.FromSeconds(8));
         var start = new ProcessStartInfo(options.Value.FfmpegPath)
         {
-            UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         // Decoder sees encoded bytes only, never a URL, password or network protocol.
         foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-protocol_whitelist", "pipe", "-threads", "1", "-filter_threads", "1", "-f", format, "-i", "pipe:0", "-frames:v", "1", "-vf", "scale=640:-2", "-f", "image2pipe", "-vcodec", "mjpeg", "-threads", "1", "pipe:1" }) start.ArgumentList.Add(arg);
         using var process = Process.Start(start) ?? throw new CameraConnectionException("NotConfigured", "Không thể khởi động bộ giải mã camera.");
         using var cancellation = timeout.Token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch (InvalidOperationException) { } });
-        var outputTask = ReadBoundedAsync(process.StandardOutput.BaseStream, 4 * 1024 * 1024, timeout.Token);
+        var outputTask = ReadBoundedAsync(process.StandardOutput.BaseStream, 4 * 1024 * 1024, timeout.Token);//đọc dữ liệu từ luồng đầu ra chuẩn của tiến trình FFmpeg, giới hạn kích thước tối đa là 4MB.
         var errorTask = DrainAsync(process.StandardError.BaseStream, timeout.Token);
         try
         {
@@ -45,7 +49,7 @@ public sealed class CameraFrameDecoder(IOptions<CameraOptions> options) : ICamer
         using var output = new MemoryStream();
         var buffer = new byte[8192];
         int read;
-        while ((read = await stream.ReadAsync(buffer, token)) > 0)
+        while ((read = await stream.ReadAsync(buffer, token)) > 0)//read: số byte thực tế được đọc từ luồng đầu ra chuẩn của tiến trình FFmpeg vào bộ đệm buffer.
         {
             if (output.Length + read > limit) throw new InvalidDataException("Camera frame exceeds decoder limit.");
             output.Write(buffer, 0, read);

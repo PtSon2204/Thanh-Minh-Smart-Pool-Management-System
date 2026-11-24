@@ -17,7 +17,7 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
     private CameraCapturedFrame? latest;
     private long queuedBytes;
     public bool Failed => stop.IsCancellationRequested || run.IsCompleted;
-    public string? Failure { get; private set; }
+    public string? Failure { get; private set; }//code ngoài class có thể đọc nhưng không thể ghi, chỉ có class này mới có thể ghi
     public CameraCapturedFrame? Latest => Volatile.Read(ref latest);
 
     public CameraAnalysisFramePump(CameraService cameras, Guid id, CameraOptions options)
@@ -44,6 +44,7 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
         Process? process = null;
         Task output = Task.CompletedTask, errors = Task.CompletedTask;
         var pending = new ConcurrentQueue<(DateTimeOffset Time, uint RtpTimestamp)>();
+        //lưu trữ các khung hình đang chờ xử lý, bao gồm thời gian quan sát và timestamp RTP, concurrent queue để đảm bảo thread-safe khi nhiều luồng truy cập first-in-first-out
         try
         {
             await foreach (var item in input.Reader.ReadAllAsync(stop.Token))
@@ -52,13 +53,19 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
                 if (process is null)
                 {
                     if (!item.Frame.IsKeyFrame) continue;
-                    var start = new ProcessStartInfo(options.FfmpegPath) { UseShellExecute = false, CreateNoWindow = true,
-                        RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                    var start = new ProcessStartInfo(options.FfmpegPath)
+                    {
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardInput = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };//khởi tạo một tiến trình FFmpeg mới để giải mã khung hình camera, với các thiết lập để không hiển thị cửa sổ và chuyển hướng đầu vào/đầu ra
                     // Giữ chi tiết cho preview/snapshot; model tự resize tensor riêng.
                     // Không upscale nguồn thấp hoặc làm méo tỉ lệ hình ảnh.
                     var width = Math.Clamp(options.AnalysisMaxWidth, 32, 3840);
                     var height = Math.Clamp(options.AnalysisMaxHeight, 32, 2160);
-                    var scale = $"scale=w='min({width},iw)':h='min({height},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2";
+                    var scale = $"scale=w='min({width},iw)':h='min({height},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2";//tạo chuỗi lệnh để thay đổi kích thước khung hình đầu vào của FFmpeg, giữ nguyên tỷ lệ khung hình gốc và đảm bảo chiều rộng và chiều cao là bội số của 2
                     foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "pipe",
                         // Keep AVIO buffering: direct mode loses H.264 probe/header
                         // bytes on older FFmpeg builds, causing SPS/PPS errors and restarts.
@@ -71,7 +78,7 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
                         start.ArgumentList.Add(arg);
                     process = Process.Start(start) ?? throw new IOException("Camera analysis decoder unavailable.");
                     errors = WatchErrorsAsync(process.StandardError);
-                    output = ReadJpegsAsync(process.StandardOutput.BaseStream, jpeg =>
+                    output = ReadJpegsAsync(process.StandardOutput.BaseStream, jpeg =>//baseStream: luồng dữ liệu nhị phân của tiến trình FFmpeg, nơi các khung hình JPEG đã giải mã được đọc và truyền đến hành động emit để xử lý
                     {
                         if (stop.IsCancellationRequested) return;
                         // Timestamps describe incoming frames, not the end of inference.
@@ -110,15 +117,15 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
 
     private static async Task ReadJpegsAsync(Stream stream, Action<byte[]> emit, CancellationToken ct)
     {
-        var buffer = new byte[16384];
-        using var frame = new MemoryStream();
+        var buffer = new byte[16384];//tạo một mảng byte có kích thước 16KB để đọc dữ liệu từ luồng đầu ra của tiến trình FFmpeg, buffer này sẽ được sử dụng để lưu trữ các khối dữ liệu JPEG đã giải mã trước khi xử lý
+        using var frame = new MemoryStream();//tạo một MemoryStream để lưu trữ dữ liệu của khung hình JPEG hiện tại đang được đọc từ luồng đầu ra của tiến trình FFmpeg, MemoryStream này sẽ được sử dụng để xây dựng khung hình JPEG hoàn chỉnh trước khi truyền đến hành động emit để xử lý
         var startMarker = new byte[] { 0xff, 0xd8 };
         var endMarker = new byte[] { 0xff, 0xd9 };
         int count;
-        bool started = false, carryFF = false;
+        bool started = false, carryFF = false;//ghi nhớ maker byte ff nằm giữa 2 lần đọc
         while ((count = await stream.ReadAsync(buffer, ct)) > 0)
         {
-            var offset = 0;
+            var offset = 0;//offset: chỉ số hiện tại trong buffer, bắt đầu từ 0 và được tăng lên khi đọc dữ liệu từ buffer
             if (!started && carryFF && buffer[0] == 0xd8)
             {
                 frame.WriteByte(0xff); started = true; carryFF = false;
@@ -127,7 +134,7 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
             {
                 if (!started)
                 {
-                    var start = buffer.AsSpan(offset, count - offset).IndexOf(startMarker);
+                    var start = buffer.AsSpan(offset, count - offset).IndexOf(startMarker);//aspan(start, length)
                     if (start < 0) { carryFF = buffer[count - 1] == 0xff; break; }
                     offset += start; started = true; carryFF = false;
                 }
@@ -159,7 +166,7 @@ internal sealed class CameraAnalysisFramePump : IAsyncDisposable
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
             Failure = "DecodeError";
-            Volatile.Write(ref latest, null);
+            Volatile.Write(ref latest, null);//ghi đè giá trị của latest bằng null, đảm bảo rằng các luồng khác sẽ thấy giá trị mới nhất là null và không sử dụng khung hình đã giải mã trước đó
             stop.Cancel();
             return;
         }

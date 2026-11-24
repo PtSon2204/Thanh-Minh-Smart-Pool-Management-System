@@ -1,5 +1,46 @@
 # Kết quả kiểm chứng triển khai — 12/11/2026
 
+## Rà soát toàn luồng — 22/11/2026
+
+Phần này cập nhật kết quả hiện tại. Các phần ngày 12/11 và các ghi chú phía dưới là bằng chứng lịch sử, không phải số liệu của lần chạy này.
+
+| Bộ kiểm thử | Passed | Failed | Skipped | Phạm vi |
+|---|---:|---:|---:|---|
+| Backend unit | 1352 | 0 | 0 | Toàn project unit; 260 ca liên quan safety/camera |
+| Frontend unit | 137 | 0 | 0 | Toàn frontend; 91 ca safety/camera/SignalR |
+| Integration | 73 | 0 | 3 | 76 ca safety và camera, bao gồm API/PostgreSQL, RTSP, RTP/pixel, WebRTC, AI transport |
+| AI tracking | 8 | 0 | 0 | ByteTrack identity và box measurement; không đánh giá độ chính xác model |
+
+`npm run build` đạt, còn cảnh báo kích thước bundle. `git diff --check` đạt. Không chạy toàn bộ integration của các phân hệ ngoài giám sát an toàn/camera.
+
+Database test là PostgreSQL 18 riêng tại `localhost:15439`, data directory `backend/.test-runtime/safety-audit-20261122-pg`. Chỉ dùng database `smartpool_test` và `smartpool_test_<GUID>`. Cấu hình kết nối được truyền qua biến môi trường của tiến trình test, không sửa `.env` hay database ứng dụng. Build/test dùng `--artifacts-path .build-verify-alert-filters` để không đụng DLL của API đang chạy.
+
+### Các quy tắc đã đối chiếu và bổ sung kiểm thử
+
+- Camera → AI/tracking → RiskDecisionEngine → overlay/metadata → snapshot/outbox → lưu Warning → commit → notification. Mất quan sát không được coi là xác nhận an toàn. Geometry/display không được dùng như bằng chứng risk mới để lưu cảnh báo.
+- WARNING ACK không tạo Incident. CRITICAL/EMERGENCY ACK tạo đúng một Incident EMERGENCY ở trạng thái Pending. Incident chuyển In Progress/Resolved qua API xử lý sự cố riêng; Warning vẫn ACKNOWLEDGED và giữ severity. Lưu thất bại không phát notification thành công.
+- Người xử lý lấy họ tên từ UserProfile, dự phòng username. Bộ lọc khu vực, mức độ, camera, trạng thái và ngày lấy từ database; điều kiện áp dụng trước phân trang, thời gian theo ngày Việt Nam UTC+7.
+- Tìm camera khớp tên **hoặc** vị trí, bỏ qua khoảng trắng và hoa/thường. Ký tự regex được coi là ký tự literal. `xyzabc` không khớp trả `items=[]`, `totalCount=0` và UI hiện “Không tìm thấy camera phù hợp”.
+- UI chỉ tìm khi Tìm/Enter. Trống/whitespace, một ký tự hoặc chỉ ký tự đặc biệt bị chặn, không xóa điều kiện đã áp dụng và không tạo truy vấn tải toàn bộ camera. API vẫn cho phép bỏ `search` để tải ban đầu hoặc Đặt lại; không đồng nhất thao tác submit ô trống với việc tải danh sách không bộ lọc.
+- Regression URL: không dùng `location.key` làm React key cho nội dung trang, tránh remount làm mất từ khóa khi `setParams`. Mở camera từ popup vẫn chọn đúng camera, kể cả khi đang ở cùng route.
+
+### Bằng chứng và giới hạn
+
+Workbook cập nhật: `outputs/safety-review-20261122/SafetyMonitoring_Test_Report.xlsx`. Giữ cấu trúc ma trận baseline, sửa kỳ vọng HandleAsync đã lỗi thời, bổ sung Audit Run và Current Cases. Các chỉ số coverage ngày 20/11 được ghi rõ là baseline, không coi là coverage mới. Danh sách hiện tại có 435 ca trong phạm vi và liên kết đến kết quả thực thi.
+
+Kết quả gốc nằm trong `outputs/safety-review-20261122/evidence/`: `unit/backend-unit.trx`, `integration/safety-integration-final.trx`, `integration/incident-resolution.trx`, `frontend-tests.xml`, `tracking-tests.json`.
+
+Ba bài integration không chạy: Cloudinary upload bằng tài khoản test riêng; pipeline MediaMTX opt-in; playback ba camera trong trình duyệt qua script opt-in. Không dùng tài khoản production để lấp các bài skip. Test UI mới sử dụng hooks/query fixture, không phải browser live. Chưa đánh giá model bằng bộ video có nhãn.
+
+Lệnh chạy lại (từ `backend`, biến kết nối và đường dẫn Python/FFmpeg/FFprobe/font được cung cấp riêng cho tiến trình):
+
+```powershell
+dotnet test tests/SmartPool.UnitTests/SmartPool.UnitTests.csproj --artifacts-path .build-verify-alert-filters --verbosity minimal
+dotnet test tests/SmartPool.IntegrationTests/SmartPool.IntegrationTests.csproj --artifacts-path .build-verify-alert-filters --filter "FullyQualifiedName~SafetyMonitoring|FullyQualifiedName~CameraEquipmentTests|FullyQualifiedName~CameraContinuousAnalysisTests|FullyQualifiedName~CameraPixelAlignmentTests|FullyQualifiedName~CameraStreamEquipmentTests" --verbosity minimal -- RunConfiguration.MaxCpuCount=1
+```
+
+Từ `frontend/thanh-minh-smart-pool`: `npm test`, `npm run build`. Từ root: `python -m unittest discover -s backend/ai -p test_tracking.py -v`.
+
 ## Môi trường và phạm vi
 
 Kiểm thử trên Windows/Windows PowerShell 5.1, FFmpeg/FFprobe có sẵn, MediaMTX v1.21.3 tải từ release chính thức, model `model/best.onnx` và dependency Python hiện có. Dùng hai MP4 cục bộ chưa gắn nhãn từ dữ liệu test có sẵn; không tải video, không commit video/binary.

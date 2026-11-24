@@ -17,7 +17,7 @@ export default function LiveAlertDetailsModal({ alert, onClose }) {
   const cameras = useCameraList({ cameraId: current.cameraId, page: 1, pageSize: 1 })
   const camera = cameras.data?.items?.find(item => item.id === current.cameraId)
   const canPlay = camera?.status === 'Active' && camera?.source === 'RTSP'
-  const { fresh, sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay } = useCameraRisks(camera?.id, canPlay)
+  const { monitored, sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay } = useCameraRisks(camera?.id, canPlay)
   const critical = ['CRITICAL', 'EMERGENCY'].includes(current.severity)
   const status = { PENDING: 'Chờ xác nhận', ACKNOWLEDGED: 'Đã xác nhận', CANCELLED: 'Đã hủy' }[current.status] || current.status
 
@@ -32,7 +32,7 @@ export default function LiveAlertDetailsModal({ alert, onClose }) {
         <Tag color={critical ? '#EF4444' : '#F97316'}>{critical ? 'Khẩn cấp' : 'Chú ý'}</Tag>
         <Tag color="blue">LIVE</Tag>
         <Tag>{status}</Tag>
-        {canPlay && <Tag color={fresh ? 'success' : 'default'}>{fresh ? 'AI đang giám sát' : 'AI đang chờ dữ liệu'}</Tag>}
+        {canPlay && <Tag color={monitored ? 'success' : 'default'}>{monitored ? 'AI đang giám sát' : 'AI đang chờ dữ liệu'}</Tag>}
       </Space>
       {details.isError && <Alert type="warning" title="Chưa cập nhật được trạng thái cảnh báo"
         action={<Button onClick={() => details.refetch()}>Thử lại</Button>} />}

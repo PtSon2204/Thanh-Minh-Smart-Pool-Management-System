@@ -28,9 +28,14 @@ public interface ICameraListRepository
 
 public sealed class GetCameraListValidator : AbstractValidator<GetCameraListQuery>
 {
+    public static string NormalizeSearch(string? value) => new((value ?? "").Where(c => !char.IsWhiteSpace(c)).ToArray());
+
     public GetCameraListValidator()
     {
-        RuleFor(x => x.Search).MaximumLength(200);
+        RuleFor(x => x.Search).Must(value => NormalizeSearch(value).Length <= 200)
+            .WithMessage("Tên hoặc vị trí tìm kiếm tối đa 200 ký tự, không tính khoảng trắng.")
+            .Must(value => NormalizeSearch(value) is var term && (term.Length == 0 || term.Count(char.IsLetterOrDigit) >= 2))
+            .WithMessage("Vui lòng nhập ít nhất 2 chữ cái hoặc chữ số, không tính khoảng trắng và ký tự đặc biệt.");
         RuleFor(x => x.Status).MaximumLength(50);
         RuleFor(x => x.Area).MaximumLength(200);
         RuleFor(x => x.Page).InclusiveBetween(1, 100000);

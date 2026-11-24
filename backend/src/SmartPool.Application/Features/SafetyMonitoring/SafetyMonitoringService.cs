@@ -31,16 +31,18 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
             if (action == "ACKNOWLEDGED" && string.IsNullOrWhiteSpace(warning.ImageUrl))
                 throw new MonitoringConflictException("Cảnh báo cũ chưa có ảnh chụp. Vui lòng chờ ảnh được xử lý trước khi xác nhận.");
             var now = Now;
-            warning.Status = action; warning.VerifiedBy = userId; warning.VerifiedAt = now; warning.UpdatedAt = now;
+            warning.Status = action;
+            warning.VerifiedBy = userId;
+            warning.VerifiedAt = now;
+            warning.UpdatedAt = now;
             var createdIncident = false;
             if (action == "ACKNOWLEDGED" && warning.IncidentId == null &&
                 warning.SeverityLevel.ToUpperInvariant() is "CRITICAL" or "EMERGENCY" && warning.CamId is Guid cameraId) {
                 var camera = await session.GetCameraAsync(cameraId, token);
-                var incident = new Incident { Id = Guid.NewGuid(), WarningId = warning.Id, CameraId = camera.Id, Location = camera.Location,
-                    Title = $"Cảnh báo cứu hộ: {camera.Name}", Description = $"AI phát hiện nguy cơ tại {camera.Location}. Track {warning.TrackId}.",
-                    SeverityLevel = "EMERGENCY", ReportedBy = userId, IncidentTime = warning.WarningTime, Status = "Pending",
-                    ImageIncidents = warning.ImageUrl, CreatedAt = now, UpdatedAt = now };
-                session.AddIncident(incident); warning.IncidentId = incident.Id; createdIncident = true;
+                var incident = CreateIncident(warning, camera, userId, now);
+                session.AddIncident(incident);
+                warning.IncidentId = incident.Id;
+                createdIncident = true;
             }
             return createdIncident;
         }, ct);
@@ -60,21 +62,13 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
             var now = Now;
             var action = Decide(current, command, now);
             if (action == WriteAction.Ignore) return Task.FromResult((Id: current!.Id, Event: (string?)null));
-            var d = command.Decision;
             Warning warning;
             if (action == WriteAction.Create) {
-                warning = new Warning { Id = command.AlertId.HasValue && command.AlertId != current?.Id ? command.AlertId.Value : Guid.NewGuid(),
-                    CamId = command.CameraId, TrackId = d.TrackId,
-                    RiskEpisode = prefix + Guid.NewGuid().ToString("N"), WarningTime = command.ObservedAt,
-                    SeverityLevel = d.Severity,
-                    Status = "PENDING", Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1), Box = d.Box,
-                    ImageUrl = command.ImageUrl!, SnapshotStatus = "COMPLETED", CreatedAt = now, UpdatedAt = now };
+                warning = CreateWarning(command, current, prefix, now);
                 session.AddWarning(warning);
             } else {
                 warning = current!;
-                warning.SeverityLevel = "CRITICAL"; warning.UpdatedAt = now; warning.WarningTime = command.ObservedAt;
-                warning.Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1); warning.Box = d.Box;
-                warning.ImageUrl = command.ImageUrl!; warning.SnapshotStatus = "COMPLETED";
+                EscalateWarning(warning, command, now);
             }
             return Task.FromResult((Id: warning.Id, Event: (string?)(action == WriteAction.Create ? "alert_created" : "alert_escalated")));
         }, ct);
@@ -99,13 +93,72 @@ public sealed class SafetyMonitoringService(IMonitoringRepository repository, IN
         RequireImage(url);
         await repository.WithAlertAsync(id, async (session, token) => {
             var warning = session.Current ?? throw new KeyNotFoundException();
-            warning.ImageUrl = url; warning.SnapshotStatus = "COMPLETED"; warning.UpdatedAt = Now;
+            warning.ImageUrl = url;
+            warning.SnapshotStatus = "COMPLETED";
+            warning.UpdatedAt = Now;
             if (warning.IncidentId is Guid incidentId) await session.UpdateIncidentImageAsync(incidentId, url, token);
             return true;
         }, ct);
         await PublishAsync("alert_updated", await repository.GetAsync(id, Guid.Empty, true, ct));
     }
 
+    private static Incident CreateIncident(Warning warning, Equipment camera, Guid userId, DateTime now) =>
+        new Incident
+        {
+            Id = Guid.NewGuid(),
+            WarningId = warning.Id,
+            CameraId = camera.Id,
+            Location = camera.Location,
+            Title = $"Cảnh báo cứu hộ: {camera.Name}",
+            Description = $"AI phát hiện nguy cơ tại {camera.Location}. Track {warning.TrackId}.",
+            SeverityLevel = "EMERGENCY",
+            ReportedBy = userId,
+            IncidentTime = warning.WarningTime,
+            Status = "Pending",
+            ImageIncidents = warning.ImageUrl,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+    private static Warning CreateWarning(RecordRiskCommand command, Warning? current, string prefix, DateTime now)
+    {
+        var decision = command.Decision;
+        return new Warning
+        {
+            Id = command.AlertId.HasValue && command.AlertId != current?.Id ? command.AlertId.Value : Guid.NewGuid(),
+            CamId = command.CameraId,
+            TrackId = decision.TrackId,
+            RiskEpisode = prefix + Guid.NewGuid().ToString("N"),
+            WarningTime = command.ObservedAt,
+            SeverityLevel = decision.Severity,
+            Status = "PENDING",
+            Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1),
+            Box = decision.Box,
+            ImageUrl = command.ImageUrl!,
+            SnapshotStatus = "COMPLETED",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+    }
+
+    private static void EscalateWarning(Warning warning, RecordRiskCommand command, DateTime now)
+    {
+        warning.SeverityLevel = "CRITICAL";
+        warning.UpdatedAt = now;
+        warning.WarningTime = command.ObservedAt;
+        warning.Confidence = (decimal)Math.Clamp(command.Confidence, 0, 1);
+        warning.Box = command.Decision.Box;
+        warning.ImageUrl = command.ImageUrl!;
+        warning.SnapshotStatus = "COMPLETED";
+    }
+
+    // Current state          Incoming observation       Result
+    // Missing                WARNING/CRITICAL           Create
+    // PENDING WARNING        CRITICAL                   Escalate
+    // PENDING                Otherwise                  Ignore
+    // Handled WARNING        CRITICAL                   Create
+    // CANCELLED              After cooldown             Create
+    // Handled                Otherwise                  Ignore
     private WriteAction Decide(Warning? current, RecordRiskCommand command, DateTime now)
     {
         if (current == null) return WriteAction.Create;

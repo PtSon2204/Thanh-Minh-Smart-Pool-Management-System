@@ -14,6 +14,8 @@ public sealed class AlertsController(ISender sender) : ControllerBase
 {
     [HttpGet]
     public Task<IActionResult> List([FromQuery] GetAlertsQuery query, CancellationToken ct) => Send(query, ct);
+    [HttpGet("filters")]
+    public Task<IActionResult> Filters(CancellationToken ct) => Send(new GetAlertFiltersQuery(), ct);
     [HttpGet("{id:guid}")]
     public Task<IActionResult> Get(Guid id, CancellationToken ct) => Send(new GetAlertQuery(id), ct);
     [HttpPatch("{id:guid}/acknowledge")]
