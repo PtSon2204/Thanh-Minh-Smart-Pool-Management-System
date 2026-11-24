@@ -15,7 +15,7 @@ import './Monitoring.css'
 function CameraCard({ camera, onEnlarge, highlighted, onRetry }) {
   const element = useRef(null)
   const [visible, setVisible] = useState(false)
-  const { ai, fresh, risks, sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay } = useCameraRisks(camera.id, visible && camera.source === 'RTSP')
+  const { ai, monitored, risks, sampleRisks, sampleRisksWithDiagnostics, getPlayoutDelay } = useCameraRisks(camera.id, visible && camera.source === 'RTSP')
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.1 })
     observer.observe(element.current)
@@ -34,8 +34,8 @@ function CameraCard({ camera, onEnlarge, highlighted, onRetry }) {
       <div className="camera-card-tags">
         <Space wrap><Tag>{camera.status}</Tag>
           <Tag color={camera.connectionStatus === 'Connected' ? 'green' : 'default'}>{camera.connectionStatus}</Tag>
-          <Tag color={fresh ? 'success' : 'default'}>{fresh ? 'Camera AI đang giám sát' : ai.data?.state === 'NotConfigured' ? 'AI chưa cấu hình' : 'Camera AI đang chờ dữ liệu'}</Tag>
-          {fresh && (risks.some(x => x.severity === 'CRITICAL') ? <Tag color="#EF4444">Khẩn cấp</Tag> : risks.length > 0 && <Tag color="#F97316">Chú ý</Tag>)}
+          <Tag color={monitored ? 'success' : 'default'}>{monitored ? 'Camera AI đang giám sát' : ai.data?.state === 'NotConfigured' ? 'AI chưa cấu hình' : 'Camera AI đang chờ dữ liệu'}</Tag>
+          {monitored && (risks.some(x => x.severity === 'CRITICAL') ? <Tag color="#EF4444">Khẩn cấp</Tag> : risks.length > 0 && <Tag color="#F97316">Chú ý</Tag>)}
         </Space>
       </div>
       <div className="camera-card-video">

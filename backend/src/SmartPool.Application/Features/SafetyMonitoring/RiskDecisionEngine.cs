@@ -1,73 +1,9 @@
 namespace SmartPool.Application.Features.SafetyMonitoring;
 
-public sealed class RiskOptions
-{
-    private readonly object sync = new();
-    public double WindowSeconds { get; set; } = 5;
-    public double ConfidenceThreshold { get; set; } = 0.60;
-    public double WarningRatio { get; set; } = 0.40;
-    public double CriticalRatio { get; set; } = 0.70;
-    public double CriticalHoldSeconds { get; set; } = 3;
-    public double RecoveryRatio { get; set; } = 0.20;
-    public double RecoveryHoldSeconds { get; set; } = 5;
-    public double MaxObservationGapSeconds { get; set; } = 3;
-    public double CooldownSeconds { get; set; } = 15;
-    public int MinObservations { get; set; } = 3;
-    public bool IsValid() => WindowSeconds > 0 && ConfidenceThreshold is >= 0 and <= 1 &&
-        RecoveryRatio >= 0 && RecoveryRatio < WarningRatio && WarningRatio < CriticalRatio && CriticalRatio <= 1 &&
-        CriticalHoldSeconds > 0 && RecoveryHoldSeconds > 0 && MaxObservationGapSeconds > 0 &&
-        CooldownSeconds >= 0 && MinObservations >= 2;
-
-    public RiskOptions Clone()
-    {
-        lock (sync) return new()
-        {
-            WindowSeconds = WindowSeconds,
-            ConfidenceThreshold = ConfidenceThreshold,
-            WarningRatio = WarningRatio,
-            CriticalRatio = CriticalRatio,
-            CriticalHoldSeconds = CriticalHoldSeconds,
-            RecoveryRatio = RecoveryRatio,
-            RecoveryHoldSeconds = RecoveryHoldSeconds,
-            MaxObservationGapSeconds = MaxObservationGapSeconds,
-            CooldownSeconds = CooldownSeconds,
-            MinObservations = MinObservations,
-        };
-    }
-
-    // Ghi đè toàn bộ giá trị vào instance hiện tại. Provider dùng để "nóng" đổi ngưỡng
-    // mà không tạo instance mới (giữ nguyên state theo dõi trong engine).
-    public void CopyFrom(RiskOptions source)
-    {
-        var s = source.Clone();
-        lock (sync)
-        {
-            WindowSeconds = s.WindowSeconds;
-            ConfidenceThreshold = s.ConfidenceThreshold;
-            WarningRatio = s.WarningRatio;
-            CriticalRatio = s.CriticalRatio;
-            CriticalHoldSeconds = s.CriticalHoldSeconds;
-            RecoveryRatio = s.RecoveryRatio;
-            RecoveryHoldSeconds = s.RecoveryHoldSeconds;
-            MaxObservationGapSeconds = s.MaxObservationGapSeconds;
-            CooldownSeconds = s.CooldownSeconds;
-            MinObservations = s.MinObservations;
-        }
-    }
-}
-
-public sealed record TrackedDetection(string TrackId, string Class, double Confidence, double[] Box);
-public sealed record RiskDecision(string TrackId, string Episode, string Severity, double Ratio, double Timestamp, double[] Box);
-
-// One engine per camera/video; timestamps are source timestamps, never inference duration.
+// One engine per camera; timestamps are source timestamps, never inference duration.
 public sealed class RiskDecisionEngine(RiskOptions options)
 {
-    // Mỗi TrackId có một State riêng để theo dõi lịch sử nguy cơ.
-    // Window lưu kết quả normal/drowning theo timestamp.
-    // Severity lưu mức nguy cơ hiện tại.
-    // CriticalSince và RecoverySince dùng để tính thời gian duy trì điều kiện.
-    // Episode phân biệt các đợt nguy cơ của cùng một đối tượng.
-    // CooldownUntil ngăn tái kích hoạt ngay sau khi hồi phục.
+    // Temporal state belongs to one track; observation gaps never imply recovery.
     private sealed class State
     {
         public Queue<(double Time, bool Drowning)> Window { get; } = new();
@@ -78,6 +14,9 @@ public sealed class RiskDecisionEngine(RiskOptions options)
         public double? RecoverySince { get; set; }
         public double CooldownUntil { get; set; }
     }
+    private const double TrackRetentionSeconds = 120;
+    private const int MaxTrackedStates = 4096;
+    private const int EvictionBatchSize = 1024;
     private readonly Dictionary<string, State> states = new();
 
     // Display continuity only: skipped low-confidence/missing observations do not
@@ -90,10 +29,8 @@ public sealed class RiskDecisionEngine(RiskOptions options)
         // One coherent threshold version for this entire observation, shared
         // safely with CopyFrom without resetting the track's temporal state.
         var thresholds = options.Clone();
-        // Lấy bản sao ngưỡng tại đầu mỗi lần Observe,
-        // tránh sử dụng lẫn ngưỡng cũ và ngưỡng mới trong cùng lượt xử lý.
         // Absence never emits NORMAL or resolves an alert.
-        foreach (var key in states.Where(x => timestamp - x.Value.Last > 120).Select(x => x.Key).ToArray()) states.Remove(key);
+        foreach (var key in states.Where(x => timestamp - x.Value.Last > TrackRetentionSeconds).Select(x => x.Key).ToArray()) states.Remove(key);
         var decisions = new List<RiskDecision>();
         foreach (var detection in detections.GroupBy(x => x.TrackId).Select(x => x.MaxBy(d => d.Confidence)!))
         // Gom detection theo TrackId.
@@ -110,14 +47,16 @@ public sealed class RiskDecisionEngine(RiskOptions options)
             if (!states.TryGetValue(detection.TrackId, out var state))
             {
                 // Bound memory on videos with rapidly changing IDs. Eviction never resolves a persisted alert.
-                if (states.Count >= 4096)
-                    foreach (var key in states.OrderBy(x => x.Value.Last).Take(1024).Select(x => x.Key).ToArray()) states.Remove(key);
+                if (states.Count >= MaxTrackedStates)
+                    foreach (var key in states.OrderBy(x => x.Value.Last).Take(EvictionBatchSize).Select(x => x.Key).ToArray()) states.Remove(key);
                 states[detection.TrackId] = state = new State();
             }
             if (timestamp <= state.Last) continue;
             if (timestamp - state.Last > thresholds.MaxObservationGapSeconds)
             {
-                state.Window.Clear(); state.CriticalSince = null; state.RecoverySince = null;
+                state.Window.Clear();
+                state.CriticalSince = null;
+                state.RecoverySince = null;
                 // Retain severity and episode across a gap. Unknown is not recovery.
             }
             state.Last = timestamp;
@@ -130,11 +69,8 @@ public sealed class RiskDecisionEngine(RiskOptions options)
             while (state.Window.Count > 0 && timestamp - state.Window.Peek().Time > thresholds.WindowSeconds) state.Window.Dequeue();
             if (state.Window.Count < thresholds.MinObservations) continue;
             var ratio = state.Window.Count(x => x.Drowning) / (double)state.Window.Count;
-            // NORMAL -> WARNING khi ratio >= 40% và đã hết cooldown.
-            // WARNING/NORMAL -> CRITICAL chỉ khi ratio >= 70%
-            // được duy trì đủ 3 giây theo timestamp observation.
-            // Nếu ratio giảm dưới ngưỡng CRITICAL, reset timer hold,
-            // nhưng không tự hạ Severity từ CRITICAL về WARNING.
+            // Configured ratios and source-time hold durations govern escalation.
+            // Resetting the hold timer never downgrades an existing critical risk.
             if (ratio >= thresholds.WarningRatio && timestamp >= state.CooldownUntil && state.Severity == "NORMAL") state.Severity = "WARNING";
             if (ratio >= thresholds.CriticalRatio && timestamp >= state.CooldownUntil)
             {
@@ -142,17 +78,17 @@ public sealed class RiskDecisionEngine(RiskOptions options)
                 if (timestamp - state.CriticalSince >= thresholds.CriticalHoldSeconds) state.Severity = "CRITICAL";
             }
             else state.CriticalSince = null;
-            // Chỉ chuyển về NORMAL khi tỷ lệ drowning <= 20%
-            // được duy trì đủ 5 giây với các observation hợp lệ.
-            // Khi recovery: tạo Episode mới và đặt cooldown 15 giây.
-            // Không dùng việc mất detection để xác nhận hồi phục.
+            // Recovery requires sustained valid observations, then a fresh episode and cooldown.
+            // Missing detections never count as recovery evidence.
             if (ratio <= thresholds.RecoveryRatio)
             {
                 state.RecoverySince ??= timestamp;
                 if (timestamp - state.RecoverySince >= thresholds.RecoveryHoldSeconds && state.Severity != "NORMAL")
                 {
-                    state.Severity = "NORMAL"; state.Episode = Guid.NewGuid().ToString("N");
-                    state.CooldownUntil = timestamp + thresholds.CooldownSeconds; state.CriticalSince = null;
+                    state.Severity = "NORMAL";
+                    state.Episode = Guid.NewGuid().ToString("N");
+                    state.CooldownUntil = timestamp + thresholds.CooldownSeconds;
+                    state.CriticalSince = null;
                 }
             }
             else state.RecoverySince = null;

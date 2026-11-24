@@ -14,7 +14,13 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
     IOptions<MonitoringOptions> options, IOptions<RiskOptions> risk, AlertSnapshotQueue snapshots, ILogger<LiveMonitoringWorker> logger,
     CameraDiagnostics? diagnostics = null) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)//overide ghi đè phương thức ExecuteAsync của BackgroundService để thực hiện công việc giám sát trực tiếp
+    private static readonly TimeSpan MaxInferenceAge = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan FramePollInterval = TimeSpan.FromMilliseconds(10);
+    private static readonly TimeSpan OfflinePollInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan SnapshotWarningInterval = TimeSpan.FromSeconds(15);
+    private const int DiagnosticItemLimit = 64;
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var workers = new Dictionary<Guid, (CancellationTokenSource Stop, Task Run)>();
         try
@@ -23,22 +29,10 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
             {
                 try
                 {
-                    using var scope = scopes.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
-                    var available = options.Value.Configured
-                        ? await db.Equipments.AsNoTracking().Where(x => x.IsDeleted != true && x.Status == "Active" && x.Category.Trim().ToLower() == "camera")
-                            .OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(stoppingToken)
-                        : [];
-                    var ids = LiveCameraSelection.Select(available.Select(id => (id, cameras.GetStatus(id))),
-                        workers.Keys.ToHashSet(), options.Value.MaxLiveCameras, DateTimeOffset.UtcNow,
-                        TimeSpan.FromSeconds(Math.Clamp(options.Value.LiveReconnectGraceSeconds, 1, 60)));
+                    var ids = await SelectCamerasAsync(workers.Keys.ToHashSet(), stoppingToken);
                     foreach (var id in workers.Keys.Except(ids).ToArray())
                     {
-                        var worker = workers[id];
-                        worker.Stop.Cancel();
-                        state.Remove(id); // Không giữ metadata cũ trong lúc Windows đóng process GPU.
-                        await worker.Run;
-                        worker.Stop.Dispose(); workers.Remove(id); state.Remove(id);
+                        await StopCameraAsync(id, workers);
                     }
                     foreach (var id in ids.Except(workers.Keys))
                     {
@@ -70,109 +64,12 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
             {
                 if (!options.Value.Configured) { await Task.Delay(5000, stoppingToken); continue; }
                 if (cameras.GetStatus(cameraId).State != "Connected" || frames.Capture(cameraId) == null)
-                { state.Remove(cameraId); await Task.Delay(100, stoppingToken); continue; }
+                { state.Remove(cameraId); await Task.Delay(OfflinePollInterval, stoppingToken); continue; }
                 var threads = Math.Max(1, options.Value.LiveInferenceThreads / Math.Clamp(options.Value.MaxLiveCameras, 1, 8));
                 await using var ai = new AiWorkerClient(options.Value, inferenceThreads: threads);
                 using (var startup = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken))
                 { startup.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds)); await ai.ReadyAsync(startup.Token); }
-                // Fresh trackers after process restart, and therefore fresh engine episodes.
-                var engine = new RiskDecisionEngine(risk.Value);
-                var overlay = new LiveRiskOverlay();
-                DateTimeOffset? lastObserved = null;
-                string? sourceSession = null, oldTracks = null, oldRisks = null;
-                var nextQueueWarning = DateTimeOffset.MinValue;
-                var workerSession = Guid.NewGuid().ToString("N");
-                logger.LogInformation("Live AI worker ready: {WorkerSession}. Tracking and risk episodes start a new session.", workerSession);
-                while (!stoppingToken.IsCancellationRequested)
-                {
-                    var analysisStart = Stopwatch.GetTimestamp();
-                    var id = cameraId;
-                    var status = cameras.GetStatus(id);
-                    var captured = frames.Capture(id);
-                    if (status.State != "Connected" || captured == null)
-                    { state.Remove(id); await Task.Delay(100, stoppingToken); continue; }
-                    var timestamp = captured.CapturedAt;
-                    if (lastObserved >= timestamp) { await Task.Delay(10, stoppingToken); continue; }
-                    var resetTracker = status.AnalysisSession != null && sourceSession != status.AnalysisSession;
-                    if (resetTracker)
-                    {
-                        // Một lượt video simulator = một RTSP session; không mang track/window qua lượt mới.
-                        sourceSession = status.AnalysisSession;
-                        logger.LogInformation("Camera {CameraId} simulator session changed to {CameraSession}; resetting its tracking and risk window.", id, status.AnalysisSession);
-                        engine = new RiskDecisionEngine(risk.Value);
-                        overlay.Clear();
-                        state.Remove(id);
-                    }
-                    lastObserved = timestamp;
-                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);//timeout để hủy bỏ tác vụ nếu quá thời gian chờ
-                    timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
-                    var inferenceStart = Stopwatch.GetTimestamp();//bắt đầu đo thời gian inference
-                    using var result = await ai.InferAsync(id, captured.Jpeg, resetTracker, timeout.Token);
-                    var inferenceMs = Stopwatch.GetElapsedTime(inferenceStart).TotalMilliseconds;
-                    var detections = AiWorkerClient.Detections(result);
-                    // Ignore stale inference rather than painting old boxes or claiming current safety.
-                    var currentStatus = cameras.GetStatus(id);
-                    if (currentStatus.State != "Connected" || currentStatus.AnalysisSession != status.AnalysisSession ||
-                        DateTimeOffset.UtcNow - timestamp > TimeSpan.FromSeconds(6))
-                    { state.Remove(id); await Task.Delay(10, stoppingToken); continue; }
-                    var observedSeconds = timestamp.ToUnixTimeMilliseconds() / 1000.0;
-                    var decisions = engine.Observe(observedSeconds, detections);
-                    var activeTrackIds = engine.ActiveTrackIds();
-                    var display = overlay.Update(observedSeconds, detections, decisions, activeTrackIds);
-                    if (diagnostics?.ShouldSampleFrame(id, DateTimeOffset.UtcNow) == true)
-                    {
-                        diagnostics.Record(new CameraDiagnosticEvent(DateTimeOffset.UtcNow, "camera_analysis_frame", id,
-                            captured.FrameId, captured.RtpTimestamp, timestamp, inferenceMs, detections.Length,
-                            detections.Select(d => new DiagnosticDetection(d.TrackId, d.Class, d.Confidence, d.Box)).Take(64).ToArray(),
-                            activeTrackIds.Take(64).ToArray(),
-                            display.Rendered.Select(d => new DiagnosticBox(d.TrackId, d.Episode, d.Severity, d.Box)).Take(64).ToArray(),
-                            display.Current.Select(d => new DiagnosticBox(d.TrackId, d.Episode, d.Severity, d.Box)).Take(64).ToArray(),
-                            decisions.Count, display.Rendered.Count, status.AnalysisSession, workerSession,
-                            RenderMilliseconds: null, AnalysisMilliseconds: null));
-                    }
-                    // Chỉ log lúc thay đổi, để phân biệt đổi ID với đổi severity trong cùng episode.
-                    // Không ghi frame, URL RTSP hay thông tin đăng nhập vào log.
-                    var tracks = string.Join(",", detections.Select(d => d.TrackId).Distinct().OrderBy(value => value, StringComparer.Ordinal));
-                    if (oldTracks != tracks)
-                    {
-                        logger.LogInformation("Camera {CameraId} tracks changed: [{PreviousTracks}] -> [{Tracks}] at {ObservedAt}.", id, oldTracks, tracks, timestamp);
-                        oldTracks = tracks;
-                    }
-                    var risks = string.Join(",", decisions.OrderBy(d => d.TrackId, StringComparer.Ordinal).Select(d => $"{d.TrackId}:{d.Severity}:{d.Episode}"));
-                    if (oldRisks != risks)
-                    {
-                        logger.LogInformation("Camera {CameraId} active risk boxes changed: [{PreviousRisks}] -> [{Risks}] at {ObservedAt}. Empty means no current risk box, not confirmed recovery.", id, oldRisks, risks, timestamp);
-                        oldRisks = risks;
-                    }
-                    // Paired viewers need the same latched geometry as the canvas
-                    // viewers, even when confidence is below the evidence threshold.
-                    var renderStart = Stopwatch.GetTimestamp();
-                    var annotated = display.Rendered.Count == 0 ? captured.Jpeg : await ai.RenderAsync(display.Rendered, timeout.Token);
-                    var renderMs = display.Rendered.Count == 0 ? 0 : Stopwatch.GetElapsedTime(renderStart).TotalMilliseconds;
-                    stoppingToken.ThrowIfCancellationRequested();
-                    state.Set(id, captured.FrameId, timestamp, decisions, annotated, detections, inferenceMs, captured.RtpTimestamp,
-                        workerSession + ":" + (status.AnalysisSession ?? "camera"), activeTrackIds, renderMs,
-                        Stopwatch.GetElapsedTime(analysisStart).TotalMilliseconds, display.Current);
-                    // Video được phát ngay; broadcaster riêng gửi metadata mới nhất.
-                    // Client chậm/SignalR không được giữ vòng inference.
-                    foreach (var decision in decisions)
-                    {
-                        try
-                        {
-                            var accepted = snapshots.TryStage(new RecordRiskCommand(id, decision,
-                                detections.First(x => x.TrackId == decision.TrackId).Confidence, timestamp.UtcDateTime), captured.Jpeg, annotated);
-                            if (!accepted && DateTimeOffset.UtcNow >= nextQueueWarning)
-                            {
-                                logger.LogWarning("Camera {CameraId} snapshot refused by bounded queue ({RejectedSnapshots} total); later observations will retry.", id, snapshots.RejectedSnapshots);
-                                nextQueueWarning = DateTimeOffset.UtcNow.AddSeconds(15);
-                            }
-                        }
-                        catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
-                        { logger.LogWarning("Cannot stage snapshot for camera {CameraId} ({FailureType}); no imageless alert was saved.", id, exception.GetType().Name); }
-                    }
-                    // Inference reads the newest decoded frame; do not add a quarter-second pause per cycle.
-                    await Task.Delay(10, stoppingToken);
-                }
+                await RunAnalysisSessionAsync(cameraId, ai, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception exception)
@@ -183,5 +80,151 @@ public sealed class LiveMonitoringWorker(IServiceScopeFactory scopes, ICameraSer
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             }
         }
+    }
+
+    private async Task<IReadOnlyCollection<Guid>> SelectCamerasAsync(HashSet<Guid> running, CancellationToken ct)
+    {
+        using var scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
+        var available = options.Value.Configured
+            ? await db.Equipments.AsNoTracking().Where(x => x.IsDeleted != true && x.Status == "Active" && x.Category.Trim().ToLower() == "camera")
+                .OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(ct)
+            : [];
+        return LiveCameraSelection.Select(available.Select(id => (id, cameras.GetStatus(id))),
+            running, options.Value.MaxLiveCameras, DateTimeOffset.UtcNow,
+            TimeSpan.FromSeconds(Math.Clamp(options.Value.LiveReconnectGraceSeconds, 1, 60)));
+    }
+
+    private async Task StopCameraAsync(Guid id, Dictionary<Guid, (CancellationTokenSource Stop, Task Run)> workers)
+    {
+        var worker = workers[id];
+        worker.Stop.Cancel();
+        state.Remove(id); // Không giữ metadata cũ trong lúc Windows đóng process GPU.
+        await worker.Run;
+        worker.Stop.Dispose();
+        workers.Remove(id);
+        state.Remove(id);
+    }
+
+    private async Task RunAnalysisSessionAsync(Guid cameraId, AiWorkerClient ai, CancellationToken stoppingToken)
+    {
+        // Fresh trackers after process restart, and therefore fresh engine episodes.
+        var engine = new RiskDecisionEngine(risk.Value);
+        var overlay = new LiveRiskOverlay();
+        DateTimeOffset? lastObserved = null;
+        string? sourceSession = null, oldTracks = null, oldRisks = null;
+        var nextQueueWarning = DateTimeOffset.MinValue;
+        var workerSession = Guid.NewGuid().ToString("N");
+        logger.LogInformation("Live AI worker ready: {WorkerSession}. Tracking and risk episodes start a new session.", workerSession);
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            var analysisStart = Stopwatch.GetTimestamp();
+            var status = cameras.GetStatus(cameraId);
+            var captured = frames.Capture(cameraId);
+            if (status.State != "Connected" || captured == null)
+            { state.Remove(cameraId); await Task.Delay(OfflinePollInterval, stoppingToken); continue; }
+            var timestamp = captured.CapturedAt;
+            if (lastObserved >= timestamp) { await Task.Delay(FramePollInterval, stoppingToken); continue; }
+            var resetTracker = status.AnalysisSession != null && sourceSession != status.AnalysisSession;
+            if (resetTracker)
+            {
+                // Một lượt video simulator = một RTSP session; không mang track/window qua lượt mới.
+                sourceSession = status.AnalysisSession;
+                logger.LogInformation("Camera {CameraId} simulator session changed to {CameraSession}; resetting its tracking and risk window.", cameraId, status.AnalysisSession);
+                engine = new RiskDecisionEngine(risk.Value);
+                overlay.Clear();
+                state.Remove(cameraId);
+            }
+            lastObserved = timestamp;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.WorkerTimeoutSeconds));
+            var inferenceStart = Stopwatch.GetTimestamp();
+            using var result = await ai.InferAsync(cameraId, captured.Jpeg, resetTracker, timeout.Token);
+            var inferenceMs = Stopwatch.GetElapsedTime(inferenceStart).TotalMilliseconds;
+            var detections = AiWorkerClient.Detections(result);
+            // Ignore stale inference rather than painting old boxes or claiming current safety.
+            var currentStatus = cameras.GetStatus(cameraId);
+            if (currentStatus.State != "Connected" || currentStatus.AnalysisSession != status.AnalysisSession ||
+                DateTimeOffset.UtcNow - timestamp > MaxInferenceAge)
+            { state.Remove(cameraId); await Task.Delay(FramePollInterval, stoppingToken); continue; }
+            var observedSeconds = timestamp.ToUnixTimeMilliseconds() / 1000.0;
+            var decisions = engine.Observe(observedSeconds, detections);
+            var activeTrackIds = engine.ActiveTrackIds();
+            var display = overlay.Update(observedSeconds, detections, decisions, activeTrackIds);
+            RecordFrameDiagnostics(cameraId, captured, inferenceMs, detections, activeTrackIds,
+                display, decisions.Count, status.AnalysisSession, workerSession);
+            (oldTracks, oldRisks) = LogRiskChanges(cameraId, detections, decisions, timestamp, oldTracks, oldRisks);
+            // Paired viewers need the same latched geometry as the canvas
+            // viewers, even when confidence is below the evidence threshold.
+            var renderStart = Stopwatch.GetTimestamp();
+            var annotated = display.Rendered.Count == 0 ? captured.Jpeg : await ai.RenderAsync(display.Rendered, timeout.Token);
+            var renderMs = display.Rendered.Count == 0 ? 0 : Stopwatch.GetElapsedTime(renderStart).TotalMilliseconds;
+            stoppingToken.ThrowIfCancellationRequested();
+            state.Set(cameraId, captured.FrameId, timestamp, decisions, annotated, detections, inferenceMs, captured.RtpTimestamp,
+                workerSession + ":" + (status.AnalysisSession ?? "camera"), activeTrackIds, renderMs,
+                Stopwatch.GetElapsedTime(analysisStart).TotalMilliseconds, display.Current);
+            // Video được phát ngay; broadcaster riêng gửi metadata mới nhất.
+            // Client chậm/SignalR không được giữ vòng inference.
+            nextQueueWarning = StageSnapshots(cameraId, captured, annotated, detections, decisions,
+                nextQueueWarning, stoppingToken);
+            // Inference reads the newest decoded frame; do not add a quarter-second pause per cycle.
+            await Task.Delay(FramePollInterval, stoppingToken);
+        }
+    }
+
+    private void RecordFrameDiagnostics(Guid cameraId, CameraCapturedFrame captured, double inferenceMs,
+        TrackedDetection[] detections, IReadOnlyList<string> activeTrackIds,
+        (IReadOnlyList<RiskDecision> Rendered, IReadOnlyList<RiskDecision> Current) display,
+        int decisionCount, string? cameraSession, string workerSession)
+    {
+        if (diagnostics?.ShouldSampleFrame(cameraId, DateTimeOffset.UtcNow) == true)
+        {
+            diagnostics.Record(new CameraDiagnosticEvent(DateTimeOffset.UtcNow, "camera_analysis_frame", cameraId,
+                captured.FrameId, captured.RtpTimestamp, captured.CapturedAt, inferenceMs, detections.Length,
+                detections.Select(d => new DiagnosticDetection(d.TrackId, d.Class, d.Confidence, d.Box)).Take(DiagnosticItemLimit).ToArray(),
+                activeTrackIds.Take(DiagnosticItemLimit).ToArray(),
+                display.Rendered.Select(d => new DiagnosticBox(d.TrackId, d.Episode, d.Severity, d.Box)).Take(DiagnosticItemLimit).ToArray(),
+                display.Current.Select(d => new DiagnosticBox(d.TrackId, d.Episode, d.Severity, d.Box)).Take(DiagnosticItemLimit).ToArray(),
+                decisionCount, display.Rendered.Count, cameraSession, workerSession,
+                RenderMilliseconds: null, AnalysisMilliseconds: null));
+        }
+    }
+
+    private (string Tracks, string Risks) LogRiskChanges(Guid cameraId, TrackedDetection[] detections,
+        IReadOnlyList<RiskDecision> decisions, DateTimeOffset timestamp, string? oldTracks, string? oldRisks)
+    {
+        var tracks = string.Join(",", detections.Select(d => d.TrackId).Distinct().OrderBy(value => value, StringComparer.Ordinal));
+        if (oldTracks != tracks)
+        {
+            logger.LogInformation("Camera {CameraId} tracks changed: [{PreviousTracks}] -> [{Tracks}] at {ObservedAt}.", cameraId, oldTracks, tracks, timestamp);
+        }
+        var risks = string.Join(",", decisions.OrderBy(d => d.TrackId, StringComparer.Ordinal).Select(d => $"{d.TrackId}:{d.Severity}:{d.Episode}"));
+        if (oldRisks != risks)
+        {
+            logger.LogInformation("Camera {CameraId} active risk boxes changed: [{PreviousRisks}] -> [{Risks}] at {ObservedAt}. Empty means no current risk box, not confirmed recovery.", cameraId, oldRisks, risks, timestamp);
+        }
+        return (tracks, risks);
+    }
+
+    private DateTimeOffset StageSnapshots(Guid cameraId, CameraCapturedFrame captured, byte[] annotated,
+        TrackedDetection[] detections, IReadOnlyList<RiskDecision> decisions,
+        DateTimeOffset nextQueueWarning, CancellationToken stoppingToken)
+    {
+        foreach (var decision in decisions)
+        {
+            try
+            {
+                var accepted = snapshots.TryStage(new RecordRiskCommand(cameraId, decision,
+                    detections.First(x => x.TrackId == decision.TrackId).Confidence, captured.CapturedAt.UtcDateTime), captured.Jpeg, annotated);
+                if (!accepted && DateTimeOffset.UtcNow >= nextQueueWarning)
+                {
+                    logger.LogWarning("Camera {CameraId} snapshot refused by bounded queue ({RejectedSnapshots} total); later observations will retry.", cameraId, snapshots.RejectedSnapshots);
+                    nextQueueWarning = DateTimeOffset.UtcNow.Add(SnapshotWarningInterval);
+                }
+            }
+            catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
+            { logger.LogWarning("Cannot stage snapshot for camera {CameraId} ({FailureType}); no imageless alert was saved.", cameraId, exception.GetType().Name); }
+        }
+        return nextQueueWarning;
     }
 }

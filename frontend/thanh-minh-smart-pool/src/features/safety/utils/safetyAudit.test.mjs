@@ -59,6 +59,8 @@ test('a second camera viewer seeds its own timeline from the shared query cache 
   vm.runInContext(source, context, { filename: 'useCameraRisks.js' })
   try {
     const hook = context.useCameraRisks('camera', true)
+    assert.equal(hook.monitored, true)
+    assert.equal(hook.overlayFresh, true)
     assert.equal(hook.risks.length, 1, 'Camera status tags must use the same display state as its boxes')
     assert.deepEqual(hook.ai.data.risks, [], 'The shared metadata must preserve the original evidence separately')
     assert.equal(hook.sampleRisks(10000).length, 1)

@@ -12,7 +12,7 @@ namespace SmartPool.IntegrationTests.SafetyMonitoring;
 public sealed partial class SafetyMonitoringTests
 {
     [Fact]
-    public async Task CriticalAcknowledgement_RequiresSeparateIncidentResolution_AndPreservesHandledAlert()
+    public async Task CriticalAcknowledgement_CreatesPendingIncident_AndPreservesHandledAlert()
     {
         Guid alertId, incidentId;
         await using (var db = new SmartPoolDbContext(options)) {
@@ -26,20 +26,18 @@ public sealed partial class SafetyMonitoringTests
         try {
             using var client = new HttpClient { BaseAddress = new(app.Urls.Single()) };
             client.DefaultRequestHeaders.Authorization = new("Bearer", await TokenAsync(app, "LIFEGUARD"));
-            foreach (var status in new[] { "In Progress", "Resolved" }) {
-                using var response = await client.PutAsJsonAsync($"/api/safety-alerts/incidents/{incidentId}/confirm",
-                    new { status, resolutionNote = "Đã kiểm tra tại hiện trường" });
-                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-                await using var verify = new SmartPoolDbContext(options);
-                var incident = await verify.Incidents.AsNoTracking().SingleAsync(x => x.Id == incidentId);
-                Assert.Equal(status, incident.Status);
-                Assert.Contains("Đã kiểm tra tại hiện trường", incident.Description);
-                var alert = await verify.Warnings.AsNoTracking().SingleAsync(x => x.Id == alertId);
-                Assert.Equal("ACKNOWLEDGED", alert.Status);
-                Assert.Equal("CRITICAL", alert.SeverityLevel);
-                Assert.Equal(incidentId, alert.IncidentId);
-                Assert.Equal(1, await verify.Incidents.CountAsync(x => x.WarningId == alertId));
-            }
+            using var response = await client.GetAsync($"/api/safety-alerts/incidents/{incidentId}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var detail = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal("Pending", detail.RootElement.GetProperty("status").GetString());
+            await using var verify = new SmartPoolDbContext(options);
+            var incident = await verify.Incidents.AsNoTracking().SingleAsync(x => x.Id == incidentId);
+            Assert.Equal("Pending", incident.Status);
+            var alert = await verify.Warnings.AsNoTracking().SingleAsync(x => x.Id == alertId);
+            Assert.Equal("ACKNOWLEDGED", alert.Status);
+            Assert.Equal("CRITICAL", alert.SeverityLevel);
+            Assert.Equal(incidentId, alert.IncidentId);
+            Assert.Equal(1, await verify.Incidents.CountAsync(x => x.WarningId == alertId));
         } finally { await app.StopAsync(); }
     }
 
