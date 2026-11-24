@@ -47,7 +47,8 @@ public sealed partial class SwimClassOperations
             throw new SwimClassStateConflictException(
                 "Buổi học của lớp Active không được bắt đầu trước hạn kết thúc đăng ký.");
 
-        await LockCoachAsync(coachUserId, cancellationToken);
+        await LockCoachesForClassScheduleAsync(
+            request.ClassId, coachUserId, cancellationToken);
         var eligibleCoach = await EligibleCoaches()
             .AnyAsync(user => user.Id == coachUserId, cancellationToken);
         if (!eligibleCoach)
@@ -67,6 +68,16 @@ public sealed partial class SwimClassOperations
         var conflicts = ClassSessionConflictDetector.Find(request.ClassId, proposed, storedSessions);
         if (conflicts.Count != 0)
             throw new ClassSessionConflictException("Một hoặc nhiều buổi học bị trùng lịch.", conflicts);
+
+        foreach (var session in proposed)
+        {
+            await EnsureNoConfirmedStudentConflictForCoachAsync(
+                coachUserId, session.StartsAt, session.EndsAt, cancellationToken);
+            await EnsureNoTeachingConflictForConfirmedStudentsAsync(
+                request.ClassId, session.StartsAt, session.EndsAt, cancellationToken);
+            await EnsureNoConfirmedStudentClassConflictAsync(
+                request.ClassId, session.StartsAt, session.EndsAt, cancellationToken);
+        }
 
         var sessions = proposed.Select(item => new ClassSession
         {

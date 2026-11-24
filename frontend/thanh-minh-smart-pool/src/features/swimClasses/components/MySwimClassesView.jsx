@@ -231,7 +231,7 @@ export default function MySwimClassesView() {
               <div className="my-swim-classes-grid">
                 {items.map((item) => {
                   const state = registrationState(item);
-                  const canOpen = item.classStatus === "Active";
+                  const canOpen = ['Active', 'Inactive'].includes(item.classStatus);
                   return (
                     <article
                       className="my-swim-class-card"
@@ -276,7 +276,7 @@ export default function MySwimClassesView() {
                       {item.registrationStatus === 'Cancelled' && item.cancelReason &&
                         <p className="my-swim-class-registered-at">Lý do hủy: {item.cancelReason}</p>}
                       <div className="my-swim-class-card-actions">
-                        {canOpen && ['Confirmed', 'Cancelled'].includes(item.registrationStatus) &&
+                        {canOpen && item.registrationStatus === 'Confirmed' &&
                           <Button icon={<CameraOutlined />} onClick={() => openAttendance(item)}>Điểm danh</Button>}
                         {canOpen ? (
                           <Button

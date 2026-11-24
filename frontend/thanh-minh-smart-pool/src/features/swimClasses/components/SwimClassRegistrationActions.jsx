@@ -21,7 +21,7 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
   const pending = registration?.registrationStatus === 'PendingApproval'
   const rejected = registration?.registrationStatus === 'Rejected'
   const cancelled = registration?.registrationStatus === 'Cancelled'
-  const canViewAttendance = swimClass.status === 'Active'
+  const canViewAttendance = ['Active', 'Inactive'].includes(swimClass.status)
   const canSelfCancel = confirmed && !(swimClass.sessions || []).some(session =>
     session.status === 'Scheduled' && Date.parse(session.startsAt) <= now)
 
@@ -93,9 +93,8 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
               ? `Lý do: ${registration.reviewNote}`
               : cancelled && registration.cancelReason ? `Lý do: ${registration.cancelReason}` :
                 canRegister ? 'Bạn có thể gửi lại nếu lớp vẫn còn chỗ.' : availability.text} />
-          {((cancelled && canViewAttendance) || canRegister) && <div className="swim-class-registration-actions">
-            {cancelled && canViewAttendance && <Button icon={<CameraOutlined />} onClick={openAttendance}>Xem điểm danh của tôi</Button>}
-            {canRegister && <Button type="primary" icon={<UserAddOutlined />} loading={register.isPending} onClick={submit}>Gửi lại yêu cầu</Button>}
+          {canRegister && <div className="swim-class-registration-actions">
+            <Button type="primary" icon={<UserAddOutlined />} loading={register.isPending} onClick={submit}>Gửi lại yêu cầu</Button>
           </div>}
         </> : <>
           <p>{canRegister ? 'Gửi yêu cầu để Coach xem và duyệt. Yêu cầu chưa giữ chỗ trong lớp.' : availability.text}</p>

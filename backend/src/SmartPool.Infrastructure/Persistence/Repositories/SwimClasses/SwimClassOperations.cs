@@ -24,6 +24,10 @@ public sealed partial class SwimClassOperations(
         Guid createdByUserId,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT id FROM smart_pool.users WHERE id = {createdByUserId} FOR UPDATE",
+            cancellationToken);
         var eligibleCoach = await EligibleCoaches()
             .AnyAsync(user => user.Id == createdByUserId, cancellationToken);
 
@@ -53,6 +57,7 @@ public sealed partial class SwimClassOperations(
 
         context.SwimClasses.Add(swimClass);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new CreateSwimClassResponse(
             swimClass.Id, swimClass.Name, swimClass.Description, swimClass.Capacity,

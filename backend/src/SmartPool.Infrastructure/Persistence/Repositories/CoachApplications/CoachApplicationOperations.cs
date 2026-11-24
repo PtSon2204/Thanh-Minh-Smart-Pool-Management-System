@@ -3,7 +3,9 @@ using CloudinaryDotNet.Actions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SmartPool.Application.Common.Models;
+using SmartPool.Application.Features.ManageCoachApplications;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 
@@ -11,7 +13,7 @@ namespace SmartPool.Infrastructure.Persistence.Repositories.CoachApplications;
 
 public sealed class CoachApplicationOperations(
     SmartPoolDbContext context, Cloudinary cloudinary, TimeProvider timeProvider,
-    ILogger<CoachApplicationOperations> logger)
+    ILogger<CoachApplicationOperations> logger, INotificationService notificationService)
     : ICoachApplicationOperations
 {
     public async Task<CoachApplicationItem> SubmitAsync(Guid userId, byte[] image, string format,
@@ -187,6 +189,8 @@ public sealed class CoachApplicationOperations(
         if (application is null) return null;
         if (application.Status != "Pending")
             throw new InvalidOperationException("Yêu cầu này đã được xử lý.");
+        var reviewedAt = timeProvider.GetUtcNow().UtcDateTime;
+        var reviewNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
         if (decision == "Approved")
         {
             var user = application.User;
@@ -199,14 +203,49 @@ public sealed class CoachApplicationOperations(
                     item.IsDeleted != true, cancellationToken))
                 throw new InvalidOperationException("Role COACH chưa khả dụng.");
             user.IsCoach = true;
-            user.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+            user.UpdatedAt = reviewedAt;
         }
         application.Status = decision;
         application.ReviewedByUserId = adminId;
-        application.ReviewedAt = timeProvider.GetUtcNow().UtcDateTime;
-        application.ReviewNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        application.ReviewedAt = reviewedAt;
+        application.ReviewNote = reviewNote;
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = application.UserId,
+            Title = decision == "Approved"
+                ? "Yêu cầu trở thành Coach đã được duyệt"
+                : "Yêu cầu trở thành Coach bị từ chối",
+            Content = decision == "Approved"
+                ? "Yêu cầu trở thành Coach của bạn đã được duyệt. Bạn có thể tạo và quản lý lớp dạy bơi."
+                : $"Yêu cầu trở thành Coach của bạn bị từ chối. Lý do: {reviewNote}",
+            Type = "coach_application_reviewed",
+            IsRead = false,
+            CreatedAt = reviewedAt
+        };
+        context.Notifications.Add(notification);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        try
+        {
+            await notificationService.SendToUserAsync(
+                notification.UserId.ToString(), "notification_received",
+                new
+                {
+                    notification.Id,
+                    ApplicationId = application.Id,
+                    notification.Title,
+                    notification.Content,
+                    notification.Type,
+                    notification.CreatedAt
+                }, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Could not deliver coach application notification {NotificationId} to user {UserId}.",
+                notification.Id, notification.UserId);
+        }
         return ToItem(application, application.User.UserProfile?.FullName ??
             application.User.Username);
     }
@@ -233,27 +272,116 @@ public sealed class CoachApplicationOperations(
             $"SELECT id FROM smart_pool.users WHERE id = {application.UserId} FOR UPDATE",
             cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var hasOpenClasses = await context.SwimClasses.AnyAsync(item =>
-            (item.CreatedByUserId == application.UserId || item.CoachUserId == application.UserId) &&
-            (item.Status == "Draft" || item.Status == "Active"), cancellationToken);
-        var hasFutureSessions = await context.ClassSessions.AnyAsync(item =>
-            item.CoachUserId == application.UserId && item.Status == "Scheduled" &&
-            item.StartsAt > now && (item.Class.Status == "Draft" ||
-                item.Class.Status == "Active"), cancellationToken);
-        if (hasOpenClasses || hasFutureSessions)
-            throw new InvalidOperationException(
-                "Cần ngừng hoặc chuyển giao các lớp và buổi học đang phụ trách trước khi thu hồi quyền Coach.");
+        var revokeReason = reason.Trim();
+        const string classReasonPrefix = "Coach phụ trách đã bị thu hồi quyền. Lý do: ";
+        var classReason = classReasonPrefix +
+            revokeReason[..Math.Min(revokeReason.Length, 500 - classReasonPrefix.Length)];
+        var classIds = await context.SwimClasses.AsNoTracking()
+            .Where(item => (item.Status == "Draft" || item.Status == "Active") &&
+                (item.CreatedByUserId == application.UserId ||
+                 item.CoachUserId == application.UserId ||
+                 item.Sessions.Any(session => session.CoachUserId == application.UserId &&
+                     session.Status == "Scheduled" && session.StartsAt > now)))
+            .Select(item => item.Id)
+            .OrderBy(item => item)
+            .ToListAsync(cancellationToken);
+        var notifications = new List<(Guid ClassId, Notification Item)>();
+        foreach (var classId in classIds)
+        {
+            var key = $"swim-class:{classId:D}";
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))",
+                cancellationToken);
+            var swimClass = await context.SwimClasses.SingleAsync(item => item.Id == classId,
+                cancellationToken);
+            if (swimClass.Status is not ("Draft" or "Active")) continue;
+
+            var futureSessions = await context.ClassSessions
+                .Where(item => item.ClassId == classId && item.Status == "Scheduled" &&
+                    item.StartsAt > now)
+                .ToListAsync(cancellationToken);
+            var pendingRegistrations = await context.ClassRegistrations
+                .Where(item => item.ClassId == classId && item.Status == "PendingApproval")
+                .ToListAsync(cancellationToken);
+            var confirmedUserIds = await context.ClassRegistrations.AsNoTracking()
+                .Where(item => item.ClassId == classId && item.Status == "Confirmed")
+                .Select(item => item.CustomerUserId)
+                .ToListAsync(cancellationToken);
+            var recipients = confirmedUserIds
+                .Concat(futureSessions.Select(item => item.CoachUserId))
+                .Append(swimClass.CoachUserId)
+                .Append(swimClass.CreatedByUserId)
+                .Distinct();
+            foreach (var userId in recipients)
+                notifications.Add((classId, new Notification
+                {
+                    Id = Guid.NewGuid(), UserId = userId,
+                    Title = "Lớp dạy bơi đã ngừng hoạt động",
+                    Content = $"Lớp {swimClass.Name} đã ngừng hoạt động. {classReason}",
+                    Type = "swim_class_deactivated", IsRead = false, CreatedAt = now
+                }));
+            foreach (var session in futureSessions)
+            {
+                session.Status = "Cancelled";
+                session.CancelReason = classReason;
+                session.UpdatedAt = NextVersionTimestamp(now, session.UpdatedAt);
+            }
+            foreach (var registration in pendingRegistrations)
+            {
+                registration.Status = "Cancelled";
+                registration.CancelledAt = now;
+                registration.CancelledByUserId = adminId;
+                registration.CancelReason = classReason;
+                registration.UpdatedAt = NextVersionTimestamp(now, registration.UpdatedAt);
+                notifications.Add((classId, new Notification
+                {
+                    Id = Guid.NewGuid(), UserId = registration.CustomerUserId,
+                    Title = "Yêu cầu tham gia lớp đã được hủy",
+                    Content = $"Lớp {swimClass.Name} đã ngừng hoạt động. {classReason}",
+                    Type = "swim_class_registration_cancelled", IsRead = false, CreatedAt = now
+                }));
+            }
+            swimClass.Status = "Inactive";
+            swimClass.InactiveReason = classReason;
+            swimClass.InactivatedAt = now;
+            swimClass.UpdatedAt = NextVersionTimestamp(now, swimClass.UpdatedAt);
+        }
 
         application.User.IsCoach = false;
         application.User.UpdatedAt = now;
         application.Status = "Revoked";
         application.RevokedByUserId = adminId;
         application.RevokedAt = now;
-        application.RevokeReason = reason.Trim();
+        application.RevokeReason = revokeReason;
+        context.Notifications.AddRange(notifications.Select(item => item.Item));
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        foreach (var (classId, notification) in notifications)
+        {
+            try
+            {
+                await notificationService.SendToUserAsync(notification.UserId.ToString(),
+                    "notification_received", new
+                    {
+                        notification.Id, ClassId = classId, notification.Title,
+                        notification.Content, notification.Type, notification.CreatedAt
+                    }, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception,
+                    "Could not deliver class notification {NotificationId} to user {UserId}.",
+                    notification.Id, notification.UserId);
+            }
+        }
         return ToItem(application, application.User.UserProfile?.FullName ??
             application.User.Username);
+    }
+
+    private static DateTime NextVersionTimestamp(DateTime utcNow, DateTime previous)
+    {
+        var candidate = new DateTime(utcNow.Ticks - utcNow.Ticks % 10, DateTimeKind.Utc);
+        return candidate <= previous ? previous.AddTicks(10) : candidate;
     }
 
     public async Task<CoachApplicationItem?> RevokeForUserAsync(Guid userId, Guid adminId,

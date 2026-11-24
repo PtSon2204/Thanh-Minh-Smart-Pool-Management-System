@@ -4,7 +4,7 @@ import { EyeOutlined, ReloadOutlined, SearchOutlined, TeamOutlined } from '@ant-
 import { useUsers } from '../../../features/users/hooks/useUsers'
 import { useRevokeCoach } from '../../../features/users/hooks/useUserMutations'
 import UserDetailsDrawer from '../../../features/users/components/UserDetailsDrawer'
-import { getUserError } from '../../../features/users/utils/userManagement'
+import { getUserError, getUserStatusDisplay } from '../../../features/users/utils/userManagement'
 import '../../../features/users/styles/userManagement.css'
 
 const { Title, Text } = Typography
@@ -44,7 +44,10 @@ export default function CoachListPage() {
     </Space> },
     { title: 'Liên hệ', key: 'contact', render: (_, user) => <span className="um-person"><span>{user.email || '—'}</span><small>{user.phone || '—'}</small></span> },
     { title: 'Quyền Coach', key: 'coachRole', render: (_, user) => <Tag color="gold">{user.role === 'COACH' ? 'Vai trò chính' : 'Đã cấp quyền'}</Tag> },
-    { title: 'Tài khoản', dataIndex: 'status', key: 'status', render: value => <Tag color={value === 'ACTIVE' ? 'success' : 'default'}>{value === 'ACTIVE' ? 'Hoạt động' : value === 'LOCKED' ? 'Đã khóa' : value || 'Không rõ'}</Tag> },
+    { title: 'Tài khoản', dataIndex: 'status', key: 'status', render: value => {
+      const display = getUserStatusDisplay(value)
+      return <Tag color={display.color}>{display.label}</Tag>
+    } },
     { title: 'Thao tác', key: 'actions', render: (_, user) => <Button icon={<EyeOutlined />} onClick={() => setSelectedId(user.id)}>Xem hồ sơ</Button> },
   ]
 
@@ -82,7 +85,7 @@ export default function CoachListPage() {
       open={Boolean(revokeTarget)} okText="Thu hồi quyền" cancelText="Hủy"
       okButtonProps={{ danger: true, loading: revokeCoach.isPending }}
       onCancel={() => { if (!revokeCoach.isPending) setRevokeTarget(null) }} onOk={submitRevoke}>
-      <p>Người dùng vẫn giữ quyền Customer. Cần ngừng hoặc chuyển giao lớp và buổi học đang phụ trách trước khi thu hồi.</p>
+      <p>Người dùng vẫn giữ quyền Customer. Các lớp Draft và Active mà Coach phụ trách sẽ chuyển sang Inactive; buổi học sắp tới và yêu cầu đăng ký đang chờ sẽ được hủy.</p>
       <Input.TextArea aria-label="Lý do thu hồi quyền Coach" placeholder="Nhập lý do thu hồi (bắt buộc)"
         value={revokeReason} onChange={event => setRevokeReason(event.target.value)}
         maxLength={1000} showCount rows={4} />

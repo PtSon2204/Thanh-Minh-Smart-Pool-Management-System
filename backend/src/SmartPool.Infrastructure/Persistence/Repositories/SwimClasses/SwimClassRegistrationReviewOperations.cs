@@ -30,6 +30,11 @@ public sealed partial class SwimClassOperations
             StringComparison.OrdinalIgnoreCase);
         if (accepted)
         {
+            await EnsureNoTeachingConflictForStudentAsync(
+                request.ClassId, registration.CustomerUserId, cancellationToken);
+            await EnsureNoConfirmedClassConflictForStudentAsync(
+                request.ClassId, registration.CustomerUserId, cancellationToken);
+
             var hasFutureSession = await context.ClassSessions.AsNoTracking()
                 .AnyAsync(item => item.ClassId == request.ClassId &&
                     item.Status == "Scheduled" && item.StartsAt > now,
