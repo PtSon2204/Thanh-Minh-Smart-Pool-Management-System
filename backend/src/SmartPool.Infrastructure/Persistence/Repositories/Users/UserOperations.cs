@@ -239,7 +239,9 @@ public sealed class UserOperations : IUserOperations
 
         var internationalPhone = "+84" + values.Phone[1..];
         if (await _context.Users.AnyAsync(item => item.Id != values.Id &&
-            (item.Phone == values.Phone || item.Phone == internationalPhone), cancellationToken))
+            (item.Phone == values.Phone || item.Phone == internationalPhone ||
+             (item.Username != null && (item.Username.ToLower() == values.Phone ||
+                                        item.Username.ToLower() == internationalPhone))), cancellationToken))
             throw new UniqueUserFieldException("phone");
 
         var now = DateTime.UtcNow;
@@ -446,8 +448,14 @@ public sealed class UserOperations : IUserOperations
 
     public async Task<bool> ExistsByUsernameAsync(string username, CancellationToken cancellationToken)
     {
-        var lower = username.ToLower();
-        return await _context.Users.AnyAsync(u => u.Username != null && u.Username.ToLower() == lower, cancellationToken);
+        var lower = username.ToLowerInvariant();
+        var isPhone = System.Text.RegularExpressions.Regex.IsMatch(lower, @"^(?:0|\+84)[35789][0-9]{8}$");
+        var localPhone = isPhone && lower.StartsWith("+84", StringComparison.Ordinal)
+            ? "0" + lower[3..] : lower;
+        var internationalPhone = isPhone ? "+84" + localPhone[1..] : string.Empty;
+        return await _context.Users.AnyAsync(u =>
+            (u.Username != null && u.Username.ToLower() == lower) ||
+            (isPhone && (u.Phone == localPhone || u.Phone == internationalPhone)), cancellationToken);
     }
 
     public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken)
@@ -458,7 +466,9 @@ public sealed class UserOperations : IUserOperations
 
     public async Task<bool> ExistsByPhoneAsync(string phone, string internationalPhone, CancellationToken cancellationToken)
     {
-        return await _context.Users.AnyAsync(u => u.Phone == phone || u.Phone == internationalPhone, cancellationToken);
+        return await _context.Users.AnyAsync(u => u.Phone == phone || u.Phone == internationalPhone ||
+            (u.Username != null && (u.Username.ToLower() == phone ||
+                                    u.Username.ToLower() == internationalPhone)), cancellationToken);
     }
 
     public async Task<Role?> GetRoleByIdAsync(Guid roleId, CancellationToken cancellationToken)
@@ -508,22 +518,30 @@ public sealed class UserOperations : IUserOperations
         return await _context.Users.FirstOrDefaultAsync(u => u.Username != null && u.Username.ToLower() == lower, cancellationToken);
     }
 
-    public async Task<List<User>> FindUsersByIdentifierAsync(string identifier, CancellationToken cancellationToken)
+    public async Task<User?> FindUserByIdentifierAsync(string identifier, CancellationToken cancellationToken)
     {
         var id = identifier.Trim().ToLowerInvariant();
+        IQueryable<User> query;
         if (id.Contains('@'))
         {
-            var u = await _context.Users.FirstOrDefaultAsync(c => c.Email != null && c.Email.ToLower() == id, cancellationToken);
-            return u is null ? new List<User>() : new List<User> { u };
+            query = _context.Users.Where(c => c.Email != null && c.Email.ToLower() == id);
         }
-        if (System.Text.RegularExpressions.Regex.IsMatch(id, @"^(?:0|\+84)[35789][0-9]{8}$"))
+        else if (System.Text.RegularExpressions.Regex.IsMatch(id, @"^(?:0|\+84)[35789][0-9]{8}$"))
         {
             var localPhone = id.StartsWith("+84", StringComparison.Ordinal) ? "0" + id[3..] : id;
             var internationalPhone = "+84" + localPhone[1..];
-            return await _context.Users.Where(c => c.Phone == localPhone || c.Phone == internationalPhone || (c.Username != null && c.Username.ToLower() == id)).ToListAsync(cancellationToken);
+            query = _context.Users.Where(c => c.Phone == localPhone || c.Phone == internationalPhone ||
+                (c.Username != null && (c.Username.ToLower() == localPhone ||
+                                        c.Username.ToLower() == internationalPhone)));
         }
-        var user = await _context.Users.FirstOrDefaultAsync(c => c.Username != null && c.Username.ToLower() == id, cancellationToken);
-        return user is null ? new List<User>() : new List<User> { user };
+        else
+        {
+            query = _context.Users.Where(c => c.Username != null && c.Username.ToLower() == id);
+        }
+
+        // Legacy data can have colliding identifiers. Never choose an account by password.
+        var matches = await query.Take(2).ToListAsync(cancellationToken);
+        return matches.Count == 1 ? matches[0] : null;
     }
 
     public async Task<User?> FindActiveUserByEmailWithPasswordAsync(string email, CancellationToken cancellationToken)

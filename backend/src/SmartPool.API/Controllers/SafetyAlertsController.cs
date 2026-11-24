@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ActivateSafetyAlert;
-using SmartPool.Application.Features.ManageSafetyAlerts.Commands.ConfirmSafetyIncident;
 using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidentById;
 using SmartPool.Application.Features.ManageSafetyAlerts.Queries.GetSafetyIncidents;
 using SmartPool.API.Authorization;
@@ -112,35 +111,6 @@ public sealed class SafetyAlertsController : ControllerBase
         try { return Ok(await _sender.Send(new GetSafetyIncidentByIdQuery(id), cancellationToken)); }
         catch (KeyNotFoundException) { return NotFound(new { message = "Không tìm thấy sự cố." }); }
     }
-
-    /// <summary>
-    /// Xác nhận xử lý sự cố cứu hộ.
-    /// </summary>
-    [HttpPut("incidents/{id:guid}/confirm")]
-    [ProducesResponseType(typeof(ConfirmSafetyIncidentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ConfirmIncident(
-        [FromRoute] Guid id,
-        [FromBody] ConfirmIncidentRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        var userName = User.FindFirstValue(ClaimTypes.Name)
-                      ?? User.FindFirstValue("username")
-                      ?? "Cứu hộ viên";
-
-        var command = new ConfirmSafetyIncidentCommand
-        {
-            IncidentId = id,
-            Status = request.Status ?? "Resolved",
-            ResolutionNote = request.ResolutionNote,
-            ConfirmedByUserId = userId,
-            ConfirmedByName = userName,
-        };
-
-        try { return Ok(await _sender.Send(command, cancellationToken)); }
-        catch (KeyNotFoundException) { return NotFound(new { message = "Không tìm thấy sự cố." }); }
-        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
-    }
 }
 
 /// <summary>Request body cho activate alert.</summary>
@@ -150,10 +120,4 @@ public sealed record ActivateAlertRequest(
     string? Description = null,
     string? ImageIncidents = null,
     Guid? ClientRequestId = null
-);
-
-/// <summary>Request body cho xác nhận xử lý sự cố.</summary>
-public sealed record ConfirmIncidentRequest(
-    string? Status = "Resolved",
-    string? ResolutionNote = null
 );

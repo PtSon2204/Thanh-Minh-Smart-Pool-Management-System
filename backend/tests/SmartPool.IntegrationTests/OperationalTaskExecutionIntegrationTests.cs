@@ -1,8 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.Repositories.WaterQuality;
 using SmartPool.IntegrationTests.ManageStaffs;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.IntegrationTests;
 

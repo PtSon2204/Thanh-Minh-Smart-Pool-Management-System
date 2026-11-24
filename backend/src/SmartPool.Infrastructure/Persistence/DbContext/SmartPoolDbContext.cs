@@ -15,47 +15,47 @@ public class SmartPoolDbContext : EfDbContext
     {
     }
 
-    public virtual DbSet<Employee> Employees { get; set; }
-    public DbSet<StaffInvitation> StaffInvitations { get; set; }
-    public DbSet<StaffOnboardingRevision> StaffOnboardingRevisions { get; set; }
-    public DbSet<StaffOnboardingDocument> StaffOnboardingDocuments { get; set; }
-    public DbSet<StaffScheduleChange> StaffScheduleChanges { get; set; }
-    public DbSet<StaffScheduleDelivery> StaffScheduleDeliveries { get; set; }
-    public virtual DbSet<EmployeeShift> EmployeeShifts { get; set; }
-    public virtual DbSet<AttendanceLog> AttendanceLogs { get; set; }
-    public virtual DbSet<EntryLog> EntryLogs { get; set; }
-    public virtual DbSet<Equipment> Equipments { get; set; }
-    public virtual DbSet<Incident> Incidents { get; set; }
-    public virtual DbSet<InventoryLog> InventoryLogs { get; set; }
-    public virtual DbSet<DailyInspection> DailyInspections { get; set; }
-    public virtual DbSet<Notification> Notifications { get; set; }
-    public virtual DbSet<Order> Orders { get; set; }
-    public virtual DbSet<OrderDetail> OrderDetails { get; set; }
-    public virtual DbSet<Payment> Payments { get; set; }
-    public virtual DbSet<Product> Products { get; set; }
-    public virtual DbSet<Rental> Rentals { get; set; }
-    public virtual DbSet<RentalTransaction> RentalTransactions { get; set; }
-    public virtual DbSet<RentalPaymentIntent> RentalPaymentIntents { get; set; }
-    public virtual DbSet<BankTransferReceipt> BankTransferReceipts { get; set; }
-    public virtual DbSet<Role> Roles { get; set; }
-    public virtual DbSet<Shift> Shifts { get; set; }
-    public virtual DbSet<Ticket> Tickets { get; set; }
-    public virtual DbSet<TicketType> TicketTypes { get; set; }
-    public virtual DbSet<User> Users { get; set; }
-    public virtual DbSet<UserProfile> UserProfiles { get; set; }
-    public virtual DbSet<Voucher> Vouchers { get; set; }
-    public DbSet<Warning> Warnings { get; set; }
-    public DbSet<RefreshToken> RefreshTokens { get; set; }
-    public DbSet<WaterQualityLog> WaterQualityLogs { get; set; }
-    public DbSet<PoolDutySchedule> PoolDutySchedules { get; set; }
-    public DbSet<PoolDutyMeasurementRecurrence> PoolDutyMeasurementRecurrences { get; set; }
-    public DbSet<SwimClass> SwimClasses { get; set; }
-    public DbSet<ClassSession> ClassSessions { get; set; }
-    public DbSet<ClassRegistration> ClassRegistrations { get; set; }
-    public DbSet<ClassAttendance> ClassAttendances { get; set; }
-    public DbSet<CoachApplication> CoachApplications { get; set; }
-    public DbSet<PoolOperationalConfig> PoolOperationalConfigs { get; set; }
-    public DbSet<SafetyMonitoringThreshold> SafetyMonitoringThresholds { get; set; }
+    public virtual DbSet<Employee> Employees { get; set; } //1
+    public DbSet<StaffInvitation> StaffInvitations { get; set; } //2
+    public DbSet<StaffOnboardingRevision> StaffOnboardingRevisions { get; set; } //3
+    public DbSet<StaffOnboardingDocument> StaffOnboardingDocuments { get; set; }  //4
+    public DbSet<StaffScheduleChange> StaffScheduleChanges { get; set; }  //5
+    public DbSet<StaffScheduleDelivery> StaffScheduleDeliveries { get; set; }  //6 
+    public virtual DbSet<EmployeeShift> EmployeeShifts { get; set; } //7
+    public virtual DbSet<AttendanceLog> AttendanceLogs { get; set; } //8
+    public virtual DbSet<EntryLog> EntryLogs { get; set; }  //9
+    public virtual DbSet<Equipment> Equipments { get; set; }  //10
+    public virtual DbSet<Incident> Incidents { get; set; } //11
+    public virtual DbSet<InventoryLog> InventoryLogs { get; set; } //12
+    public virtual DbSet<DailyInspection> DailyInspections { get; set; } //13
+    public virtual DbSet<Notification> Notifications { get; set; } //14
+    public virtual DbSet<Order> Orders { get; set; } //15
+    public virtual DbSet<OrderDetail> OrderDetails { get; set; } //16
+    public virtual DbSet<Payment> Payments { get; set; } //17
+    public virtual DbSet<Product> Products { get; set; } //18
+    public virtual DbSet<Rental> Rentals { get; set; }  //19
+    public virtual DbSet<RentalTransaction> RentalTransactions { get; set; } //20
+    public virtual DbSet<RentalPaymentIntent> RentalPaymentIntents { get; set; } //21
+    public virtual DbSet<BankTransferReceipt> BankTransferReceipts { get; set; } //22
+    public virtual DbSet<Role> Roles { get; set; } //23
+    public virtual DbSet<Shift> Shifts { get; set; }  //24
+    public virtual DbSet<Ticket> Tickets { get; set; } //25
+    public virtual DbSet<TicketType> TicketTypes { get; set; } //26
+    public virtual DbSet<User> Users { get; set; } //27
+    public virtual DbSet<UserProfile> UserProfiles { get; set; } //28
+    public virtual DbSet<Voucher> Vouchers { get; set; } //29
+    public DbSet<Warning> Warnings { get; set; } //30
+    public DbSet<RefreshToken> RefreshTokens { get; set; } //31
+    public DbSet<WaterQualityLog> WaterQualityLogs { get; set; } //32
+    public DbSet<PoolDutySchedule> PoolDutySchedules { get; set; }  //33
+    public DbSet<PoolDutyMeasurementRecurrence> PoolDutyMeasurementRecurrences { get; set; } //34
+    public DbSet<SwimClass> SwimClasses { get; set; }  //35
+    public DbSet<ClassSession> ClassSessions { get; set; }  //36
+    public DbSet<ClassRegistration> ClassRegistrations { get; set; } //37
+    public DbSet<ClassAttendance> ClassAttendances { get; set; } //38
+    public DbSet<CoachApplication> CoachApplications { get; set; } //39
+    public DbSet<PoolOperationalConfig> PoolOperationalConfigs { get; set; } //40
+    public DbSet<SafetyMonitoringThreshold> SafetyMonitoringThresholds { get; set; } //41
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

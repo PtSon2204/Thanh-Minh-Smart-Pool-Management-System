@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Domain.Constants;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.DbContext;
 

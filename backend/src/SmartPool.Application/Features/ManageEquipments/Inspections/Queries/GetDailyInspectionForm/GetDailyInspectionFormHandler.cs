@@ -1,8 +1,9 @@
-using MediatR;
+﻿using MediatR;
 using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Domain.Entities;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.Application.Features.ManageEquipments.Inspections.Queries.GetDailyInspectionForm;
 

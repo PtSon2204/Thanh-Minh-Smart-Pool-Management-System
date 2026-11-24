@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +12,7 @@ using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
 using Xunit;
+using SmartPool.Domain.Constants;
 
 namespace SmartPool.UnitTests.Features.ManageEquipments.Inspections;
 

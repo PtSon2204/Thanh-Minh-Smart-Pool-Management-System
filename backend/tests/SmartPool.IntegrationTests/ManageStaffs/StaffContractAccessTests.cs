@@ -20,6 +20,7 @@ using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
 using SmartPool.Application.Features.ManageStaffs.WorkPatterns;
 using SmartPool.Application.Interfaces.Services;
+using SmartPool.Domain.Constants;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure;
 using SmartPool.Infrastructure.Persistence.DbContext;
