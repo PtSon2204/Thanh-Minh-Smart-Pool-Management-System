@@ -89,6 +89,15 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
         message.error('CHÚ Ý: Chỉ số đo ở mức NGUY HIỂM. Hệ thống đã gửi cảnh báo tới Ban quản trị!');
       }
 
+      if (res.threeDayTrendDetected) {
+        const nextDateText = res.generatedNextDayDutyDate
+          ? dayjs(res.generatedNextDayDutyDate).format('DD/MM/YYYY')
+          : 'ngày mai';
+        message.warning(
+          `Phát hiện nước đi xuống 3 ngày gần nhất! Hệ thống đã tự tạo Lịch trực bể ngày ${nextDateText} chờ Admin phân công kèm hóa chất đề xuất.`,
+        );
+      }
+
       setConfirmation(null);
       onSuccess(res);
       onCancel();
@@ -330,6 +339,33 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
             >
               {preview.recommendation}
             </Paragraph>
+
+            {preview.threeDayTrendDetected && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginTop: 12 }}
+                title="Phát hiện xu hướng chất lượng nước đi xuống 3 ngày gần nhất"
+                description={
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span>{preview.threeDayTrendSummary}</span>
+                    {preview.trendSuggestedChemicals?.length > 0 && (
+                      <div>
+                        <Text strong style={{ fontSize: 12 }}>Hóa chất đề xuất cho lịch trực bể ngày mai: </Text>
+                        <Space size={[4, 4]} wrap>
+                          {preview.trendSuggestedChemicals.map((chem, idx) => (
+                            <Tag color="geekblue" key={`trend-chem-${idx}`}>{chem}</Tag>
+                          ))}
+                        </Space>
+                      </div>
+                    )}
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Khi lưu phiếu, hệ thống sẽ tự tạo Lịch trực bể ngày mai (chờ Admin phân công) kèm hóa chất đề xuất.
+                    </Text>
+                  </div>
+                }
+              />
+            )}
           </div>
         )}
 

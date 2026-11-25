@@ -52,6 +52,9 @@ const renderTypeBadge = (type) => {
   if (t === 'INCIDENT') {
     return <span className="db-pill-tag db-tag-incident">Sự cố</span>;
   }
+  if (t === 'WATER_QUALITY_ALERT') {
+    return <span className="db-pill-tag db-tag-incident">Cảnh báo nước</span>;
+  }
   if (t === 'TICKET' || t === 'TICKET_DAY' || t === 'TICKET_MONTH' || t === 'ORDER') {
     return <span className="db-pill-tag db-tag-ticket">Bán vé</span>;
   }
@@ -190,16 +193,18 @@ export default function DashboardPage() {
 
     const unsubNotif = onReceiveNotification((newNotif) => {
       if (!isMounted) return;
+      const notifType = (newNotif.type || '').toUpperCase();
+      const isUrgent = notifType === 'WATER_QUALITY_ALERT' || notifType === 'INCIDENT';
 
       // Hiển thị thông báo popup Ant Design góc phải màn hình
-      antNotification.info({
-        message: `Thông báo hệ thống mới: ${newNotif.title || ''}`,
+      (isUrgent ? antNotification.error : antNotification.info)({
+        message: isUrgent ? `${newNotif.title || 'Cảnh báo khẩn cấp'}` : `Thông báo hệ thống mới: ${newNotif.title || ''}`,
         description: newNotif.content,
         placement: 'topRight',
-        duration: 6,
+        duration: isUrgent ? 10 : 6,
         style: {
           borderRadius: 12,
-          borderLeft: '4px solid #0284c7',
+          borderLeft: `4px solid ${isUrgent ? '#cf1322' : '#0284c7'}`,
         },
       });
 
@@ -317,7 +322,7 @@ export default function DashboardPage() {
     if (activeTab === 'INCIDENT') {
       return notifications.filter((n) => {
         const t = (n.type || '').toUpperCase();
-        return t === 'INCIDENT' || t === 'WARNING';
+        return t === 'INCIDENT' || t === 'WARNING' || t === 'WATER_QUALITY_ALERT';
       });
     }
     if (activeTab === 'MAINTENANCE') {
@@ -641,7 +646,7 @@ export default function DashboardPage() {
             <div className="db-shortcut-icon">
               <ExperimentOutlined />
             </div>
-            <span>Đo kiểm chất lượng nước</span>
+            <span>Thống kê chất lượng nước</span>
             <RightOutlined style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }} />
           </Link>
 

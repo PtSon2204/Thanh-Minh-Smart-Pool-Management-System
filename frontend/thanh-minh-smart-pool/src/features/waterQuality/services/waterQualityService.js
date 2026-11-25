@@ -66,10 +66,32 @@ export const waterQualityService = {
     apiClient.post(`${BASE}/duty-schedules`, data).then((res) => res.data),
 
   /**
+   * Kiểm tra nhân viên cứu hộ có nhiệm vụ đo nước hôm nay chưa hoàn thành hay không
+   */
+  getTodayDutyGate: () =>
+    apiClient.get(`${BASE}/today-duty-gate`).then((res) => res.data),
+
+  /**
    * Cập nhật lịch trực bể
    * @param {string} id
    * @param {Object} data - { dutyDate, shiftId, assignedEmployeeId, status, notes, waterQualityLogId }
    */
   updateDutySchedule: (id, data) =>
     apiClient.put(`${BASE}/duty-schedules/${id}`, data).then((res) => res.data),
+
+  /**
+   * Admin phân công nhân viên cứu hộ cho Lịch trực bể phát sinh (xu hướng 3 ngày)
+   * @param {string} id
+   * @param {Object} data - { assignedEmployeeId, shiftId }
+   */
+  assignTrendDutySchedule: (id, data) =>
+    apiClient.post(`${BASE}/duty-schedules/${id}/assign`, data).then((res) => res.data),
+
+  /**
+   * Nhân viên cứu hộ xác nhận hoàn thành xử lý Lịch trực bể phát sinh
+   * @param {string} id
+   * @param {Object} data - { waterQualityLogId }
+   */
+  completeTrendDutySchedule: (id, data = {}) =>
+    apiClient.post(`${BASE}/duty-schedules/${id}/complete`, data).then((res) => res.data),
 };

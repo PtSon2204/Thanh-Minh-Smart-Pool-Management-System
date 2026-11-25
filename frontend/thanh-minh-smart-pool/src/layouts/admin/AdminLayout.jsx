@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
+  Alert,
   Layout,
   Menu,
   Button,
@@ -44,6 +45,7 @@ import {
 } from "../../services/signalrClient";
 import authService from "../../features/auth/services/authService";
 import { isLocalSafetyAlertEcho } from "../../features/safety/utils/localAlertEcho";
+import { useTodayWaterQualityGate } from "../../features/waterQuality/hooks/useTodayWaterQualityGate";
 import { getSessionRoles } from "../../features/auth/utils/sessionRoles";
 import { useAlarmSound } from "../../features/safety/hooks/useAlarmSound";
 import { useSafetyAlertSignalR } from "../../features/safety/hooks/useSafetyAlertSignalR";
@@ -54,7 +56,7 @@ import "./AdminLayout.css";
 
 const { Header, Sider, Content } = Layout;
 
-function openKeysForPath(pathname) {
+function openKeysForPath(pathname, isAdmin = false) {
   if (pathname.startsWith("/admin/tickets/")) return ["/admin/tickets"];
   if (pathname === "/admin/staff/attendance/scan") return ["staff"];
   if (pathname.startsWith("/admin/staff/attendance"))
@@ -69,9 +71,50 @@ function openKeysForPath(pathname) {
   )
     return ["services"];
   if (pathname.startsWith("/admin/payments")) return ["payments"];
-  if (pathname.startsWith("/admin/statistics")) return ["statistics"];
+  if (pathname.startsWith("/admin/statistics") || (isAdmin && pathname === "/admin/water-quality")) return ["statistics"];
   if (pathname.startsWith("/admin/safety")) return ["safety"];
   return [];
+}
+
+const WATER_GATE_ALLOWED_KEY = "/admin/water-quality";
+
+function hasAllowedMenuDescendant(item) {
+  if (!item) return false;
+  if (item.key === WATER_GATE_ALLOWED_KEY) return true;
+  return Array.isArray(item.children) && item.children.some(hasAllowedMenuDescendant);
+}
+
+function lockMenuItemsForWaterGate(items) {
+  return items.map((item) => {
+    if (!item) return item;
+    if (item.type === "group" && Array.isArray(item.children)) {
+      return {
+        ...item,
+        children: lockMenuItemsForWaterGate(item.children),
+      };
+    }
+    if (item.key === WATER_GATE_ALLOWED_KEY) {
+      return item;
+    }
+    if (Array.isArray(item.children)) {
+      const containsAllowed = hasAllowedMenuDescendant(item);
+      return {
+        ...item,
+        disabled: !containsAllowed,
+        icon: !containsAllowed ? <LockOutlined /> : item.icon,
+        children: lockMenuItemsForWaterGate(item.children),
+      };
+    }
+    const safeLabel =
+      item.label?.type === Link ? <span>{item.label.props.children}</span> : item.label;
+    return {
+      ...item,
+      disabled: true,
+      icon: <LockOutlined />,
+      label: safeLabel,
+      title: "Vui lòng hoàn thành đo chất lượng nước hôm nay trước khi sử dụng chức năng khác",
+    };
+  });
 }
 
 export default function AdminLayout() {
@@ -84,6 +127,8 @@ export default function AdminLayout() {
   const selectedMenuPath = location.pathname;
   const isAdmin = role === "ADMIN";
   const isLifeguard = role === "LIFEGUARD";
+  const waterGate = useTodayWaterQualityGate();
+  const mustMeasureWater = isLifeguard && waterGate.mustMeasureWater;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const screens = Grid.useBreakpoint();
@@ -357,7 +402,7 @@ export default function AdminLayout() {
             },
           ].filter(Boolean),
         },
-        (isAdmin || isLifeguard) && {
+        isLifeguard && {
           key: "/admin/water-quality",
           icon: <ExperimentOutlined />,
           label: <Link to="/admin/water-quality">Chất lượng nước</Link>,
@@ -512,15 +557,24 @@ export default function AdminLayout() {
               key: "/admin/statistics/incidents",
               label: <Link to="/admin/statistics/incidents">Thống kê sự cố</Link>,
             },
+            {
+              key: "/admin/water-quality",
+              label: (
+                <Link to="/admin/water-quality">Thống kê chất lượng nước</Link>
+              ),
+            },
           ],
         },
       ].filter(Boolean),
     },
   ];
 
-  const menuItems = menuGroups.filter(
+  const visibleMenuGroups = menuGroups.filter(
     (group) => group.children && group.children.length > 0,
   );
+  const menuItems = mustMeasureWater
+    ? lockMenuItemsForWaterGate(visibleMenuGroups)
+    : visibleMenuGroups;
 
   const handleLogout = async () => {
     try {
@@ -534,19 +588,34 @@ export default function AdminLayout() {
   };
 
   const handleUserMenuClick = ({ key }) => {
+    if (key === "logout") {
+      void handleLogout();
+      return;
+    }
+    if (mustMeasureWater) {
+      return;
+    }
     if (key === "profile") {
       navigate("/ho-so");
     } else if (key === "change-password") {
       navigate("/admin/doi-mat-khau");
-    } else if (key === "logout") {
-      void handleLogout();
     }
   };
 
   const userMenu = {
     items: [
-      { key: "profile", icon: <UserOutlined />, label: "Hồ sơ cá nhân" },
-      { key: "change-password", icon: <LockOutlined />, label: "Đổi mật khẩu" },
+      {
+        key: "profile",
+        icon: mustMeasureWater ? <LockOutlined /> : <UserOutlined />,
+        label: "Hồ sơ cá nhân",
+        disabled: mustMeasureWater,
+      },
+      {
+        key: "change-password",
+        icon: <LockOutlined />,
+        label: "Đổi mật khẩu",
+        disabled: mustMeasureWater,
+      },
       { type: "divider" },
       {
         key: "logout",
@@ -579,7 +648,7 @@ export default function AdminLayout() {
             <Menu
               mode="inline"
               selectedKeys={[selectedMenuPath]}
-              defaultOpenKeys={openKeysForPath(location.pathname)}
+              defaultOpenKeys={openKeysForPath(location.pathname, isAdmin)}
               items={menuItems}
               onClick={() => setMobileMenuOpen(false)}
             />
@@ -628,7 +697,7 @@ export default function AdminLayout() {
             <Menu
               mode="inline"
               selectedKeys={[selectedMenuPath]}
-              defaultOpenKeys={openKeysForPath(location.pathname)}
+              defaultOpenKeys={openKeysForPath(location.pathname, isAdmin)}
               items={menuItems}
               style={{
                 borderRight: 0,
@@ -725,6 +794,18 @@ export default function AdminLayout() {
               </Dropdown>
             </div>
           </Header>
+          {mustMeasureWater && location.pathname !== WATER_GATE_ALLOWED_KEY && (
+            <Alert
+              type="warning"
+              showIcon
+              title="Yêu cầu đo chất lượng nước đầu ngày"
+              description={
+                waterGate.data?.reason ||
+                "Bạn có lịch trực/đo nước hôm nay. Vui lòng hoàn thành đo chất lượng nước trước khi sử dụng các chức năng khác."
+              }
+              style={{ margin: "16px 24px 0" }}
+            />
+          )}
           <Content className="admin-content" style={{ minHeight: 280 }}>
             <Outlet />
           </Content>

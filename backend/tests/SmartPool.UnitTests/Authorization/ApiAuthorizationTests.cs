@@ -417,6 +417,80 @@ public async Task ClassSchedulingEndpoints_RequireCoachAndTheirPermission(
         policy)).Succeeded);
 }
 
+    [Theory]
+    [InlineData(nameof(WaterQualityLogsController.CreateLog), "create", "LIFEGUARD", true, true)]
+    [InlineData(nameof(WaterQualityLogsController.CreateLog), "create", "ADMIN", true, false)]
+    [InlineData(nameof(WaterQualityLogsController.SaveDutySchedule), "create", "LIFEGUARD", true, true)]
+    [InlineData(nameof(WaterQualityLogsController.SaveDutySchedule), "create", "ADMIN", true, false)]
+    [InlineData(nameof(WaterQualityLogsController.UpdateDutySchedule), "update", "LIFEGUARD", true, true)]
+    [InlineData(nameof(WaterQualityLogsController.UpdateDutySchedule), "update", "ADMIN", true, false)]
+    [InlineData(nameof(WaterQualityLogsController.GetAnalytics), "read", "ADMIN", true, true)]
+    [InlineData(nameof(WaterQualityLogsController.GetAnalytics), "read", "LIFEGUARD", true, true)]
+    [InlineData(nameof(WaterQualityLogsController.GetAnalytics), "read", "SALES", true, false)]
+    public async Task WaterQualityEndpoints_EnforceLifeguardWriteAndReadStatistics(
+        string action, string permission, string role, bool hasPermission, bool expected)
+    {
+        var reader = new Mock<IRolePermissionReader>();
+        reader.Setup(item => item.ReadCurrentPermissionsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hasPermission && !string.Equals(role, "SALES", StringComparison.OrdinalIgnoreCase)
+                ? $"{{\"water_quality\":[\"{permission}\"]}}"
+                : "{}");
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(reader.Object);
+        services.AddApiAuthorization();
+        using var provider = services.BuildServiceProvider();
+
+        var metadata = typeof(WaterQualityLogsController).GetMethod(action)!.GetCustomAttributes<AuthorizeAttribute>();
+        var policy = await AuthorizationPolicy.CombineAsync(provider.GetRequiredService<IAuthorizationPolicyProvider>(), metadata);
+        Assert.NotNull(policy);
+
+        var result = await provider.GetRequiredService<IAuthorizationService>().AuthorizeAsync(
+            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", role), null, policy);
+
+        Assert.Equal(expected, result.Succeeded);
+    }
+
+    [Fact]
+    public void WaterQualityLogsController_GetTodayDutyGate_RequiresAuthenticatedUserWithoutAllowAnonymous()
+    {
+        var controllerAuth = typeof(WaterQualityLogsController).GetCustomAttributes<AuthorizeAttribute>().ToArray();
+        var method = typeof(WaterQualityLogsController).GetMethod(nameof(WaterQualityLogsController.GetTodayDutyGate));
+
+        Assert.NotEmpty(controllerAuth);
+        Assert.NotNull(method);
+        Assert.Empty(method!.GetCustomAttributes<AllowAnonymousAttribute>());
+    }
+
+    [Theory]
+    [InlineData(nameof(WaterQualityLogsController.AssignTrendDutySchedule), "staff_tasks", "update", "ADMIN", true, true)]
+    [InlineData(nameof(WaterQualityLogsController.AssignTrendDutySchedule), "staff_tasks", "update", "LIFEGUARD", false, false)]
+    [InlineData(nameof(WaterQualityLogsController.CompleteTrendDutySchedule), "water_quality", "update", "LIFEGUARD", true, true)]
+    [InlineData(nameof(WaterQualityLogsController.CompleteTrendDutySchedule), "water_quality", "update", "ADMIN", false, false)]
+    public async Task TrendPoolDutyEndpoints_EnforceAdminAssignAndLifeguardComplete(
+        string action, string module, string perm, string role, bool hasPermission, bool expected)
+    {
+        var reader = new Mock<IRolePermissionReader>();
+        reader.Setup(item => item.ReadCurrentPermissionsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hasPermission ? $"{{\"{module}\":[\"{perm}\"]}}" : "{}");
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(reader.Object);
+        services.AddApiAuthorization();
+        using var provider = services.BuildServiceProvider();
+
+        var metadata = typeof(WaterQualityLogsController).GetMethod(action)!.GetCustomAttributes<AuthorizeAttribute>();
+        var policy = await AuthorizationPolicy.CombineAsync(provider.GetRequiredService<IAuthorizationPolicyProvider>(), metadata);
+        Assert.NotNull(policy);
+
+        var result = await provider.GetRequiredService<IAuthorizationService>().AuthorizeAsync(
+            CreatePrincipal(true, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", role), null, policy);
+
+        Assert.Equal(expected, result.Succeeded);
+    }
+
     private static ClaimsPrincipal CreatePrincipal(bool isAuthenticated, string userId, string role)
     {
         var identity = new ClaimsIdentity(isAuthenticated ? "test" : null);

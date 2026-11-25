@@ -18,4 +18,10 @@ public sealed class WaterQualityLogDto
     public string? EvaluationVersion { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    public bool ThreeDayTrendDetected { get; set; }
+    public string? ThreeDayTrendSummary { get; set; }
+    public List<string> TrendSuggestedChemicals { get; set; } = new();
+    public Guid? GeneratedNextDayDutyId { get; set; }
+    public DateOnly? GeneratedNextDayDutyDate { get; set; }
 }

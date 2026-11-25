@@ -36,14 +36,7 @@ public sealed class TicketExpiryReminderWorker(
         {
             try
             {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
-                var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                var historyStore = scope.ServiceProvider.GetService<IEmailHistoryStore>();
-                var notificationService = scope.ServiceProvider.GetService<INotificationService>();
-                var timeProvider = scope.ServiceProvider.GetService<TimeProvider>() ?? TimeProvider.System;
-
-                await CheckAndSendRemindersAsync(db, emailService, historyStore, notificationService, timeProvider, stoppingToken);
+                await RunReminderSweepAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -54,6 +47,18 @@ public sealed class TicketExpiryReminderWorker(
                 logger.LogError(ex, "Lỗi xảy ra trong quá trình quét vé tháng sắp hết hạn.");
             }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
+    }
+
+    public async Task RunReminderSweepAsync(CancellationToken cancellationToken = default)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<SmartPoolDbContext>();
+        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+        var historyStore = scope.ServiceProvider.GetService<IEmailHistoryStore>();
+        var notificationService = scope.ServiceProvider.GetService<INotificationService>();
+        var timeProvider = scope.ServiceProvider.GetService<TimeProvider>() ?? TimeProvider.System;
+
+        await CheckAndSendRemindersAsync(db, emailService, historyStore, notificationService, timeProvider, cancellationToken);
     }
 
     private async Task CheckAndSendRemindersAsync(
@@ -73,7 +78,7 @@ public sealed class TicketExpiryReminderWorker(
                 .ThenInclude(u => u!.UserProfile)
             .Include(t => t.TicketType)
             .Where(t =>
-                !t.IsDeleted.GetValueOrDefault() &&
+                t.IsDeleted != true &&
                 (t.Status == "ACTIVE" || t.Status == "EXPIRING_SOON") &&
                 t.UserId != null &&
                 t.ExpiryDate != null &&

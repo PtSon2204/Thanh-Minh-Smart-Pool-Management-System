@@ -33,24 +33,32 @@ public sealed class NotificationOperations(SmartPoolDbContext db) : INotificatio
 
     public async Task<GetNotificationsResult> GetNotificationsAsync(GetNotificationsQuery request, CancellationToken cancellationToken)
     {
-        var all = await db.Notifications.AsNoTracking().ToListAsync(cancellationToken);
+        var page = Math.Max(request.Page, 1);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-        var filtered = all.AsQueryable();
+        var query = db.Notifications.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Type))
-            filtered = filtered.Where(n => n.Type == request.Type);
+        {
+            var type = request.Type.Trim();
+            query = query.Where(n => n.Type == type);
+        }
 
         if (request.IsRead.HasValue)
-            filtered = filtered.Where(n => n.IsRead == request.IsRead.Value);
+        {
+            query = request.IsRead.Value
+                ? query.Where(n => n.IsRead == true)
+                : query.Where(n => n.IsRead != true);
+        }
 
-        var ordered = filtered.OrderByDescending(n => n.CreatedAt).ToList();
+        var totalCount = await query.CountAsync(cancellationToken);
+        var unreadCount = await db.Notifications.AsNoTracking().CountAsync(n => n.IsRead != true, cancellationToken);
 
-        var totalCount = ordered.Count;
-        var unreadCount = all.Count(n => n.IsRead != true);
-
-        var items = ordered
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+        var items = await query
+            .OrderByDescending(n => n.CreatedAt)
+            .ThenByDescending(n => n.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(n => new GetNotificationResponse
             {
                 Id = n.Id,
@@ -58,17 +66,17 @@ public sealed class NotificationOperations(SmartPoolDbContext db) : INotificatio
                 Title = n.Title,
                 Content = n.Content,
                 Type = n.Type,
-                IsRead = n.IsRead ?? false,
+                IsRead = n.IsRead == true,
                 CreatedAt = n.CreatedAt,
             })
-            .ToList();
+            .ToListAsync(cancellationToken);
 
         return new GetNotificationsResult
         {
             Items = items,
             TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize,
+            Page = page,
+            PageSize = pageSize,
             UnreadCount = unreadCount,
         };
     }

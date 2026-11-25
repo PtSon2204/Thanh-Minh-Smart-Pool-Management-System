@@ -1,4 +1,5 @@
 using SmartPool.Application.Features.ManageWaterQuality.Dtos;
+using SmartPool.Application.Features.ManageWaterQuality.Services;
 
 namespace SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityAnalytics;
 
@@ -20,6 +21,19 @@ public sealed class WaterQualityAnalyticsResponse
 
     public List<WaterQualityTrendPoint> DailyTrends { get; set; } = new();
     public List<WaterQualityLogDto> RecentAlerts { get; set; } = new();
+    public WaterQualityAnalyticsThreeDayTrendDto? ThreeDayTrend { get; set; }
+}
+
+public sealed class WaterQualityAnalyticsThreeDayTrendDto
+{
+    public bool IsDeteriorating { get; set; }
+    public string Summary { get; set; } = string.Empty;
+    public List<string> Findings { get; set; } = new();
+    public List<string> SuggestedChemicals { get; set; } = new();
+    public List<WaterQualityDailyReading> Days { get; set; } = new();
+    public DateOnly? NextDayDutyDate { get; set; }
+    public string? NextDayDutyStatus { get; set; }
+    public string? NextDayAssignedEmployeeName { get; set; }
 }
 
 public sealed class WaterQualityTrendPoint

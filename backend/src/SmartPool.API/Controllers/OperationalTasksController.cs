@@ -8,6 +8,7 @@ using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageWaterQuality.Dtos;
 using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
+using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Enums;
 
 namespace SmartPool.API.Controllers;
@@ -15,7 +16,7 @@ namespace SmartPool.API.Controllers;
 [ApiController]
 [Route("api/v1/operational-tasks")]
 [Authorize]
-public sealed class OperationalTasksController(ISender sender) : ControllerBase
+public sealed class OperationalTasksController(ISender sender, INotificationService? notificationService = null) : ControllerBase
 {
     [HttpGet]
     [RequirePermission("staff_tasks", "read")]
@@ -133,7 +134,12 @@ public sealed class OperationalTasksController(ISender sender) : ControllerBase
         if (id != command.TaskId) return BadRequest(new { message = "Task ID does not match the route." });
         if (!TryGetActorId(out var actorId)) return Unauthorized();
         command.ActorId = actorId;
-        try { return Ok(await sender.Send(command, cancellationToken)); }
+        try
+        {
+            var result = await sender.Send(command, cancellationToken);
+            await BroadcastWaterQualityGateSyncAsync(cancellationToken);
+            return Ok(result);
+        }
         catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
         catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
     }
@@ -147,9 +153,27 @@ public sealed class OperationalTasksController(ISender sender) : ControllerBase
         if (id != command.TaskId) return BadRequest(new { message = "Task ID does not match the route." });
         if (!TryGetActorId(out var actorId)) return Unauthorized();
         command.ActorId = actorId;
-        try { return Ok(await sender.Send(command, cancellationToken)); }
+        try
+        {
+            var result = await sender.Send(command, cancellationToken);
+            await BroadcastWaterQualityGateSyncAsync(cancellationToken);
+            return Ok(result);
+        }
         catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
         catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
+    }
+
+    private async Task BroadcastWaterQualityGateSyncAsync(CancellationToken cancellationToken)
+    {
+        if (notificationService is null) return;
+        try
+        {
+            await notificationService.SendToAllAsync("WaterQualityUpdated", new { source = "operational-task" }, cancellationToken);
+        }
+        catch
+        {
+            // Non-fatal: task mutation already succeeded
+        }
     }
 
     private bool TryGetActorId(out Guid actorId) =>

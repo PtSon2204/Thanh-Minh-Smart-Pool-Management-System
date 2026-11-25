@@ -16,6 +16,11 @@ public static class AuthorizationExtensions
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context => context.User.TryGetUserId(out _) && context.User.HasRole(RoleEnum.ADMIN)));
 
+            // Chỉ nhân viên cứu hộ (LIFEGUARD) được trực tiếp thực hiện đo chất lượng nước.
+            options.AddPolicy(AuthorizationPolicies.LifeguardOnly, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context => context.User.TryGetUserId(out _) && context.User.HasRole(RoleEnum.LIFEGUARD)));
+
             // Giám sát an toàn — ADMIN và LIFEGUARD được xem/xử lý cảnh báo.
             options.AddPolicy(AuthorizationPolicies.SafetyOperators, policy => policy
                 .RequireAuthenticatedUser()

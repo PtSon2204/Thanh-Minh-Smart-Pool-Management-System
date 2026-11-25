@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SmartPool.Application.Features.ManageWaterQuality.Services;
+using SmartPool.Application.Interfaces.Repositories;
 
 namespace SmartPool.Application.Features.ManageWaterQuality.Queries.PreviewWaterQualityEvaluation;
 
@@ -31,16 +32,36 @@ public sealed class PreviewWaterQualityEvaluationHandler : IRequestHandler<Previ
 {
     private readonly IWaterQualityEvaluator _evaluator;
     private readonly IValidator<PreviewWaterQualityEvaluationQuery> _validator;
+    private readonly IWaterQualityOperations? _operations;
 
-    public PreviewWaterQualityEvaluationHandler(IWaterQualityEvaluator evaluator, IValidator<PreviewWaterQualityEvaluationQuery> validator)
+    public PreviewWaterQualityEvaluationHandler(
+        IWaterQualityEvaluator evaluator,
+        IValidator<PreviewWaterQualityEvaluationQuery> validator,
+        IWaterQualityOperations? operations = null)
     {
         _evaluator = evaluator;
         _validator = validator;
+        _operations = operations;
     }
 
     public async Task<WaterQualityEvaluationResult> Handle(PreviewWaterQualityEvaluationQuery request, CancellationToken cancellationToken)
     {
         await _validator.ValidateAndThrowAsync(request, cancellationToken);
-        return _evaluator.Evaluate(request.PhValue, request.FreeChlorineMgL, request.IsWaterClear);
+        var result = _evaluator.Evaluate(request.PhValue, request.FreeChlorineMgL, request.IsWaterClear);
+
+        if (_operations is not null)
+        {
+            var trend = await _operations.EvaluateThreeDayTrendPreviewAsync(
+                request.PhValue, request.FreeChlorineMgL, request.IsWaterClear, cancellationToken);
+            if (trend.IsDeteriorating)
+            {
+                result.ThreeDayTrendDetected = true;
+                result.ThreeDayTrendSummary = trend.Summary;
+                result.TrendFindings = trend.Findings;
+                result.TrendSuggestedChemicals = trend.SuggestedChemicals;
+            }
+        }
+
+        return result;
     }
 }
