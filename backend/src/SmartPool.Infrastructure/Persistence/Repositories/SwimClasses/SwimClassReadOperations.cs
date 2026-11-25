@@ -155,7 +155,9 @@ public sealed partial class SwimClassOperations
             query = query.Where(swimClass =>
                 swimClass.Status == "Active" &&
                 swimClass.RegistrationStartAt <= now &&
-                now < swimClass.RegistrationEndAt);
+                now < swimClass.RegistrationEndAt &&
+                swimClass.Sessions.Any(session =>
+                    session.Status == "Scheduled" && session.StartsAt > now));
         }
 
         var name = request.SearchTerm?.Trim();
@@ -212,7 +214,7 @@ public sealed partial class SwimClassOperations
         string role,
         CancellationToken cancellationToken)
     {
-        var swimClass = await VisibleTo(userId, role)
+        var swimClass = await VisibleTo(userId, role, includeRegisteredInactive: true)
             .Where(item => item.Id == classId)
             .Select(item => new
             {
@@ -277,12 +279,17 @@ public sealed partial class SwimClassOperations
             swimClass.InactivatedAt);
     }
 
-    private IQueryable<SwimClass> VisibleTo(Guid userId, string role)
+    private IQueryable<SwimClass> VisibleTo(
+        Guid userId, string role, bool includeRegisteredInactive = false)
     {
         var query = context.SwimClasses.AsNoTracking();
         return role switch
         {
-            "CUSTOMER" => query.Where(swimClass => swimClass.Status == "Active"),
+            "CUSTOMER" => query.Where(swimClass =>
+                swimClass.Status == "Active" ||
+                (includeRegisteredInactive && swimClass.Status == "Inactive" &&
+                 swimClass.Registrations.Any(registration =>
+                     registration.CustomerUserId == userId))),
             "COACH" => query.Where(swimClass =>
                 swimClass.CreatedByUserId == userId ||
                 (swimClass.Status == "Active" &&

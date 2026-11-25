@@ -24,18 +24,20 @@ public sealed class UsersController : ControllerBase
         _sender = sender;
     }
 
-    /// <summary>Admin tạo tài khoản với vai trò CUSTOMER, LIFEGUARD, SALES, COACH hoặc ADMIN.</summary>
-    /// <response code="201">Tạo tài khoản và hồ sơ thành công.</response>
+    /// <summary>Admin tạo tài khoản; hệ thống tự sinh mật khẩu và gửi riêng qua email người dùng.</summary>
+    /// <response code="201">Tạo tài khoản, hồ sơ và gửi email mật khẩu thành công.</response>
     /// <response code="400">Dữ liệu đầu vào không hợp lệ.</response>
     /// <response code="401">Chưa đăng nhập.</response>
     /// <response code="403">Không có quyền Admin.</response>
     /// <response code="409">Username, email, số điện thoại bị trùng hoặc vai trò không khả dụng.</response>
+    /// <response code="503">Tài khoản đã được tạo nhưng email mật khẩu không gửi được.</response>
     [HttpPost]
     [ProducesResponseType(typeof(CreateUserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     public Task<IActionResult> CreateUser([FromBody] CreateUserCommand command, CancellationToken cancellationToken)
     {
         return _sender.Send(command, cancellationToken);

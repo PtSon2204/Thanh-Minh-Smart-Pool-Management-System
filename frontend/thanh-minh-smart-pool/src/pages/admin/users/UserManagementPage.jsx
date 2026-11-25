@@ -8,7 +8,7 @@ import UserTable from "../../../features/users/components/UserTable"
 import { useUsers } from "../../../features/users/hooks/useUsers"
 import { useChangeUserStatus, useSaveUser } from "../../../features/users/hooks/useUserMutations"
 import userService from "../../../features/users/services/userService"
-import { getUserError, USER_ROLE_FILTERS } from "../../../features/users/utils/userManagement"
+import { getUserError, normalizeUserStatus, USER_ROLE_FILTERS } from "../../../features/users/utils/userManagement"
 import "../../../features/users/styles/userManagement.css"
 
 const { Title, Text } = Typography
@@ -49,17 +49,23 @@ export default function UserManagementPage() {
   const save = (values) => {
     saveUser.mutate({ values, record: editor.record }, {
       onSuccess: () => {
-        messageApi.success(editor.record ? 'Đã cập nhật tài khoản.' : 'Đã tạo tài khoản.')
+        messageApi.success(editor.record ? 'Đã cập nhật tài khoản.' : 'Đã tạo tài khoản và gửi mật khẩu qua email.')
         setEditor(null)
       },
       onError: (error) => {
+        const result = error.response?.data
+        if (result?.code === 'ACCOUNT_CREATED_EMAIL_FAILED') {
+          messageApi.error(`${result.title} ${result.detail}`)
+          setEditor(null)
+          return
+        }
         messageApi.error(error.message?.startsWith('Đã lưu thông tin tài khoản') ? error.message : getUserError(error))
       },
     })
   }
 
   const toggleStatus = (user) => {
-    const nextStatus = user.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE'
+    const nextStatus = normalizeUserStatus(user.status) === 'ACTIVE' ? 'LOCKED' : 'ACTIVE'
     Modal.confirm({
       title: nextStatus === 'LOCKED' ? 'Khóa tài khoản?' : 'Mở khóa tài khoản?',
       content: `${user.fullName || user.username} sẽ ${nextStatus === 'LOCKED' ? 'không thể sử dụng tài khoản' : 'có thể sử dụng lại tài khoản'}.`,

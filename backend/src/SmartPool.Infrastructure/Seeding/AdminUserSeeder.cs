@@ -78,7 +78,7 @@ public static class AdminUserSeeder
             Username = username,
             Email = email,
             Phone = phone,
-            Status = "Active",
+            Status = "ACTIVE",
             IsDeleted = false,
             CreatedAt = now,
             UpdatedAt = now,

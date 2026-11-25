@@ -50,16 +50,6 @@ public sealed class CreateUserValidatorTests
     public async Task Validate_RoleCaseAndWhitespace_HasNoErrors() =>
         Assert.True((await _validator.ValidateAsync(Request(role: " customer "))).IsValid);
 
-    [Fact(DisplayName = "UTCID11 (A) - Thiếu xác nhận mật khẩu → báo lỗi ConfirmPassword")]
-    public async Task Validate_MissingPasswordConfirmation_HasError() =>
-        AssertError(await _validator.ValidateAsync(Request(confirmPassword: "")),
-            "ConfirmPassword", "Vui lòng xác nhận mật khẩu.");
-
-    [Fact(DisplayName = "UTCID12 (A) - Xác nhận mật khẩu không khớp → báo lỗi")]
-    public async Task Validate_MismatchedPasswordConfirmation_HasError() =>
-        AssertError(await _validator.ValidateAsync(Request(confirmPassword: "Different123")),
-            "ConfirmPassword", "Mật khẩu xác nhận không khớp.");
-
     [Fact(DisplayName = "UTCID13 (A) - Ngày sinh ở tương lai → báo lỗi DateOfBirth")]
     public async Task Validate_FutureBirthDate_HasError() =>
         AssertError(await _validator.ValidateAsync(Request(dateOfBirth: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2)))),
@@ -79,21 +69,16 @@ public sealed class CreateUserValidatorTests
         AssertError(await _validator.ValidateAsync(Request(phone: "0212345678")), "Phone",
             "Số điện thoại phải là số di động Việt Nam dạng 0xxxxxxxxx hoặc +84xxxxxxxxx.");
 
-    [Fact(DisplayName = "UTCID17 (A) - Password thiếu chữ số → dùng đúng lỗi từ RegisterValidator")]
-    public async Task Validate_InvalidPassword_HasError() =>
-        AssertError(await _validator.ValidateAsync(Request(password: "abcdefgh", confirmPassword: "abcdefgh")),
-            "Password", "Mật khẩu phải có ít nhất một chữ cái và một chữ số.");
-
     private static void AssertError(ValidationResult result, string property, string message) =>
         Assert.Contains(result.Errors, error => error.PropertyName == property && error.ErrorMessage == message);
 
     private static CreateUserCommand Request(string username = "customer01", string email = "customer@example.com",
-        string phone = "0912345678", string password = "Password123", string confirmPassword = "Password123",
+        string phone = "0912345678",
         string fullName = "Nguyen Van A", string role = "CUSTOMER", DateOnly? dateOfBirth = null,
         string? address = "Pool Street") => new()
         {
-            Username = username, Email = email, Phone = phone, Password = password,
-            ConfirmPassword = confirmPassword, FullName = fullName, Role = role,
+            Username = username, Email = email, Phone = phone,
+            FullName = fullName, Role = role,
             DateOfBirth = dateOfBirth, Address = address
         };
 }

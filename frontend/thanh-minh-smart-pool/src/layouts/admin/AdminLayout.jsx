@@ -309,6 +309,11 @@ export default function AdminLayout() {
           label: <Link to="/admin/users">Quản lý người dùng</Link>,
         },
         isAdmin && {
+          key: "/admin/coaches",
+          icon: <TeamOutlined />,
+          label: <Link to="/admin/coaches">Danh sách Coach</Link>,
+        },
+        isAdmin && {
           key: "/admin/roles/permissions",
           icon: <SafetyCertificateOutlined />,
           label: <Link to="/admin/roles/permissions">Phân quyền vai trò</Link>,

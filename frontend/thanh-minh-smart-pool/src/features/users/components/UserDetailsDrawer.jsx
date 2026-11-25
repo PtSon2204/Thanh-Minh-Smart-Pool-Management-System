@@ -1,5 +1,5 @@
 import { Alert, Avatar, Button, Descriptions, Drawer, Space, Spin, Tag } from 'antd'
-import { USER_ROLES, USER_ROLE_COLORS, getUserError } from "../utils/userManagement"
+import { USER_ROLES, USER_ROLE_COLORS, getUserError, getUserStatusDisplay } from "../utils/userManagement"
 import { useUserDetail } from '../hooks/useUsers'
 
 function formatDate(value) {
@@ -14,7 +14,7 @@ export default function UserDetailsDrawer({ userId, onClose, onRevokeCoach }) {
   const detail = useUserDetail(userId)
   const user = detail.data
   const role = USER_ROLES.find((item) => item.value === user?.role)?.label || user?.role || '—'
-  const status = user?.status === 'ACTIVE' ? 'Hoạt động' : user?.status === 'LOCKED' ? 'Đã khóa' : user?.status || '—'
+  const status = getUserStatusDisplay(user?.status)
 
   return <Drawer title="Chi tiết người dùng" open={Boolean(userId)} onClose={onClose} width={520}>
     {detail.isPending && <div className="um-detail-state"><Spin size="large" /></div>}
@@ -42,7 +42,7 @@ export default function UserDetailsDrawer({ userId, onClose, onRevokeCoach }) {
         <Descriptions.Item label="Địa chỉ">{user.address || '—'}</Descriptions.Item>
         <Descriptions.Item label="Vai trò"><Tag color={USER_ROLE_COLORS[user.role]}>{role}</Tag>
           {user.isCoach && <Tag color="gold">Coach</Tag>}</Descriptions.Item>
-        <Descriptions.Item label="Trạng thái"><Tag color={user.status === 'ACTIVE' ? 'success' : user.status === 'LOCKED' ? 'default' : 'warning'}>{status}</Tag></Descriptions.Item>
+        <Descriptions.Item label="Trạng thái"><Tag color={status.color}>{status.label}</Tag></Descriptions.Item>
         <Descriptions.Item label="Ngày tạo">{formatDateTime(user.createdAt)}</Descriptions.Item>
         <Descriptions.Item label="Cập nhật lần cuối">{formatDateTime(user.updatedAt)}</Descriptions.Item>
       </Descriptions>

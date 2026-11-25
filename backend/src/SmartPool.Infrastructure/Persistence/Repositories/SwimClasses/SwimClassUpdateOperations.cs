@@ -19,6 +19,10 @@ public sealed partial class SwimClassOperations
 
         EnsureClassOwner(swimClass, coachUserId);
 
+        if (swimClass.Status is not ("Draft" or "Active"))
+            throw new SmartPool.Application.Features.ManageSwimClasses.SwimClassStateConflictException(
+                "Chỉ có thể sửa thông tin lớp Draft hoặc Active.");
+
         if (swimClass.UpdatedAt != request.ExpectedUpdatedAt.UtcDateTime)
             throw new SmartPool.Application.Features.ManageSwimClasses.SwimClassStateConflictException(
                 "Lớp đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.");

@@ -81,29 +81,7 @@ export default function UserFormModal({ open, record, saving, onClose, onSave })
       <Form.Item name="address" label="Địa chỉ">
         <Input.TextArea rows={2} maxLength={500} />
       </Form.Item>
-      {!record && <Row gutter={12}>
-        <Col span={12}>
-          <Form.Item name="password" label="Mật khẩu" rules={[
-            { required: true, message: 'Nhập mật khẩu.' },
-            { min: 8, message: 'Tối thiểu 8 ký tự.' },
-            { pattern: /^(?=.*[A-Za-z])(?=.*\d).+$/, message: 'Cần ít nhất một chữ cái và một chữ số.' },
-          ]}>
-            <Input.Password maxLength={128} />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item name="confirmPassword" label="Xác nhận mật khẩu" dependencies={['password']} rules={[
-            { required: true, message: 'Xác nhận mật khẩu.' },
-            ({ getFieldValue }) => ({
-              validator: (_, value) => value === getFieldValue('password')
-                ? Promise.resolve()
-                : Promise.reject(new Error('Mật khẩu xác nhận không khớp.')),
-            }),
-          ]}>
-            <Input.Password maxLength={128} />
-          </Form.Item>
-        </Col>
-      </Row>}
+      {!record && <p>Mật khẩu sẽ được hệ thống tạo và gửi trực tiếp đến email người dùng.</p>}
     </Form>
   </Modal>
 }
