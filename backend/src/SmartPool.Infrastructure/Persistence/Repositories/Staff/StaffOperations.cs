@@ -45,7 +45,7 @@ public sealed partial class StaffOperations : IStaffOperations
         var query = context.Employees.AsNoTracking().Include(employee => employee.User).ThenInclude(user => user.Role)
             .Include(employee => employee.User.UserProfile).AsQueryable();
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-            query = query.Where(employee => employee.User.Username!.Contains(request.SearchTerm) || employee.User.Email!.Contains(request.SearchTerm) || employee.User.UserProfile!.FullName.Contains(request.SearchTerm));
+            query = query.Where(employee => employee.User.Username!.Contains(request.SearchTerm) || employee.User.Email!.Contains(request.SearchTerm) || employee.User.UserProfile!.FullName.Contains(request.SearchTerm) || (employee.User.Phone != null && employee.User.Phone.Contains(request.SearchTerm)));
         if (!string.IsNullOrWhiteSpace(request.Status)) query = query.Where(employee => employee.Status == request.Status);
         if (!string.IsNullOrWhiteSpace(request.RoleName)) query = query.Where(employee => employee.User.Role != null && EF.Functions.ILike(employee.User.Role.Name, request.RoleName));
         var total = await query.CountAsync(cancellationToken);
