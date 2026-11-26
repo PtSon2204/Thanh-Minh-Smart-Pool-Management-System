@@ -5,6 +5,7 @@ const statusOptions = [
   { value: 'Draft', label: 'Bản nháp' },
   { value: 'Active', label: 'Đang hoạt động' },
   { value: 'Inactive', label: 'Ngừng hoạt động' },
+  { value: 'Completed', label: 'Đã kết thúc' },
 ]
 
 export default function SwimClassListFilters({ search, status, showStatus, onSearchChange, onStatusChange, onReset }) {

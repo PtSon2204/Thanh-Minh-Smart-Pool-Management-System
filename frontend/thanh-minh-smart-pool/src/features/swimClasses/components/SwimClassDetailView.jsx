@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, ConfigProvider, Spin } from 'antd'
+import { Alert, Button, ConfigProvider, Modal, Spin, message } from 'antd'
 import { ArrowLeftOutlined, BookOutlined, EditOutlined, ReloadOutlined, SettingOutlined, StopOutlined, TeamOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { hasSessionRole } from '../../auth/utils/sessionRoles'
 import { useSwimClassDetail } from '../hooks/useSwimClasses'
 import { useMyClassRegistration } from '../hooks/useClassRegistration'
+import { swimClassService } from '../services/swimClassService'
 import SwimClassStatusTag from './SwimClassStatusTag'
 import SwimClassDetailSummary from './SwimClassDetailSummary'
 import SwimClassSessionSchedule from './SwimClassSessionSchedule'
@@ -64,6 +65,13 @@ export default function SwimClassDetailView() {
           <div className="swim-class-detail-header-actions">
             {canOpenCoachView && <Button icon={<SettingOutlined />} onClick={() => navigate(`/coach/classes/${swimClass.id}`)}>Quản lý lớp</Button>}
             {isOwner && <Button type="primary" icon={<TeamOutlined />} onClick={() => navigate(`/coach/classes/${swimClass.id}/students`)}>Xem danh sách học viên</Button>}
+            {isOwner && swimClass.status === 'Active' && (swimClass.sessions || []).some(item => item.status === 'Scheduled') &&
+              (swimClass.sessions || []).filter(item => item.status === 'Scheduled').every(item => Date.parse(item.endsAt) < now) &&
+              <Button onClick={() => Modal.confirm({ title: 'Kết thúc lớp học?',
+                content: 'Sau khi kết thúc, Coach không thể sửa điểm danh hoặc thông tin lớp.',
+                onOk: async () => { try { await swimClassService.completeClass(swimClass.id); message.success('Đã kết thúc lớp.'); await detail.refetch() }
+                  catch (error) { message.error(error?.response?.data?.message || 'Không thể kết thúc lớp.') } }
+              })}>Kết thúc lớp</Button>}
             {isOwner && ['Draft', 'Active'].includes(swimClass.status) && <>
               <Button icon={<EditOutlined />} onClick={() => setEditingClass(true)}>Sửa thông tin lớp</Button>
               <Button danger icon={<StopOutlined />} onClick={() => setDeactivating(true)}>Ngừng lớp</Button>
@@ -80,7 +88,7 @@ export default function SwimClassDetailView() {
           attendanceCoachUserId={session?.id}
           onViewAttendance={role === 'COACH' ? item => navigate(
             `/coach/classes/${swimClass.id}/sessions/${item.id}/attendances`,
-            { state: { startsAt: item.startsAt, endsAt: item.endsAt } }) : undefined}
+            { state: { startsAt: item.startsAt, endsAt: item.endsAt, classStatus: swimClass.status } }) : undefined}
           onEditSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setEditingSession : undefined}
           onCancelSession={isOwner && ['Draft', 'Active'].includes(swimClass.status) ? setCancellingSession : undefined} />
         {isOwner && editingClass && <SwimClassEditModal swimClass={swimClass} open

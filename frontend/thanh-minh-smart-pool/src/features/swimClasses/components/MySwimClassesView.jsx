@@ -13,9 +13,8 @@ import {
 } from "antd";
 import {
   CalendarOutlined,
-  CameraOutlined,
+  CheckSquareOutlined,
   ClockCircleOutlined,
-  ReadOutlined,
   ReloadOutlined,
   RightOutlined,
   StopOutlined,
@@ -132,7 +131,7 @@ export default function MySwimClassesView() {
         <header className="my-swim-classes-header">
           <div className="my-swim-classes-title">
             <span className="my-swim-classes-icon">
-              <ReadOutlined />
+              <CalendarOutlined />
             </span>
             <div>
               <small>GÓC HỌC VIÊN</small>
@@ -231,7 +230,7 @@ export default function MySwimClassesView() {
               <div className="my-swim-classes-grid">
                 {items.map((item) => {
                   const state = registrationState(item);
-                  const canOpen = ['Active', 'Inactive'].includes(item.classStatus);
+                  const canOpen = ['Active', 'Inactive', 'Completed'].includes(item.classStatus);
                   return (
                     <article
                       className="my-swim-class-card"
@@ -277,7 +276,7 @@ export default function MySwimClassesView() {
                         <p className="my-swim-class-registered-at">Lý do hủy: {item.cancelReason}</p>}
                       <div className="my-swim-class-card-actions">
                         {canOpen && item.registrationStatus === 'Confirmed' &&
-                          <Button icon={<CameraOutlined />} onClick={() => openAttendance(item)}>Điểm danh</Button>}
+                          <Button icon={<CheckSquareOutlined />} onClick={() => openAttendance(item)}>Điểm danh</Button>}
                         {canOpen ? (
                           <Button
                             icon={<RightOutlined />}

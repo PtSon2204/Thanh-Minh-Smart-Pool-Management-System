@@ -225,7 +225,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasDefaultValueSql("now()");
 
                     b.Property<string>("ImageUrl")
-                        .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)")
                         .HasColumnName("image_url");
@@ -233,19 +232,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.Property<Guid>("RegistrationId")
                         .HasColumnType("uuid")
                         .HasColumnName("registration_id");
-
-                    b.Property<string>("ReviewNote")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("review_note");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reviewed_at");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("reviewed_by_user_id");
 
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uuid")
@@ -279,9 +265,6 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasIndex("RegistrationId")
                         .HasDatabaseName("ix_class_attendances_registration_id");
 
-                    b.HasIndex("ReviewedByUserId")
-                        .HasDatabaseName("ix_class_attendances_reviewed_by_user_id");
-
                     b.HasIndex("SubmittedByUserId")
                         .HasDatabaseName("ix_class_attendances_submitted_by_user_id");
 
@@ -289,12 +272,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_class_attendances_session_registration");
 
-                    b.HasIndex("Status", "SubmittedAt")
-                        .HasDatabaseName("ix_class_attendances_status_submitted_at");
-
                     b.ToTable("class_attendances", "smart_pool", t =>
                         {
-                            t.HasCheckConstraint("ck_class_attendances_review_fields_pair", "(reviewed_by_user_id IS NULL) = (reviewed_at IS NULL)");
+
+                            t.HasCheckConstraint("ck_class_attendances_status_image", "(status <> 'Verified' OR image_url IS NOT NULL) AND (status <> 'Absent' OR image_url IS NULL)");
                         });
                 });
 
@@ -2491,15 +2472,15 @@ namespace SmartPool.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_staff_schedule_change_applied_version", "\"AppliedVersion\" IS NULL OR \"AppliedVersion\" > 0");
 
-                            t.HasCheckConstraint("ck_staff_schedule_change_destination", "\"AppliedVersion\" IS NULL OR \"Kind\" = 'Pattern'\r\nOR (\"Kind\" = 'Leave' AND \"DestinationShiftId\" IS NULL AND \"DestinationEmployeeId\" IS NULL)\r\nOR (\"Kind\" = 'Move' AND \"DestinationShiftId\" IS NOT NULL AND \"DestinationEmployeeId\" IS NULL\r\n    AND jsonb_array_length(\"SourceAssignmentIdsJson\") = 1)\r\nOR (\"Kind\" = 'Replace' AND \"DestinationShiftId\" IS NOT NULL AND \"DestinationEmployeeId\" IS NOT NULL\r\n    AND \"DestinationEmployeeId\" <> \"EmployeeId\" AND jsonb_array_length(\"SourceAssignmentIdsJson\") = 1)");
+                            t.HasCheckConstraint("ck_staff_schedule_change_destination", "\"AppliedVersion\" IS NULL OR \"Kind\" = 'Pattern'\nOR (\"Kind\" = 'Leave' AND \"DestinationShiftId\" IS NULL AND \"DestinationEmployeeId\" IS NULL)\nOR (\"Kind\" = 'Move' AND \"DestinationShiftId\" IS NOT NULL AND \"DestinationEmployeeId\" IS NULL\n    AND jsonb_array_length(\"SourceAssignmentIdsJson\") = 1)\nOR (\"Kind\" = 'Replace' AND \"DestinationShiftId\" IS NOT NULL AND \"DestinationEmployeeId\" IS NOT NULL\n    AND \"DestinationEmployeeId\" <> \"EmployeeId\" AND jsonb_array_length(\"SourceAssignmentIdsJson\") = 1)");
 
-                            t.HasCheckConstraint("ck_staff_schedule_change_instruction", "(\"AppliedVersion\" IS NULL AND \"OperationId\" IS NOT NULL)\r\nOR (\"Kind\" = 'Pattern' AND \"ContractJson\" IS NOT NULL AND jsonb_typeof(\"ContractJson\") = 'object'\r\n    AND \"EffectiveFrom\" IS NOT NULL AND \"WorkDate\" IS NULL AND \"SourceAssignmentIdsJson\" IS NULL\r\n    AND \"DestinationShiftId\" IS NULL AND \"DestinationEmployeeId\" IS NULL AND \"Reason\" IS NULL)\r\nOR (\"Kind\" IN ('Leave','Move','Replace') AND \"ContractJson\" IS NULL AND \"EffectiveFrom\" IS NULL\r\n    AND \"WorkDate\" IS NOT NULL AND \"SourceAssignmentIdsJson\" IS NOT NULL\r\n    AND jsonb_typeof(\"SourceAssignmentIdsJson\") = 'array' AND \"Reason\" IS NOT NULL AND btrim(\"Reason\") <> '')");
+                            t.HasCheckConstraint("ck_staff_schedule_change_instruction", "(\"AppliedVersion\" IS NULL AND \"OperationId\" IS NOT NULL)\nOR (\"Kind\" = 'Pattern' AND \"ContractJson\" IS NOT NULL AND jsonb_typeof(\"ContractJson\") = 'object'\n    AND \"EffectiveFrom\" IS NOT NULL AND \"WorkDate\" IS NULL AND \"SourceAssignmentIdsJson\" IS NULL\n    AND \"DestinationShiftId\" IS NULL AND \"DestinationEmployeeId\" IS NULL AND \"Reason\" IS NULL)\nOR (\"Kind\" IN ('Leave','Move','Replace') AND \"ContractJson\" IS NULL AND \"EffectiveFrom\" IS NULL\n    AND \"WorkDate\" IS NOT NULL AND \"SourceAssignmentIdsJson\" IS NOT NULL\n    AND jsonb_typeof(\"SourceAssignmentIdsJson\") = 'array' AND \"Reason\" IS NOT NULL AND btrim(\"Reason\") <> '')");
 
                             t.HasCheckConstraint("ck_staff_schedule_change_kind", "\"Kind\" IN ('Pattern','Leave','Move','Replace')");
 
                             t.HasCheckConstraint("ck_staff_schedule_change_outcome", "\"AppliedVersion\" IS NOT NULL OR \"OperationId\" IS NOT NULL");
 
-                            t.HasCheckConstraint("ck_staff_schedule_change_receipt", "(\"OperationId\" IS NULL AND \"ProposalHash\" IS NULL AND \"ResponseJson\" IS NULL)\r\nOR (\"OperationId\" IS NOT NULL AND \"ProposalHash\" IS NOT NULL AND \"ResponseJson\" IS NOT NULL\r\n    AND \"ProposalHash\" ~ '^[0-9A-Fa-f]{64}$' AND jsonb_typeof(\"ResponseJson\") = 'object')");
+                            t.HasCheckConstraint("ck_staff_schedule_change_receipt", "(\"OperationId\" IS NULL AND \"ProposalHash\" IS NULL AND \"ResponseJson\" IS NULL)\nOR (\"OperationId\" IS NOT NULL AND \"ProposalHash\" IS NOT NULL AND \"ResponseJson\" IS NOT NULL\n    AND \"ProposalHash\" ~ '^[0-9A-Fa-f]{64}$' AND jsonb_typeof(\"ResponseJson\") = 'object')");
                         });
                 });
 
@@ -3264,12 +3245,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("class_attendances_registration_id_fkey");
 
-                    b.HasOne("SmartPool.Domain.Entities.User", "ReviewedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("class_attendances_reviewed_by_user_id_fkey");
-
                     b.HasOne("SmartPool.Domain.Entities.ClassSession", "Session")
                         .WithMany("Attendances")
                         .HasForeignKey("SessionId")
@@ -3285,8 +3260,6 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasConstraintName("class_attendances_submitted_by_user_id_fkey");
 
                     b.Navigation("Registration");
-
-                    b.Navigation("ReviewedByUser");
 
                     b.Navigation("Session");
 

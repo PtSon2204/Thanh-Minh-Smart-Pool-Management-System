@@ -287,12 +287,12 @@ public sealed partial class SwimClassOperations
         {
             "CUSTOMER" => query.Where(swimClass =>
                 swimClass.Status == "Active" ||
-                (includeRegisteredInactive && swimClass.Status == "Inactive" &&
+                (includeRegisteredInactive && (swimClass.Status == "Inactive" || swimClass.Status == "Completed") &&
                  swimClass.Registrations.Any(registration =>
                      registration.CustomerUserId == userId))),
             "COACH" => query.Where(swimClass =>
                 swimClass.CreatedByUserId == userId ||
-                (swimClass.Status == "Active" &&
+                ((swimClass.Status == "Active" || swimClass.Status == "Completed") &&
                  swimClass.Sessions.Any(session => session.CoachUserId == userId))),
             _ => throw new UnauthorizedAccessException("Không có quyền xem lớp dạy bơi.")
         };

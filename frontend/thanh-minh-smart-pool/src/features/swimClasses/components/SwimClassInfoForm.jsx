@@ -1,4 +1,4 @@
-import { ClockCircleOutlined, SaveOutlined, TeamOutlined } from '@ant-design/icons'
+import { ClockCircleOutlined, FormOutlined, SaveOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, DatePicker, Form, Input, InputNumber } from 'antd'
 import { vietnamPickerTimeToUtc } from '../utils/classSchedule'
 
@@ -6,7 +6,7 @@ const DATE_FORMAT = 'DD/MM/YYYY HH:mm'
 const TIME_PICKER = { format: 'HH:mm', minuteStep: 15 }
 
 export default function SwimClassInfoForm({ form, onFinish, pending, error }) {
-  return <Card className="swim-class-form-card" title={<><TeamOutlined /> Thông tin lớp học</>}>
+  return <Card className="swim-class-form-card" title={<><FormOutlined /> Thông tin lớp học</>}>
     <p className="swim-class-card-intro">Bạn được gán làm Coach của lớp. Lớp được lưu ở trạng thái bản nháp để thêm lịch học trước khi kích hoạt.</p>
     {error && <Alert className="swim-class-form-alert" type="error" showIcon title="Chưa tạo được lớp" description={error} />}
     <Form form={form} layout="vertical" initialValues={{ capacity: 5, fee: 0 }} onFinish={onFinish} disabled={pending}>

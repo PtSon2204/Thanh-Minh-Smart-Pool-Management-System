@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageSwimClasses;
-using SmartPool.Application.Features.ManageSwimClasses.Commands.ReviewClassAttendance;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.RecordClassAttendance;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassSessionAttendances;
 
 namespace SmartPool.API.Controllers;
@@ -30,20 +30,22 @@ public sealed class ClassSessionAttendancesController(ISender sender) : Controll
         return ExecuteAsync(async () => Ok(await sender.Send(query, cancellationToken)));
     }
 
-    [HttpPatch("{attendanceId:guid}/review")]
+    [HttpPut("registrations/{registrationId:guid}")]
     [RequirePermission("class_attendances", "update")]
-    [ProducesResponseType(typeof(ReviewClassAttendanceResponse), StatusCodes.Status200OK)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    [ProducesResponseType(typeof(ClassAttendanceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public Task<IActionResult> Review(Guid classId, Guid sessionId, Guid attendanceId,
-        [FromBody] ReviewClassAttendanceCommand command,
+    public Task<IActionResult> Record(Guid classId, Guid sessionId, Guid registrationId,
+        [FromForm] RecordClassAttendanceCommand command,
         CancellationToken cancellationToken)
     {
         command.ClassId = classId;
         command.SessionId = sessionId;
-        command.AttendanceId = attendanceId;
+        command.RegistrationId = registrationId;
         return ExecuteAsync(async () => Ok(await sender.Send(command, cancellationToken)));
     }
 

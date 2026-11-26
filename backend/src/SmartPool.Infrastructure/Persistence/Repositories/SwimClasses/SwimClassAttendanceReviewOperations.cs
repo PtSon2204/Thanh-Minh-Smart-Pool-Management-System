@@ -1,9 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageSwimClasses;
-using SmartPool.Application.Features.ManageSwimClasses.Commands.ReviewClassAttendance;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassSessionAttendances;
-using SmartPool.Domain.Entities;
 
 namespace SmartPool.Infrastructure.Persistence.Repositories.SwimClasses;
 
@@ -13,44 +11,50 @@ public sealed partial class SwimClassOperations
         GetClassSessionAttendancesQuery request, Guid coachUserId,
         CancellationToken cancellationToken)
     {
-        var assignedCoachId = await context.ClassSessions.AsNoTracking()
+        var assignedSession = await context.ClassSessions.AsNoTracking()
             .Where(item => item.Id == request.SessionId && item.ClassId == request.ClassId)
-            .Select(item => (Guid?)item.CoachUserId)
+            .Select(item => new { item.CoachUserId, item.EndsAt })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy buổi học của lớp.");
-        if (assignedCoachId != coachUserId)
+        if (assignedSession.CoachUserId != coachUserId)
             throw new UnauthorizedAccessException("Chỉ Coach phụ trách buổi được xem điểm danh.");
 
-        var query = context.ClassAttendances.AsNoTracking()
-            .Where(item => item.SessionId == request.SessionId &&
-                item.Registration.ClassId == request.ClassId);
+        var query = context.ClassRegistrations.AsNoTracking()
+            .Where(item => item.ClassId == request.ClassId && item.Status == "Confirmed" &&
+                (item.ConfirmedAt == null || item.ConfirmedAt <= assignedSession.EndsAt));
         if (!string.IsNullOrWhiteSpace(request.Status))
         {
             var status = request.Status.Trim();
-            query = query.Where(item => EF.Functions.ILike(item.Status, status));
+            query = status.Equals("NotMarked", StringComparison.OrdinalIgnoreCase)
+                ? query.Where(item => !context.ClassAttendances.Any(attendance =>
+                    attendance.SessionId == request.SessionId && attendance.RegistrationId == item.Id))
+                : query.Where(item => context.ClassAttendances.Any(attendance =>
+                    attendance.SessionId == request.SessionId && attendance.RegistrationId == item.Id &&
+                    EF.Functions.ILike(attendance.Status, status)));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(item => item.SubmittedAt)
+        var registrations = await query
+            .OrderBy(item => item.CustomerUser.UserProfile != null
+                ? item.CustomerUser.UserProfile.FullName : item.CustomerUser.Username)
             .ThenByDescending(item => item.Id)
             .Skip((request.PageIndex - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(item => new ClassSessionAttendanceItem(
-                item.Id,
-                item.RegistrationId,
-                item.Registration.CustomerUserId,
-                item.Registration.CustomerUser.UserProfile != null
-                    ? item.Registration.CustomerUser.UserProfile.FullName
-                    : item.Registration.CustomerUser.Username,
-                item.ImageUrl,
-                item.Status,
-                item.SubmittedAt,
-                item.ReviewedByUserId,
-                item.ReviewedAt,
-                item.ReviewNote,
-                item.UpdatedAt))
+            .Select(item => new { item.Id, item.CustomerUserId,
+                CustomerName = item.CustomerUser.UserProfile != null
+                    ? item.CustomerUser.UserProfile.FullName : item.CustomerUser.Username })
             .ToListAsync(cancellationToken);
+        var registrationIds = registrations.Select(item => item.Id).ToArray();
+        var attendanceByRegistration = await context.ClassAttendances.AsNoTracking()
+            .Where(item => item.SessionId == request.SessionId && registrationIds.Contains(item.RegistrationId))
+            .ToDictionaryAsync(item => item.RegistrationId, cancellationToken);
+        var items = registrations.Select(item =>
+        {
+            attendanceByRegistration.TryGetValue(item.Id, out var attendance);
+            return new ClassSessionAttendanceItem(attendance?.Id, item.Id, item.CustomerUserId,
+                item.CustomerName ?? "Học viên", attendance?.ImageUrl, attendance?.Status ?? "NotMarked",
+                attendance?.SubmittedAt, attendance?.UpdatedAt);
+        }).ToList();
 
         return new PagedResponse<ClassSessionAttendanceItem>
         {
@@ -61,56 +65,4 @@ public sealed partial class SwimClassOperations
         };
     }
 
-    public async Task<ReviewClassAttendanceResponse> ReviewClassAttendanceAsync(
-        ReviewClassAttendanceCommand request, Guid coachUserId,
-        CancellationToken cancellationToken)
-    {
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        await LockClassAsync(request.ClassId, cancellationToken);
-
-        var session = await context.ClassSessions.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == request.SessionId &&
-                item.ClassId == request.ClassId, cancellationToken)
-            ?? throw new KeyNotFoundException("Không tìm thấy buổi học của lớp.");
-        ClassAttendanceReviewPolicy.EnsureAssignedCoach(session.CoachUserId, coachUserId);
-        var attendance = await context.ClassAttendances.Include(item => item.Registration)
-            .SingleOrDefaultAsync(item => item.Id == request.AttendanceId &&
-                item.SessionId == request.SessionId &&
-                item.Registration.ClassId == request.ClassId, cancellationToken)
-            ?? throw new KeyNotFoundException("Không tìm thấy điểm danh của buổi học.");
-
-        ClassAttendanceReviewPolicy.EnsureReviewable(session.Status, attendance.Status, attendance.UpdatedAt,
-            request.ExpectedUpdatedAt);
-
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        var decision = string.Equals(request.Decision.Trim(), "Verified",
-            StringComparison.OrdinalIgnoreCase) ? "Verified" : "Rejected";
-        var note = string.IsNullOrWhiteSpace(request.ReviewNote)
-            ? null : request.ReviewNote.Trim();
-        attendance.Status = decision;
-        attendance.ReviewNote = note;
-        attendance.ReviewedByUserId = coachUserId;
-        attendance.ReviewedAt = now;
-        attendance.UpdatedAt = NextVersionTimestamp(now, attendance.UpdatedAt);
-
-        var notification = new Notification
-        {
-            Id = Guid.NewGuid(),
-            UserId = attendance.Registration.CustomerUserId,
-            Title = decision == "Verified" ? "Điểm danh đã được xác nhận" : "Điểm danh bị từ chối",
-            Content = decision == "Verified"
-                ? "Coach đã xác nhận ảnh điểm danh của bạn."
-                : $"Coach đã từ chối ảnh điểm danh của bạn. Lý do: {note}",
-            Type = "swim_class_attendance_reviewed",
-            IsRead = false,
-            CreatedAt = now
-        };
-        context.Notifications.Add(notification);
-
-        await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        await PublishClassNotificationsAsync(request.ClassId, [notification]);
-        return new ReviewClassAttendanceResponse(attendance.Id, request.ClassId,
-            attendance.SessionId, decision, coachUserId, now, note, attendance.UpdatedAt);
-    }
 }

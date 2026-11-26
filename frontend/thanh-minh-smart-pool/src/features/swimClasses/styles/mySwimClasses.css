@@ -41,6 +41,20 @@
   .my-swim-classes-page { gap: 12px; margin-top: 18px; padding: 0 12px 28px; }
   .my-swim-classes-header, .my-swim-classes-panel { padding: 18px 16px; }
   .my-swim-classes-title h1 { font-size: 21px; }
+  .my-swim-classes-title { align-items: flex-start; gap: 12px; min-width: 0; }
+  .my-swim-classes-title > div { min-width: 0; }
+  .my-swim-classes-title p { overflow-wrap: anywhere; }
+  .my-swim-classes-toolbar { align-items: stretch; }
+  .my-swim-classes-filter-scroll { width: 100%; }
+  .my-swim-classes-filter-scroll .ant-segmented { width: max-content; }
+  .my-swim-classes-toolbar > .ant-btn { margin-left: auto; }
+  .my-swim-classes-header > .ant-btn { width: 100%; }
+  .my-swim-classes-overview { grid-template-columns: minmax(0, 1fr); }
+  .my-swim-classes-next, .my-swim-classes-attention { padding: 17px; min-width: 0; }
+  .my-swim-classes-overview strong { overflow-wrap: anywhere; }
+  .my-swim-class-card-actions .ant-btn { flex: 1 1 100%; min-height: 40px; }
   .my-swim-classes-grid { grid-template-columns: 1fr; }
   .my-swim-classes-pagination { justify-content: center; }
+  .my-swim-classes-pagination.ant-pagination { flex-wrap: wrap; }
+  .my-swim-classes-pagination .ant-pagination-total-text { width: 100%; text-align: center; }
 }

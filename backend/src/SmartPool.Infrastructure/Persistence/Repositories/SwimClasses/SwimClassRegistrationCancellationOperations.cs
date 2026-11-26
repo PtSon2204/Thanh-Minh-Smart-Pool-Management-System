@@ -13,6 +13,10 @@ public sealed partial class SwimClassOperations
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await LockClassAsync(classId, cancellationToken);
 
+        if (await context.SwimClasses.AsNoTracking().AnyAsync(item =>
+                item.Id == classId && item.Status == "Completed", cancellationToken))
+            throw new SwimClassStateConflictException("Lớp đã kết thúc, không thể hủy đăng ký.");
+
         var registration = await context.ClassRegistrations.SingleOrDefaultAsync(
             item => item.ClassId == classId && item.CustomerUserId == customerUserId,
             cancellationToken) ?? throw new KeyNotFoundException("Bạn chưa đăng ký lớp này.");

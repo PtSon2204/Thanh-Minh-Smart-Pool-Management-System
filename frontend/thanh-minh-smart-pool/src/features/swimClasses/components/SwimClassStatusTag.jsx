@@ -4,6 +4,7 @@ const display = {
   Draft: { label: 'Bản nháp', color: 'default' },
   Active: { label: 'Đang hoạt động', color: 'success' },
   Inactive: { label: 'Ngừng hoạt động', color: 'error' },
+  Completed: { label: 'Đã kết thúc', color: 'default' },
 }
 
 export default function SwimClassStatusTag({ status }) {

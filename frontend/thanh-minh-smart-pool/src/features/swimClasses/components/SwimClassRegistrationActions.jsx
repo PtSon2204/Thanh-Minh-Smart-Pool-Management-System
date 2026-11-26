@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Alert, Button, Modal, Spin, message } from 'antd'
-import { CameraOutlined, ReloadOutlined, StopOutlined, UserAddOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ReloadOutlined, StopOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { classAvailability } from '../utils/classAvailability'
 import { classServerMessage } from '../utils/classDisplay'
@@ -21,7 +21,7 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
   const pending = registration?.registrationStatus === 'PendingApproval'
   const rejected = registration?.registrationStatus === 'Rejected'
   const cancelled = registration?.registrationStatus === 'Cancelled'
-  const canViewAttendance = ['Active', 'Inactive'].includes(swimClass.status)
+  const canViewAttendance = ['Active', 'Inactive', 'Completed'].includes(swimClass.status)
   const canSelfCancel = confirmed && !(swimClass.sessions || []).some(session =>
     session.status === 'Scheduled' && Date.parse(session.startsAt) <= now)
 
@@ -76,7 +76,7 @@ export default function SwimClassRegistrationActions({ swimClass, userId, now, r
     {!registrationQuery.isPending && !registrationQuery.isError && <>
       {confirmed ? <>
           {(canViewAttendance || canSelfCancel) && <div className="swim-class-registration-actions">
-            {canViewAttendance && <Button type="primary" size="large" icon={<CameraOutlined />} onClick={openAttendance}>Xem điểm danh của tôi</Button>}
+            {canViewAttendance && <Button type="primary" size="large" icon={<CheckSquareOutlined />} onClick={openAttendance}>Xem điểm danh của tôi</Button>}
             {canSelfCancel && <Button danger icon={<StopOutlined />} loading={cancelRegistration.isPending}
               onClick={confirmCancel}>Hủy đăng ký</Button>}
           </div>}

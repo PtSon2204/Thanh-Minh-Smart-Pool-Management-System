@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarOutlined, CameraOutlined, EditOutlined, LeftOutlined, RightOutlined, StopOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons'
+import { CalendarOutlined, CheckSquareOutlined, EditOutlined, LeftOutlined, RightOutlined, StopOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Empty, Tag } from 'antd'
 import { recommendedWeekStart, sessionTimeRange, shiftWeek, weekDays, weekRangeLabel, weekStartFor } from '../utils/classTimetable'
 import { formatVietnamTime } from '../utils/classSchedule'
@@ -37,7 +37,7 @@ export default function SwimClassSessionSchedule({ sessions, now, onEditSession,
             </div>
             <Tag color={state.color}>{state.label}</Tag>
             {onViewAttendance && session.coachUserId === attendanceCoachUserId &&
-              <Button icon={<CameraOutlined />} onClick={() => onViewAttendance(session)}>Điểm danh</Button>}
+              <Button icon={<CheckSquareOutlined />} onClick={() => onViewAttendance(session)}>Điểm danh</Button>}
             {onEditSession && session.status === 'Scheduled' && Date.parse(session.startsAt) > now &&
               <Button icon={<EditOutlined />} onClick={() => onEditSession(session)}>Sửa buổi</Button>}
             {onCancelSession && session.status === 'Scheduled' && Date.parse(session.startsAt) > now &&
@@ -70,7 +70,7 @@ export default function SwimClassSessionSchedule({ sessions, now, onEditSession,
                     <span className="swim-class-timetable-coach"><UserOutlined aria-hidden="true" /> {session.coachName || session.coachUserId}</span>
                     <Tag color={state.color}>{state.label}</Tag>
                     {onViewAttendance && session.coachUserId === attendanceCoachUserId &&
-                      <Button className="swim-class-timetable-edit" size="small" icon={<CameraOutlined />}
+                      <Button className="swim-class-timetable-edit" size="small" icon={<CheckSquareOutlined />}
                         onClick={() => onViewAttendance(session)}>Điểm danh</Button>}
                     {onEditSession && session.status === 'Scheduled' && Date.parse(session.startsAt) > now &&
                       <Button className="swim-class-timetable-edit" size="small" icon={<EditOutlined />}

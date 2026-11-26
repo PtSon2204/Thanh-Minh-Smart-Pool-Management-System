@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, ConfigProvider, Pagination } from 'antd'
-import { CompassOutlined, PlusOutlined, ReloadOutlined, ScheduleOutlined } from '@ant-design/icons'
+import { CalendarOutlined, CompassOutlined, PlusOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useSwimClasses } from '../hooks/useSwimClasses'
@@ -38,12 +38,12 @@ export default function SwimClassListView() {
   return <ConfigProvider theme={{ token: { colorPrimary: '#0077b6', colorInfo: '#0077b6', borderRadius: 8 } }}>
     <div className={`swim-class-list-page${role === 'CUSTOMER' ? ' swim-class-list-page--customer' : ' swim-class-list-page--coach'}`}>
       <header className="swim-class-list-header">
-        <div className="swim-class-list-heading"><span className="swim-class-list-icon"><CompassOutlined /></span><div>
+        <div className="swim-class-list-heading"><span className="swim-class-list-icon">{role === 'COACH' ? <TeamOutlined /> : <CompassOutlined />}</span><div>
           <small>{role === 'COACH' ? 'KHU VỰC COACH' : 'KHÁM PHÁ LỚP HỌC'}</small>
           <h1>{title}</h1><p>{intro}</p>
         </div></div>
         {role === 'COACH' && <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => navigate('/coach/classes/create')}>Tạo lớp</Button>}
-        {role === 'CUSTOMER' && <Button icon={<ScheduleOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Lớp học của tôi</Button>}
+        {role === 'CUSTOMER' && <Button icon={<CalendarOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Lớp học của tôi</Button>}
       </header>
 
       <section className="swim-class-list-panel" aria-label="Danh sách lớp dạy bơi" aria-busy={list.isFetching}>
