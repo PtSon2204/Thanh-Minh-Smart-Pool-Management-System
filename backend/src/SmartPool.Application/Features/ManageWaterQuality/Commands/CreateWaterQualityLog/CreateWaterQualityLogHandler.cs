@@ -95,8 +95,8 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
             await TriggerDangerAlertAsync(createdDto, cancellationToken);
         }
 
-        // Nếu phát hiện xu hướng nước đi xuống 3 ngày gần nhất và đã tạo Lịch trực bể ngày mai -> báo Admin phân công
-        if (createdDto.ThreeDayTrendDetected)
+        // Chỉ gửi thông báo phân công Lịch trực bể ngày mai khi chỉ số hôm nay vẫn an toàn và hệ thống thực sự tạo lịch D+1
+        if (createdDto.ThreeDayTrendDetected && createdDto.GeneratedNextDayDutyId.HasValue)
         {
             await TriggerTrendDutyNoticeAsync(createdDto, cancellationToken);
         }
@@ -183,12 +183,16 @@ public sealed class CreateWaterQualityLogHandler : IRequestHandler<CreateWaterQu
         }
     }
 
+    private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+
     private async Task TriggerDangerAlertAsync(WaterQualityLogDto dto, CancellationToken cancellationToken)
     {
         try
         {
-            var title = "CẢNH BÁO NƯỚC BỂ NGUY HIỂM";
-            var content = $"Phiếu đo lúc {dto.InspectionTime:dd/MM/yyyy HH:mm} vượt ngưỡng an toàn nghiêm trọng (pH: {dto.PhValue:F2}, Clo: {dto.FreeChlorineMgL:F2} mg/L). {dto.Recommendation}";
+            var vnTime = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.SpecifyKind(dto.InspectionTime, DateTimeKind.Utc), VietnamTimeZone);
+            var title = "CẢNH BÁO NƯỚC BỂ NGUY HIỂM — CẦN XEM XÉT ĐÓNG CỬA BỂ";
+            var content = $"Phiếu đo lúc {vnTime:dd/MM/yyyy HH:mm} vượt ngưỡng an toàn nghiêm trọng (pH: {dto.PhValue:F2}, Clo: {dto.FreeChlorineMgL:F2} mg/L). {dto.Recommendation} Đề xuất Admin kiểm tra ngay và xem xét tạm đóng cửa bể bơi để xử lý.";
 
             var admins = await _userOperations.GetUsersByRoleAsync("ADMIN", cancellationToken);
             var notifs = admins.Select(admin => new Notification

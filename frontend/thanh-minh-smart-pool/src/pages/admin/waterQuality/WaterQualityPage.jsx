@@ -37,6 +37,7 @@ import {
   TODAY_WATER_QUALITY_GATE_QUERY_KEY,
   useTodayWaterQualityGate,
 } from '../../../features/waterQuality/hooks/useTodayWaterQualityGate';
+import { useWaterPoolSuspension } from '../../../features/waterQuality/hooks/useWaterPoolSuspension';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
@@ -67,7 +68,15 @@ export default function WaterQualityPage() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+  const [latestLog, setLatestLog] = useState(null);
   const lastLocalUpdateIdRef = useRef(null);
+  const {
+    liveStatus,
+    isPoolMaintenance,
+    updatingPool,
+    confirmSuspendPool,
+    confirmResumePool,
+  } = useWaterPoolSuspension({ enabled: isAdmin });
 
   useEffect(() => {
     if (!mustMeasureWater) {
@@ -154,6 +163,22 @@ export default function WaterQualityPage() {
       ignore = true;
     };
   }, [pageIndex, pageSize, dateRange, statusFilter, activeTab, reloadKey]);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    let ignore = false;
+    waterQualityService
+      .getLogs({ pageIndex: 1, pageSize: 1 })
+      .then((res) => {
+        if (!ignore) {
+          setLatestLog(res?.items?.[0] || null);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [isAdmin, reloadKey]);
 
   const handleOpenDetail = (record) => {
     setSelectedLog(record);
@@ -300,12 +325,15 @@ export default function WaterQualityPage() {
           >
             {rec}
           </span>
-          {record.threeDayTrendDetected && (
+          {record.threeDayTrendDetected && record.generatedNextDayDutyDate && (
             <Tag color="volcano" style={{ width: 'fit-content', margin: 0 }}>
               Xu hướng 3 ngày đi xuống → Đã tạo lịch trực bể ngày{' '}
-              {record.generatedNextDayDutyDate
-                ? dayjs(record.generatedNextDayDutyDate).format('DD/MM')
-                : 'hôm sau'}
+              {dayjs(record.generatedNextDayDutyDate).format('DD/MM')}
+            </Tag>
+          )}
+          {record.threeDayTrendDetected && !record.generatedNextDayDutyDate && (
+            <Tag color="red" style={{ width: 'fit-content', margin: 0 }}>
+              Xu hướng 3 ngày đi xuống · Xử lý ngay trong ngày
             </Tag>
           )}
         </Space>
@@ -352,6 +380,67 @@ export default function WaterQualityPage() {
           </Text>
         </div>
       </div>
+
+      {isAdmin && isPoolMaintenance && (
+        <Alert
+          type={latestLog?.status === 'WithinLimits' ? 'success' : 'warning'}
+          showIcon
+          title={
+            latestLog?.status === 'WithinLimits'
+              ? 'Chất lượng nước đã đạt chuẩn — Bể bơi hiện vẫn đang tạm đóng cửa'
+              : 'Bể bơi đang tạm đóng cửa / bảo trì đón khách'
+          }
+          description={
+            liveStatus?.statusReason ||
+            'Hệ thống đang khóa đặt vé online và hiển thị cảnh báo bảo trì tại trang chủ.'
+          }
+          action={
+            <Space wrap>
+              {latestLog?.id && (
+                <Button size="small" onClick={() => handleOpenDetail(latestLog)}>
+                  Xem phiếu đo mới nhất
+                </Button>
+              )}
+              <Button
+                type="primary"
+                size="small"
+                loading={updatingPool}
+                onClick={confirmResumePool}
+                style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+              >
+                Mở lại hoạt động bể
+              </Button>
+            </Space>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {isAdmin && !isPoolMaintenance && latestLog?.status === 'Danger' && (
+        <Alert
+          type="error"
+          showIcon
+          title="Cảnh báo khẩn: Chỉ số nước mới nhất ở mức NGUY HIỂM — Admin cần xem xét đóng cửa bể"
+          description={`Phiếu đo lúc ${dayjs(latestLog.inspectionTime).format('DD/MM/YYYY HH:mm')} ghi nhận pH ${Number(latestLog.phValue).toFixed(2)}, Clo ${Number(latestLog.freeChlorineMgL).toFixed(2)} mg/L. Hãy kiểm tra và quyết định tạm đóng cửa đón khách nếu cần thiết để xử lý an toàn.`}
+          action={
+            <Space wrap>
+              <Button size="small" onClick={() => handleOpenDetail(latestLog)}>
+                Xem chi tiết
+              </Button>
+              <Button
+                type="primary"
+                danger
+                size="small"
+                loading={updatingPool}
+                onClick={() => confirmSuspendPool(latestLog)}
+              >
+                Tạm đóng cửa bể
+              </Button>
+            </Space>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {mustMeasureWater && (
         <Alert
@@ -501,6 +590,7 @@ export default function WaterQualityPage() {
       <WaterQualityLogDetailDrawer
         visible={detailDrawerVisible}
         log={selectedLog}
+        isAdmin={isAdmin}
         onClose={() => {
           setDetailDrawerVisible(false);
           setSelectedLog(null);

@@ -9,6 +9,7 @@ using SmartPool.Application.Common.Time;
 using SmartPool.Application.Features.ManageEquipments.Inspections.DTOs;
 using SmartPool.Application.Features.ManageWaterQuality.Dtos;
 using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
+using SmartPool.Application.Features.ManageWaterQuality.Services;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Domain.Entities;
 using SmartPool.Infrastructure.Persistence.Repositories.Staff;
@@ -102,44 +103,13 @@ public sealed partial class WaterQualityOperations
         task.UpdatedAt = now;
         _context.WaterQualityLogs.Add(log);
 
-        if (task.TaskType == PoolDutyTaskTypes.Measurement && (log.Status is "Warning" or "Danger"))
+        if (task.TaskType == PoolDutyTaskTypes.Measurement
+            && (log.Status is WaterQualityConstants.StatusWarning or WaterQualityConstants.StatusDanger))
         {
-            var currentShift = await FindEligibleShiftAsync(task.AssignedEmployeeId, today, now, null, cancellationToken);
-            var dueAt = currentShift is null ? (DateTime?)null : StaffAttendanceTiming.Interval(currentShift.WorkDate, currentShift.Shift).End;
-            var followUp = new PoolDutySchedule
-            {
-                Id = Guid.NewGuid(),
-                TaskType = PoolDutyTaskTypes.Cleaning,
-                DutyDate = today,
-                ShiftId = currentShift?.ShiftId,
-                EmployeeShiftId = currentShift?.Id,
-                AssignedEmployeeId = currentShift is null ? null : task.AssignedEmployeeId,
-                PreferredEmployeeId = task.AssignedEmployeeId,
-                TriggerWaterQualityLogId = log.Id,
-                ScheduledAtUtc = now,
-                DueAtUtc = dueAt,
-                Status = currentShift is null ? "Unassigned" : "InProgress",
-                UnassignedReason = currentShift is null ? "NO_ELIGIBLE_CURRENT_SHIFT" : null,
-                AssignmentType = "Auto",
-                Revision = 1,
-                CreatedBy = log.InspectedBy,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            _context.PoolDutySchedules.Add(followUp);
-            var content = currentShift is null
-                ? $"Kết quả đo ngày {today:dd/MM/yyyy} là {log.Status}. Cần phân công công việc xử lý nước; nhân viên đo hiện không ở trong ca phù hợp."
-                : $"Kết quả đo ngày {today:dd/MM/yyyy} là {log.Status}. Hãy đo lại trước khi kết thúc ca để xác nhận nước đã đạt chuẩn.";
-            if (currentShift is null)
-                await QueueAdminTaskNoticeAsync(followUp, followUp.Id, content, cancellationToken);
-            else
-            {
-                var employee = await _context.Users.AsNoTracking().SingleAsync(item => item.Id == task.AssignedEmployeeId, cancellationToken);
-                await QueueTaskNoticeAsync(followUp, followUp.Id, employee.Id, employee.Email, "Cần xử lý chất lượng nước",
-                    TaskMessage(followUp, employee.UserProfile?.FullName ?? employee.Username), cancellationToken);
-            }
+            await QueueSameDayCleaningFollowUpAsync(log, task.AssignedEmployeeId, today, now, cancellationToken);
         }
-        else if (task.TaskType == PoolDutyTaskTypes.Cleaning && (log.Status is "Warning" or "Danger"))
+        else if (task.TaskType == PoolDutyTaskTypes.Cleaning
+                 && (log.Status is WaterQualityConstants.StatusWarning or WaterQualityConstants.StatusDanger))
         {
             var content = $"Kết quả đo lại ngày {task.DutyDate:dd/MM/yyyy} là {log.Status}. Công việc xử lý nước vẫn đang mở; cần tiếp tục xử lý và đo lại.";
             await QueueAdminTaskNoticeAsync(task, task.Id, content, cancellationToken);
@@ -837,6 +807,74 @@ public sealed partial class WaterQualityOperations
 
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task<PoolDutySchedule> QueueSameDayCleaningFollowUpAsync(
+        WaterQualityLog log,
+        Guid? preferredEmployeeId,
+        DateOnly today,
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        var eligibleEmployeeId = preferredEmployeeId.HasValue && preferredEmployeeId.Value != Guid.Empty
+            ? preferredEmployeeId.Value
+            : (Guid?)null;
+        var currentShift = eligibleEmployeeId.HasValue
+            ? await FindEligibleShiftAsync(eligibleEmployeeId.Value, today, nowUtc, null, cancellationToken)
+            : null;
+        var dueAt = currentShift is null
+            ? (DateTime?)null
+            : StaffAttendanceTiming.Interval(currentShift.WorkDate, currentShift.Shift).End;
+
+        var validPreferredEmployeeId = currentShift is not null
+            ? eligibleEmployeeId
+            : (eligibleEmployeeId.HasValue && await _context.Employees.AsNoTracking()
+                .AnyAsync(item => item.UserId == eligibleEmployeeId.Value, cancellationToken)
+                ? eligibleEmployeeId
+                : null);
+
+        var followUp = new PoolDutySchedule
+        {
+            Id = Guid.NewGuid(),
+            TaskType = PoolDutyTaskTypes.Cleaning,
+            DutyDate = today,
+            ShiftId = currentShift?.ShiftId,
+            EmployeeShiftId = currentShift?.Id,
+            AssignedEmployeeId = currentShift is null ? null : eligibleEmployeeId,
+            PreferredEmployeeId = validPreferredEmployeeId,
+            TriggerWaterQualityLogId = log.Id,
+            ScheduledAtUtc = nowUtc,
+            DueAtUtc = dueAt,
+            Status = currentShift is null ? "Unassigned" : "InProgress",
+            UnassignedReason = currentShift is null ? "NO_ELIGIBLE_CURRENT_SHIFT" : null,
+            AssignmentType = "Auto",
+            Revision = 1,
+            CreatedBy = log.InspectedBy,
+            CreatedAt = nowUtc,
+            UpdatedAt = nowUtc
+        };
+        _context.PoolDutySchedules.Add(followUp);
+
+        var content = currentShift is null
+            ? $"Kết quả đo ngày {today:dd/MM/yyyy} là {log.Status}. Cần phân công công việc xử lý nước; nhân viên đo hiện không ở trong ca phù hợp."
+            : $"Kết quả đo ngày {today:dd/MM/yyyy} là {log.Status}. Hãy đo lại trước khi kết thúc ca để xác nhận nước đã đạt chuẩn.";
+
+        if (currentShift is null)
+        {
+            await QueueAdminTaskNoticeAsync(followUp, followUp.Id, content, cancellationToken);
+        }
+        else
+        {
+            var employee = await _context.Users.AsNoTracking()
+                .Include(item => item.UserProfile)
+                .SingleAsync(item => item.Id == eligibleEmployeeId!.Value, cancellationToken);
+            await QueueTaskNoticeAsync(followUp, followUp.Id, employee.Id, employee.Email,
+                "Cần xử lý chất lượng nước",
+                TaskMessage(followUp, employee.UserProfile?.FullName ?? employee.Username),
+                cancellationToken);
+        }
+
+        return followUp;
     }
 
     private async Task<EmployeeShift?> FindEligibleShiftAsync(Guid? employeeId, DateOnly date, DateTime atUtc,

@@ -21,6 +21,7 @@ public sealed class WaterQualityAnalyticsResponse
 
     public List<WaterQualityTrendPoint> DailyTrends { get; set; } = new();
     public List<WaterQualityLogDto> RecentAlerts { get; set; } = new();
+    public WaterQualityLogDto? LatestLog { get; set; }
     public WaterQualityAnalyticsThreeDayTrendDto? ThreeDayTrend { get; set; }
 }
 
@@ -34,6 +35,7 @@ public sealed class WaterQualityAnalyticsThreeDayTrendDto
     public DateOnly? NextDayDutyDate { get; set; }
     public string? NextDayDutyStatus { get; set; }
     public string? NextDayAssignedEmployeeName { get; set; }
+    public bool RequiresImmediateHandling { get; set; }
 }
 
 public sealed class WaterQualityTrendPoint

@@ -164,9 +164,13 @@ export default function WaterQualityAnalyticsTab({ onViewDetail, reloadKey: exte
         <>
           {data.threeDayTrend?.isDeteriorating && (
             <Alert
-              type="warning"
+              type={data.threeDayTrend.requiresImmediateHandling ? 'error' : 'warning'}
               showIcon
-              title="Cảnh báo xu hướng 3 ngày gần nhất: Chất lượng nước đang đi xuống"
+              title={
+                data.threeDayTrend.requiresImmediateHandling
+                  ? 'Cảnh báo xu hướng 3 ngày đi xuống: Đã vượt ngưỡng an toàn — Cần xử lý ngay hôm nay'
+                  : 'Cảnh báo xu hướng 3 ngày gần nhất: Chất lượng nước đang đi xuống'
+              }
               description={
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div>{data.threeDayTrend.summary}</div>
@@ -188,7 +192,11 @@ export default function WaterQualityAnalyticsTab({ onViewDetail, reloadKey: exte
                       ))}
                     </Space>
                   )}
-                  {data.threeDayTrend.nextDayDutyDate && (
+                  {data.threeDayTrend.requiresImmediateHandling ? (
+                    <Text type="danger" style={{ fontSize: 12, fontWeight: 600 }}>
+                      Chỉ số đo mới nhất đã ở mức Cảnh báo/Nguy hiểm — hệ thống kích hoạt xử lý ngay trong ngày (không đẩy sang lịch trực ngày mai).
+                    </Text>
+                  ) : data.threeDayTrend.nextDayDutyDate ? (
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       Lịch trực bể ngày {dayjs(data.threeDayTrend.nextDayDutyDate).format('DD/MM/YYYY')}:{' '}
                       <strong>
@@ -199,7 +207,7 @@ export default function WaterQualityAnalyticsTab({ onViewDetail, reloadKey: exte
                             : 'Chờ Admin phân công trong tab Lịch trực bể'}
                       </strong>
                     </Text>
-                  )}
+                  ) : null}
                 </div>
               }
             />

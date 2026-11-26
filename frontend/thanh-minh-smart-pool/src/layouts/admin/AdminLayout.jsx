@@ -41,6 +41,7 @@ import { useAuthStore } from "../../features/auth/store/authStore";
 import { notificationService } from "../../features/notifications/services/notificationService";
 import {
   onReceiveNotification,
+  onWaterQualityDanger,
   startSignalRConnection,
 } from "../../services/signalrClient";
 import authService from "../../features/auth/services/authService";
@@ -246,6 +247,47 @@ export default function AdminLayout() {
     desktop.addEventListener("change", closeMenu);
     return () => desktop.removeEventListener("change", closeMenu);
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    const unsubDanger = onWaterQualityDanger((payload) => {
+      if (location.pathname === "/admin") return;
+      const logId = payload?.id || payload?.Id;
+      const notifKey = `wq-danger-${logId || Date.now()}`;
+      const phVal = payload?.phValue ?? payload?.PhValue;
+      const cloVal = payload?.freeChlorineMgL ?? payload?.FreeChlorineMgL;
+      const summary = payload?.message || payload?.Message || payload?.recommendation || payload?.Recommendation;
+      notifApi.error({
+        key: notifKey,
+        message: payload?.title || payload?.Title || "CẢNH BÁO NƯỚC BỂ NGUY HIỂM",
+        description: (
+          <div>
+            <div>
+              {summary || `Chỉ số đo pH ${phVal ?? '--'}, Clo ${cloVal ?? '--'} mg/L vượt ngưỡng an toàn.`}
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <Button
+                type="primary"
+                danger
+                size="small"
+                onClick={() => {
+                  notifApi.destroy(notifKey);
+                  navigate(logId ? `/admin/water-quality?logId=${logId}` : "/admin/water-quality");
+                }}
+              >
+                Kiểm tra &amp; Xét đóng cửa bể
+              </Button>
+            </div>
+          </div>
+        ),
+        placement: "topRight",
+        duration: 20,
+        icon: <ExperimentOutlined style={{ color: "#cf1322" }} />,
+        style: { borderLeft: "4px solid #cf1322" },
+      });
+    });
+    return () => unsubDanger();
+  }, [isAdmin, location.pathname, navigate, notifApi]);
 
   useEffect(() => {
     if (!isAdmin) return undefined;

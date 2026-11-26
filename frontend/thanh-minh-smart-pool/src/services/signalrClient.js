@@ -7,6 +7,7 @@ let authenticatedToken = null;
 let lifecycle = Promise.resolve();
 const listeners = new Set();
 const waterQualityListeners = new Set();
+const waterQualityDangerListeners = new Set();
 const stateListeners = new Set();
 let retryTimer = null;
 let retryAttempt = 0;
@@ -76,6 +77,7 @@ export function getSignalRConnection() {
 
   connection.on('water_quality_danger', (payload) => {
     dispatchIfAuthenticated(waterQualityListeners, payload, 'Error in water quality danger listener:');
+    dispatchIfAuthenticated(waterQualityDangerListeners, payload, 'Error in water quality danger listener:');
   });
 
   connection.onreconnecting((error) => {
@@ -116,6 +118,18 @@ export function onWaterQualityUpdated(callback) {
   waterQualityListeners.add(callback);
   return () => {
     waterQualityListeners.delete(callback);
+  };
+}
+
+/**
+ * Đăng ký lắng nghe cảnh báo chất lượng nước mức NGUY HIỂM real-time
+ * @param {Function} callback (payload) => void
+ * @returns {Function} unsubscribe function
+ */
+export function onWaterQualityDanger(callback) {
+  waterQualityDangerListeners.add(callback);
+  return () => {
+    waterQualityDangerListeners.delete(callback);
   };
 }
 
