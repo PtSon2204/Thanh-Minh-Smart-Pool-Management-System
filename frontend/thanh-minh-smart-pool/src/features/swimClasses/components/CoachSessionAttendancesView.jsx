@@ -97,7 +97,6 @@ export default function CoachSessionAttendancesView() {
   }
 
   function choose(item) {
-    setNow(Date.now());
     setSelected(item);
     handleImageChange(null);
     setError(null);
@@ -106,11 +105,7 @@ export default function CoachSessionAttendancesView() {
   async function save(result) {
     if (!selected || record.isPending) return;
 
-    if (
-      result === "Absent" &&
-      location.state?.endsAt &&
-      Date.parse(location.state.endsAt) >= Date.now()
-    ) {
+    if (result === "Absent" && isSessionOngoing) {
       setError("Chỉ được đánh dấu vắng sau khi buổi học kết thúc.");
       return;
     }
