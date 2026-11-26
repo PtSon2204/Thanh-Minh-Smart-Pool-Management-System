@@ -29,7 +29,7 @@ import {
   ExperimentOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useAuthStore } from '../../../features/auth/store/authStore';
 import { notificationService } from '../../../features/notifications/services/notificationService';
@@ -92,6 +92,7 @@ const getCurrentShift = () => {
 
 export default function DashboardPage() {
   const { session } = useAuthStore();
+  const navigate = useNavigate();
   const adminName = session?.fullName || session?.userName || 'Quản trị viên';
   const shiftInfo = useMemo(() => getCurrentShift(), []);
 
@@ -195,13 +196,35 @@ export default function DashboardPage() {
       if (!isMounted) return;
       const notifType = (newNotif.type || '').toUpperCase();
       const isUrgent = notifType === 'WATER_QUALITY_ALERT' || notifType === 'INCIDENT';
+      const notifKey = `rt-notif-${newNotif.id || Date.now()}`;
 
       // Hiển thị thông báo popup Ant Design góc phải màn hình
       (isUrgent ? antNotification.error : antNotification.info)({
+        key: notifKey,
         message: isUrgent ? `${newNotif.title || 'Cảnh báo khẩn cấp'}` : `Thông báo hệ thống mới: ${newNotif.title || ''}`,
-        description: newNotif.content,
+        description:
+          notifType === 'WATER_QUALITY_ALERT' ? (
+            <div>
+              <div>{newNotif.content}</div>
+              <div style={{ marginTop: 10 }}>
+                <Button
+                  type="primary"
+                  danger
+                  size="small"
+                  onClick={() => {
+                    antNotification.destroy(notifKey);
+                    navigate('/admin/water-quality');
+                  }}
+                >
+                  Kiểm tra &amp; Xét đóng cửa bể
+                </Button>
+              </div>
+            </div>
+          ) : (
+            newNotif.content
+          ),
         placement: 'topRight',
-        duration: isUrgent ? 10 : 6,
+        duration: isUrgent ? 15 : 6,
         style: {
           borderRadius: 12,
           borderLeft: `4px solid ${isUrgent ? '#cf1322' : '#0284c7'}`,
@@ -257,7 +280,7 @@ export default function DashboardPage() {
       isMounted = false;
       unsubNotif();
     };
-  }, []);
+  }, [navigate]);
 
   const handleMarkAsRead = async (id) => {
     try {
@@ -437,9 +460,14 @@ export default function DashboardPage() {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 130,
+      width: 190,
       render: (_, record) => (
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {(record.type || '').toUpperCase() === 'WATER_QUALITY_ALERT' && (
+            <Link to="/admin/water-quality" style={{ fontSize: 12, fontWeight: 600, color: '#cf1322' }}>
+              Xét đóng cửa
+            </Link>
+          )}
           {!record.isRead && (
             <button
               type="button"

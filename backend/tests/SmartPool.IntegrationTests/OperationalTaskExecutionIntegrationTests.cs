@@ -323,6 +323,324 @@ public sealed class OperationalTaskExecutionIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task Three_day_deteriorating_trend_within_limits_schedules_next_day_duty_only()
+    {
+        await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
+        var context = fixture.Context;
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        var dayMinus2 = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = fixture.AdminId,
+            InspectionTime = fixture.Today.AddDays(-2).ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc),
+            PhValue = 7.7m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "WithinLimits",
+            CreatedAt = now
+        };
+        var dayMinus1 = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = fixture.AdminId,
+            InspectionTime = fixture.Today.AddDays(-1).ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc),
+            PhValue = 7.5m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "WithinLimits",
+            CreatedAt = now
+        };
+        var todayLog = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = fixture.AdminId,
+            InspectionTime = now,
+            PhValue = 7.3m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "WithinLimits",
+            CreatedAt = now
+        };
+        context.WaterQualityLogs.AddRange(dayMinus2, dayMinus1);
+        await context.SaveChangesAsync();
+
+        try
+        {
+            var operations = new WaterQualityOperations(context, fixture.Clock);
+            var created = await operations.CreateWaterQualityLogAsync(todayLog, default, null);
+
+            Assert.True(created.ThreeDayTrendDetected);
+            Assert.NotNull(created.GeneratedNextDayDutyId);
+            Assert.Equal(fixture.Today.AddDays(1), created.GeneratedNextDayDutyDate);
+
+            var duties = await context.PoolDutySchedules.AsNoTracking()
+                .Where(item => item.TriggerWaterQualityLogId == todayLog.Id)
+                .ToListAsync();
+            var nextDayDuty = Assert.Single(duties);
+            Assert.Null(nextDayDuty.TaskType);
+            Assert.Equal(fixture.Today.AddDays(1), nextDayDuty.DutyDate);
+            Assert.Equal("Unassigned", nextDayDuty.Status);
+        }
+        finally
+        {
+            context.ChangeTracker.Clear();
+            var generatedDuties = await context.PoolDutySchedules
+                .Where(item => item.TriggerWaterQualityLogId == todayLog.Id).ToListAsync();
+            context.PoolDutySchedules.RemoveRange(generatedDuties);
+            await context.SaveChangesAsync();
+            var logIds = new[] { dayMinus2.Id, dayMinus1.Id, todayLog.Id };
+            var logs = await context.WaterQualityLogs.Where(item => logIds.Contains(item.Id)).ToListAsync();
+            context.WaterQualityLogs.RemoveRange(logs);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Three_day_deteriorating_trend_with_danger_handles_same_day_without_next_day_duty()
+    {
+        await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
+        var context = fixture.Context;
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        var dayMinus2 = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = fixture.AdminId,
+            InspectionTime = fixture.Today.AddDays(-2).ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc),
+            PhValue = 7.7m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "WithinLimits",
+            CreatedAt = now
+        };
+        var dayMinus1 = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = fixture.AdminId,
+            InspectionTime = fixture.Today.AddDays(-1).ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc),
+            PhValue = 7.5m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "WithinLimits",
+            CreatedAt = now
+        };
+        var todayDangerLog = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = fixture.AdminId,
+            InspectionTime = now,
+            PhValue = 6.5m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "Danger",
+            CreatedAt = now
+        };
+        context.WaterQualityLogs.AddRange(dayMinus2, dayMinus1);
+        await context.SaveChangesAsync();
+
+        try
+        {
+            var operations = new WaterQualityOperations(context, fixture.Clock);
+            var created = await operations.CreateWaterQualityLogAsync(todayDangerLog, default, null);
+
+            Assert.True(created.ThreeDayTrendDetected);
+            Assert.Null(created.GeneratedNextDayDutyId);
+            Assert.Null(created.GeneratedNextDayDutyDate);
+
+            var duties = await context.PoolDutySchedules.AsNoTracking()
+                .Where(item => item.TriggerWaterQualityLogId == todayDangerLog.Id)
+                .ToListAsync();
+            var cleaningDuty = Assert.Single(duties);
+            Assert.Equal(PoolDutyTaskTypes.Cleaning, cleaningDuty.TaskType);
+            Assert.Equal(fixture.Today, cleaningDuty.DutyDate);
+            Assert.Equal("Unassigned", cleaningDuty.Status);
+
+            var nextDayTrendExists = await context.PoolDutySchedules.AsNoTracking()
+                .AnyAsync(item => item.TaskType == null && item.DutyDate == fixture.Today.AddDays(1)
+                    && item.TriggerWaterQualityLogId == todayDangerLog.Id);
+            Assert.False(nextDayTrendExists);
+
+            var analytics = await operations.GetWaterQualityAnalyticsAsync(
+                new SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityAnalytics.GetWaterQualityAnalyticsQuery
+                {
+                    FromDate = dayMinus2.InspectionTime.AddHours(-1),
+                    ToDate = now.AddHours(1)
+                }, default);
+            Assert.NotNull(analytics.LatestLog);
+            Assert.Equal(todayDangerLog.Id, analytics.LatestLog!.Id);
+            Assert.Equal("Danger", analytics.LatestLog.Status);
+            Assert.NotNull(analytics.ThreeDayTrend);
+            Assert.True(analytics.ThreeDayTrend!.IsDeteriorating);
+            Assert.True(analytics.ThreeDayTrend.RequiresImmediateHandling);
+            Assert.Null(analytics.ThreeDayTrend.NextDayDutyDate);
+        }
+        finally
+        {
+            context.ChangeTracker.Clear();
+            var duties = await context.PoolDutySchedules
+                .Where(item => item.TriggerWaterQualityLogId == todayDangerLog.Id).ToListAsync();
+            var dutyIds = duties.Select(item => item.Id).ToArray();
+            var deliveries = await context.StaffScheduleDeliveries
+                .Where(item => dutyIds.Contains(item.OperationId)).ToListAsync();
+            var notifications = await context.Notifications
+                .Where(item => item.CreatedAt == now && item.Type == "STAFF_TASK").ToListAsync();
+            context.StaffScheduleDeliveries.RemoveRange(deliveries);
+            context.Notifications.RemoveRange(notifications);
+            await context.SaveChangesAsync();
+            context.PoolDutySchedules.RemoveRange(duties);
+            await context.SaveChangesAsync();
+            var logIds = new[] { dayMinus2.Id, dayMinus1.Id, todayDangerLog.Id };
+            var logs = await context.WaterQualityLogs.Where(item => logIds.Contains(item.Id)).ToListAsync();
+            context.WaterQualityLogs.RemoveRange(logs);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Three_day_deteriorating_task_linked_danger_measurement_handles_today_without_next_day_duty()
+    {
+        await using var fixture = await StaffWorkPatternTestFixture.CreateAsync();
+        var context = fixture.Context;
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        var lifeguardRoleId = await context.Roles.AsNoTracking()
+            .Where(item => item.Name.ToUpper() == "LIFEGUARD" && item.IsDeleted != true)
+            .Select(item => item.Id).FirstAsync();
+        var lifeguardId = Guid.NewGuid();
+        var suffix = Guid.NewGuid().ToString("N");
+        var lifeguard = new User
+        {
+            Id = lifeguardId,
+            Username = $"wq-trend-lg-{suffix}",
+            Email = $"wq-trend-lg-{suffix}@example.test",
+            Phone = $"09{Random.Shared.Next(10_000_000, 99_999_999)}",
+            RoleId = lifeguardRoleId,
+            Status = "Active",
+            IsDeleted = false,
+            PasswordHash = "synthetic-test-only",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var employee = new Employee
+        {
+            UserId = lifeguardId,
+            User = lifeguard,
+            JoinDate = fixture.Today,
+            Status = "Working",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var assignment = new EmployeeShift
+        {
+            Id = Guid.NewGuid(),
+            EmployeeId = lifeguardId,
+            ShiftId = fixture.AfternoonShiftId,
+            WorkDate = fixture.Today,
+            Status = "Scheduled",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var task = CreateUnassignedMeasurementTask(fixture, now);
+        task.AssignedEmployeeId = lifeguardId;
+        task.PreferredEmployeeId = lifeguardId;
+        task.EmployeeShiftId = assignment.Id;
+        task.ShiftId = fixture.AfternoonShiftId;
+        task.Status = "Scheduled";
+        task.Revision = 1;
+
+        var dayMinus2 = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = lifeguardId,
+            InspectionTime = fixture.Today.AddDays(-2).ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc),
+            PhValue = 7.7m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "WithinLimits",
+            CreatedAt = now
+        };
+        var dayMinus1 = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            InspectedBy = lifeguardId,
+            InspectionTime = fixture.Today.AddDays(-1).ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc),
+            PhValue = 7.5m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "WithinLimits",
+            CreatedAt = now
+        };
+        var log = new WaterQualityLog
+        {
+            Id = Guid.NewGuid(),
+            OperationalTaskId = task.Id,
+            InspectedBy = lifeguardId,
+            InspectionTime = now,
+            PhValue = 6.5m,
+            FreeChlorineMgL = 1.8m,
+            IsWaterClear = true,
+            Status = "Danger",
+            CreatedAt = now
+        };
+
+        context.Users.Add(lifeguard);
+        context.Employees.Add(employee);
+        context.EmployeeShifts.Add(assignment);
+        context.PoolDutySchedules.Add(task);
+        context.WaterQualityLogs.AddRange(dayMinus2, dayMinus1);
+        await context.SaveChangesAsync();
+
+        try
+        {
+            var operations = new WaterQualityOperations(context, fixture.Clock);
+            var created = await operations.CreateWaterQualityLogAsync(log, default,
+                new OperationalTaskExecutionAuthorization(false, true, false, null, null));
+
+            Assert.True(created.ThreeDayTrendDetected);
+            Assert.Null(created.GeneratedNextDayDutyId);
+            Assert.Null(created.GeneratedNextDayDutyDate);
+
+            var duties = await context.PoolDutySchedules.AsNoTracking()
+                .Where(item => item.TriggerWaterQualityLogId == log.Id)
+                .ToListAsync();
+            var cleaningDuty = Assert.Single(duties);
+            Assert.Equal(PoolDutyTaskTypes.Cleaning, cleaningDuty.TaskType);
+            Assert.Equal(fixture.Today, cleaningDuty.DutyDate);
+            Assert.Equal("InProgress", cleaningDuty.Status);
+            Assert.Equal(lifeguardId, cleaningDuty.AssignedEmployeeId);
+        }
+        finally
+        {
+            context.ChangeTracker.Clear();
+            var followUps = await context.PoolDutySchedules
+                .Where(item => item.TriggerWaterQualityLogId == log.Id).ToListAsync();
+            var deliveries = await context.StaffScheduleDeliveries
+                .Where(item => followUps.Select(f => f.Id).Contains(item.OperationId)).ToListAsync();
+            var notifications = await context.Notifications.Where(item => item.UserId == lifeguardId).ToListAsync();
+            context.StaffScheduleDeliveries.RemoveRange(deliveries);
+            context.Notifications.RemoveRange(notifications);
+            await context.SaveChangesAsync();
+            context.PoolDutySchedules.RemoveRange(followUps);
+            await context.SaveChangesAsync();
+            var logIds = new[] { dayMinus2.Id, dayMinus1.Id, log.Id };
+            var logs = await context.WaterQualityLogs.Where(item => logIds.Contains(item.Id)).ToListAsync();
+            var savedTask = await context.PoolDutySchedules.SingleAsync(item => item.Id == task.Id);
+            savedTask.WaterQualityLogId = null;
+            await context.SaveChangesAsync();
+            context.WaterQualityLogs.RemoveRange(logs);
+            await context.SaveChangesAsync();
+            context.PoolDutySchedules.Remove(savedTask);
+            await context.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+            var assignmentToDelete = await context.EmployeeShifts.SingleAsync(item => item.Id == assignment.Id);
+            var employeeToDelete = await context.Employees.SingleAsync(item => item.UserId == lifeguardId);
+            var userToDelete = await context.Users.SingleAsync(item => item.Id == lifeguardId);
+            context.EmployeeShifts.Remove(assignmentToDelete);
+            context.Employees.Remove(employeeToDelete);
+            context.Users.Remove(userToDelete);
+            await context.SaveChangesAsync();
+        }
+    }
+
     private static PoolDutySchedule CreateUnassignedMeasurementTask(StaffWorkPatternTestFixture fixture, DateTime now) =>
         new()
         {

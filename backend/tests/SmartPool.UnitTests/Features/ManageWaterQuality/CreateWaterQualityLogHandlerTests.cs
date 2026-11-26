@@ -174,7 +174,13 @@ public sealed class CreateWaterQualityLogHandlerTests
         var result = await handler.Handle(command, CancellationToken.None);
 
         Assert.Equal(WaterQualityConstants.StatusDanger, result.Status);
-        _notificationOperationsMock.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<Notification>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _notificationOperationsMock.Verify(r => r.AddRangeAsync(
+            It.Is<IEnumerable<Notification>>(notifs => notifs.Any(item =>
+                item.UserId == adminUser.Id
+                && item.Type == "WATER_QUALITY_ALERT"
+                && item.Title.Contains("ĐÓNG CỬA", StringComparison.OrdinalIgnoreCase)
+                && item.Content.Contains("xem xét tạm đóng cửa", StringComparison.OrdinalIgnoreCase))),
+            It.IsAny<CancellationToken>()), Times.Once);
         _notificationServiceMock.Verify(s => s.SendToAllAsync(
             "WaterQualityUpdated",
             It.IsAny<object>(),
@@ -287,5 +293,92 @@ public sealed class CreateWaterQualityLogHandlerTests
             It.IsAny<CancellationToken>()), Times.Once);
         _notificationServiceMock.Verify(s => s.SendToUserAsync(
             adminUser.Id.ToString(), "ReceiveNotification", It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "UTC_WQ_TREND07 (N) - Xu hướng 3 ngày đi xuống kèm mức Danger -> Chỉ báo khẩn cấp, không tạo thông báo Lịch trực ngày mai")]
+    public async Task CreateLog_WhenThreeDayTrendAndDanger_DoesNotSendNextDayTrendDutyNotice()
+    {
+        var inspectorId = Guid.NewGuid();
+        var adminUser = new User { Id = Guid.NewGuid(), Username = "admin", Role = new Role { Name = "ADMIN" }, IsDeleted = false };
+
+        _currentUserMock.Setup(u => u.UserId).Returns(inspectorId);
+        _currentUserMock.Setup(u => u.IsInRole("LIFEGUARD")).Returns(true);
+        _userOperationsMock.Setup(u => u.GetUsersByRoleAsync("ADMIN", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([adminUser]);
+
+        _operationsMock.Setup(o => o.CreateWaterQualityLogAsync(
+                It.IsAny<WaterQualityLog>(),
+                It.IsAny<CancellationToken>(),
+                null))
+            .ReturnsAsync((WaterQualityLog log, CancellationToken _, OperationalTaskExecutionAuthorization? __) => new WaterQualityLogDto
+            {
+                Id = log.Id,
+                Status = log.Status,
+                PhValue = log.PhValue,
+                FreeChlorineMgL = log.FreeChlorineMgL,
+                ThreeDayTrendDetected = true,
+                ThreeDayTrendSummary = "Xu hướng 3 ngày (20/11–22/11): pH giảm liên tục 3 ngày.",
+                TrendSuggestedChemicals = ["Soda Ash (Na2CO3)"],
+                GeneratedNextDayDutyId = null,
+                GeneratedNextDayDutyDate = null
+            });
+
+        var result = await CreateHandler().Handle(new CreateWaterQualityLogCommand
+        {
+            PhValue = 6.5m,
+            FreeChlorineMgL = 2.0m,
+            IsWaterClear = true
+        }, CancellationToken.None);
+
+        Assert.True(result.ThreeDayTrendDetected);
+        Assert.Null(result.GeneratedNextDayDutyId);
+        _notificationOperationsMock.Verify(r => r.AddRangeAsync(
+            It.Is<IEnumerable<Notification>>(n => n.Any(item => item.UserId == adminUser.Id && item.Type == "WATER_QUALITY_ALERT")),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _notificationOperationsMock.Verify(r => r.AddRangeAsync(
+            It.Is<IEnumerable<Notification>>(n => n.Any(item => item.Type == "WATER_QUALITY_TREND_DUTY")),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UTC_WQ_TREND08 (N) - Xu hướng 3 ngày đi xuống kèm mức Warning -> Không gửi thông báo Lịch trực ngày mai")]
+    public async Task CreateLog_WhenThreeDayTrendAndWarning_DoesNotSendNextDayTrendDutyNotice()
+    {
+        var inspectorId = Guid.NewGuid();
+        var adminUser = new User { Id = Guid.NewGuid(), Username = "admin", Role = new Role { Name = "ADMIN" }, IsDeleted = false };
+
+        _currentUserMock.Setup(u => u.UserId).Returns(inspectorId);
+        _currentUserMock.Setup(u => u.IsInRole("LIFEGUARD")).Returns(true);
+        _userOperationsMock.Setup(u => u.GetUsersByRoleAsync("ADMIN", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([adminUser]);
+
+        _operationsMock.Setup(o => o.CreateWaterQualityLogAsync(
+                It.IsAny<WaterQualityLog>(),
+                It.IsAny<CancellationToken>(),
+                null))
+            .ReturnsAsync((WaterQualityLog log, CancellationToken _, OperationalTaskExecutionAuthorization? __) => new WaterQualityLogDto
+            {
+                Id = log.Id,
+                Status = log.Status,
+                PhValue = log.PhValue,
+                FreeChlorineMgL = log.FreeChlorineMgL,
+                ThreeDayTrendDetected = true,
+                ThreeDayTrendSummary = "Xu hướng 3 ngày (20/11–22/11): pH giảm liên tục 3 ngày.",
+                TrendSuggestedChemicals = ["Soda Ash (Na2CO3)"],
+                GeneratedNextDayDutyId = null,
+                GeneratedNextDayDutyDate = null
+            });
+
+        var result = await CreateHandler().Handle(new CreateWaterQualityLogCommand
+        {
+            PhValue = 7.0m,
+            FreeChlorineMgL = 2.0m,
+            IsWaterClear = true
+        }, CancellationToken.None);
+
+        Assert.True(result.ThreeDayTrendDetected);
+        Assert.Null(result.GeneratedNextDayDutyId);
+        _notificationOperationsMock.Verify(r => r.AddRangeAsync(
+            It.Is<IEnumerable<Notification>>(n => n.Any(item => item.Type == "WATER_QUALITY_TREND_DUTY")),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 }

@@ -48,10 +48,11 @@ public sealed partial class WaterQualityOperations : IWaterQualityOperations
         _context.WaterQualityLogs.Add(log);
 
         // Nếu nhân viên đang thực hiện đo độc lập trong ngày được giao nhiệm vụ Measurement -> tự động hoàn tất task đo ngày hôm đó
+        var logLocalDate = ToVietnamDate(log.InspectionTime);
+        PoolDutySchedule? openAssignedMeasurement = null;
         if (log.InspectedBy.HasValue && log.InspectedBy.Value != Guid.Empty)
         {
-            var logLocalDate = ToVietnamDate(log.InspectionTime);
-            var openAssignedMeasurement = await _context.PoolDutySchedules
+            openAssignedMeasurement = await _context.PoolDutySchedules
                 .Where(item => item.TaskType == PoolDutyTaskTypes.Measurement
                     && item.DutyDate == logLocalDate
                     && item.AssignedEmployeeId == log.InspectedBy.Value
@@ -74,6 +75,13 @@ public sealed partial class WaterQualityOperations : IWaterQualityOperations
                 openAssignedMeasurement.UpdatedBy = log.InspectedBy;
                 openAssignedMeasurement.UpdatedAt = now;
             }
+        }
+
+        // Chỉ số vượt ngưỡng (Warning/Danger) phải kích hoạt công việc xử lý nước ngay trong ngày thay vì đẩy sang hôm sau
+        if (log.Status is WaterQualityConstants.StatusWarning or WaterQualityConstants.StatusDanger)
+        {
+            var preferredEmployeeId = openAssignedMeasurement?.AssignedEmployeeId ?? log.InspectedBy;
+            await QueueSameDayCleaningFollowUpAsync(log, preferredEmployeeId, logLocalDate, now, cancellationToken);
         }
 
         var trendOutcome = await ApplyThreeDayTrendDutyIfNeededAsync(log, now, cancellationToken);
@@ -267,7 +275,9 @@ public sealed partial class WaterQualityOperations : IWaterQualityOperations
                 .ToList();
 
             // Phân tích xu hướng 3 ngày gần nhất (dù chỉ số vẫn nằm trong khoảng an toàn)
-            var latestLocalDate = ToVietnamDate(logs[^1].InspectionTime);
+            var latestLog = logs[^1];
+            response.LatestLog = MapToDto(latestLog);
+            var latestLocalDate = ToVietnamDate(latestLog.InspectionTime);
             var windowStartUtc = LocalToUtc(latestLocalDate.AddDays(-2), TimeOnly.MinValue);
             var windowEndUtc = LocalToUtc(latestLocalDate.AddDays(1), TimeOnly.MinValue);
             var windowLogs = await _context.WaterQualityLogs.AsNoTracking()
@@ -296,6 +306,7 @@ public sealed partial class WaterQualityOperations : IWaterQualityOperations
                     .OrderByDescending(p => p.UpdatedAt)
                     .FirstOrDefaultAsync(cancellationToken);
 
+                var latestIsWithinLimits = latestLog.Status == WaterQualityConstants.StatusWithinLimits;
                 response.ThreeDayTrend = new WaterQualityAnalyticsThreeDayTrendDto
                 {
                     IsDeteriorating = true,
@@ -303,11 +314,12 @@ public sealed partial class WaterQualityOperations : IWaterQualityOperations
                     Findings = threeDayAnalysis.Findings,
                     SuggestedChemicals = threeDayAnalysis.SuggestedChemicals,
                     Days = threeDayAnalysis.EvaluatedDays,
-                    NextDayDutyDate = nextDutyDate,
+                    NextDayDutyDate = nextDuty is not null || latestIsWithinLimits ? nextDutyDate : null,
                     NextDayDutyStatus = nextDuty?.Status,
                     NextDayAssignedEmployeeName = nextDuty?.AssignedEmployeeId.HasValue == true
                         ? (nextDuty.AssignedEmployee?.UserProfile?.FullName ?? nextDuty.AssignedEmployee?.Username)
-                        : null
+                        : null,
+                    RequiresImmediateHandling = !latestIsWithinLimits
                 };
             }
         }
@@ -783,7 +795,7 @@ public sealed partial class WaterQualityOperations : IWaterQualityOperations
         var logDate = ToVietnamDate(currentLog.InspectionTime);
         var currentReading = new WaterQualityDailyReading(logDate, currentLog.PhValue, currentLog.FreeChlorineMgL, currentLog.IsWaterClear);
         var analysis = await AnalyzeThreeDayWindowEndingAtAsync(logDate, currentReading, cancellationToken);
-        if (!analysis.IsDeteriorating)
+        if (!analysis.IsDeteriorating || currentLog.Status != WaterQualityConstants.StatusWithinLimits)
         {
             return (analysis, null);
         }
