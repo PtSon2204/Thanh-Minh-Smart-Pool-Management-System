@@ -34,15 +34,9 @@ public sealed partial class SafetyMonitoringTests : IAsyncLifetime
         options = new DbContextOptionsBuilder<SmartPoolDbContext>().UseNpgsql(builder.ConnectionString).Options;
         await using var db = new SmartPoolDbContext(options);
         await db.Database.ExecuteSqlRawAsync("CREATE SCHEMA IF NOT EXISTS smart_pool; CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; CREATE EXTENSION IF NOT EXISTS pgcrypto;");
-        // InitialCreate.Up is an existing empty baseline. Bootstrap the model, then mark that baseline
-        // so the migration test can exercise THIS migration's Down/Up without inventing legacy DDL.
-        await db.Database.EnsureCreatedAsync();
-        await db.Database.ExecuteSqlRawAsync("CREATE TABLE IF NOT EXISTS public.\"__EFMigrationsHistory\" (\"MigrationId\" varchar(150) PRIMARY KEY, \"ProductVersion\" varchar(32) NOT NULL)");
-        // Index onboarding được tạo bằng raw SQL (20261031054801_Up) nên không nằm trong model EF;
-        // tạo lại để giả định "đã áp dụng mọi migration" thành thật (Down của migration đó DROP index này).
-        await db.Database.ExecuteSqlRawAsync("CREATE UNIQUE INDEX IF NOT EXISTS users_normalized_email_onboarding_key ON smart_pool.users (lower(btrim(email))) WHERE email IS NOT NULL;");
-        foreach (var migration in db.Database.GetMigrations())
-            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO public.\"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ({migration}, '8.0.11')");
+        // Build the schema through real migrations, including raw-SQL indexes.
+        // Migration history must reflect the DDL actually applied to this isolated database.
+        await db.Database.MigrateAsync();
         db.Users.Add(new() { Id = userId, Username = "monitoring-test", Status = "Active" });
         db.Equipments.Add(new() { Id = cameraId, Name = "Camera A", Category = "Camera", Location = "Area A", Status = "Active" });
         await db.SaveChangesAsync();

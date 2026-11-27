@@ -33,7 +33,7 @@ public sealed class AddEmployeeAcceptanceIntegrationTests
     [Fact]
     public async Task ProfileEmailDatabaseRaceMapsToFieldErrorAndRollsBack()
     {
-        var race = new CompetingEmailWrite();
+        var race = new CompetingEmailWrite(IntegrationTestDatabase.GetConnectionString());
         var options = new DbContextOptionsBuilder<SmartPoolDbContext>(await IntegrationTestDatabase.CreateOptionsAsync())
             .AddInterceptors(race).Options;
         await using var context = new SmartPoolDbContext(options);
@@ -70,7 +70,7 @@ public sealed class AddEmployeeAcceptanceIntegrationTests
     }
 
     // Commit a competing mixed-case address after application preflight, before database save.
-    private sealed class CompetingEmailWrite : SaveChangesInterceptor
+    private sealed class CompetingEmailWrite(string connectionString) : SaveChangesInterceptor
     {
         public Guid TargetUserId { get; set; }
         public string? Email { get; set; }
@@ -79,7 +79,7 @@ public sealed class AddEmployeeAcceptanceIntegrationTests
             DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
             if (Email is null || Inserted) return result;
-            await using var connection = new NpgsqlConnection(eventData.Context!.Database.GetConnectionString());
+            await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
             await using var command = new NpgsqlCommand("""
                 INSERT INTO smart_pool.users (id, role_id, password_hash, email, status, is_deleted, created_at, updated_at)
