@@ -5,7 +5,7 @@ namespace SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassSessi
 public sealed class GetClassSessionAttendancesValidator
     : AbstractValidator<GetClassSessionAttendancesQuery>
 {
-    private static readonly string[] AllowedStatuses = ["PendingReview", "Verified", "Rejected"];
+    private static readonly string[] AllowedStatuses = ["NotMarked", "PendingReview", "Verified", "Rejected", "Absent"];
 
     public GetClassSessionAttendancesValidator()
     {

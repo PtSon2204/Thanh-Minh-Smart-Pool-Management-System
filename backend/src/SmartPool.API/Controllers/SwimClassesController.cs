@@ -7,6 +7,7 @@ using SmartPool.API.Extensions;
 using SmartPool.Application.Features.ManageSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.ActivateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.DeactivateSwimClass;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.CompleteSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateClassSessions;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateSwimClass;
@@ -272,6 +273,20 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
         if (!User.TryGetUserId(out _)) return Forbid();
         return await ExecuteAsync(async () =>
             Ok(await sender.Send(new ActivateSwimClassCommand(classId), cancellationToken)));
+    }
+
+    [HttpPost("{classId:guid}/complete")]
+    [Authorize(Roles = "COACH")]
+    [RequirePermission("swim_classes", "update")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Complete(Guid classId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out _)) return Forbid();
+        return await ExecuteAsync(async () => Ok(new { status = await sender.Send(
+            new CompleteSwimClassCommand(classId), cancellationToken) }));
     }
 
     [HttpPatch("{classId:guid}/deactivate")]

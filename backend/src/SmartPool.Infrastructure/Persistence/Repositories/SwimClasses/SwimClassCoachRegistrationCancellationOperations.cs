@@ -17,6 +17,8 @@ public sealed partial class SwimClassOperations
             item => item.Id == request.ClassId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy lớp dạy bơi.");
         EnsureClassOwner(swimClass, coachUserId);
+        if (swimClass.Status == "Completed")
+            throw new SwimClassStateConflictException("Lớp đã kết thúc, không thể sửa đăng ký.");
 
         var registration = await context.ClassRegistrations.SingleOrDefaultAsync(
             item => item.Id == request.RegistrationId && item.ClassId == request.ClassId,

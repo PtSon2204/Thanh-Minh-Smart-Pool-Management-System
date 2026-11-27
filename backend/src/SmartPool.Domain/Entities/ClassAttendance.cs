@@ -8,19 +8,15 @@ public class ClassAttendance
 
     public Guid RegistrationId { get; set; }
 
-    public string ImageUrl { get; set; } = null!;
+    public string? ImageUrl { get; set; }
+
+    public string? ProgressNote { get; set; }
 
     public string Status { get; set; } = null!;
 
     public Guid SubmittedByUserId { get; set; }
 
     public DateTime SubmittedAt { get; set; }
-
-    public Guid? ReviewedByUserId { get; set; }
-
-    public DateTime? ReviewedAt { get; set; }
-
-    public string? ReviewNote { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -32,5 +28,4 @@ public class ClassAttendance
 
     public virtual User SubmittedByUser { get; set; } = null!;
 
-    public virtual User? ReviewedByUser { get; set; }
 }

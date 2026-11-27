@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Alert, Button, Form, message } from 'antd'
-import { CalendarOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { CalendarOutlined, CheckCircleOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons'
 import { useActivateSwimClass, useCreateClassSessions, useSwimClassCoaches } from '../hooks/useSwimClassManagement'
 import { applyClassServerErrors, classServerMessage } from '../utils/classDisplay'
 import { findRequestedOverlap, vietnamPickerTimeToUtc } from '../utils/classSchedule'
@@ -69,7 +69,7 @@ export default function SwimClassDraftActions({ swimClass, now }) {
     {activationError && <Alert type="error" showIcon title={activationError} />}
     {coachesQuery.isError && editorOpen && <Alert type="warning" showIcon title="Không tải được danh sách Coach" action={<Button onClick={() => coachesQuery.refetch()}>Thử lại</Button>} />}
     <div className="swim-class-detail-action-buttons">
-      <Button type={!editorOpen && swimClass.status === 'Draft' ? 'primary' : 'default'} icon={<CalendarOutlined />} onClick={() => setEditorOpen(previous => !previous)}>{editorOpen ? 'Đóng biểu mẫu' : 'Thêm buổi học'}</Button>
+      <Button type={!editorOpen && swimClass.status === 'Draft' ? 'primary' : 'default'} icon={editorOpen ? <CloseOutlined /> : <PlusOutlined />} onClick={() => setEditorOpen(previous => !previous)}>{editorOpen ? 'Đóng biểu mẫu' : 'Thêm buổi học'}</Button>
       {canActivateClass(swimClass, now) && <Button type="primary" icon={<CheckCircleOutlined />} loading={activate.isPending} onClick={activateClass}>Kích hoạt lớp</Button>}
     </div>
     {editorOpen && <div className="swim-class-create-page swim-class-detail-session-editor">

@@ -42,7 +42,7 @@ export default function SwimClassSessionEditModal({ classId, session, onClose, o
     }
   }
 
-  return <Modal title="Chỉnh sửa buổi học" open={Boolean(session)} onCancel={onClose} footer={null}
+  return <Modal rootClassName="swim-class-action-modal" title="Chỉnh sửa buổi học" open={Boolean(session)} onCancel={onClose} footer={null}
     width={560} destroyOnHidden maskClosable={!update.isPending} closable={!update.isPending}>
     {error && <Alert className="swim-class-form-alert" type="error" showIcon title={error}
       action={update.isError && update.error?.response?.status === 409 && conflicts.length === 0

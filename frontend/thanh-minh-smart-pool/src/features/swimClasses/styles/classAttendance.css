@@ -15,6 +15,9 @@
 .class-attendance-row-main { display: grid; gap: 5px; flex: 1 1 210px; min-width: 0; }
 .class-attendance-row-main strong { color: #173c55; }
 .class-attendance-row-main span, .class-attendance-muted { color: #61758a; font-size: 12px; }
+.class-attendance-progress-note { flex: 1 0 100%; min-width: 0; padding: 14px 16px; border: 1px solid #a9d9ef; border-left: 4px solid #0077b6; border-radius: 8px; background: #eaf7ff; box-shadow: 0 2px 6px rgba(0, 119, 182, .08); color: #173c55; }
+.class-attendance-progress-note-title { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; color: #006b9c; font-size: 13px; font-weight: 700; }
+.class-attendance-progress-note p { margin: 0; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
 .class-attendance-rejection { color: #a33b2b; font-size: 12px; margin: 4px 0 0; overflow-wrap: anywhere; }
 .class-attendance-row .ant-tag { margin: 0; }
 .class-attendance-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -22,10 +25,39 @@
 .class-attendance-file-picker { display: grid; gap: 8px; border: 1px dashed #87bdd4; border-radius: 9px; padding: 15px; color: #425e70; overflow-wrap: anywhere; }
 .class-attendance-file-picker input { max-width: 100%; }
 .class-attendance-file-picker + .ant-alert { margin-top: 14px; }
+.class-attendance-camera .camera-capture-viewfinder { min-height: 380px; aspect-ratio: 16 / 9; }
 @media (max-width: 640px) {
+  .class-attendance-action-modal .ant-modal { width: calc(100vw - 24px) !important; max-width: none; margin: 12px auto; padding-bottom: 0; top: 0; }
+  .class-attendance-action-modal .ant-modal-content { max-height: calc(100dvh - 24px); overflow-y: auto; padding: 18px 16px; }
+  .class-attendance-action-modal .ant-modal-title { padding-right: 22px; overflow-wrap: anywhere; }
+  .class-attendance-action-modal .ant-modal-footer { display: flex; flex-direction: column-reverse; gap: 8px; }
+  .class-attendance-action-modal .ant-modal-footer .ant-btn { margin: 0; width: 100%; min-height: 40px; }
+  .class-attendance-camera .ant-modal { width: calc(100vw - 16px) !important; max-width: none; margin: 8px auto; padding-bottom: 0; top: 0; }
+  .class-attendance-camera .ant-modal-content { box-sizing: border-box; display: flex; flex-direction: column; max-height: calc(100dvh - 16px); padding: 16px; }
+  .class-attendance-camera .ant-modal-header, .class-attendance-camera .ant-modal-footer { flex: 0 0 auto; }
+  .class-attendance-camera .ant-modal-body { min-height: 0; overflow-y: auto; }
+  .class-attendance-camera .camera-capture-title { align-items: flex-start !important; flex-wrap: wrap; gap: 8px; padding-right: 28px !important; }
+  .class-attendance-camera .camera-capture-title .ant-space { min-width: 0; }
+  .class-attendance-camera .camera-capture-title .ant-space-item:last-child { overflow-wrap: anywhere; }
+  .class-attendance-camera .camera-capture-title .ant-tag { margin: 0; }
+  .class-attendance-camera .camera-capture-viewfinder { aspect-ratio: auto; height: clamp(220px, 43dvh, 380px); min-height: 0; }
+  .class-attendance-camera .camera-capture-viewfinder .ant-alert { max-height: 100%; overflow-y: auto; }
+  .class-attendance-camera .camera-capture-shutter { margin-top: 12px !important; }
+  .class-attendance-camera .camera-capture-footer { align-items: stretch !important; flex-direction: column; gap: 10px; text-align: center; }
+  .class-attendance-camera .camera-capture-footer .ant-btn { width: 100%; min-height: 42px; }
   .class-attendance-page { margin-top: 18px; padding: 0 12px; gap: 12px; }
   .class-attendance-header, .class-attendance-panel { padding: 18px 16px; }
   .class-attendance-header { align-items: flex-start; }
   .class-attendance-header h1 { font-size: 20px; }
+  .class-attendance-header > div:last-child { min-width: 0; }
+  .class-attendance-header p, .class-attendance-row-main { overflow-wrap: anywhere; }
+  .class-attendance-toolbar { align-items: stretch; }
+  .class-attendance-toolbar .ant-btn { width: 100%; }
+  .class-attendance-toolbar select { width: 100%; min-height: 40px; }
+  .class-attendance-row { align-items: flex-start; }
+  .class-attendance-row > .ant-btn { width: 100%; min-height: 40px; }
+  .class-attendance-actions { width: 100%; }
+  .class-attendance-actions .ant-btn { flex: 1 1 100%; min-height: 40px; }
   .class-attendance-pagination { justify-content: center; }
+  .class-attendance-panel > .ant-pagination { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
 }

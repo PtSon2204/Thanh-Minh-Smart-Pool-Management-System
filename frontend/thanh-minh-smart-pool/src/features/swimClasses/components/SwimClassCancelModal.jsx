@@ -33,7 +33,7 @@ export default function SwimClassCancelModal({ swimClass, session, onClose, onRe
     }
   }
 
-  return <Modal title={title} open onCancel={onClose} onOk={() => form.submit()}
+  return <Modal rootClassName="swim-class-action-modal" title={title} open onCancel={onClose} onOk={() => form.submit()}
     okText="Xác nhận" okButtonProps={{ danger: true }} confirmLoading={mutation.isPending}
     okType="primary" cancelText="Quay lại" closable={!mutation.isPending}
     maskClosable={!mutation.isPending} destroyOnHidden>

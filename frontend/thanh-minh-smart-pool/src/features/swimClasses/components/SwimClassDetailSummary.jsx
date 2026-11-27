@@ -1,4 +1,4 @@
-import { ClockCircleOutlined, TeamOutlined, UserOutlined, WalletOutlined } from '@ant-design/icons'
+import { BookOutlined, ClockCircleOutlined, TeamOutlined, UserAddOutlined, UserOutlined, WalletOutlined } from '@ant-design/icons'
 import { Alert } from 'antd'
 import { formatVietnamTime } from '../utils/classSchedule'
 import { classAvailability } from '../utils/classAvailability'
@@ -13,13 +13,13 @@ export default function SwimClassDetailSummary({ swimClass, now, showRegistratio
   return <>
     {showRegistrationInfo && <Alert showIcon type={alertType} title={availability.text} />}
     <section className="swim-class-detail-panel" aria-label="Thông tin lớp dạy bơi">
-      <div className="swim-class-detail-section-title"><TeamOutlined /><h2>Thông tin lớp</h2></div>
+      <div className="swim-class-detail-section-title"><BookOutlined /><h2>Thông tin lớp</h2></div>
       {swimClass.description && <p className="swim-class-detail-description">{swimClass.description}</p>}
       <dl className="swim-class-detail-facts">
         <div><dt><UserOutlined /> Coach mặc định</dt><dd>{swimClass.coachName || swimClass.coachUserId}</dd></div>
         <div><dt><WalletOutlined /> Học phí</dt><dd>{currency.format(swimClass.fee)}</dd></div>
         <div><dt><TeamOutlined /> Học viên đã xác nhận</dt><dd>{swimClass.confirmedStudentCount}/{swimClass.capacity}</dd></div>
-        <div><dt><TeamOutlined /> Chỗ còn lại</dt><dd>{remaining}</dd></div>
+        <div><dt><UserAddOutlined /> Chỗ còn lại</dt><dd>{remaining}</dd></div>
         {showRegistrationInfo && <>
           <div><dt><ClockCircleOutlined /> Bắt đầu nhận đăng ký</dt><dd>{formatVietnamTime(swimClass.registrationStartAt)}</dd></div>
           <div><dt><ClockCircleOutlined /> Kết thúc nhận đăng ký</dt><dd>{formatVietnamTime(swimClass.registrationEndAt)}</dd></div>

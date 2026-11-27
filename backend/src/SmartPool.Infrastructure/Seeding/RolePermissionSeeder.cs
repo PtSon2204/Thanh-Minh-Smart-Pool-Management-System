@@ -92,7 +92,7 @@ public static class RolePermissionSeeder
                 ["swim_classes"]     = ["read"],
                 ["customer_tickets"] = ["read", "create", "update"],
                 ["class_registrations"] = ["create", "read"],
-                ["class_attendances"] = ["create", "read"],
+                ["class_attendances"] = ["read"],
                 ["coach_applications"] = ["create", "read"],
                 ["ticket_types"]     = ["read"],
                 ["vouchers"]         = ["read"],
@@ -150,6 +150,8 @@ public static class RolePermissionSeeder
                 changed = true;
             }
             changed = current.Remove("salaries") || changed;
+            if (roleName == "CUSTOMER" && current.TryGetValue("class_attendances", out var customerAttendance))
+                changed = customerAttendance.Remove("create") || changed;
             if (roleName == "ADMIN")
             {
                 changed = current.Remove("swim_classes") || changed;

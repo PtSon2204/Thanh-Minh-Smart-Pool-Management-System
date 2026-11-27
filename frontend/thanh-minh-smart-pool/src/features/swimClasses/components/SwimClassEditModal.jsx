@@ -46,7 +46,7 @@ export default function SwimClassEditModal({ swimClass, open, onClose, onReload 
     }
   }
 
-  return <Modal title="Chỉnh sửa thông tin lớp" open={open} onCancel={onClose} footer={null}
+  return <Modal rootClassName="swim-class-action-modal" title="Chỉnh sửa thông tin lớp" open={open} onCancel={onClose} footer={null}
     width={720} destroyOnHidden maskClosable={!update.isPending} closable={!update.isPending}>
     {error && <Alert className="swim-class-form-alert" type="error" showIcon title={error}
       action={update.isError && update.error?.response?.status === 409

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarOutlined, CheckCircleOutlined, EyeOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons'
+import { BookOutlined, CalendarOutlined, CheckCircleOutlined, EyeOutlined, FormOutlined, PlusOutlined } from '@ant-design/icons'
 import { Button, ConfigProvider, Form, Popconfirm, Steps, Tag, Typography } from 'antd'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useActivateSwimClass, useCreateClassSessions, useCreateSwimClass, useSwimClassCoaches } from '../hooks/useSwimClassManagement'
@@ -143,7 +143,7 @@ export default function ClassCreationFlow() {
     <div className="swim-class-create-page swim-class-create-page--coach">
       <header className="swim-class-page-header">
         <div className="swim-class-page-title">
-          <span className="swim-class-page-icon"><TeamOutlined /></span>
+          <span className="swim-class-page-icon"><BookOutlined /></span>
           <div><span className="swim-class-eyebrow">KHU VỰC COACH</span><Title level={2}>Tạo lớp và lịch học</Title>
             <Text type="secondary">Thiết lập lớp của bạn và sắp xếp các buổi học.</Text></div>
         </div>
@@ -160,7 +160,7 @@ export default function ClassCreationFlow() {
 
       <section className="swim-class-step-panel" aria-label="Tiến độ tạo lớp">
         <Steps current={stage} responsive items={[
-          { title: 'Thông tin lớp', icon: <TeamOutlined /> },
+          { title: 'Thông tin lớp', icon: <FormOutlined /> },
           { title: 'Lịch học', icon: <CalendarOutlined /> },
           { title: 'Hoàn tất', icon: <CheckCircleOutlined /> },
         ]} />

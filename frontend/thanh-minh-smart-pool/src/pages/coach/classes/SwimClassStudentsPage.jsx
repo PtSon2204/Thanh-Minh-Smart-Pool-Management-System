@@ -29,7 +29,7 @@ export default function SwimClassStudentsPage() {
             <div><small>QUẢN LÝ LỚP DẠY BƠI</small><h1>Học viên đăng ký · {detail.data.name}</h1></div>
           </div>
         </header>
-        <SwimClassStudents classId={classId} />
+        <SwimClassStudents classId={classId} readOnly={detail.data.status === 'Completed'} />
       </>}
     </main>
   </ConfigProvider>

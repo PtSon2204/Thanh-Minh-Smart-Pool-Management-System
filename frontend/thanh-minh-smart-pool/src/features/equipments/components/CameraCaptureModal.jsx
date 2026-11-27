@@ -17,6 +17,7 @@ export default function CameraCaptureModal({
   currentCount = 0,
   captureHint = 'Hướng camera vào thiết bị rồi bấm nút chụp',
   zIndex = 2500,
+  mobileClassName,
 }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -249,6 +250,7 @@ export default function CameraCaptureModal({
 
   return (
     <Modal
+      rootClassName={mobileClassName}
       zIndex={zIndex}
       styles={{
         mask: { zIndex },
@@ -256,6 +258,7 @@ export default function CameraCaptureModal({
       }}
       title={
         <div
+          className="camera-capture-title"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -277,6 +280,7 @@ export default function CameraCaptureModal({
       width={720}
       footer={
         <div
+          className="camera-capture-footer"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -295,13 +299,14 @@ export default function CameraCaptureModal({
       }
     >
       <div
+        className="camera-capture-viewfinder"
         style={{
           position: 'relative',
           background: '#090d16',
           borderRadius: 12,
           overflow: 'hidden',
-          minHeight: 380,
-          aspectRatio: '16 / 9',
+          minHeight: mobileClassName ? undefined : 380,
+          aspectRatio: mobileClassName ? undefined : '16 / 9',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -430,9 +435,10 @@ export default function CameraCaptureModal({
 
       {/* Nút chụp ảnh lớn dưới video */}
       {!cameraError && (
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
+        <div className="camera-capture-shutter" style={{ textAlign: 'center', marginTop: 20 }}>
           <button
             type="button"
+            aria-label={isSnapping ? 'Đang xử lý ảnh' : 'Chụp ảnh'}
             onClick={handleSnap}
             disabled={isStarting || reachedLimit || isSnapping}
             style={{

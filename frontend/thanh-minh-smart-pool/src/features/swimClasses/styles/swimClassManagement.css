@@ -122,13 +122,29 @@
   .swim-class-create-page { gap: 12px; }
   .swim-class-page-header { flex-direction: column; padding: 19px; }
   .swim-class-page-title { align-items: flex-start; gap: 12px; }
+  .swim-class-page-title > div { min-width: 0; }
+  .swim-class-page-header-actions { justify-content: stretch; width: 100%; }
+  .swim-class-page-header-actions .ant-btn { flex: 1 1 100%; }
   .swim-class-page-icon { flex-basis: 42px; height: 42px; font-size: 20px; }
   .swim-class-page-header h2.ant-typography { font-size: 20px; }
   .swim-class-step-panel { padding: 18px 15px; }
   .swim-class-form-card > .ant-card-body { padding: 18px 16px; }
   .swim-class-form-grid { display: block; }
+  .swim-class-create-page .ant-input,
+  .swim-class-create-page .ant-input-number,
+  .swim-class-create-page .ant-picker,
+  .swim-class-create-page .ant-select-selector { min-height: 40px; }
+  .swim-class-create-page .ant-form-item { min-width: 0; }
+  .swim-class-session-card { padding: 14px 12px 2px; }
+  .swim-class-session-heading { gap: 8px; }
+  .swim-class-session-heading .ant-btn { flex: 0 0 auto; }
   .swim-class-actions .ant-btn,
   .swim-class-activate-card .ant-btn { width: 100%; }
   .swim-class-saved-row { flex-wrap: wrap; }
   .swim-class-saved-row .ant-tag { margin-left: 51px; }
+  .swim-class-saved-row > .ant-btn { width: 100%; }
+  .swim-class-complete-meta { flex-wrap: wrap; text-align: center; }
+  .swim-class-flow-next .ant-btn { width: 100%; }
+  .swim-class-edit-actions { flex-wrap: wrap; }
+  .swim-class-edit-actions .ant-btn { flex: 1 1 100%; min-height: 40px; }
 }

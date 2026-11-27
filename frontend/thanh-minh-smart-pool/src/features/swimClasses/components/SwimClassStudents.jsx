@@ -37,7 +37,7 @@ function RegistrantIdentity({ classId, item }) {
   </>
 }
 
-export default function SwimClassStudents({ classId }) {
+export default function SwimClassStudents({ classId, readOnly = false }) {
   const [status, setStatus] = useState('PendingApproval')
   const [pageIndex, setPageIndex] = useState(1)
   const [selected, setSelected] = useState(null)
@@ -122,8 +122,8 @@ export default function SwimClassStudents({ classId }) {
     <div className="swim-class-detail-section-title"><TeamOutlined /><h2>Học viên đăng ký</h2>
       <span>{registrations.data?.totalCount ?? 0} {status === 'PendingApproval' ? 'yêu cầu chờ' : 'đăng ký'}</span></div>
     <div className="swim-class-students-toolbar">
-      <Segmented options={filters} value={status} onChange={value => { setStatus(value); setPageIndex(1) }}
-        aria-label="Lọc trạng thái đăng ký" />
+      <div className="swim-class-students-filter-scroll"><Segmented options={filters} value={status} onChange={value => { setStatus(value); setPageIndex(1) }}
+        aria-label="Lọc trạng thái đăng ký" /></div>
       <Button type="text" icon={<ReloadOutlined spin={registrations.isFetching} />}
         onClick={() => registrations.refetch()} disabled={registrations.isFetching}>Làm mới</Button>
     </div>
@@ -148,13 +148,13 @@ export default function SwimClassStudents({ classId }) {
           <Tag color={registrationStates[item.status]?.color || 'default'}>
             {registrationStates[item.status]?.label || item.status}
           </Tag>
-          {item.status === 'PendingApproval' && <div className="swim-class-student-actions">
+          {!readOnly && item.status === 'PendingApproval' && <div className="swim-class-student-actions">
             <Button type="primary" icon={<CheckCircleOutlined />} disabled={review.isPending || cancel.isPending}
               onClick={() => openReview(item, 'Accepted')}>Chấp nhận</Button>
             <Button danger icon={<CloseCircleOutlined />} disabled={review.isPending || cancel.isPending}
               onClick={() => openReview(item, 'Rejected')}>Từ chối</Button>
           </div>}
-          {item.status === 'Confirmed' && <Button danger icon={<StopOutlined />}
+          {!readOnly && item.status === 'Confirmed' && <Button danger icon={<StopOutlined />}
             onClick={() => { setSelected(item); setSubmitError(null) }}>Hủy đăng ký</Button>}
         </article>)}
       </div>
@@ -162,7 +162,7 @@ export default function SwimClassStudents({ classId }) {
         total={registrations.data?.totalCount || 0} showSizeChanger={false} onChange={setPageIndex} />
     </>}
 
-    <Modal title="Hủy đăng ký của học viên" open={Boolean(selected)} onCancel={closeModal}
+    <Modal rootClassName="swim-class-action-modal" title="Hủy đăng ký của học viên" open={Boolean(selected)} onCancel={closeModal}
       onOk={() => form.submit()} okText="Xác nhận hủy" okType="danger"
       cancelText="Quay lại" confirmLoading={cancel.isPending}
       closable={!cancel.isPending} maskClosable={!cancel.isPending} destroyOnHidden>
@@ -180,7 +180,7 @@ export default function SwimClassStudents({ classId }) {
         </Form.Item>
       </Form>
     </Modal>
-    <Modal title={reviewDecision === 'Rejected' ? 'Từ chối yêu cầu tham gia' : 'Chấp nhận yêu cầu tham gia'}
+    <Modal rootClassName="swim-class-action-modal" title={reviewDecision === 'Rejected' ? 'Từ chối yêu cầu tham gia' : 'Chấp nhận yêu cầu tham gia'}
       open={Boolean(reviewSelected)} onCancel={closeReview} onOk={() => reviewForm.submit()}
       okText={reviewDecision === 'Rejected' ? 'Xác nhận từ chối' : 'Chấp nhận'}
       okType={reviewDecision === 'Rejected' ? 'danger' : 'primary'}
