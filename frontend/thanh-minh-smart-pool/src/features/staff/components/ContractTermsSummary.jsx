@@ -7,7 +7,7 @@ import {
   weeklyHours,
 } from "../contracts/contractUi";
 import dayjs from "dayjs";
-import { formatOnboardingDate, vietnamToday } from "../onboarding/onboardingUi";
+import { formatOnboardingDate, vietnamToday } from "../staffUi";
 import "../styles/staffContracts.css";
 
 export default function ContractTermsSummary({ contract, shifts = [] }) {

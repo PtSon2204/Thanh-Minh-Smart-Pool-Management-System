@@ -1,5 +1,5 @@
 import { Avatar, Button, Dropdown, Tag } from "antd";
-import { EllipsisOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
+import { EllipsisOutlined, EditOutlined, EyeOutlined, KeyOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { USER_ROLES, USER_ROLE_COLORS } from "../../users/utils/userManagement";
 
@@ -43,10 +43,10 @@ export default function StaffProfileCard({
   staff,
   onDetails,
   onEdit,
-  onLegalDetails,
+  onReset,
 }) {
   const displayName =
-    staff.fullName || staff.username || "Nhân viên chưa có tên";
+    staff.fullName || "Nhân viên chưa có tên";
   const initials = displayName
     .trim()
     .split(/\s+/u)
@@ -56,12 +56,14 @@ export default function StaffProfileCard({
     .toLocaleUpperCase("vi-VN");
   const actions = [
     { key: "view", icon: <EyeOutlined />, label: "Xem hồ sơ" },
-    { key: "edit", icon: <EditOutlined />, label: "Sửa hồ sơ việc làm" },
+    { key: "edit", icon: <EditOutlined />, label: "Sửa hồ sơ nhân viên" },
+    ...(["SALES", "LIFEGUARD", "COACH"].includes(staff.roleName?.toUpperCase()) ? [{ key: "reset", icon: <KeyOutlined />, label: "Đặt lại mật khẩu" }] : []),
   ];
 
   const handleAction = ({ key }) => {
     if (key === "view") onDetails(staff);
     if (key === "edit") onEdit(staff);
+    if (key === "reset") onReset(staff);
   };
 
   return (
@@ -94,9 +96,9 @@ export default function StaffProfileCard({
           <StaffRoleTag roleName={staff.roleName} />
           <span
             className="staff-profile-username"
-            title={staff.username ? `@${staff.username}` : undefined}
+            title={staff.companyEmail || undefined}
           >
-            {staff.username ? `@${staff.username}` : "Chưa có tên đăng nhập"}
+            {staff.companyEmail || "Chưa có email công ty"}
           </span>
           <StaffStatus status={staff.status} />
         </div>
@@ -110,7 +112,7 @@ export default function StaffProfileCard({
           </dd>
         </div>
         <div className="staff-profile-detail staff-profile-detail-contact">
-          <dt>Email</dt>
+          <dt>Email cá nhân</dt>
           <dd>
             {staff.email
               ? staff.email.split(/([@._+-])/u).map((part, index) =>
@@ -131,13 +133,6 @@ export default function StaffProfileCard({
           <dd>{staff.phone || "-"}</dd>
         </div>
       </dl>
-      {onLegalDetails && (
-        <footer className="staff-profile-card-actions">
-          <Button icon={<EyeOutlined />} onClick={() => onLegalDetails(staff)}>
-            Hồ sơ pháp lý
-          </Button>
-        </footer>
-      )}
     </article>
   );
 }

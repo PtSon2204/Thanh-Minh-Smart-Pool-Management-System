@@ -2,10 +2,11 @@ import { useState } from "react";
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Alert, Button, Empty, Input, Pagination, Select, Spin } from "antd";
 import { useAuthStore } from "../../../features/auth/store/authStore";
+import AddEmployeeDrawer from "../../../features/staff/components/AddEmployeeDrawer";
 import StaffDetailsDrawer from "../../../features/staff/components/StaffDetailsDrawer";
 import StaffEmploymentFormDrawer from "../../../features/staff/components/StaffEmploymentFormDrawer";
 import StaffProfileCard from "../../../features/staff/components/StaffProfileCard";
-import StaffInvitationsPanel from "../../../features/staff/components/StaffInvitationsPanel";
+import StaffPasswordResetModal from "../../../features/staff/components/StaffPasswordResetModal";
 import { useStaffs } from "../../../features/staff/hooks/useStaffs";
 import { ServiceListHeader } from "../../../features/services/components/ServiceListChrome";
 import "../../../features/services/styles/serviceManagement.css";
@@ -31,8 +32,8 @@ export default function StaffProfilesPage() {
   const [pageSize, setPageSize] = useState(10);
   const [formStaff, setFormStaff] = useState(undefined);
   const [selectedStaff, setSelectedStaff] = useState(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [legalStaff, setLegalStaff] = useState(null);
+  const [resetStaff, setResetStaff] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
   const isAdmin = role?.toUpperCase() === "ADMIN";
   const query = useStaffs(
     {
@@ -78,9 +79,9 @@ export default function StaffProfilesPage() {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => setInviteOpen(true)}
+            onClick={() => setAddOpen(true)}
           >
-            Tạo tài khoản nhân viên
+            Thêm nhân viên
           </Button>
         }
       />
@@ -152,7 +153,7 @@ export default function StaffProfilesPage() {
                   staff={staff}
                   onDetails={setSelectedStaff}
                   onEdit={setFormStaff}
-                  onLegalDetails={setLegalStaff}
+                  onReset={setResetStaff}
                 />
               ))}
             </div>
@@ -179,6 +180,7 @@ export default function StaffProfilesPage() {
           )}
       </section>
       <StaffEmploymentFormDrawer
+        key={formStaff?.userId || "staff-edit"}
         open={formStaff !== undefined}
         staff={formStaff}
         onClose={() => setFormStaff(undefined)}
@@ -189,12 +191,8 @@ export default function StaffProfilesPage() {
         staff={selectedStaff}
         onClose={() => setSelectedStaff(null)}
       />
-      <StaffInvitationsPanel
-        createOpen={inviteOpen}
-        onCloseCreate={() => setInviteOpen(false)}
-        employee={legalStaff}
-        onCloseEmployee={() => setLegalStaff(null)}
-      />
+      <AddEmployeeDrawer open={addOpen} onClose={() => setAddOpen(false)} />
+      {resetStaff && <StaffPasswordResetModal key={resetStaff.userId} open staff={resetStaff} onClose={() => setResetStaff(null)} />}
     </div>
   );
 }

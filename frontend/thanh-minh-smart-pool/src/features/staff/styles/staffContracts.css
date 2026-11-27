@@ -46,8 +46,144 @@
   min-width: 0;
 }
 
+.staff-contract-days-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.staff-contract-days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.staff-employment-drawer .staff-contract-stack > section > .ant-typography {
+  margin-bottom: var(--space-3);
+}
+
+.staff-employment-drawer .staff-contract-stack > section > .ant-typography:first-child {
+  margin-top: 0;
+}
+
+.staff-employment-drawer .staff-contract-stack > section > .ant-typography:last-of-type {
+  margin-bottom: 0;
+  margin-top: var(--space-3);
+}
+
+.staff-employment-drawer .staff-contract-days-grid .staff-contract-day {
+  grid-template-columns: minmax(4.5rem, 0.8fr) minmax(0, 2fr);
+}
+
+.staff-employment-drawer .staff-contract-days-grid .staff-contract-day .ant-select-selector {
+  min-height: 32px;
+}
+
+.staff-employment-drawer .staff-contract-days-grid .staff-contract-day .ant-select-selection-item {
+  font-size: var(--contract-caption-size);
+}
+
+.staff-employment-drawer .staff-contract-preset-days {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-3);
+}
+
+.staff-employment-drawer .staff-contract-preset-days .ant-checkbox-wrapper {
+  margin-inline-start: 0;
+}
+
+.staff-employment-drawer .staff-contract-days--compact {
+  gap: var(--space-4);
+}
+
+.staff-employment-drawer .staff-contract-days--compact > .staff-form-section-heading {
+  margin-bottom: 0;
+}
+
+.staff-employment-drawer .staff-contract-preset--compact {
+  gap: var(--space-3);
+}
+
+.staff-employment-drawer .staff-form-section-heading {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 var(--space-3);
+}
+
+.staff-employment-drawer .staff-form-section-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.staff-employment-drawer .staff-form-section-column .ant-form-item-label {
+  padding-bottom: var(--space-1);
+}
+
+@media (max-width: 767px) {
+  .staff-employment-drawer .staff-form-section-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.staff-employment-drawer .staff-form-section-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.staff-employment-drawer .staff-form-section-column .ant-form-item {
+  margin-bottom: 0;
+}
+
+@media (min-width: 768px) {
+  .staff-employment-drawer .staff-add-personal-grid {
+    row-gap: var(--space-2);
+  }
+
+  .staff-employment-drawer .staff-add-personal-grid .staff-form-section-column {
+    display: grid;
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+    row-gap: var(--space-2);
+  }
+}
+
+.staff-employment-drawer .staff-contract-stack {
+  gap: var(--space-4);
+}
+
+.staff-employment-drawer .staff-contract-stack .ant-form-item {
+  margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .staff-contract-days-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-employment-drawer .staff-contract-preset-days {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .staff-contract-wrap {
   overflow-wrap: anywhere;
+}
+
+/* Two-column form grid for contract and add-employee forms. */
+.onboarding-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4, 16px);
+}
+
+.onboarding-form-grid .ant-form-item {
+  margin-bottom: 0;
 }
 
 .staff-contract-month-controls {
@@ -110,10 +246,19 @@
     grid-template-columns: 1fr;
     gap: var(--space-2);
   }
+
+  .onboarding-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 767px) {
   .staff-profiles-drawer .ant-drawer-content-wrapper {
+    width: 100vw !important;
+    max-width: 100vw;
+  }
+
+  .staff-employment-drawer .ant-drawer-content-wrapper {
     width: 100vw !important;
     max-width: 100vw;
   }

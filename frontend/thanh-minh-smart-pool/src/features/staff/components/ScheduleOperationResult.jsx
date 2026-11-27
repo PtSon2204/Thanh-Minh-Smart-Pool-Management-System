@@ -1,5 +1,5 @@
 import { Alert, Descriptions, Table, Typography } from "antd";
-import { formatOnboardingDate } from "../onboarding/onboardingUi";
+import { formatOnboardingDate } from "../staffUi";
 import "../styles/staffContracts.css";
 
 export default function ScheduleOperationResult({ result, preview = false }) {

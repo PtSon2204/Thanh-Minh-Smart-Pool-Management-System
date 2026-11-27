@@ -6,6 +6,7 @@ const poolAccessService = {
   lookup: (code) => apiClient.post(`${BASE}/lookup`, { code }).then((response) => response.data),
   confirm: (code, inputMode, entriesRequested = 1) => apiClient.post(`${BASE}/entries`, { code, inputMode, entriesRequested }).then((response) => response.data),
   getEntries: (ticketId, date) => apiClient.get(`${BASE}/entries`, { params: { ticketId, date, pageIndex: 1, pageSize: 20 } }).then((response) => response.data),
+  getDailySummary: (date, signal) => apiClient.get(`${BASE}/summary`, { params: { date }, signal }).then((response) => response.data),
   getOccupancy: () => apiClient.get(`${BASE}/occupancy`).then((response) => response.data),
   getLiveStatus: () => apiClient.get(`${BASE}/live-status`).then((response) => response.data),
   updateOperationalConfig: (payload) => apiClient.put(`${BASE}/operational-config`, payload).then((response) => response.data),

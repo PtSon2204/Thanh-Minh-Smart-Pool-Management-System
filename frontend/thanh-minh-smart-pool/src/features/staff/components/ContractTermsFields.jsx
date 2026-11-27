@@ -19,7 +19,7 @@ import {
 } from "../contracts/contractUi";
 import "../styles/staffContracts.css";
 
-function WeeklyPatternInput({ value = [], onChange, shifts, disabled }) {
+function WeeklyPatternInput({ value = [], onChange, shifts, disabled, compact = false }) {
   const controlId = useId();
   const [morning, setMorning] = useState();
   const [afternoon, setAfternoon] = useState();
@@ -49,13 +49,34 @@ function WeeklyPatternInput({ value = [], onChange, shifts, disabled }) {
       })),
     );
   return (
-    <div className="staff-contract-stack">
-      <fieldset className="staff-contract-preset" disabled={disabled}>
-        <legend>Mẫu lịch tuần</legend>
-        <Typography.Paragraph type="secondary">
-          Chọn ca có sẵn và ngày áp dụng. Mẫu thay các ngày đã chọn; các ngày
-          khác giữ nguyên.
-        </Typography.Paragraph>
+    <div
+      className={
+        compact
+          ? "staff-contract-days staff-contract-days--compact"
+          : "staff-contract-stack"
+      }
+    >
+      {compact && (
+        <h3 className="staff-form-section-heading">Mẫu lịch tuần</h3>
+      )}
+      <fieldset
+        className={
+          compact
+            ? "staff-contract-preset staff-contract-preset--compact"
+            : "staff-contract-preset"
+        }
+        disabled={disabled}
+        aria-label={compact ? "Mẫu lịch tuần" : undefined}
+      >
+        {!compact && (
+          <>
+            <legend>Mẫu lịch tuần</legend>
+            <Typography.Paragraph type="secondary">
+              Chọn ca có sẵn và ngày áp dụng. Mẫu thay các ngày đã chọn; các
+              ngày khác giữ nguyên.
+            </Typography.Paragraph>
+          </>
+        )}
         <div className="onboarding-form-grid">
           <label
             className="staff-contract-control"
@@ -91,6 +112,7 @@ function WeeklyPatternInput({ value = [], onChange, shifts, disabled }) {
           disabled={disabled}
           value={presetDays}
           onChange={setPresetDays}
+          className={compact ? "staff-contract-preset-days" : undefined}
           options={contractDays.map((label, index) => ({
             label,
             value: index + 1,
@@ -131,42 +153,46 @@ function WeeklyPatternInput({ value = [], onChange, shifts, disabled }) {
           </Button>
         </Space>
       </fieldset>
-      {contractDays.map((label, index) => {
-        const selected =
-          value.find((day) => day.dayOfWeek === index + 1)?.shiftIds || [];
-        const inactive = selected
-          .filter((id) => !active.some((shift) => shift.id === id))
-          .map((id) => {
-            const shift = shifts.find((item) => item.id === id);
-            return {
-              value: id,
-              label: shift
-                ? `${shiftLabel(shift)} · Không còn hoạt động`
-                : "Ca chưa có thông tin",
-              disabled: true,
-            };
-          });
-        return (
-          <label
-            key={label}
-            htmlFor={`${controlId}-${index}`}
-            className="staff-contract-day"
-          >
-            <span>{label}</span>
-            <Select
-              id={`${controlId}-${index}`}
-              mode="multiple"
-              disabled={disabled}
-              value={selected}
-              onChange={(ids) => updateDay(index + 1, ids)}
-              options={[...options, ...inactive]}
-              optionFilterProp="label"
-              allowClear
-              placeholder="Nghỉ / chọn các ca làm việc"
-            />
-          </label>
-        );
-      })}
+      <div
+        className={compact ? "staff-contract-days-grid" : "staff-contract-days"}
+      >
+        {contractDays.map((label, index) => {
+          const selected =
+            value.find((day) => day.dayOfWeek === index + 1)?.shiftIds || [];
+          const inactive = selected
+            .filter((id) => !active.some((shift) => shift.id === id))
+            .map((id) => {
+              const shift = shifts.find((item) => item.id === id);
+              return {
+                value: id,
+                label: shift
+                  ? `${shiftLabel(shift)} · Không còn hoạt động`
+                  : "Ca chưa có thông tin",
+                disabled: true,
+              };
+            });
+          return (
+            <label
+              key={label}
+              htmlFor={`${controlId}-${index}`}
+              className="staff-contract-day"
+            >
+              <span>{label}</span>
+              <Select
+                id={`${controlId}-${index}`}
+                mode="multiple"
+                disabled={disabled}
+                value={selected}
+                onChange={(ids) => updateDay(index + 1, ids)}
+                options={[...options, ...inactive]}
+                optionFilterProp="label"
+                allowClear
+                placeholder="Nghỉ / chọn các ca làm việc"
+              />
+            </label>
+          );
+        })}
+      </div>
       <Typography.Text strong role="status">
         Dự kiến: {formatHours(weeklyHours(value, shifts))}
       </Typography.Text>
@@ -179,6 +205,13 @@ export default function ContractTermsFields({
   shifts,
   disabled,
   invitation = false,
+  compact = false,
+  showTitle = true,
+  hideStartDate = false,
+  hideEndDate = false,
+  hideEmploymentType = false,
+  hideWeeklyPattern = false,
+  hideAlert = false,
 }) {
   const dateProps = {
     getValueProps: (value) => ({ value: value ? dayjs(value) : null }),
@@ -186,75 +219,97 @@ export default function ContractTermsFields({
   };
   return (
     <section className="staff-contract-stack" aria-label="Điều khoản hợp đồng">
-      <Typography.Title level={4}>Hợp đồng và lịch làm việc</Typography.Title>
-      <Alert
-        type="info"
-        showIcon
-        title="Ngày kết thúc được tính trong hợp đồng"
-        description="Chỉ sinh lịch sau khi duyệt. Bỏ qua ngày hiện tại và quá khứ; ca trùng hoặc không hợp lệ được báo riêng."
-      />
-      <Form.Item
-        name={["contract", "employmentType"]}
-        label="Loại hợp đồng"
-        rules={[{ required: true, message: "Chọn loại hợp đồng." }]}
-      >
-        <Select disabled={disabled} options={employmentTypes} />
-      </Form.Item>
-      <div className="onboarding-form-grid">
-        <Form.Item
-          name={["contract", "startDate"]}
-          label="Ngày bắt đầu hợp đồng"
-          {...dateProps}
-          rules={[{ required: true, message: "Chọn ngày bắt đầu." }]}
-        >
-          <DatePicker
-            disabled={disabled || invitation}
-            format="DD/MM/YYYY"
+      {showTitle && (
+        <Typography.Title level={4}>Hợp đồng và lịch làm việc</Typography.Title>
+      )}
+      {!hideAlert && (
+        <Alert
+          type="info"
+          showIcon
+          title="Lịch làm việc"
+          description="Lịch bắt đầu sau ngày vào làm. Hôm nay và ngày đã qua không tạo ca. Ca trùng hoặc không hợp lệ được báo riêng."
+        />
+      )}
+      {(!hideStartDate || !hideEmploymentType || !hideEndDate) && (
+        <div className="onboarding-form-grid">
+          {!hideStartDate && (
+          <Form.Item
+            name={["contract", "startDate"]}
+            label="Ngày bắt đầu hợp đồng"
+            {...dateProps}
+            rules={[{ required: true, message: "Chọn ngày bắt đầu." }]}
+          >
+            <DatePicker
+              disabled={disabled || invitation}
+              format="DD/MM/YYYY"
+              className="service-full-width"
+            />
+          </Form.Item>
+        )}
+        {!hideEmploymentType && (
+          <Form.Item
+            name={["contract", "employmentType"]}
+            label="Loại hợp đồng"
+            rules={[{ required: true, message: "Chọn loại hợp đồng." }]}
+          >
+            <Select
+            disabled={disabled}
+            options={employmentTypes}
             className="service-full-width"
           />
-        </Form.Item>
+          </Form.Item>
+        )}
+        {!hideEndDate && (
+          <Form.Item
+            name={["contract", "endDate"]}
+            label="Ngày kết thúc hợp đồng"
+            {...dateProps}
+            dependencies={[["contract", "startDate"]]}
+            rules={[
+              { required: true, message: "Chọn ngày kết thúc." },
+              {
+                validator: (_, value) =>
+                  !value ||
+                  !form.getFieldValue(["contract", "startDate"]) ||
+                  value >= form.getFieldValue(["contract", "startDate"])
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error("Ngày kết thúc phải từ ngày bắt đầu trở đi."),
+                      ),
+              },
+            ]}
+          >
+            <DatePicker
+              disabled={disabled}
+              format="DD/MM/YYYY"
+              className="service-full-width"
+            />
+          </Form.Item>
+        )}
+        </div>
+      )}
+      {!hideWeeklyPattern && (
         <Form.Item
-          name={["contract", "endDate"]}
-          label="Ngày kết thúc hợp đồng"
-          {...dateProps}
-          dependencies={[["contract", "startDate"]]}
+          name={["contract", "weeklyPattern"]}
+          label={compact ? undefined : "Ca làm theo ngày trong tuần"}
           rules={[
-            { required: true, message: "Chọn ngày kết thúc." },
             {
               validator: (_, value) =>
-                !value ||
-                !form.getFieldValue(["contract", "startDate"]) ||
-                value >= form.getFieldValue(["contract", "startDate"])
+                value?.some((day) => day.shiftIds?.length)
                   ? Promise.resolve()
                   : Promise.reject(
-                      new Error("Ngày kết thúc phải từ ngày bắt đầu trở đi."),
+                      new Error("Chọn ít nhất một ca làm trong tuần."),
                     ),
             },
           ]}
         >
-          <DatePicker
+          <WeeklyPatternInput
+            shifts={shifts}
             disabled={disabled}
-            format="DD/MM/YYYY"
-            className="service-full-width"
+            compact={compact}
           />
         </Form.Item>
-      </div>
-      <Form.Item
-        name={["contract", "weeklyPattern"]}
-        label="Ca làm theo ngày trong tuần"
-        rules={[
-          {
-            validator: (_, value) =>
-              value?.some((day) => day.shiftIds?.length)
-                ? Promise.resolve()
-                : Promise.reject(
-                    new Error("Chọn ít nhất một ca làm trong tuần."),
-                  ),
-          },
-        ]}
-      >
-        <WeeklyPatternInput shifts={shifts} disabled={disabled} />
-      </Form.Item>
+      )}
     </section>
   );
 }

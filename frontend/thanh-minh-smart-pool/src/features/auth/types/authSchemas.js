@@ -53,18 +53,31 @@ export const resetPasswordFormSchema = z.object({
   path: ['confirmPassword'],
 })
 
-export const loginResponseSchema = z.object({
+const sessionResponseSchema = z.object({
   id: z.string().uuid(),
   username: z.string(),
   role: z.string().min(1),
   roles: z.array(z.string().min(1)).min(1).optional(),
   accessToken: z.string().min(1),
   expiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Thời hạn phiên không hợp lệ.'),
-  refreshToken: z.string().min(1),
-  refreshTokenExpiresAtUtc: z.string().refine((value) => Date.parse(value) > Date.now(), 'Thời hạn đăng nhập không hợp lệ.'),
+  mustChangePassword: z.boolean().optional().default(false),
+  refreshToken: z.string().nullish(),
+  refreshTokenExpiresAtUtc: z.string().nullish(),
 })
 
-export const refreshResponseSchema = loginResponseSchema
+export const loginResponseSchema = sessionResponseSchema.superRefine((session, context) => {
+  if (!session.mustChangePassword &&
+      (!session.refreshToken || Date.parse(session.refreshTokenExpiresAtUtc) <= Date.now() ||
+       !Number.isFinite(Date.parse(session.refreshTokenExpiresAtUtc)))) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['refreshToken'], message: 'Phiên đăng nhập không hợp lệ.' })
+  }
+}).transform((session) => session.mustChangePassword
+  ? { ...session, refreshToken: null, refreshTokenExpiresAtUtc: null }
+  : session)
+
+export const refreshResponseSchema = loginResponseSchema.refine(
+  (session) => !session.mustChangePassword, 'Không thể làm mới phiên giới hạn.',
+)
 
 const registrationDeadlinesSchema = z.object({
   otpExpiresAtUtc: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Thời hạn OTP không hợp lệ.'),

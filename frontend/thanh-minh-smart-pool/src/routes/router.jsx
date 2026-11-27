@@ -1,4 +1,5 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
+import { hasValidAccessToken, useAuthStore } from "../features/auth/store/authStore";
 import MainLayout from "../layouts/MainLayout";
 import HomePage from "../pages/HomePage/HomePage";
 import AboutPage from "../pages/AboutPage/AboutPage";
@@ -29,7 +30,6 @@ import IncidentStatisticsPage from "../pages/admin/statistics/IncidentStatistics
 import RevenueStatisticsPage from "../pages/admin/statistics/RevenueStatisticsPage";
 import RentalStatisticsPage from "../pages/admin/statistics/RentalStatisticsPage";
 import StaffProfilesPage from "../pages/admin/staff/StaffProfilesPage";
-import StaffOnboardingPage from "../pages/staff/StaffOnboardingPage";
 import ShiftManagementPage from "../pages/admin/staff/ShiftManagementPage";
 import StaffSchedulePage from "../pages/admin/staff/StaffSchedulePage";
 import OperationalTasksPage from "../pages/admin/staff/OperationalTasksPage";
@@ -65,8 +65,21 @@ import CoachListPage from "../pages/admin/coaches/CoachListPage";
 import WaterQualityPage from "../pages/admin/waterQuality/WaterQualityPage";
 import NotificationPage from "../pages/admin/notifications/NotificationPage";
 
-const router = createBrowserRouter([
-  { path: "/staff/onboarding", element: <StaffOnboardingPage /> },
+// This boundary belongs to the router configuration, not a refreshable component module.
+// eslint-disable-next-line react-refresh/only-export-components
+function SessionBoundary() {
+  const session = useAuthStore((state) => state.session);
+  const location = useLocation();
+  if (session?.mustChangePassword) {
+    if (!hasValidAccessToken(session)) return <Navigate to="/dang-nhap" replace />;
+    if (location.pathname !== "/doi-mat-khau")
+      return <Navigate to="/doi-mat-khau" replace />;
+    return <ChangePasswordPage />;
+  }
+  return <Outlet />;
+}
+
+const router = createBrowserRouter([{ element: <SessionBoundary />, children: [
   {
     element: <MainLayout />,
     children: [
@@ -276,6 +289,6 @@ const router = createBrowserRouter([
       },
     ],
   },
-]);
+]}]);
 
 export default router;

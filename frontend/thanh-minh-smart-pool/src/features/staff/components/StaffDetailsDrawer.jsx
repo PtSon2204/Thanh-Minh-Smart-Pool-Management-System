@@ -1,21 +1,27 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
+  Avatar,
   Button,
   DatePicker,
   Descriptions,
   Drawer,
   Pagination,
   Select,
+  Segmented,
+  Space,
   Spin,
   Table,
   Tabs,
   Tag,
+  Typography,
 } from "antd";
 import dayjs from "dayjs";
 import { useStaffSchedule } from "../hooks/useStaffs";
 import StaffWorkPatternPanel from "./StaffWorkPatternPanel";
-import { StaffContractOverview } from "./StaffContractSchedule";
+import staffService from "../services/staffService";
+import { USER_ROLES } from "../../users/utils/userManagement";
 
 function formatDate(value) {
   return value
@@ -166,36 +172,60 @@ function ScheduleContent({ employeeId, attendance }) {
 
 export default function StaffDetailsDrawer({ open, onClose, staff }) {
   const [tab, setTab] = useState("profile");
+  const [mode, setMode] = useState("schedule");
+  const protectedQuery = useQuery({
+    queryKey: ["staff-edit", staff?.userId],
+    queryFn: ({ signal }) => staffService.getEdit(staff.userId, signal),
+    enabled: open && tab === "profile" && Boolean(staff?.userId),
+    retry: false, gcTime: 0,
+  });
   if (!staff) return null;
+  const details = protectedQuery.data?.details;
+  const show = (value) => value || "Chưa có thông tin";
+  const role = USER_ROLES.find((item) => item.value === staff.roleName?.toUpperCase())?.label || staff.roleName || "Chưa có vai trò";
   const profile = (
-    <Descriptions bordered column={1} size="small">
-      <Descriptions.Item label="Họ tên">
-        {staff.fullName || "-"}
-      </Descriptions.Item>
-      <Descriptions.Item label="Tên đăng nhập">
-        {staff.username || "-"}
-      </Descriptions.Item>
-      <Descriptions.Item label="Email">{staff.email || "-"}</Descriptions.Item>
-      <Descriptions.Item label="Điện thoại">
-        {staff.phone || "-"}
-      </Descriptions.Item>
-      <Descriptions.Item label="Vai trò">
-        {staff.roleName || "-"}
-      </Descriptions.Item>
-      <Descriptions.Item label="Ngày vào làm">
-        {formatDate(staff.joinDate)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Trạng thái">
-        <Tag color={staff.status === "Working" ? "success" : "default"}>
-          {staff.status || "-"}
-        </Tag>
-      </Descriptions.Item>
-    </Descriptions>
+    <div className="staff-contract-stack">
+      <Space align="start" wrap>
+        <Avatar size={64} src={staff.avatarUrl}>{(staff.fullName || "N").charAt(0)}</Avatar>
+        <div><Typography.Title level={4}>{staff.fullName || "Nhân viên chưa có tên"}</Typography.Title>
+          <div>{staff.companyEmail || "Chưa có email công ty"}</div>
+          <Space wrap><Tag>{role}</Tag><Tag color={staff.accountStatus?.toUpperCase() === "ACTIVE" ? "success" : "default"}>{staff.accountStatus?.toUpperCase() === "ACTIVE" ? "Tài khoản hoạt động" : staff.accountStatus?.toUpperCase() === "LOCKED" ? "Tài khoản bị khóa" : "Chưa rõ trạng thái tài khoản"}</Tag></Space>
+        </div>
+      </Space>
+      {protectedQuery.isLoading && <Spin aria-label="Đang tải thông tin cá nhân" />}
+      {protectedQuery.isError && <Alert type="warning" showIcon title="Không thể tải thông tin riêng tư" description="Chỉ thông tin tóm tắt được hiển thị." action={<Button size="small" onClick={() => protectedQuery.refetch()}>Thử lại</Button>} />}
+      <Descriptions title="Thông tin cá nhân" bordered column={{ xs: 1, sm: 2 }} size="small">
+        <Descriptions.Item label="Họ và tên">{show(staff.fullName)}</Descriptions.Item>
+        <Descriptions.Item label="Điện thoại">{show(staff.phone)}</Descriptions.Item>
+        <Descriptions.Item label="Email cá nhân">{show(details?.personalEmail ?? staff.email)}</Descriptions.Item>
+        <Descriptions.Item label="Ngày sinh">{formatDate(details?.dateOfBirth ?? staff.dateOfBirth)}</Descriptions.Item>
+        {details && <Descriptions.Item label="Giới tính">{details.gender === "MALE" ? "Nam" : details.gender === "FEMALE" ? "Nữ" : "Chưa có thông tin"}</Descriptions.Item>}
+        <Descriptions.Item label="Địa chỉ liên hệ">{show(details?.address ?? staff.address)}</Descriptions.Item>
+      </Descriptions>
+      {details && <Descriptions title="Thông tin pháp lý" bordered column={{ xs: 1, sm: 2 }} size="small">
+        <Descriptions.Item label="Số CCCD">{show(details.cccdNumber)}</Descriptions.Item>
+        <Descriptions.Item label="Địa chỉ thường trú">{show(details.permanentAddress)}</Descriptions.Item>
+        <Descriptions.Item label="Địa chỉ tạm trú">{show(details.temporaryAddress)}</Descriptions.Item>
+        <Descriptions.Item label="Ngân hàng">{show(details.bankName)}</Descriptions.Item>
+        <Descriptions.Item label="Số tài khoản">{show(details.bankAccountNumber)}</Descriptions.Item>
+        <Descriptions.Item label="Loại mã số thuế">{details.taxIdentifierKind === "PERSONAL_ID" ? "CCCD" : details.taxIdentifierKind === "LEGACY_TAX_CODE" ? "Mã số thuế" : show(details.taxIdentifierKind)}</Descriptions.Item>
+        <Descriptions.Item label="Mã số thuế">{show(details.taxIdentifier)}</Descriptions.Item>
+        {details.emergencyContactName && <Descriptions.Item label="Người liên hệ khẩn cấp">{details.emergencyContactName}</Descriptions.Item>}
+        {details.emergencyContactPhone && <Descriptions.Item label="Điện thoại khẩn cấp">{details.emergencyContactPhone}</Descriptions.Item>}
+        {details.emergencyContactRelationship && <Descriptions.Item label="Quan hệ">{details.emergencyContactRelationship}</Descriptions.Item>}
+      </Descriptions>}
+      <Descriptions title="Thông tin tài khoản" bordered column={{ xs: 1, sm: 2 }} size="small">
+        <Descriptions.Item label="Email công ty">{staff.companyEmail || "Chưa có email công ty"}</Descriptions.Item>
+        <Descriptions.Item label="Vai trò">{role}</Descriptions.Item>
+        <Descriptions.Item label="Ngày vào làm">{formatDate(staff.joinDate)}</Descriptions.Item>
+        <Descriptions.Item label="Trạng thái việc làm">{staff.status === "Working" ? "Đang làm việc" : staff.status === "Inactive" ? "Không hoạt động" : show(staff.status)}</Descriptions.Item>
+      </Descriptions>
+    </div>
   );
   return (
     <Drawer
       rootClassName="staff-profiles-drawer"
-      title={`Hồ sơ: ${staff.fullName || staff.username || ""}`}
+      title={`Hồ sơ: ${staff.fullName || "Nhân viên"}`}
       open={open}
       onClose={onClose}
       size="large"
@@ -207,45 +237,25 @@ export default function StaffDetailsDrawer({ open, onClose, staff }) {
           {
             key: "profile",
             label: "Hồ sơ",
-            children: (
-              <div className="staff-contract-stack">
-                {profile}
-                {open && tab === "profile" && (
-                  <StaffContractOverview
-                    key={staff.userId}
-                    employeeId={staff.userId}
-                  />
-                )}
-              </div>
-            ),
+            children: profile,
           },
           {
             key: "schedule",
-            label: "Lịch",
+            label: "Lịch & Chấm công",
             title: "Lịch làm việc",
             children:
-              tab === "schedule" ? (
-                <ScheduleContent employeeId={staff.userId} attendance={false} />
-              ) : null,
+              open && tab === "schedule" ? (<div className="staff-contract-stack"><Segmented aria-label="Chọn chế độ xem" value={mode} onChange={setMode} options={[{ label: "Lịch", value: "schedule" }, { label: "Chấm công", value: "attendance" }]} /><ScheduleContent key={`${staff.userId}:${mode}`} employeeId={staff.userId} attendance={mode === "attendance"} /></div>) : null,
           },
           {
             key: "work-pattern",
             label: "Hợp đồng",
             title: "Hợp đồng và lịch tuần",
             children:
-              tab === "work-pattern" ? (
+              open && tab === "work-pattern" ? (
                 <StaffWorkPatternPanel
                   key={staff.userId}
                   employeeId={staff.userId}
                 />
-              ) : null,
-          },
-          {
-            key: "attendance",
-            label: "Chấm công",
-            children:
-              tab === "attendance" ? (
-                <ScheduleContent employeeId={staff.userId} attendance />
               ) : null,
           },
         ]}

@@ -18,12 +18,13 @@ import {
   formatOnboardingDate,
   onboardingError,
   vietnamToday,
-} from "../onboarding/onboardingUi";
+} from "../staffUi";
 import staffService from "../services/staffService";
 import { workPatternService } from "../services/workPatternService";
 import { shiftLabel } from "../contracts/contractUi";
 import ContractTermsFields from "./ContractTermsFields";
 import ContractTermsSummary from "./ContractTermsSummary";
+import { DatedContractSchedule } from "./StaffContractSchedule";
 import ScheduleOperationResult from "./ScheduleOperationResult";
 
 function toContract(contract) {
@@ -394,12 +395,8 @@ export default function StaffWorkPatternPanel({ employeeId }) {
       )}
       {view && (
         <>
-          {view.contract && (
-            <ContractTermsSummary
-              contract={view.contract}
-              shifts={view.shifts || []}
-            />
-          )}
+          <ContractTermsSummary contract={view.contract} shifts={view.shifts || []} />
+          {view.contract && <DatedContractSchedule key={`${employeeId}:${view.contract.startDate}:${view.contract.endDate}`} employeeId={employeeId} contract={view.contract} />}
           {view.renewal?.currentContract && (
             <section className="staff-contract-stack" aria-labelledby="contract-renewal-title">
               <Typography.Title id="contract-renewal-title" level={5}>

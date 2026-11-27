@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ExclamationCircleOutlined, QrcodeOutlined, SearchOutlined, UsergroupAddOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Descriptions, Input, InputNumber, Modal, Segmented, Space, Spin } from 'antd'
+import { Alert, Button, Card, DatePicker, Descriptions, Input, InputNumber, Modal, Segmented, Space, Spin, Statistic } from 'antd'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import dayjs from 'dayjs'
 import { QrScanner } from "../../../features/qr/components/QrScanner"
 import { QR_PURPOSE } from "../../../features/qr/utils/qrPurpose"
 import poolAccessService from "../../../features/tickets/services/poolAccessService"
@@ -53,7 +55,33 @@ function TicketPreview({ result }) {
   )
 }
 
+function DailyEntrySummary() {
+  const [date, setDate] = useState(() => vietnamDate())
+  const summary = useQuery({
+    queryKey: ['pool-entry-summary', date],
+    queryFn: ({ signal }) => poolAccessService.getDailySummary(date, signal),
+    enabled: Boolean(date),
+    retry: false,
+  })
+  return (
+    <Card title="Lượt vào bể theo ngày" size="small">
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <label htmlFor="pool-entry-summary-date">Ngày (giờ Việt Nam)</label>
+        <DatePicker id="pool-entry-summary-date" allowClear={false} value={dayjs(date)} format="DD/MM/YYYY" onChange={(value) => value && setDate(value.format('YYYY-MM-DD'))} />
+        {summary.isFetching && <Spin size="small" description="Đang tải số lượt vào..." />}
+        {summary.isError ? (
+          <Alert type="error" showIcon title="Không thể tải số lượt vào" description="Kiểm tra quyền truy cập hoặc thử lại." action={<Button size="small" onClick={() => summary.refetch()}>Thử lại</Button>} />
+        ) : !summary.isFetching && summary.data && (
+          <Statistic title="Lượt vào được chấp nhận" value={summary.data.acceptedEntries} suffix="lượt" />
+        )}
+        <span>Chỉ tính lượt vào được chấp nhận; không phải số người đang ở trong bể.</span>
+      </Space>
+    </Card>
+  )
+}
+
 export default function TicketScannerPage() {
+  const queryClient = useQueryClient()
   const [source, setSource] = useState(INPUT_MODE.qr)
   const [manualCode, setManualCode] = useState('')
   const [result, setResult] = useState(null)
@@ -109,6 +137,7 @@ export default function TicketScannerPage() {
         const history = await poolAccessService.getEntries(ticketId, vietnamDate())
         const entries = valueOf(history, 'items', 'Items') || []
         if (hasAcceptedEntry(entries)) {
+          queryClient.invalidateQueries({ queryKey: ['pool-entry-summary'] })
           setResult(freshLookup)
           setPhase('accepted')
           setCountdown(3)
@@ -142,6 +171,7 @@ export default function TicketScannerPage() {
       const response = await poolAccessService.confirm(preparedCode.payload, nextInputMode, countToDeduct)
       setResult(response)
       if (valueOf(response, 'allowed', 'Allowed') === true) {
+        queryClient.invalidateQueries({ queryKey: ['pool-entry-summary'] })
         setPhase('accepted')
         setCountdown(3)
         setCountdownPaused(false)
@@ -194,6 +224,7 @@ export default function TicketScannerPage() {
   return (
     <div className="service-list-page ticket-scanner-page">
       <ServiceListHeader title="Quét QR vào cổng" />
+      <DailyEntrySummary />
       <section className="service-list-table" aria-label="Quét và xác nhận vé vào bể">
         <Card className="ticket-scanner-card">
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
