@@ -28,6 +28,11 @@ public partial class User
 
     public DateTime? UpdatedAt { get; set; }
 
+    // Set for accounts whose current password is a temporary credential.
+    public bool MustChangePassword { get; set; }
+
+    public DateTime? TemporaryPasswordExpiresAtUtc { get; set; }
+
     public virtual Employee? Employee { get; set; }
 
     public virtual ICollection<Incident> Incidents { get; set; } = new List<Incident>();

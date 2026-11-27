@@ -496,24 +496,14 @@ public sealed partial class StaffOperations
     private static DateOnly Max(DateOnly first, DateOnly second, DateOnly third) =>
         first >= second && first >= third ? first : second >= third ? second : third;
 
-    private static ScheduleResult LegacyInvitationScheduleResult(DateOnly joinDate) =>
-        new(null, 0, 0, 1, 0,
-            [new(joinDate, null, "legacy_contract_missing", "Lời mời cũ chưa có điều khoản hợp đồng. Đã duyệt hồ sơ nhưng chưa sinh lịch.")],
-            [], "skipped_legacy_no_contract");
-
-    private async Task<ScheduleResult> GenerateApprovedInvitationScheduleAsync(StaffInvitation invitation,
-        Guid actorId, CancellationToken cancellationToken)
+    // Initial contract application for direct Add Employee
+    // (plan tm-spms-admin-add-employee §3.5). It only adds the pattern revision, generated
+    // shifts and notifications to the caller's transaction; the caller saves and commits.
+    private async Task<ScheduleResult> ApplyInitialContractAsync(Employee employee, ContractTerms contract,
+        Guid operationId, Guid actorId, CancellationToken cancellationToken)
     {
-        var contract = invitation.ContractJson is null
-            ? throw new StaffOnboardingException("CONTRACT_REQUIRED", 400)
-            : ScheduleDeserialize<ContractTerms>(invitation.ContractJson);
-        await ValidateContractAsync(contract, invitation.JoinDate, cancellationToken);
-        var employee = context.Employees.Local.SingleOrDefault(item => item.UserId == invitation.CompletedUserId);
-        if (employee is null)
-            employee = await context.Employees.Include(item => item.User).ThenInclude(item => item.Role)
-                .SingleAsync(item => item.UserId == invitation.CompletedUserId, cancellationToken);
         var request = new WorkPatternCommand { EmployeeId = employee.UserId, ActorId = actorId,
-            Action = WorkPatternAction.Preview, Contract = contract, EffectiveFrom = contract.StartDate, OperationId = invitation.Id };
+            Action = WorkPatternAction.Preview, Contract = contract, EffectiveFrom = contract.StartDate, OperationId = operationId };
         var state = await LoadScheduleStateAsync(employee, request, cancellationToken);
         var plan = PlanPattern(request, state);
         var revision = new StaffScheduleChange { EmployeeId = employee.UserId, Kind = "Pattern", ContractJson = ScheduleSerialize(contract),

@@ -56,12 +56,28 @@ public sealed class AccessTokenService : IAccessTokenService
 
     public AccessTokenResult CreateToken(User user, string role, IReadOnlyCollection<string> roles)
     {
+        if (user.MustChangePassword)
+            throw new InvalidOperationException("A password change is required before issuing a normal session.");
+        return CreateCore(user, role, roles, false);
+    }
+
+    public AccessTokenResult CreatePasswordChangeToken(User user, string role)
+    {
+        if (!user.MustChangePassword || user.TemporaryPasswordExpiresAtUtc is not { } expiry || expiry <= DateTime.UtcNow)
+            throw new InvalidOperationException("The temporary credential is unavailable.");
+        return CreateCore(user, role, [role], true);
+    }
+
+    private AccessTokenResult CreateCore(User user, string role, IReadOnlyCollection<string> roles, bool restricted)
+    {
         ArgumentNullException.ThrowIfNull(user);
         if (user.Id == Guid.Empty || string.IsNullOrWhiteSpace(role))
             throw new ArgumentException("A user ID and role are required to issue an access token.");
 
         var issuedAtUtc = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()).UtcDateTime;
         var expiresAtUtc = issuedAtUtc.AddMinutes(_expirationMinutes);
+        if (restricted)
+            expiresAtUtc = new[] { issuedAtUtc.AddMinutes(10), user.TemporaryPasswordExpiresAtUtc!.Value }.Min();
         var activeRoles = roles.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (activeRoles.Length == 0 || !activeRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
             throw new ArgumentException("The primary role must be included in token roles.");
@@ -75,6 +91,7 @@ public sealed class AccessTokenService : IAccessTokenService
         claims.AddRange(new[] { role }.Concat(activeRoles.Where(item =>
             !string.Equals(item, role, StringComparison.OrdinalIgnoreCase)))
             .Select(item => new Claim(ClaimTypes.Role, item)));
+        if (restricted) claims.Add(new Claim("purpose", "password_change"));
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = _issuer,
@@ -94,6 +111,14 @@ public sealed class AccessTokenService : IAccessTokenService
 
     public async Task<bool> IsCurrentRolesAsync(Guid userId, IReadOnlyCollection<string> tokenRoles,
         string tokenPasswordVersion, CancellationToken cancellationToken)
+        => await ValidateCurrentAsync(userId, tokenRoles, tokenPasswordVersion, false, cancellationToken);
+
+    public Task<bool> IsPasswordChangeCurrentAsync(Guid userId, IReadOnlyCollection<string> roles,
+        string passwordVersion, CancellationToken cancellationToken) =>
+        ValidateCurrentAsync(userId, roles, passwordVersion, true, cancellationToken);
+
+    private async Task<bool> ValidateCurrentAsync(Guid userId, IReadOnlyCollection<string> tokenRoles,
+        string tokenPasswordVersion, bool restricted, CancellationToken cancellationToken)
     {
         if (userId == Guid.Empty || tokenRoles.Count == 0 ||
             tokenRoles.Any(string.IsNullOrWhiteSpace) ||
@@ -107,11 +132,20 @@ public sealed class AccessTokenService : IAccessTokenService
             user.Id == userId && user.IsDeleted != true &&
             user.Status != null && EF.Functions.ILike(user.Status, "ACTIVE") &&
             user.Role != null && user.Role.IsDeleted != true)
-            .Select(user => new { user.Id, user.PasswordHash, user.IsCoach,
+            .Select(user => new { user.Id, user.PasswordHash, user.IsCoach, user.MustChangePassword,
+                user.TemporaryPasswordExpiresAtUtc,
                 PrimaryRole = user.Role!.Name })
             .FirstOrDefaultAsync(cancellationToken);
-        if (account is null || !(await _contractAccess.EvaluateAsync(userId, account.PrimaryRole,
-                cancellationToken)).IsAllowed) return false;
+        if (account is null) return false;
+        var contractAccess = await _contractAccess.EvaluateAsync(userId, account.PrimaryRole,
+            cancellationToken);
+        // Credential setup may proceed before the contract starts, but only for a
+        // purpose-restricted password-change token. Business access still requires
+        // an allowed contract.
+        if (!contractAccess.IsAllowed &&
+            !(restricted && contractAccess.State == StaffContractState.NotStarted)) return false;
+        if (account.MustChangePassword != restricted || restricted &&
+            (account.TemporaryPasswordExpiresAtUtc is not { } expiry || expiry <= DateTime.UtcNow)) return false;
         var effectiveRoles = new List<string> { account.PrimaryRole };
         if (account.IsCoach && string.Equals(account.PrimaryRole, "CUSTOMER",
                 StringComparison.OrdinalIgnoreCase) &&

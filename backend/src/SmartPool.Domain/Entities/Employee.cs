@@ -10,6 +10,9 @@ public partial class Employee
 
     public DateOnly JoinDate { get; set; }
 
+    // Sign-in identifier issued by the company (not a real mailbox).
+    public string? CompanyEmail { get; set; }
+
     public string? Status { get; set; }
 
     public DateTime? CreatedAt { get; set; }
@@ -19,16 +22,6 @@ public partial class Employee
     public DateTime? ContractInactiveSinceUtc { get; set; }
 
     public bool ManualAccessEnabled { get; set; }
-
-    public Guid? CorrectionRequestId { get; set; }
-
-    public string? CorrectionReason { get; set; }
-
-    public DateTime? CorrectionRequestedAtUtc { get; set; }
-
-    public Guid? CorrectionRevisionId { get; set; }
-
-    public long CorrectionVersion { get; set; }
 
     public virtual ICollection<EmployeeShift> EmployeeShifts { get; set; } = new List<EmployeeShift>();
 

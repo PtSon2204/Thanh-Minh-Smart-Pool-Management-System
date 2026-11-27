@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPool.API.Authorization;
 using SmartPool.API.Contracts;
@@ -8,11 +9,12 @@ using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
+using SmartPool.Application.Features.ManageStaffs.Commands.AddEmployee;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
-using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.CorrectAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
+using SmartPool.Application.Features.ManageStaffs.Commands.UploadStaffAvatar;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetSchedule;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetScheduleEmployees;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetAttendanceHistory;
@@ -43,13 +45,25 @@ namespace SmartPool.API.Controllers
             return await SendAsync(query, cancellationToken);
         }
 
-        /// <summary>Tạo hồ sơ nhân viên từ tài khoản đủ điều kiện.</summary>
+        /// <summary>Tạo nhân viên mới kèm tài khoản.</summary>
         [HttpPost]
-        [RequirePermission("staff", "create")]
-        [ProducesResponseType(typeof(CreateStaffResponse), StatusCodes.Status201Created)]
-        public async Task<IActionResult> CreateStaff([FromBody] CreateStaffCommand command, CancellationToken cancellationToken)
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly), RequirePermission("staff", "create")]
+        [ProducesResponseType(typeof(AddEmployeeResponse), StatusCodes.Status201Created)]
+        public async Task<IActionResult> CreateStaff([FromBody] AddEmployeeCommand command, CancellationToken cancellationToken)
         {
+            if (!TryGetUserId(out var actorId)) return Unauthorized();
+            command.ActorId = actorId;
             return await SendAsync(command, cancellationToken, StatusCodes.Status201Created);
+        }
+
+        [HttpPost("{userId:guid}/reset-password")]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly), RequirePermission("staff", "update")]
+        public async Task<IActionResult> ResetStaffPassword(Guid userId, [FromBody] ResetStaffPasswordCommand command, CancellationToken cancellationToken)
+        {
+            if (!TryGetUserId(out var actorId)) return Unauthorized();
+            command.UserId = userId;
+            command.ActorId = actorId;
+            return await SendAsync(command, cancellationToken);
         }
 
         /// <summary>Lấy tài khoản và vai trò có thể dùng để tạo nhân viên.</summary>
@@ -80,6 +94,17 @@ namespace SmartPool.API.Controllers
             if (!User.HasRole(RoleEnum.ADMIN) || !TryGetUserId(out var actorId)) return Forbid();
             command.UserId = userId;
             command.ActorId = actorId;
+            return await SendAsync(command, cancellationToken);
+        }
+
+        /// <summary>Cập nhật ảnh đại diện cho nhân viên.</summary>
+        [HttpPost("{userId:guid}/avatar")]
+        [Authorize(Policy = AuthorizationPolicies.AdminOnly), RequirePermission("staff", "update")]
+        [Consumes("multipart/form-data")]
+        [ProducesResponseType(typeof(UploadStaffAvatarResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UploadStaffAvatar(Guid userId, [FromForm] UploadStaffAvatarCommand command, CancellationToken cancellationToken)
+        {
+            command.UserId = userId;
             return await SendAsync(command, cancellationToken);
         }
 

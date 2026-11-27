@@ -2,6 +2,7 @@ namespace SmartPool.Application.Features.Authentication.Commands.Login;
 
 public sealed class LoginResponse
 {
+    public bool MustChangePassword { get; init; }
     public Guid Id { get; init; }
 
     public string Username { get; init; } = string.Empty;

@@ -122,8 +122,13 @@ namespace SmartPool.Infrastructure
 
                             var validator = context.HttpContext.RequestServices
                                 .GetRequiredService<IAccessTokenService>();
-                            if (!await validator.IsCurrentRolesAsync(userId, tokenRoles, passwordVersion,
-                                context.HttpContext.RequestAborted))
+                            var purpose = context.Principal?.FindFirstValue("purpose");
+                            var current = purpose == "password_change"
+                                ? await validator.IsPasswordChangeCurrentAsync(userId, tokenRoles, passwordVersion,
+                                    context.HttpContext.RequestAborted)
+                                : purpose is null && await validator.IsCurrentRolesAsync(userId, tokenRoles, passwordVersion,
+                                    context.HttpContext.RequestAborted);
+                            if (!current)
                                 context.Fail("Account role, status or password changed.");
                         }
                     };
@@ -153,10 +158,7 @@ namespace SmartPool.Infrastructure
             services.AddSingleton(new Cloudinary(cloudinaryUrl) { Api = { Secure = true } });
             services.AddScoped<IStorageService, CloudinaryStorageService>();
             services.Configure<StaffOnboarding.StaffOnboardingOptions>(configuration.GetSection("StaffOnboarding"));
-            services.AddHttpClient<StaffOnboarding.IStaffDocumentStorage, StaffOnboarding.CloudinaryStaffDocumentStorage>().RemoveAllLoggers();
-            services.AddScoped<StaffOnboarding.StaffDocumentCleanup>();
             services.AddScoped<StaffOnboarding.StaffOnboardingServices>();
-            services.AddHostedService<StaffOnboarding.StaffDocumentCleanupWorker>();
             services.AddHostedService<StaffOnboarding.StaffScheduleDeliveryWorker>();
             services.AddHostedService<StaffOnboarding.OperationalTaskMaterializerWorker>();
 
@@ -169,6 +171,8 @@ namespace SmartPool.Infrastructure
 
             // Password hashing — ASP.NET Core Identity (salt và hash do PasswordHasher quản lý)
             services.AddScoped<IPasswordHasher, PasswordHasherService>();
+        services.AddSingleton<ITempPasswordGenerator, TempPasswordGenerator>();
+        services.AddScoped<ICompanyEmailGenerator, CompanyEmailGenerator>();
 
             // Access token generation for login
             services.AddScoped<IAccessTokenService, AccessTokenService>();

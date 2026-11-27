@@ -99,7 +99,7 @@ public sealed class RequestPasswordResetHandler : IRequestHandler<RequestPasswor
             return Problem(StatusCodes.Status503ServiceUnavailable, "ACCOUNT_LOOKUP_UNAVAILABLE");
         }
 
-        if (user is not null && (user.Id == Guid.Empty || string.IsNullOrWhiteSpace(user.PasswordHash)))
+        if (user is not null && (user.MustChangePassword || user.Id == Guid.Empty || string.IsNullOrWhiteSpace(user.PasswordHash)))
             user = null;
 
         var recoveryId = Guid.NewGuid();

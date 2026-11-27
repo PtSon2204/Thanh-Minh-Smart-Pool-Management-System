@@ -5,12 +5,12 @@ using AutoMapper;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageStaffs;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
-using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetShifts;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffOptions;
 using SmartPool.Application.Features.ManageStaffs.Queries.GetStaffs;
 using SmartPool.Application.Interfaces.Repositories;
+using SmartPool.Application.Interfaces.Services;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
@@ -26,10 +26,16 @@ public sealed partial class StaffOperations : IStaffOperations
     private readonly StaffAttendanceQrSettings attendanceQrSettings;
     private readonly ITimeLimitedDataProtector schedulePreviewProtector;
     private readonly SmartPool.Infrastructure.StaffOnboarding.StaffOnboardingServices? onboardingServices;
+    private readonly ICompanyEmailGenerator? companyEmails;
+    private readonly ITempPasswordGenerator? tempPasswords;
+    private readonly IStorageService? storage;
 
     public StaffOperations(SmartPoolDbContext context, IMapper mapper, TimeProvider timeProvider, IOptions<StaffAttendanceQrSettings> attendanceQrSettings,
         SmartPool.Infrastructure.StaffOnboarding.StaffOnboardingServices? onboardingServices = null,
-        IDataProtectionProvider? dataProtectionProvider = null)
+        IDataProtectionProvider? dataProtectionProvider = null,
+        ICompanyEmailGenerator? companyEmails = null,
+        ITempPasswordGenerator? tempPasswords = null,
+        IStorageService? storage = null)
     {
         this.context = context;
         this.mapper = mapper;
@@ -38,7 +44,19 @@ public sealed partial class StaffOperations : IStaffOperations
         schedulePreviewProtector = (dataProtectionProvider ?? DataProtectionProvider.Create("SmartPool.StaffScheduling.Preview.v1"))
             .CreateProtector("SmartPool.StaffScheduling.Preview.v1").ToTimeLimitedDataProtector();
         this.onboardingServices = onboardingServices;
+        this.companyEmails = companyEmails;
+        this.tempPasswords = tempPasswords;
+        this.storage = storage;
     }
+
+    private ICompanyEmailGenerator CompanyEmails => companyEmails
+        ?? throw new SmartPool.Application.Features.ManageStaffs.Onboarding.StaffOnboardingException("EMPLOYEE_CREATION_UNAVAILABLE", 503);
+
+    private ITempPasswordGenerator TempPasswords => tempPasswords
+        ?? throw new SmartPool.Application.Features.ManageStaffs.Onboarding.StaffOnboardingException("EMPLOYEE_CREATION_UNAVAILABLE", 503);
+
+    private IStorageService Storage => storage
+        ?? throw new SmartPool.Application.Features.ManageStaffs.Onboarding.StaffOnboardingException("AVATAR_UPLOAD_UNAVAILABLE", 503);
 
     public async Task<PagedResponse<GetStaffsResponse>> GetStaffsAsync(GetStaffsQuery request, CancellationToken cancellationToken)
     {
@@ -65,9 +83,6 @@ public sealed partial class StaffOperations : IStaffOperations
             .Include(user => user.UserProfile).OrderBy(user => user.Username).ToListAsync(cancellationToken);
         return new GetStaffOptionsResponse { Users = mapper.Map<List<EligibleUserResponse>>(users) };
     }
-
-    public Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken) =>
-        Task.FromException<CreateStaffResponse>(new SmartPool.Application.Features.ManageStaffs.Onboarding.StaffOnboardingException("ONBOARDING_REQUIRED"));
 
     public async Task<PagedResponse<GetShiftsResponse>> GetShiftsAsync(GetShiftsQuery request, CancellationToken cancellationToken)
     {

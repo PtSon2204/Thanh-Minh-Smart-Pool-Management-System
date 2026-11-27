@@ -45,7 +45,7 @@ public sealed class RefreshTokenService : IRefreshTokenService
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         var user = await LockUserAsync(userId, cancellationToken);
-        if (user is null || user.IsDeleted == true ||
+        if (user is null || user.MustChangePassword || user.IsDeleted == true ||
             !string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(user.PasswordHash, expectedPasswordHash, StringComparison.Ordinal))
             return null;
@@ -113,7 +113,7 @@ public sealed class RefreshTokenService : IRefreshTokenService
         // Serialize refresh with password changes: both paths lock the user row
         // before changing refresh-token rows.
         var user = await LockUserAsync(current.UserId, cancellationToken);
-        if (user is null || user.IsDeleted == true ||
+        if (user is null || user.MustChangePassword || user.IsDeleted == true ||
             !string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase) ||
             user.RoleId is null)
             return null;

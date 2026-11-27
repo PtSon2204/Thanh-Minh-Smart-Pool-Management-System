@@ -16,13 +16,11 @@ public sealed class StaffOnboardingOptions
 
 public sealed class StaffOnboardingServices(
     IOptions<StaffOnboardingOptions> options, IPasswordHasher passwords,
-    IEmailService email, IStaffDocumentStorage storage, StaffDocumentCleanup cleanup)
+    IEmailService email)
 {
     public StaffOnboardingOptions Options => options.Value;
     public IPasswordHasher Passwords => passwords;
     public IEmailService Email => email;
-    public IStaffDocumentStorage Storage => storage;
-    public StaffDocumentCleanup Cleanup => cleanup;
 
     private static byte[] Key(string encoded)
     {
@@ -59,15 +57,9 @@ public sealed class StaffOnboardingServices(
     public string ProtectProfile(StaffLegalProfile profile) => Protect(JsonSerializer.Serialize(profile), "staff-legal-v1");
     public StaffLegalProfile Profile(string value) => JsonSerializer.Deserialize<StaffLegalProfile>(Unprotect(value, "staff-legal-v1"))!;
     public string IdentityDigest(string value) => Convert.ToHexString(HMACSHA256.HashData(Key(Options.IdentityKey), Encoding.UTF8.GetBytes("staff-cccd-v1:" + value)));
-    public static string TokenDigest(Guid invitationId, string token) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"staff-invitation-v1:{invitationId:D}:{token}")));
-
-    public string InvitationLink(Guid invitationId, string token)
-    {
-        return $"{FrontendOrigin()}/staff/onboarding#invitation={invitationId:D}&token={token}";
-    }
-
     public string StaffScheduleLink() => $"{FrontendOrigin()}/admin/staff/schedule";
+
+    public string LoginLink() => $"{FrontendOrigin()}/dang-nhap";
 
     private string FrontendOrigin()
     {

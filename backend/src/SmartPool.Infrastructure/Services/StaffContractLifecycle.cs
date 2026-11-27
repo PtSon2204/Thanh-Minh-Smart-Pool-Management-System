@@ -33,12 +33,33 @@ public sealed class StaffContractLifecycle(SmartPoolDbContext context,
         var employee = await context.Employees.AsNoTracking().Include(item => item.User.Role)
             .SingleOrDefaultAsync(item => item.UserId == employeeId, cancellationToken);
         if (employee?.User.Role is null || employee.User.Role.IsDeleted == true) return;
-        var decision = await contractAccess.EvaluateAsync(employeeId, employee.User.Role.Name, cancellationToken);
-        if (!decision.HasContract) return;
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var current = context.Employees.Where(item => item.UserId == employeeId &&
             item.Status == employee.Status && item.ContractInactiveSinceUtc == employee.ContractInactiveSinceUtc &&
             item.UpdatedAt == employee.UpdatedAt);
+        var decision = await contractAccess.EvaluateAsync(employeeId, employee.User.Role.Name, cancellationToken);
+        if (!decision.HasContract) return;
+        // Forced password setup may continue only while the contract has not
+        // started (plan §4.2 pre-contract exception). Every other contract state
+        // keeps the normal lifecycle, and only locks this service owns are undone.
+        if (decision.State == StaffContractState.NotStarted &&
+            await context.Users.AsNoTracking().Where(item => item.Id == employeeId)
+                .Select(item => item.MustChangePassword).SingleOrDefaultAsync(cancellationToken))
+        {
+            if (employee.Status == "Inactive" && employee.ContractInactiveSinceUtc.HasValue)
+            {
+                await current.ExecuteUpdateAsync(setters => setters
+                    .SetProperty(item => item.Status, "Working")
+                    .SetProperty(item => item.ContractInactiveSinceUtc, (DateTime?)null)
+                    .SetProperty(item => item.UpdatedAt, now), cancellationToken);
+                await context.Users.Where(item => item.Id == employeeId && item.Status != null &&
+                    EF.Functions.ILike(item.Status, "LOCKED") && item.IsDeleted != true)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, "ACTIVE")
+                        .SetProperty(item => item.UpdatedAt, now), cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            return;
+        }
         if (employee.Status == "Working" && decision.State != StaffContractState.Active)
         {
             var contractOwnsAccountLock = employee.User.IsDeleted != true &&

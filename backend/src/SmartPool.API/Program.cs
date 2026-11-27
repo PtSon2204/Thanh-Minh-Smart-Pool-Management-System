@@ -64,6 +64,23 @@ namespace SmartPool.API
 
             app.UseCors("SmartPoolCorsPolicy");     // Phải đứng TRƯỚC Auth
             app.UseAuthentication();
+            app.Use(async (context, next) =>
+            {
+                var endpoint = context.GetEndpoint();
+                var protectedRoute = endpoint?.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Count > 0
+                    && endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() is null;
+                var path = context.Request.Path.Value?.TrimEnd('/');
+                var allowed = (HttpMethods.IsPut(context.Request.Method) && string.Equals(path, "/api/auth/change-password", StringComparison.OrdinalIgnoreCase))
+                    || (HttpMethods.IsPost(context.Request.Method) && string.Equals(path, "/api/auth/logout", StringComparison.OrdinalIgnoreCase));
+                if (context.User.Identity?.IsAuthenticated == true &&
+                    context.User.FindFirst("purpose")?.Value == "password_change" && protectedRoute && !allowed)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsJsonAsync(new { code = "FORCED_PASSWORD_CHANGE" });
+                    return;
+                }
+                await next(context);
+            });
             app.UseAuthorization();
             app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
             app.MapControllers();

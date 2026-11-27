@@ -53,6 +53,12 @@ public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, IActi
                 })
                 : new OkObjectResult(updated);
         }
+        catch (ValidationException exception)
+        {
+            var errors = exception.Errors.GroupBy(error => JsonNamingPolicy.CamelCase.ConvertName(error.PropertyName))
+                .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).Distinct().ToArray());
+            return new BadRequestObjectResult(new ValidationProblemDetails(errors));
+        }
         catch (UniqueUserFieldException exception)
         {
             var problem = new ProblemDetails
