@@ -9,6 +9,18 @@ namespace SmartPool.UnitTests.Features.ManageUsers;
 
 public sealed class UpdateUserHandlerTests
 {
+    [Fact]
+    public async Task ReservedEmailWrite_ReturnsFieldErrorInsteadOfServerError()
+    {
+        var h = new Harness();
+        h.Users.Setup(x => x.UpdateUserAsync(It.IsAny<UpdateUserValues>(), h.Token))
+            .ThrowsAsync(new FluentValidation.ValidationException([
+                new FluentValidation.Results.ValidationFailure("Email", "Reserved personal email domain.")]));
+        var result = Assert.IsType<BadRequestObjectResult>(await h.Handle());
+        var problem = Assert.IsType<ValidationProblemDetails>(result.Value);
+        Assert.Contains("email", problem.Errors.Keys);
+    }
+
     [Fact(DisplayName = "UTCID01 (N) - Cập nhật hợp lệ → 200, chuyển đủ dữ liệu đã chuẩn hóa")]
     public async Task Handle_ValidRequest_ReturnsUpdatedUser()
     {
