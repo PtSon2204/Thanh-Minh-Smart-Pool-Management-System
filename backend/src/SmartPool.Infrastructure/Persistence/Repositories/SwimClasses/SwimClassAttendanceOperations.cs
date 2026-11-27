@@ -52,5 +52,5 @@ public sealed partial class SwimClassOperations
 
     private static ClassAttendanceResponse ToAttendanceResponse(ClassAttendance item, Guid classId) =>
         new(item.Id, classId, item.SessionId, item.RegistrationId,
-            item.ImageUrl, item.Status, item.SubmittedAt, item.UpdatedAt);
+            item.ImageUrl, item.Status, item.SubmittedAt, item.UpdatedAt, item.ProgressNote);
 }

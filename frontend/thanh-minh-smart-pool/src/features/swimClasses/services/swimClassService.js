@@ -24,6 +24,9 @@ export const swimClassService = {
     return apiClient.put(`${BASE}/${classId}/sessions/${sessionId}/attendances/registrations/${registrationId}`, body,
       { headers: { 'Content-Type': undefined } }).then(({ data }) => data)
   },
+  updateClassProgressNote: (classId, sessionId, registrationId, progressNote, expectedUpdatedAt) =>
+    apiClient.patch(`${BASE}/${classId}/sessions/${sessionId}/attendances/registrations/${registrationId}/progress-note`,
+      { progressNote, expectedUpdatedAt }).then(({ data }) => data),
   completeClass: (classId) => apiClient.post(`${BASE}/${classId}/complete`).then(({ data }) => data),
   createClass: (payload) => apiClient.post(BASE, payload).then(({ data }) => data),
   updateClass: (classId, payload) => apiClient.put(`${BASE}/${classId}`, payload).then(({ data }) => data),

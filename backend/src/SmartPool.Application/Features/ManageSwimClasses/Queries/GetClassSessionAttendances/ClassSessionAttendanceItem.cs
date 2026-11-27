@@ -8,4 +8,5 @@ public sealed record ClassSessionAttendanceItem(
     string? ImageUrl,
     string Status,
     DateTime? SubmittedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    string? ProgressNote = null);

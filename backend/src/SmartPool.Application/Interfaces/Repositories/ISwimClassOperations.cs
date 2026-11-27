@@ -18,6 +18,7 @@ using SmartPool.Application.Features.ManageSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetMyClassAttendances;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassSessionAttendances;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RecordClassAttendance;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassProgressNote;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.ReviewClassRegistration;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassRegistrantContact;
 
@@ -34,6 +35,8 @@ public interface ISwimClassOperations
         CancellationToken cancellationToken);
     Task<ClassAttendanceResponse> RecordClassAttendanceAsync(RecordClassAttendanceCommand request,
         Guid coachUserId, byte[]? image, string? format, CancellationToken cancellationToken);
+    Task<ClassAttendanceResponse> UpdateClassProgressNoteAsync(UpdateClassProgressNoteCommand request,
+        Guid coachUserId, CancellationToken cancellationToken);
     Task<PagedResponse<MyClassAttendanceItem>> GetMyAttendancesAsync(Guid classId,
         Guid customerUserId, int pageIndex, int pageSize, CancellationToken cancellationToken);
     Task<PagedResponse<ClassRegistrationResponse>> GetClassRegistrationsAsync(

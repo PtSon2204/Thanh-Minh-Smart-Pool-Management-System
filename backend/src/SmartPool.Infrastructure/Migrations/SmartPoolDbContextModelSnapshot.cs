@@ -229,6 +229,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("character varying(2048)")
                         .HasColumnName("image_url");
 
+                    b.Property<string>("ProgressNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("progress_note");
+
                     b.Property<Guid>("RegistrationId")
                         .HasColumnType("uuid")
                         .HasColumnName("registration_id");
@@ -274,7 +279,6 @@ namespace SmartPool.Infrastructure.Migrations
 
                     b.ToTable("class_attendances", "smart_pool", t =>
                         {
-
                             t.HasCheckConstraint("ck_class_attendances_status_image", "(status <> 'Verified' OR image_url IS NOT NULL) AND (status <> 'Absent' OR image_url IS NULL)");
                         });
                 });

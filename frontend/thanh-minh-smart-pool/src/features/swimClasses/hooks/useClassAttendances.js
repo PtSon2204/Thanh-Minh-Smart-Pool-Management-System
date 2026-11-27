@@ -34,3 +34,16 @@ export function useRecordClassAttendance(classId, sessionId) {
     ]),
   })
 }
+
+export function useUpdateClassProgressNote(classId, sessionId) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ registrationId, progressNote, expectedUpdatedAt }) =>
+      swimClassService.updateClassProgressNote(classId, sessionId, registrationId, progressNote, expectedUpdatedAt),
+    retry: false,
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['class-session-attendances'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-class-attendances'] }),
+    ]),
+  })
+}

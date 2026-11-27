@@ -53,7 +53,7 @@ public sealed partial class SwimClassOperations
             attendanceByRegistration.TryGetValue(item.Id, out var attendance);
             return new ClassSessionAttendanceItem(attendance?.Id, item.Id, item.CustomerUserId,
                 item.CustomerName ?? "Học viên", attendance?.ImageUrl, attendance?.Status ?? "NotMarked",
-                attendance?.SubmittedAt, attendance?.UpdatedAt);
+                attendance?.SubmittedAt, attendance?.UpdatedAt, attendance?.ProgressNote);
         }).ToList();
 
         return new PagedResponse<ClassSessionAttendanceItem>

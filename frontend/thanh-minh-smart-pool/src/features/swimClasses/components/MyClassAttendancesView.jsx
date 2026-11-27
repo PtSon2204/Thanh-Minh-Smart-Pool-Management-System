@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Alert, Button, Empty, Image, Pagination, Spin, Tag } from 'antd'
-import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, MessageOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useMyClassAttendances } from '../hooks/useClassAttendances'
@@ -18,7 +18,7 @@ export default function MyClassAttendancesView() {
   return <main className="class-attendance-page">
     <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/lop-hoc-cua-toi')}>Về lớp học của tôi</Button>
     <header className="class-attendance-header"><div><small>GÓC HỌC VIÊN</small><h1>Điểm danh · {location.state?.className || 'Lớp học của tôi'}</h1>
-      <p>Xem kết quả điểm danh và ảnh do Coach ghi nhận.</p></div></header>
+      <p>Xem kết quả điểm danh và nhận xét của Coach sau từng buổi học.</p></div></header>
     <section className="class-attendance-panel" aria-label="Điểm danh theo buổi">
       <div className="class-attendance-toolbar"><h2>Buổi học</h2><Button icon={<ReloadOutlined />} onClick={() => attendances.refetch()}>Làm mới</Button></div>
       {attendances.isPending && <Spin />}
@@ -31,6 +31,10 @@ export default function MyClassAttendancesView() {
             <span>Giờ Việt Nam (UTC+7)</span></div>
           <Tag color={attendanceStatus[status]?.color || 'default'}>{attendanceStatus[status]?.label || status}</Tag>
           {item.attendance?.imageUrl && <Image width={72} height={54} style={{ objectFit: 'cover' }} src={item.attendance.imageUrl} alt="Ảnh điểm danh của tôi" />}
+          {item.attendance?.progressNote && <aside className="class-attendance-progress-note" aria-label="Nhận xét của Coach">
+            <span className="class-attendance-progress-note-title"><MessageOutlined aria-hidden="true" /> Nhận xét của Coach</span>
+            <p>{item.attendance.progressNote}</p>
+          </aside>}
         </article>
       })}</div>
       {(attendances.data?.totalCount || 0) > 20 && <Pagination current={pageIndex} pageSize={20}

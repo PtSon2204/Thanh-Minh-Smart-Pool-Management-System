@@ -20,6 +20,7 @@ public sealed class ClassAttendanceConfiguration : IEntityTypeConfiguration<Clas
         entity.Property(e => e.SessionId).HasColumnName("session_id").IsRequired();
         entity.Property(e => e.RegistrationId).HasColumnName("registration_id").IsRequired();
         entity.Property(e => e.ImageUrl).HasColumnName("image_url").HasMaxLength(2048);
+        entity.Property(e => e.ProgressNote).HasColumnName("progress_note").HasMaxLength(2000);
         entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
         entity.Property(e => e.SubmittedByUserId).HasColumnName("submitted_by_user_id").IsRequired();
         entity.Property(e => e.SubmittedAt).HasColumnName("submitted_at").HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");

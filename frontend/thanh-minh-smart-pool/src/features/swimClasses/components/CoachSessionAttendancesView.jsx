@@ -4,6 +4,7 @@ import {
   Button,
   Empty,
   Image,
+  Input,
   Modal,
   Pagination,
   Spin,
@@ -17,11 +18,14 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../../auth/store/authStore";
 import {
   useRecordClassAttendance,
   useSessionAttendances,
+  useUpdateClassProgressNote,
 } from "../hooks/useClassAttendances";
+import { swimClassService } from "../services/swimClassService";
 import { attendanceStatus } from "../utils/classAttendance";
 import { formatVietnamTime } from "../utils/classSchedule";
 import { classServerMessage } from "../utils/classDisplay";
@@ -37,6 +41,8 @@ export default function CoachSessionAttendancesView() {
   const [status, setStatus] = useState("all");
   const [pageIndex, setPageIndex] = useState(1);
   const [selected, setSelected] = useState(null);
+  const [modalMode, setModalMode] = useState(null);
+  const [progressNote, setProgressNote] = useState("");
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -57,11 +63,22 @@ export default function CoachSessionAttendancesView() {
   );
 
   const record = useRecordClassAttendance(classId, sessionId);
+  const updateNote = useUpdateClassProgressNote(classId, sessionId);
+  const classDetail = useQuery({
+    queryKey: ["swim-class-detail", classId],
+    queryFn: ({ signal }) => swimClassService.getClassById(classId, undefined, signal),
+    enabled: Boolean(classId),
+  });
   const items = attendances.data?.items || [];
+  const session = classDetail.data?.sessions?.find((item) => item.id === sessionId);
+  const endsAt = session?.endsAt || location.state?.endsAt;
+  const classStatus = classDetail.data?.status || location.state?.classStatus;
 
   const isSessionOngoing = Boolean(
-    location.state?.endsAt && Date.parse(location.state.endsAt) >= now,
+    endsAt && Date.parse(endsAt) >= now,
   );
+  const canEditNote = Boolean(selected?.attendanceId && endsAt &&
+    Date.parse(endsAt) <= now && session?.status !== "Cancelled");
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -86,24 +103,49 @@ export default function CoachSessionAttendancesView() {
 
   function resetModal() {
     setSelected(null);
+    setModalMode(null);
+    setProgressNote("");
     handleImageChange(null);
     setCameraOpen(false);
     setError(null);
   }
 
   function close() {
-    if (record.isPending) return;
+    if (record.isPending || updateNote.isPending) return;
     resetModal();
   }
 
-  function choose(item) {
+  function choose(item, mode) {
     setSelected(item);
+    setModalMode(mode);
+    setProgressNote(item.progressNote || "");
     handleImageChange(null);
     setError(null);
   }
 
+  async function saveNote() {
+    if (!selected || modalMode !== "note" || !canEditNote || updateNote.isPending) return;
+    if (!progressNote.trim()) {
+      setError("Vui lòng nhập nhận xét.");
+      return;
+    }
+    setError(null);
+    try {
+      await updateNote.mutateAsync({
+        registrationId: selected.registrationId,
+        progressNote: progressNote.trim(),
+        expectedUpdatedAt: selected.updatedAt,
+      });
+      message.success("Đã lưu nhận xét học viên.");
+      resetModal();
+    } catch (err) {
+      setError(classServerMessage(err, "Không lưu được nhận xét. Vui lòng thử lại."));
+      if (err?.response?.status === 409) void attendances.refetch();
+    }
+  }
+
   async function save(result) {
-    if (!selected || record.isPending) return;
+    if (!selected || modalMode !== "attendance" || record.isPending) return;
 
     if (result === "Absent" && isSessionOngoing) {
       setError("Chỉ được đánh dấu vắng sau khi buổi học kết thúc.");
@@ -223,6 +265,7 @@ export default function CoachSessionAttendancesView() {
 
               <div className="class-attendance-row-main">
                 <strong>{item.customerName}</strong>
+                {item.progressNote && <span>Nhận xét: {item.progressNote}</span>}
 
                 {item.submittedAt && (
                   <span>
@@ -235,13 +278,23 @@ export default function CoachSessionAttendancesView() {
                 {attendanceStatus[item.status]?.label || item.status}
               </Tag>
 
-              <Button
-                icon={<EditOutlined />}
-                disabled={location.state?.classStatus === "Completed"}
-                onClick={() => choose(item)}
-              >
-                Điểm danh / sửa
-              </Button>
+              <div className="class-attendance-actions">
+                <Button
+                  icon={<CameraOutlined />}
+                  disabled={classStatus === "Completed"}
+                  onClick={() => choose(item, "attendance")}
+                >
+                  Điểm danh / sửa
+                </Button>
+                <Button
+                  icon={<EditOutlined />}
+                  disabled={!item.attendanceId || !endsAt ||
+                    Date.parse(endsAt) > now || session?.status === "Cancelled"}
+                  onClick={() => choose(item, "note")}
+                >
+                  {item.progressNote ? "Sửa nhận xét" : "Nhận xét"}
+                </Button>
+              </div>
             </article>
           ))}
         </div>
@@ -259,61 +312,85 @@ export default function CoachSessionAttendancesView() {
 
       <Modal
         rootClassName="class-attendance-action-modal"
-        title={`Điểm danh: ${selected?.customerName || ""}`}
+        title={`${modalMode === "note" ? "Nhận xét" : "Điểm danh"}: ${selected?.customerName || ""}`}
         open={Boolean(selected)}
         onCancel={close}
-        footer={
+        footer={modalMode === "note" ? (
           <>
             <Button onClick={close}>Đóng</Button>
-
+            <Button
+              type="primary"
+              loading={updateNote.isPending}
+              disabled={!canEditNote || !progressNote.trim() || progressNote.length > 2000}
+              onClick={saveNote}
+            >
+              Lưu nhận xét
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button onClick={close}>Đóng</Button>
             <Button
               danger
               loading={record.isPending}
-              disabled={isSessionOngoing}
+              disabled={isSessionOngoing || classStatus === "Completed"}
               onClick={() => save("Absent")}
             >
               Đánh dấu vắng
             </Button>
-
             <Button
               type="primary"
               loading={record.isPending}
+              disabled={classStatus === "Completed"}
               onClick={() => save("Verified")}
             >
               Xác nhận có mặt
             </Button>
           </>
-        }
-      >
-        <p>
-          Coach có thể sửa điểm danh khi lớp còn hoạt động. Chỉ đánh dấu vắng
-          sau buổi học.
-        </p>
-
-        <Button
-          icon={<CameraOutlined />}
-          disabled={record.isPending}
-          onClick={() => setCameraOpen(true)}
-        >
-          Chụp ảnh học viên
-        </Button>
-
-        {image && <p>Ảnh mới: {image.name}</p>}
-
-        {image && imagePreview && (
-          <Image
-            width={160}
-            src={imagePreview}
-            alt="Ảnh mới chuẩn bị xác nhận"
-          />
         )}
-
-        {!image && selected?.imageUrl && (
-          <Image
-            width={160}
-            src={selected.imageUrl}
-            alt="Ảnh điểm danh hiện tại"
-          />
+      >
+        {modalMode === "note" ? (
+          <>
+            <label htmlFor="class-progress-note">Nhận xét riêng cho học viên sau buổi học</label>
+            <Input.TextArea
+              id="class-progress-note"
+              value={progressNote}
+              onChange={(event) => {
+                setProgressNote(event.target.value);
+                setError(null);
+              }}
+              maxLength={2000}
+              showCount
+              rows={4}
+              status={progressNote.trim() ? undefined : "error"}
+              aria-invalid={!progressNote.trim()}
+              aria-describedby={!progressNote.trim() ? "class-progress-note-error" : undefined}
+              disabled={updateNote.isPending}
+              placeholder="Ví dụ: Đã tập thở dưới nước; buổi sau luyện nổi."
+            />
+            {!progressNote.trim() && <p id="class-progress-note-error" className="class-attendance-rejection">Vui lòng nhập nhận xét.</p>}
+          </>
+        ) : (
+          <>
+            <p>
+              Coach có thể sửa điểm danh khi lớp còn hoạt động. Chỉ đánh dấu vắng
+              sau buổi học.
+            </p>
+            <Button
+              icon={<CameraOutlined />}
+              disabled={record.isPending}
+              onClick={() => setCameraOpen(true)}
+            >
+              Chụp ảnh học viên
+            </Button>
+            {image && <p>Ảnh mới: {image.name}</p>}
+            {image && imagePreview && (
+              <Image width={160} src={imagePreview} alt="Ảnh mới chuẩn bị xác nhận" />
+            )}
+            {!image && selected?.imageUrl && (
+              <Image width={160} src={selected.imageUrl} alt="Ảnh điểm danh hiện tại" />
+            )}
+          </>
         )}
 
         {error && <Alert type="error" showIcon title={error} />}

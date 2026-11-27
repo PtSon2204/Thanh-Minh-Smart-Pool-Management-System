@@ -6,6 +6,7 @@ using SmartPool.API.Authorization;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RecordClassAttendance;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassProgressNote;
 using SmartPool.Application.Features.ManageSwimClasses.Queries.GetClassSessionAttendances;
 
 namespace SmartPool.API.Controllers;
@@ -42,6 +43,22 @@ public sealed class ClassSessionAttendancesController(ISender sender) : Controll
     public Task<IActionResult> Record(Guid classId, Guid sessionId, Guid registrationId,
         [FromForm] RecordClassAttendanceCommand command,
         CancellationToken cancellationToken)
+    {
+        command.ClassId = classId;
+        command.SessionId = sessionId;
+        command.RegistrationId = registrationId;
+        return ExecuteAsync(async () => Ok(await sender.Send(command, cancellationToken)));
+    }
+
+    [HttpPatch("registrations/{registrationId:guid}/progress-note")]
+    [RequirePermission("class_attendances", "update")]
+    [ProducesResponseType(typeof(ClassAttendanceResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IActionResult> UpdateProgressNote(Guid classId, Guid sessionId, Guid registrationId,
+        [FromBody] UpdateClassProgressNoteCommand command, CancellationToken cancellationToken)
     {
         command.ClassId = classId;
         command.SessionId = sessionId;

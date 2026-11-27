@@ -6,11 +6,34 @@ using Moq;
 using SmartPool.API.Controllers;
 using SmartPool.Application.Features.ManageSwimClasses;
 using SmartPool.Application.Features.ManageSwimClasses.Commands.RecordClassAttendance;
+using SmartPool.Application.Features.ManageSwimClasses.Commands.UpdateClassProgressNote;
 
 namespace SmartPool.UnitTests.Features.ManageSwimClasses;
 
 public sealed class ClassAttendanceControllerTests
 {
+    [Fact]
+    public async Task CoachProgressNote_UsesRouteIdsAndReturnsOk()
+    {
+        var sender = new Mock<ISender>();
+        var classId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        var registrationId = Guid.NewGuid();
+        var command = new UpdateClassProgressNoteCommand { ProgressNote = "Đã tập thở." };
+        var now = DateTime.UtcNow;
+        var expected = new ClassAttendanceResponse(Guid.NewGuid(), classId, sessionId, registrationId,
+            null, "Absent", now, now, command.ProgressNote);
+        sender.Setup(x => x.Send(command, CancellationToken.None)).ReturnsAsync(expected);
+
+        var result = await new ClassSessionAttendancesController(sender.Object)
+            .UpdateProgressNote(classId, sessionId, registrationId, command, CancellationToken.None);
+
+        Assert.Same(expected, Assert.IsType<OkObjectResult>(result).Value);
+        Assert.Equal(classId, command.ClassId);
+        Assert.Equal(sessionId, command.SessionId);
+        Assert.Equal(registrationId, command.RegistrationId);
+    }
+
     [Fact]
     public async Task CoachRecord_UsesRouteIdsAndReturnsOk()
     {

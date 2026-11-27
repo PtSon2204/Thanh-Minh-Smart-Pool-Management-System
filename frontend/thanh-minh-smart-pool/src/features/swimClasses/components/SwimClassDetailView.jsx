@@ -68,7 +68,7 @@ export default function SwimClassDetailView() {
             {isOwner && swimClass.status === 'Active' && (swimClass.sessions || []).some(item => item.status === 'Scheduled') &&
               (swimClass.sessions || []).filter(item => item.status === 'Scheduled').every(item => Date.parse(item.endsAt) < now) &&
               <Button onClick={() => Modal.confirm({ title: 'Kết thúc lớp học?',
-                content: 'Sau khi kết thúc, Coach không thể sửa điểm danh hoặc thông tin lớp.',
+                content: 'Sau khi kết thúc, Coach không thể sửa điểm danh hoặc thông tin lớp. Coach vẫn có thể sửa nhận xét học viên.',
                 onOk: async () => { try { await swimClassService.completeClass(swimClass.id); message.success('Đã kết thúc lớp.'); await detail.refetch() }
                   catch (error) { message.error(error?.response?.data?.message || 'Không thể kết thúc lớp.') } }
               })}>Kết thúc lớp</Button>}

@@ -10,6 +10,8 @@ public class ClassAttendance
 
     public string? ImageUrl { get; set; }
 
+    public string? ProgressNote { get; set; }
+
     public string Status { get; set; } = null!;
 
     public Guid SubmittedByUserId { get; set; }
