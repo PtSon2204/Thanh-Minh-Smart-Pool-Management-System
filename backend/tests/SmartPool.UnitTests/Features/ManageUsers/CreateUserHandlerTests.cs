@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SmartPool.Application.Common.Exceptions;
 using SmartPool.Application.Features.ManageUsers.Commands.CreateUser;
@@ -11,7 +12,7 @@ namespace SmartPool.UnitTests.Features.ManageUsers;
 
 public sealed class CreateUserHandlerTests
 {
-    [Fact(DisplayName = "UTCID01 (N) - Dữ liệu hợp lệ → 201, lưu user và profile, hash mật khẩu")]
+    [Fact(DisplayName = "UTCID01 (N) - Tự sinh mật khẩu, lưu hash và chỉ gửi mật khẩu qua email người dùng")]
     public async Task Handle_ValidRequest_CreatesUserAndProfile()
     {
         var h = new Harness();
@@ -32,6 +33,7 @@ public sealed class CreateUserHandlerTests
         var savedProfile = Assert.IsType<UserProfile>(h.SavedProfile);
         Assert.Equal(response.Id, savedUser.Id);
         Assert.Equal("hashed-password", savedUser.PasswordHash);
+        Assert.Matches("^Tm1![A-F0-9]{32}$", h.GeneratedPassword);
         Assert.Equal(h.Role.Id, savedUser.RoleId);
         Assert.False(savedUser.IsDeleted);
         Assert.Equal("ACTIVE", savedUser.Status);
@@ -39,8 +41,14 @@ public sealed class CreateUserHandlerTests
         Assert.Same(savedUser, savedProfile.User);
         Assert.Same(savedProfile, savedUser.UserProfile);
         Assert.Null(h.SavedNotification);
-        h.PasswordHasher.Verify(x => x.HashPassword(savedUser, "Password123"), Times.Once);
+        h.PasswordHasher.Verify(x => x.HashPassword(savedUser, h.GeneratedPassword), Times.Once);
         h.Users.Verify(x => x.CreateUserWithProfileAsync(savedUser, savedProfile, null, h.Token), Times.Once);
+        h.Email.Verify(x => x.SendAsync("customer@example.com",
+            "[Thanh Minh Smart Pool] Thông tin tài khoản",
+            It.Is<string>(body => body.Contains(h.GeneratedPassword) && body.Contains("customer01")),
+            h.Token), Times.Once);
+        Assert.True(h.EmailSentAfterSave);
+        Assert.DoesNotContain(h.GeneratedPassword, System.Text.Json.JsonSerializer.Serialize(response));
     }
 
     [Fact(DisplayName = "UTCID02 (B) - Email/role chữ hoa, phone +84, address trắng → chuẩn hóa khi lưu")]
@@ -63,16 +71,16 @@ public sealed class CreateUserHandlerTests
     public async Task Handle_InvalidRequest_ReturnsValidationProblem()
     {
         var h = new Harness();
-        var result = await h.Handle(Request(username: "", email: "bad-email", password: "short", confirmPassword: "short"));
+        var result = await h.Handle(Request(username: "", email: "bad-email"));
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal(StatusCodes.Status400BadRequest, badRequest.StatusCode);
         var problem = Assert.IsType<ValidationProblemDetails>(badRequest.Value);
         Assert.Contains("Tên đăng nhập không được để trống.", problem.Errors["username"]);
         Assert.Contains("Email không đúng định dạng.", problem.Errors["email"]);
-        Assert.Contains("Mật khẩu phải dài từ 8 đến 128 ký tự.", problem.Errors["password"]);
         h.Users.VerifyNoOtherCalls();
         h.PasswordHasher.VerifyNoOtherCalls();
+        h.Email.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID04 (A) - Username đã tồn tại → 409, dừng trước kiểm tra email")]
@@ -148,6 +156,7 @@ public sealed class CreateUserHandlerTests
 
         AssertConflict(await h.Handle(), "email", "Email đã được sử dụng.");
         h.Users.Verify(x => x.CreateUserWithProfileAsync(It.IsAny<User>(), It.IsAny<UserProfile>(), null, h.Token), Times.Once);
+        h.Email.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID09 (A) - Lỗi DB khi lưu → exception được truyền tiếp")]
@@ -160,6 +169,7 @@ public sealed class CreateUserHandlerTests
 
         Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => h.Handle()));
         h.Users.Verify(x => x.CreateUserWithProfileAsync(It.IsAny<User>(), It.IsAny<UserProfile>(), null, h.Token), Times.Once);
+        h.Email.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "UTCID10 (A) - Lỗi kiểm tra trùng → exception được truyền tiếp, không lưu")]
@@ -178,10 +188,28 @@ public sealed class CreateUserHandlerTests
     {
         var h = new Harness();
         var failure = new InvalidOperationException("Hasher unavailable");
-        h.PasswordHasher.Setup(x => x.HashPassword(It.IsAny<User>(), "Password123")).Throws(failure);
+        h.PasswordHasher.Setup(x => x.HashPassword(It.IsAny<User>(), It.IsAny<string>())).Throws(failure);
 
         Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => h.Handle()));
         h.Users.Verify(x => x.CreateUserWithProfileAsync(It.IsAny<User>(), It.IsAny<UserProfile>(), It.IsAny<Notification?>(), It.IsAny<CancellationToken>()), Times.Never);
+        h.Email.VerifyNoOtherCalls();
+    }
+
+    [Fact(DisplayName = "Email lỗi sau khi lưu → 503 thông báo tài khoản đã tạo, không lộ mật khẩu")]
+    public async Task Handle_EmailFailure_ReturnsPartialFailureWithoutPassword()
+    {
+        var h = new Harness();
+        h.Email.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), h.Token))
+            .ThrowsAsync(new InvalidOperationException("Mail unavailable"));
+
+        var result = Assert.IsType<ObjectResult>(await h.Handle());
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, result.StatusCode);
+        var problem = Assert.IsType<ProblemDetails>(result.Value);
+        Assert.Equal("ACCOUNT_CREATED_EMAIL_FAILED", problem.Extensions["code"]);
+        Assert.NotNull(h.SavedUser);
+        Assert.DoesNotContain(h.GeneratedPassword, System.Text.Json.JsonSerializer.Serialize(problem));
     }
 
     private static void AssertConflict(IActionResult result, string field, string message)
@@ -196,11 +224,11 @@ public sealed class CreateUserHandlerTests
     }
 
     private static CreateUserCommand Request(string username = "Customer01", string email = "Customer@Example.com",
-        string phone = "0912345678", string password = "Password123", string confirmPassword = "Password123",
+        string phone = "0912345678",
         string role = "CUSTOMER", string? address = " Pool Street ") => new()
         {
-            Username = username, Email = email, Phone = phone, Password = password,
-            ConfirmPassword = confirmPassword, Role = role, FullName = " Nguyen Van A ",
+            Username = username, Email = email, Phone = phone,
+            Role = role, FullName = " Nguyen Van A ",
             DateOfBirth = new DateOnly(2000, 1, 2), Address = address
         };
 
@@ -208,11 +236,14 @@ public sealed class CreateUserHandlerTests
     {
         public readonly Mock<IUserOperations> Users = new();
         public readonly Mock<IPasswordHasher> PasswordHasher = new();
+        public readonly Mock<IEmailService> Email = new();
         public readonly Role Role = new() { Id = Guid.NewGuid(), Name = "CUSTOMER" };
         public readonly CancellationToken Token = new CancellationTokenSource().Token;
         public User? SavedUser;
         public UserProfile? SavedProfile;
         public Notification? SavedNotification;
+        public string GeneratedPassword = string.Empty;
+        public bool EmailSentAfterSave;
         private readonly CreateUserHandler _handler;
 
         public Harness()
@@ -224,8 +255,15 @@ public sealed class CreateUserHandlerTests
                 {
                     SavedUser = user; SavedProfile = profile; SavedNotification = notification;
                 }).Returns(Task.CompletedTask);
-            PasswordHasher.Setup(x => x.HashPassword(It.IsAny<User>(), "Password123")).Returns("hashed-password");
-            _handler = new CreateUserHandler(Users.Object, PasswordHasher.Object, new CreateUserValidator());
+            PasswordHasher.Setup(x => x.HashPassword(It.IsAny<User>(), It.IsAny<string>()))
+                .Callback<User, string>((_, password) => GeneratedPassword = password)
+                .Returns("hashed-password");
+            Email.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<string>(), Token))
+                .Callback(() => EmailSentAfterSave = SavedUser is not null)
+                .Returns(Task.CompletedTask);
+            _handler = new CreateUserHandler(Users.Object, PasswordHasher.Object, Email.Object,
+                new CreateUserValidator(), NullLogger<CreateUserHandler>.Instance);
         }
 
         public Task<IActionResult> Handle(CreateUserCommand? request = null) =>
@@ -237,6 +275,7 @@ public sealed class CreateUserHandlerTests
             Users.Verify(x => x.CreateUserWithProfileAsync(It.IsAny<User>(), It.IsAny<UserProfile>(),
                 It.IsAny<Notification?>(), It.IsAny<CancellationToken>()), Times.Never);
             Assert.Null(SavedUser);
+            Email.VerifyNoOtherCalls();
         }
     }
 }

@@ -40,7 +40,7 @@ import { waterQualityService } from '../services/waterQualityService';
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 
-export default function WaterQualityAnalyticsTab({ onViewDetail }) {
+export default function WaterQualityAnalyticsTab({ onViewDetail, reloadKey: externalReloadKey = 0 }) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'day'), dayjs()]);
@@ -72,7 +72,7 @@ export default function WaterQualityAnalyticsTab({ onViewDetail }) {
     return () => {
       ignore = true;
     };
-  }, [dateRange, reloadKey]);
+  }, [dateRange, reloadKey, externalReloadKey]);
 
   const handleManualReload = () => {
     setLoading(true);
@@ -162,6 +162,57 @@ export default function WaterQualityAnalyticsTab({ onViewDetail }) {
         </div>
       ) : data ? (
         <>
+          {data.threeDayTrend?.isDeteriorating && (
+            <Alert
+              type={data.threeDayTrend.requiresImmediateHandling ? 'error' : 'warning'}
+              showIcon
+              title={
+                data.threeDayTrend.requiresImmediateHandling
+                  ? 'Cảnh báo xu hướng 3 ngày đi xuống: Đã vượt ngưỡng an toàn — Cần xử lý ngay hôm nay'
+                  : 'Cảnh báo xu hướng 3 ngày gần nhất: Chất lượng nước đang đi xuống'
+              }
+              description={
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div>{data.threeDayTrend.summary}</div>
+                  {data.threeDayTrend.days?.length > 0 && (
+                    <Space size={[6, 6]} wrap>
+                      {data.threeDayTrend.days.map((d) => (
+                        <Tag key={d.date} color={d.isWaterClear === false ? 'orange' : 'blue'}>
+                          {dayjs(d.date).format('DD/MM')}: pH {Number(d.phValue).toFixed(2)} · Clo {Number(d.freeChlorineMgL).toFixed(2)} ·{' '}
+                          {d.isWaterClear === false ? 'Hơi đục' : 'Trong'}
+                        </Tag>
+                      ))}
+                    </Space>
+                  )}
+                  {data.threeDayTrend.suggestedChemicals?.length > 0 && (
+                    <Space size={[4, 4]} wrap>
+                      <Text strong style={{ fontSize: 12 }}>Hóa chất đề xuất:</Text>
+                      {data.threeDayTrend.suggestedChemicals.map((chem, idx) => (
+                        <Tag color="geekblue" key={`analytics-chem-${idx}`}>{chem}</Tag>
+                      ))}
+                    </Space>
+                  )}
+                  {data.threeDayTrend.requiresImmediateHandling ? (
+                    <Text type="danger" style={{ fontSize: 12, fontWeight: 600 }}>
+                      Chỉ số đo mới nhất đã ở mức Cảnh báo/Nguy hiểm — hệ thống kích hoạt xử lý ngay trong ngày (không đẩy sang lịch trực ngày mai).
+                    </Text>
+                  ) : data.threeDayTrend.nextDayDutyDate ? (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Lịch trực bể ngày {dayjs(data.threeDayTrend.nextDayDutyDate).format('DD/MM/YYYY')}:{' '}
+                      <strong>
+                        {data.threeDayTrend.nextDayAssignedEmployeeName
+                          ? `Đã phân công ${data.threeDayTrend.nextDayAssignedEmployeeName}`
+                          : data.threeDayTrend.nextDayDutyStatus === 'Completed'
+                            ? 'Đã xử lý xong'
+                            : 'Chờ Admin phân công trong tab Lịch trực bể'}
+                      </strong>
+                    </Text>
+                  ) : null}
+                </div>
+              }
+            />
+          )}
+
           {/* KPI Statistics cards */}
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={6}>

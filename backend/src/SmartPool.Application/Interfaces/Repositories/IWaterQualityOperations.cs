@@ -7,6 +7,7 @@ using SmartPool.Application.Features.ManageWaterQuality.Queries.GetPoolDutySched
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityAnalytics;
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityLogs;
 using SmartPool.Application.Features.ManageWaterQuality.OperationalTasks;
+using SmartPool.Application.Features.ManageWaterQuality.Services;
 using SmartPool.Domain.Entities;
 
 namespace SmartPool.Application.Interfaces.Repositories;
@@ -17,10 +18,14 @@ public interface IWaterQualityOperations
         OperationalTaskExecutionAuthorization? taskExecution);
     Task<PagedResponse<WaterQualityLogDto>> GetWaterQualityLogsAsync(GetWaterQualityLogsQuery query, CancellationToken cancellationToken);
     Task<WaterQualityLogDto?> GetWaterQualityLogByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<TodayWaterQualityGateDto> GetTodayWaterQualityGateAsync(Guid employeeId, CancellationToken cancellationToken);
+    Task<WaterQualityTrendAnalysisResult> EvaluateThreeDayTrendPreviewAsync(decimal phValue, decimal freeChlorineMgL, bool? isWaterClear, CancellationToken cancellationToken);
     Task<WaterQualityAnalyticsResponse> GetWaterQualityAnalyticsAsync(GetWaterQualityAnalyticsQuery query, CancellationToken cancellationToken);
 
     Task<PoolDutyOptionsResponse> GetPoolDutyOptionsAsync(CancellationToken cancellationToken);
     Task<PagedResponse<PoolDutyScheduleDto>> GetPoolDutySchedulesAsync(GetPoolDutySchedulesQuery query, CancellationToken cancellationToken);
+    Task<PoolDutyScheduleDto> AssignTrendPoolDutyScheduleAsync(Guid scheduleId, Guid assignedEmployeeId, Guid? shiftId, Guid actorId, CancellationToken cancellationToken);
+    Task<PoolDutyScheduleDto> CompleteTrendPoolDutyScheduleAsync(Guid scheduleId, Guid actorId, Guid? waterQualityLogId, CancellationToken cancellationToken);
     Task<AutoAssignPoolDutyResultDto> AutoAssignPoolDutySchedulesAsync(AutoAssignPoolDutyCommand command, CancellationToken cancellationToken);
     Task<PoolDutyScheduleDto> SavePoolDutyScheduleAsync(UpdatePoolDutyScheduleCommand command, CancellationToken cancellationToken);
     Task<PagedResponse<PoolDutyScheduleDto>> GetOperationalTasksAsync(GetOperationalTasksQuery query, CancellationToken cancellationToken);

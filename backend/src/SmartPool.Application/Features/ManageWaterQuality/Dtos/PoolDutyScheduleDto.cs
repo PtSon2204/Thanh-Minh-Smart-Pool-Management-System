@@ -35,6 +35,10 @@ public sealed class PoolDutyScheduleDto
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    public bool IsTrendDuty { get; set; }
+    public string? TrendSummary { get; set; }
+    public List<string> SuggestedChemicals { get; set; } = new();
 }
 
 public sealed class PoolDutyStaffOptionDto
@@ -86,4 +90,10 @@ public sealed class AutoAssignPoolDutyResultDto
     public string Message { get; set; } = string.Empty;
     public List<PoolDutyScheduleDto> AssignedSchedules { get; set; } = [];
 }
+
+public sealed record TodayWaterQualityGateDto(
+    bool RequiresMeasurement,
+    DateOnly? DutyDate,
+    Guid? TodayLogId,
+    string? Reason);
 

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import './Footer.css'
 import logoImg from '../../assets/logo-be-boi-thanh-minh.png'
+import { SUPPORT_CHANNELS } from './supportChannels'
 
 export default function Footer() {
   return (
@@ -18,10 +19,10 @@ export default function Footer() {
               an toàn, hiện đại và đẳng cấp cho mọi lứa tuổi.
             </p>
             <div className="footer-social">
-              <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook">📘</a>
-              <a href="https://zalo.me" target="_blank" rel="noreferrer" aria-label="Zalo">💬</a>
-              <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">▶️</a>
-              <a href="mailto:info@thanhminh.vn" aria-label="Email">📧</a>
+              <a href={SUPPORT_CHANNELS.facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a>
+              <a href={SUPPORT_CHANNELS.zaloUrl} target="_blank" rel="noopener noreferrer" aria-label="Zalo">💬</a>
+              <a href={SUPPORT_CHANNELS.messengerUrl} target="_blank" rel="noopener noreferrer" aria-label="Messenger">✉️</a>
+              <a href="mailto:contact@thanhminh-pool.vn" aria-label="Email">📧</a>
             </div>
           </div>
 

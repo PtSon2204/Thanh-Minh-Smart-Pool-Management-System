@@ -28,6 +28,10 @@ public sealed partial class SwimClassOperations
                 item.Status == "Scheduled" && item.StartsAt > now, cancellationToken))
             throw new SwimClassStateConflictException("Lớp không còn buổi học sắp tới.");
 
+        await EnsureNoTeachingConflictForStudentAsync(classId, customerUserId, cancellationToken);
+        await EnsureNoConfirmedClassConflictForStudentAsync(
+            classId, customerUserId, cancellationToken);
+
         var registration = await context.ClassRegistrations.SingleOrDefaultAsync(
             item => item.ClassId == classId && item.CustomerUserId == customerUserId,
             cancellationToken);

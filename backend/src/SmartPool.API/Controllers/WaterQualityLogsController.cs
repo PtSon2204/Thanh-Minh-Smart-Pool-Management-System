@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -6,10 +7,12 @@ using SmartPool.API.Authorization;
 using SmartPool.Application.Common.Models;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.AutoAssignPoolDuty;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.CreateWaterQualityLog;
+using SmartPool.Application.Features.ManageWaterQuality.Commands.TrendPoolDuty;
 using SmartPool.Application.Features.ManageWaterQuality.Commands.UpdatePoolDutySchedule;
 using SmartPool.Application.Features.ManageWaterQuality.Dtos;
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetPoolDutyOptions;
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetPoolDutySchedules;
+using SmartPool.Application.Features.ManageWaterQuality.Queries.GetTodayWaterQualityGate;
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityAnalytics;
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityLogById;
 using SmartPool.Application.Features.ManageWaterQuality.Queries.GetWaterQualityLogs;
@@ -39,6 +42,17 @@ public sealed class WaterQualityLogsController : ControllerBase
     public async Task<IActionResult> GetLogs([FromQuery] GetWaterQualityLogsQuery query, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Kiểm tra nhân viên cứu hộ có lịch trực/đo nước hôm nay và chưa hoàn thành đo trong ngày hay không.
+    /// </summary>
+    [HttpGet("today-duty-gate")]
+    [ProducesResponseType(typeof(TodayWaterQualityGateDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTodayDutyGate(CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetTodayWaterQualityGateQuery(), cancellationToken);
         return Ok(result);
     }
 
@@ -106,6 +120,7 @@ public sealed class WaterQualityLogsController : ControllerBase
     /// Tự động gán lịch trực bể theo khoảng ngày, cân bằng số ca trực và ưu tiên nhân viên có lịch làm việc.
     /// </summary>
     [HttpPost("duty-schedules/auto-assign")]
+    [Authorize(Policy = AuthorizationPolicies.LifeguardOnly)]
     [RequirePermission("water_quality", "create")]
     [ProducesResponseType(typeof(AutoAssignPoolDutyResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -134,6 +149,7 @@ public sealed class WaterQualityLogsController : ControllerBase
     /// Tạo hoặc gán lịch trực bể thủ công cho một ngày và ca trực.
     /// </summary>
     [HttpPost("duty-schedules")]
+    [Authorize(Policy = AuthorizationPolicies.LifeguardOnly)]
     [RequirePermission("water_quality", "create")]
     [ProducesResponseType(typeof(PoolDutyScheduleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -166,6 +182,7 @@ public sealed class WaterQualityLogsController : ControllerBase
     /// Cập nhật lịch trực bể (đổi nhân viên trực, cập nhật trạng thái trực bể, ghi chú).
     /// </summary>
     [HttpPut("duty-schedules/{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.LifeguardOnly)]
     [RequirePermission("water_quality", "update")]
     [ProducesResponseType(typeof(PoolDutyScheduleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -196,6 +213,66 @@ public sealed class WaterQualityLogsController : ControllerBase
         }
     }
 
+    public sealed record AssignTrendDutyRequest(Guid AssignedEmployeeId, Guid? ShiftId);
+    public sealed record CompleteTrendDutyRequest(Guid? WaterQualityLogId);
+
+    /// <summary>
+    /// Admin phân công nhân viên cứu hộ cho Lịch trực bể tự sinh từ xu hướng nước đi xuống 3 ngày.
+    /// </summary>
+    [HttpPost("duty-schedules/{id:guid}/assign")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [RequirePermission("staff_tasks", "update")]
+    [ProducesResponseType(typeof(PoolDutyScheduleDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AssignTrendDutySchedule(
+        [FromRoute] Guid id,
+        [FromBody] AssignTrendDutyRequest body,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var result = await _sender.Send(
+                new AssignTrendPoolDutyCommand(id, body.AssignedEmployeeId, body.ShiftId) { ActorId = actorId },
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    /// <summary>
+    /// Nhân viên cứu hộ xác nhận hoàn thành xử lý Lịch trực bể phát sinh (kèm mã phiếu đo nếu có).
+    /// </summary>
+    [HttpPost("duty-schedules/{id:guid}/complete")]
+    [Authorize(Policy = AuthorizationPolicies.LifeguardOnly)]
+    [RequirePermission("water_quality", "update")]
+    [ProducesResponseType(typeof(PoolDutyScheduleDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CompleteTrendDutySchedule(
+        [FromRoute] Guid id,
+        [FromBody] CompleteTrendDutyRequest? body,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var result = await _sender.Send(
+                new CompleteTrendPoolDutyCommand(id, body?.WaterQualityLogId) { ActorId = actorId },
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     /// <summary>
     /// Xem chi tiết một phiếu kiểm tra chất lượng nước theo ID.
     /// </summary>
@@ -218,6 +295,7 @@ public sealed class WaterQualityLogsController : ControllerBase
     /// Hệ thống sẽ tự động đối chiếu ngưỡng chuẩn, đánh giá trạng thái và đưa ra khuyến nghị xử lý hóa chất.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.LifeguardOnly)]
     [RequirePermission("water_quality", "create")]
     [ProducesResponseType(typeof(WaterQualityLogDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

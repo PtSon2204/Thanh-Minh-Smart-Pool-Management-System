@@ -38,7 +38,6 @@ export default function SwimClassDraftActions({ swimClass, now }) {
         sessions: values.sessions.map(session => ({
           startsAt: vietnamPickerTimeToUtc(session.startsAt),
           endsAt: vietnamPickerTimeToUtc(session.endsAt),
-          ...(session.coachUserId ? { coachUserId: session.coachUserId } : {}),
         })),
       })
       form.resetFields()

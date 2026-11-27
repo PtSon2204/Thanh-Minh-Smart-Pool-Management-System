@@ -1,17 +1,14 @@
 import './FloatingContact.css'
-
-// ✏️ Thay link của bạn tại đây:
-const MESSENGER_LINK = 'https://m.me/YOUR_PAGE_ID'   // ← dán link Messenger vào đây
-const ZALO_LINK      = 'https://zalo.me/YOUR_PHONE'  // ← dán link Zalo vào đây
+import { SUPPORT_CHANNELS } from './supportChannels'
 
 export default function FloatingContact() {
   return (
     <div className="floating-contacts">
       {/* Messenger */}
       <a
-        href={MESSENGER_LINK}
+        href={SUPPORT_CHANNELS.messengerUrl}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="floating-btn messenger"
         data-tooltip="Nhắn tin Messenger"
         aria-label="Messenger"
@@ -24,9 +21,9 @@ export default function FloatingContact() {
 
       {/* Zalo */}
       <a
-        href={ZALO_LINK}
+        href={SUPPORT_CHANNELS.zaloUrl}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="floating-btn zalo"
         data-tooltip="Chat Zalo"
         aria-label="Zalo"

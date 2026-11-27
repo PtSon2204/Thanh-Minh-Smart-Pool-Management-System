@@ -52,5 +52,6 @@
     <ProjectReference Include="..\SmartPool.Application\SmartPool.Application.csproj" />
     <ProjectReference Include="..\SmartPool.Infrastructure\SmartPool.Infrastructure.csproj" />
   </ItemGroup>
+  <ProjectExtensions><VisualStudio><UserProperties appsettings_1json__JsonSchema="https://www.schemastore.org/asmdef.json" /></VisualStudio></ProjectExtensions>
 
 </Project>

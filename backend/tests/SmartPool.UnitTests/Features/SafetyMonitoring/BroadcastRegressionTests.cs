@@ -26,11 +26,11 @@ public sealed class BroadcastRegressionTests
         // destination last to reproduce the worst case without relying on GUID order.
         var healthy = state.Active()[^1].CameraId!.Value;
         var delivered = new TaskCompletionSource<double>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var clock = Stopwatch.StartNew();
+        Stopwatch? clock = null;
         var notifications = new Mock<INotificationService>();
         notifications.Setup(x => x.SendToGroupAsync(It.IsAny<string>(), "camera_analysis", It.IsAny<object>(), It.IsAny<CancellationToken>()))
             .Returns(async (string group, string name, object payload, CancellationToken ct) => {
-                if (group == $"camera-analysis_{healthy:N}") delivered.TrySetResult(clock.Elapsed.TotalMilliseconds);
+                if (group == $"camera-analysis_{healthy:N}") delivered.TrySetResult(clock?.Elapsed.TotalMilliseconds ?? 0);
                 else await Task.Delay(5000, ct);
             });
         using var services = new ServiceCollection().AddSingleton(notifications.Object).BuildServiceProvider();
@@ -38,6 +38,7 @@ public sealed class BroadcastRegressionTests
             NullLogger<CameraAnalysisBroadcastWorker>.Instance);
         try
         {
+            clock = Stopwatch.StartNew();
             await worker.StartAsync(default);
             var latency = await delivered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(latency < 1000, $"Healthy camera waited {latency:F0} ms; frontend overlay expires at 1000 ms.");

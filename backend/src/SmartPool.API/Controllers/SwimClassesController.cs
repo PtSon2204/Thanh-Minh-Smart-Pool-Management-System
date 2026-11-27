@@ -58,7 +58,7 @@ public sealed class SwimClassesController(ISender sender) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "COACH")]
+    [Authorize]
     [RequirePermission("swim_classes", "create")]
     [ProducesResponseType(typeof(CreateSwimClassResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

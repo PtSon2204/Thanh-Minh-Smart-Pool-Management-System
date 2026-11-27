@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Table, Button, Space, Tag, Popconfirm, message } from 'antd';
 import { CheckOutlined, ReloadOutlined } from '@ant-design/icons';
 import { notificationService } from '../services/notificationService';
+import { startSignalRConnection, onReceiveNotification } from '../../../services/signalrClient';
 
 export default function NotificationList() {
   const [loading, setLoading] = useState(false);
@@ -20,8 +21,28 @@ export default function NotificationList() {
         if (!ignore) setLoading(false);
       });
 
+    startSignalRConnection();
+    const unsub = onReceiveNotification((newNotif) => {
+      if (ignore) return;
+      setData((prev) => {
+        if (prev.some((item) => item.id === newNotif.id)) return prev;
+        return [
+          {
+            id: newNotif.id || `rt-${Date.now()}`,
+            title: newNotif.title,
+            content: newNotif.content,
+            type: newNotif.type || 'SYSTEM',
+            isRead: false,
+            createdAt: newNotif.createdAt || new Date().toISOString(),
+          },
+          ...prev,
+        ];
+      });
+    });
+
     return () => {
       ignore = true;
+      unsub();
     };
   }, []);
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -11,12 +12,38 @@ import { loadGoogleIdentity } from "../services/googleIdentity";
 import GoogleProfileForm from "./GoogleProfileForm";
 import { savePendingRegistration } from "../state/registrationSession";
 import { beginOtpRequest } from "../state/otpRequest";
-import { getLandingPath } from "../utils/sessionRoles";
+import { getLandingPath, hasSessionRole } from "../utils/sessionRoles";
+import { waterQualityService } from "../../waterQuality/services/waterQualityService";
+import { TODAY_WATER_QUALITY_GATE_QUERY_KEY } from "../../waterQuality/hooks/useTodayWaterQualityGate";
 import {
   getAuthError,
   loginFormSchema,
   registerFormSchema,
 } from "../types/authSchemas";
+
+async function resolvePostLoginPath(session, queryClient) {
+  const defaultPath = getLandingPath(session);
+  if (!hasSessionRole(session, "LIFEGUARD")) {
+    return defaultPath;
+  }
+
+  const sessionIdentity = session?.id ?? session?.userId ?? session?.email ?? "anonymous";
+  try {
+    const gate = await queryClient.fetchQuery({
+      queryKey: [TODAY_WATER_QUALITY_GATE_QUERY_KEY, sessionIdentity, true],
+      queryFn: () => waterQualityService.getTodayDutyGate(),
+      staleTime: 5000,
+      retry: false,
+    });
+    if (gate?.requiresMeasurement) {
+      return "/admin/water-quality";
+    }
+  } catch {
+    // Fallback về trang mặc định nếu không kiểm tra được cổng đo nước
+  }
+
+  return defaultPath;
+}
 
 function AuthField({ id, label, error, children }) {
   const errorId = `${id}-error`;
@@ -40,6 +67,7 @@ function AuthField({ id, label, error, children }) {
 export default function AuthForm({ isRegister }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [visiblePassword, setVisiblePassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [googleCredential, setGoogleCredential] = useState(null);
@@ -85,7 +113,8 @@ export default function AuthForm({ isRegister }) {
         const session = await googleLogin.mutateAsync(credential);
         loginForm.setValue("password", "");
         registerForm.setValue("password", "");
-        navigate(getLandingPath(session));
+        const targetPath = await resolvePostLoginPath(session, queryClient);
+        navigate(targetPath);
       } catch (error) {
         if (error?.response?.status === 409 &&
             error.response.data?.code === 'GOOGLE_ACCOUNT_NOT_REGISTERED') {
@@ -151,7 +180,8 @@ export default function AuthForm({ isRegister }) {
     try {
       const session = await login.mutateAsync(values);
       clearPasswords();
-      navigate(getLandingPath(session));
+      const targetPath = await resolvePostLoginPath(session, queryClient);
+      navigate(targetPath);
     } catch (error) {
       const authError = getAuthError(error);
       applyServerErrors(authError.fieldErrors);

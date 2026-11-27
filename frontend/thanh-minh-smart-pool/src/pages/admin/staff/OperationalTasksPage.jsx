@@ -37,9 +37,12 @@ import operationalTaskService from "../../../features/staff/services/operational
 import { FIXED_INSPECTION_SHIFT_IDS } from "../../../features/equipments/inspectionConstants";
 import CreateWaterQualityLogModal from "../../../features/waterQuality/components/CreateWaterQualityLogModal";
 import { ServiceListHeader } from "../../../features/services/components/ServiceListChrome";
+import {
+  startSignalRConnection,
+  onWaterQualityUpdated,
+} from "../../../services/signalrClient";
 import "../../../features/services/styles/serviceManagement.css";
 import "../../../features/staff/styles/staffSchedule.css";
-import "../../../features/staff/styles/operationalTasks.css";
 import "../../../features/staff/styles/operationalTasks.css";
 
 const todayVietnam = () =>
@@ -133,12 +136,21 @@ export default function OperationalTasksPage() {
   const [taskForAssignment, setTaskForAssignment] = useState(null);
   const [selectedEmployeeShiftId, setSelectedEmployeeShiftId] = useState();
   const [selectedMeasurementTask, setMeasurementTask] = useState(null);
+  const canExecuteTask = useCallback(
+    (task) => {
+      if (!task || terminal(task.status)) return false;
+      if (task.taskType === "EquipmentChecklist") {
+        return isAdmin || (isLifeguard && task.assignedEmployeeId === session?.id);
+      }
+      return isLifeguard && task.assignedEmployeeId === session?.id;
+    },
+    [isAdmin, isLifeguard, session?.id],
+  );
   const measurementTask =
     selectedMeasurementTask ||
     (linkedTask &&
-    !terminal(linkedTask.status) &&
-    linkedTask.taskType !== "EquipmentChecklist" &&
-    (isAdmin || linkedTask.assignedEmployeeId === session?.id)
+    canExecuteTask(linkedTask) &&
+    linkedTask.taskType !== "EquipmentChecklist"
       ? linkedTask
       : null);
   const [selectedChecklistResultTask, setChecklistResultTask] = useState(null);
@@ -237,6 +249,14 @@ export default function OperationalTasksPage() {
       ]),
     [queryClient],
   );
+
+  useEffect(() => {
+    if (!isAdmin && !isLifeguard) return undefined;
+    startSignalRConnection();
+    return onWaterQualityUpdated(() => {
+      void refreshTasks();
+    });
+  }, [isAdmin, isLifeguard, refreshTasks]);
   const ensureWeek = useMutation({
     mutationFn: operationalTaskService.ensureWeek,
     retry: false,
@@ -454,15 +474,14 @@ export default function OperationalTasksPage() {
         openResult(task);
         return;
       }
-      if (!isAdmin && (!isLifeguard || task.assignedEmployeeId !== session?.id))
-        return;
+      if (!canExecuteTask(task)) return;
       if (task.taskType === "EquipmentChecklist") {
         openChecklist(task, taskWeek);
         return;
       }
       setMeasurementTask(task);
     },
-    [isAdmin, isLifeguard, session?.id, openResult, openChecklist, weekStart],
+    [canExecuteTask, openResult, openChecklist, weekStart],
   );
 
   useEffect(() => {
@@ -512,16 +531,15 @@ export default function OperationalTasksPage() {
 
   const renderActions = (task) => (
     <Space wrap>
-      {(isAdmin || (isLifeguard && task.assignedEmployeeId === session?.id)) &&
-        !terminal(task.status) && (
-          <Button type="primary" size="small" onClick={() => openTask(task)}>
-            {task.taskType === "Cleaning"
-              ? "Đo kiểm tra lại"
-              : task.taskType === "Measurement"
-                ? "Nộp kết quả đo"
-                : "Thực hiện checklist"}
-          </Button>
-        )}
+      {canExecuteTask(task) && (
+        <Button type="primary" size="small" onClick={() => openTask(task)}>
+          {task.taskType === "Cleaning"
+            ? "Đo kiểm tra lại"
+            : task.taskType === "Measurement"
+              ? "Nộp kết quả đo"
+              : "Thực hiện checklist"}
+        </Button>
+      )}
       {isAdmin && !terminal(task.status) && (
         <>
           <Button size="small" onClick={() => openAssignment(task)}>
@@ -626,9 +644,7 @@ export default function OperationalTasksPage() {
           {assigneeLabel}
         </Typography.Text>
         {resultLabel && <Tag>{resultLabel}</Tag>}
-        {action(
-          isAdmin || (isLifeguard && task.assignedEmployeeId === session?.id),
-        )}
+        {action(canExecuteTask(task))}
       </div>
     );
   };
@@ -717,6 +733,11 @@ export default function OperationalTasksPage() {
               {task.dailyInspectionAt &&
                 ` · ${displayTime(task.dailyInspectionAt)}`}
               {task.measuredAt && ` · ${displayTime(task.measuredAt)}`}
+            </Descriptions.Item>
+          )}
+          {task.notes && (
+            <Descriptions.Item label="Ghi chú / Đề xuất">
+              {task.notes}
             </Descriptions.Item>
           )}
         </Descriptions>
@@ -1365,29 +1386,21 @@ export default function OperationalTasksPage() {
         )}
       </Modal>
 
-      <CreateWaterQualityLogModal
-        key={measurementTask?.id || "measurement-closed"}
-        visible={Boolean(measurementTask)}
-        operationalTaskId={measurementTask?.id}
-        taskType={measurementTask?.taskType}
-        adminTaskExecution={
-          isAdmin && measurementTask
-            ? {
-                ...measurementTask,
-                assignedEmployeeId: measurementTask.assignedEmployeeId ?? null,
-                assignedEmployeeName:
-                  measurementTask.assignedEmployeeName || "Chưa phân công",
-                performerName:
-                  session?.fullName || session?.userName || "Quản trị viên",
-              }
-            : null
-        }
-        onCancel={closeMeasurement}
-        onSuccess={() => {
-          closeMeasurement();
-          refreshTasks();
-        }}
-      />
+      {isLifeguard && (
+        <CreateWaterQualityLogModal
+          key={measurementTask?.id || "measurement-closed"}
+          visible={Boolean(measurementTask)}
+          operationalTaskId={measurementTask?.id}
+          taskType={measurementTask?.taskType}
+          adminTaskExecution={null}
+          onCancel={closeMeasurement}
+          onSuccess={() => {
+            closeMeasurement();
+            refreshTasks();
+            void queryClient.invalidateQueries({ queryKey: ["water-quality-today-gate"] });
+          }}
+        />
+      )}
     </div>
   );
 }

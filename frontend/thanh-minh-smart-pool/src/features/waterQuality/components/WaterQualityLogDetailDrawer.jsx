@@ -3,6 +3,7 @@ import {
   Descriptions,
   Tag,
   Alert,
+  Button,
   Space,
   Typography,
   Divider,
@@ -16,10 +17,19 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useWaterPoolSuspension } from '../hooks/useWaterPoolSuspension';
 
 const { Text, Title, Paragraph } = Typography;
 
-export default function WaterQualityLogDetailDrawer({ visible, log, onClose }) {
+export default function WaterQualityLogDetailDrawer({ visible, log, onClose, isAdmin = false }) {
+  const {
+    liveStatus,
+    isPoolMaintenance,
+    updatingPool,
+    confirmSuspendPool,
+    confirmResumePool,
+  } = useWaterPoolSuspension({ enabled: Boolean(visible && isAdmin && log) });
+
   if (!log) return null;
 
   const renderStatus = (status) => {
@@ -62,9 +72,75 @@ export default function WaterQualityLogDetailDrawer({ visible, log, onClose }) {
     >
       {log.status === 'Danger' && (
         <Alert
-          message="CẢNH BÁO NGUY HIỂM"
-          description="Chỉ số nước vượt ngưỡng an toàn nghiêm trọng. Cần can thiệp hóa chất hoặc tạm ngưng đón khách."
+          title={
+            isAdmin
+              ? 'CẢNH BÁO NGUY HIỂM — XEM XÉT ĐÓNG CỬA BỂ BƠI'
+              : 'CẢNH BÁO NGUY HIỂM'
+          }
+          description={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span>
+                Chỉ số nước vượt ngưỡng an toàn nghiêm trọng. Cần can thiệp hóa chất khẩn cấp trong ngày và xem xét tạm đóng cửa đón khách nếu cần.
+              </span>
+              {isAdmin && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Trạng thái bể hiện tại:{' '}
+                    <strong>{isPoolMaintenance ? 'Đang tạm đóng cửa (Bảo trì)' : 'Đang mở cửa đón khách'}</strong>
+                  </Text>
+                  {isPoolMaintenance ? (
+                    <Button
+                      type="primary"
+                      size="small"
+                      loading={updatingPool}
+                      onClick={confirmResumePool}
+                      style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+                    >
+                      Mở lại hoạt động bể
+                    </Button>
+                  ) : (
+                    <Button
+                      type="primary"
+                      danger
+                      size="small"
+                      loading={updatingPool}
+                      onClick={() => confirmSuspendPool(log)}
+                    >
+                      Tạm đóng cửa bể để xử lý
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          }
           type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {isAdmin && isPoolMaintenance && log.status === 'WithinLimits' && (
+        <Alert
+          title="CHỈ SỐ ĐẠT CHUẨN — BỂ HIỆN VẪN ĐANG TẠM ĐÓNG CỬA"
+          description={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span>
+                Bể bơi hiện đang tạm dừng ({liveStatus?.statusReason || 'Bảo trì xử lý nước'}). Nếu đã đảm bảo an toàn, Admin có thể mở lại đón khách.
+              </span>
+              <div>
+                <Button
+                  type="primary"
+                  size="small"
+                  loading={updatingPool}
+                  onClick={confirmResumePool}
+                  style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+                >
+                  Mở lại hoạt động bể
+                </Button>
+              </div>
+            </div>
+          }
+          type="success"
           showIcon
           style={{ marginBottom: 16 }}
         />
@@ -72,8 +148,8 @@ export default function WaterQualityLogDetailDrawer({ visible, log, onClose }) {
 
       {log.status === 'Warning' && (
         <Alert
-          message="LƯU Ý CẢNH BÁO"
-          description="Chỉ số nước nằm ở vùng cảnh báo. Cần xử lý châm hóa chất để đưa về tiêu chuẩn tối ưu."
+          title="LƯU Ý CẢNH BÁO"
+          description="Chỉ số nước nằm ở vùng cảnh báo. Cần xử lý châm hóa chất trong ngày để đưa về tiêu chuẩn tối ưu."
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
@@ -140,6 +216,40 @@ export default function WaterQualityLogDetailDrawer({ visible, log, onClose }) {
           {log.recommendation || 'Không có khuyến nghị.'}
         </Paragraph>
       </div>
+
+      {log.threeDayTrendDetected && (
+        <>
+          <Divider style={{ margin: '16px 0' }} />
+          <Alert
+            type={log.generatedNextDayDutyDate ? 'warning' : 'error'}
+            showIcon
+            title="Phân tích xu hướng 3 ngày gần nhất"
+            description={
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span>{log.threeDayTrendSummary}</span>
+                {log.trendSuggestedChemicals?.length > 0 && (
+                  <Space size={[4, 4]} wrap>
+                    <Text strong style={{ fontSize: 12 }}>Hóa chất đề xuất:</Text>
+                    {log.trendSuggestedChemicals.map((chem, idx) => (
+                      <Tag color="geekblue" key={`drawer-chem-${idx}`}>{chem}</Tag>
+                    ))}
+                  </Space>
+                )}
+                {log.generatedNextDayDutyDate ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Chỉ số trong ngưỡng an toàn → Đã tự tạo Lịch trực bể phòng ngừa cho ngày{' '}
+                    {dayjs(log.generatedNextDayDutyDate).format('DD/MM/YYYY')}.
+                  </Text>
+                ) : (log.status === 'Warning' || log.status === 'Danger') ? (
+                  <Text type="danger" style={{ fontSize: 12 }}>
+                    Chỉ số đã vượt ngưỡng an toàn → Hệ thống kích hoạt xử lý ngay trong ngày hôm nay (không đẩy sang lịch trực ngày mai).
+                  </Text>
+                ) : null}
+              </div>
+            }
+          />
+        </>
+      )}
 
       {log.notes && (
         <>

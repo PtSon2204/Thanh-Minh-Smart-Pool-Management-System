@@ -1,6 +1,6 @@
 import { Avatar, Button, Space, Table, Tag, Tooltip } from 'antd'
 import { EditOutlined, EyeOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
-import { USER_ROLES, USER_ROLE_COLORS } from "../utils/userManagement"
+import { USER_ROLES, USER_ROLE_COLORS, getUserStatusDisplay, normalizeUserStatus } from "../utils/userManagement"
 
 function userName(user) {
   return user.fullName || user.username
@@ -42,8 +42,8 @@ export default function UserTable({ users, loading, total, pageIndex, pageSize, 
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      render: (value) => <Tag color={value === 'ACTIVE' ? 'success' : value === 'LOCKED' ? 'default' : 'warning'}>
-        {value === 'ACTIVE' ? 'Hoạt động' : value === 'LOCKED' ? 'Đã khóa' : value || 'Không rõ'}
+      render: (value) => <Tag color={getUserStatusDisplay(value).color}>
+        {getUserStatusDisplay(value).label}
       </Tag>,
     },
     {
@@ -69,11 +69,11 @@ export default function UserTable({ users, loading, total, pageIndex, pageSize, 
             onClick={() => onEdit(user)}
           />
         </Tooltip>
-        {(user.status === 'ACTIVE' || user.status === 'LOCKED') && <Tooltip title={user.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}>
+        {['ACTIVE', 'LOCKED'].includes(normalizeUserStatus(user.status)) && <Tooltip title={normalizeUserStatus(user.status) === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}>
           <Button
             type="text"
-            aria-label={`${user.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'} tài khoản ${userName(user)}`}
-            icon={user.status === 'ACTIVE' ? <LockOutlined /> : <UnlockOutlined />}
+            aria-label={`${normalizeUserStatus(user.status) === 'ACTIVE' ? 'Khóa' : 'Mở khóa'} tài khoản ${userName(user)}`}
+            icon={normalizeUserStatus(user.status) === 'ACTIVE' ? <LockOutlined /> : <UnlockOutlined />}
             loading={changingStatusId === user.id}
             onClick={() => onToggleStatus(user)}
           />

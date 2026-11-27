@@ -109,16 +109,16 @@ public sealed class CreateClassSessionsHandlerTests
         Assert.Same(conflict, Assert.Single(error.Conflicts));
     }
 
-    [Fact(DisplayName = "UTCID09 (A) - Coach được chỉ định không hợp lệ → truyền ValidationException")]
-    public async Task Handle_InvalidAssignedCoach_PropagatesValidationException()
+    [Fact(DisplayName = "UTCID09 (A) - Người tạo lớp không còn là Coach → truyền ValidationException")]
+    public async Task Handle_IneligibleCreator_PropagatesValidationException()
     {
         var h = new Harness();
         h.Operations.Setup(x => x.CreateSessionsAsync(It.IsAny<CreateClassSessionsCommand>(), h.CoachId, h.Token))
-            .ThrowsAsync(new ValidationException([new ValidationFailure("Sessions[0].CoachUserId", "Buổi học phải do Coach tạo lớp phụ trách.")]));
+            .ThrowsAsync(new ValidationException([new ValidationFailure("CreatedByUserId", "Người tạo lớp phải có tài khoản hoạt động và là Coach.")]));
 
         var error = await Assert.ThrowsAsync<ValidationException>(() => h.Handle());
 
-        Assert.Contains(error.Errors, x => x.PropertyName == "Sessions[0].CoachUserId");
+        Assert.Contains(error.Errors, x => x.PropertyName == "CreatedByUserId");
     }
 
     [Fact(DisplayName = "UTCID10 (A) - Repository lỗi bất ngờ → truyền tiếp exception")]

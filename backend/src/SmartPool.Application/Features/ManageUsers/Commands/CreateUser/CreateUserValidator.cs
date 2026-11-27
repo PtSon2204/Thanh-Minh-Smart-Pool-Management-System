@@ -23,9 +23,6 @@ public sealed class CreateUserValidator : AbstractValidator<CreateUserCommand>
         RuleFor(command => command.FullName)
             .NotEmpty().WithMessage("Họ tên không được để trống.")
             .MaximumLength(255).WithMessage("Họ tên không được vượt quá 255 ký tự.");
-        RuleFor(command => command.ConfirmPassword)
-            .NotEmpty().WithMessage("Vui lòng xác nhận mật khẩu.")
-            .Equal(command => command.Password).WithMessage("Mật khẩu xác nhận không khớp.");
         RuleFor(command => command.DateOfBirth)
             .Must(value => !value.HasValue || value.Value <= DateOnly.FromDateTime(
                 TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Asia/Ho_Chi_Minh")))
@@ -39,10 +36,10 @@ public sealed class CreateUserValidator : AbstractValidator<CreateUserCommand>
             var registration = new RegisterCommand
             {
                 Email = command.Email,
-                Phone = command.Phone,
-                Password = command.Password
+                Phone = command.Phone
             };
-            var result = await new RegisterValidator().ValidateAsync(registration, cancellationToken);
+            var result = await new RegisterValidator().ValidateAsync(
+                registration, options => options.IncludeProperties("Email", "Phone"), cancellationToken);
             foreach (var error in result.Errors)
                 context.AddFailure(error);
         });

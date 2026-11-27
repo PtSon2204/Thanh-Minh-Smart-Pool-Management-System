@@ -7,4 +7,9 @@ public sealed class WaterQualityEvaluationResult
     public string EvaluationVersion { get; set; } = WaterQualityConstants.EvaluationVersion;
     public List<string> Findings { get; set; } = new();
     public List<string> SuggestedChemicals { get; set; } = new();
+
+    public bool ThreeDayTrendDetected { get; set; }
+    public string? ThreeDayTrendSummary { get; set; }
+    public List<string> TrendFindings { get; set; } = new();
+    public List<string> TrendSuggestedChemicals { get; set; } = new();
 }

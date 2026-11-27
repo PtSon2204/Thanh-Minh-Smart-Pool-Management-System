@@ -28,6 +28,14 @@ public sealed partial class SwimClassOperations
             throw new SwimClassStateConflictException(
                 "Chỉ có thể hủy buổi Scheduled chưa bắt đầu của lớp Draft hoặc Active.");
 
+        if (session.Class.Status == "Active" &&
+            !await context.ClassSessions.AsNoTracking().AnyAsync(item =>
+                item.ClassId == request.ClassId && item.Id != request.SessionId &&
+                item.Status == "Scheduled" && item.StartsAt > now,
+                cancellationToken))
+            throw new SwimClassStateConflictException(
+                "Đây là buổi học sắp tới cuối cùng của lớp Active. Hãy ngừng lớp thay vì hủy riêng buổi này.");
+
         var reason = request.Reason.Trim();
         // Resolve recipients before changing the session state.
         var notifications = await AddClassNotificationsAsync(request.ClassId,

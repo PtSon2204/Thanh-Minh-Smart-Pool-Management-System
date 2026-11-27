@@ -17,8 +17,6 @@ export function useSaveUser() {
         return userService.create({
           ...profile,
           username: values.username.trim(),
-          password: values.password,
-          confirmPassword: values.confirmPassword,
           role: values.role,
         })
       }

@@ -1,6 +1,7 @@
 import './ContactPage.css'
 import { useState, useEffect } from 'react'
 import AmbientHeroBg from '../../components/shared/AmbientHeroBg'
+import { SUPPORT_CHANNELS } from '../../components/shared/supportChannels'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: 'dat-ve', message: '' })
@@ -112,7 +113,7 @@ export default function ContactPage() {
                   <div className="info-icon-box">📞</div>
                   <div className="info-text">
                     <h4>Hotline &amp; Zalo</h4>
-                    <p className="highlight-text">0901 234 567</p>
+                    <p className="highlight-text">{SUPPORT_CHANNELS.phoneDisplay}</p>
                   </div>
                 </div>
 
@@ -140,13 +141,16 @@ export default function ContactPage() {
               <div className="social-section">
                 <h4>Kênh mạng xã hội</h4>
                 <div className="social-links">
-                  <a href="https://facebook.com" target="_blank" rel="noreferrer" className="social-pill">
+                  <a href={SUPPORT_CHANNELS.facebookUrl} target="_blank" rel="noopener noreferrer" className="social-pill">
                     <span>📘</span> Facebook
                   </a>
-                  <a href="https://zalo.me" target="_blank" rel="noreferrer" className="social-pill">
+                  <a href={SUPPORT_CHANNELS.messengerUrl} target="_blank" rel="noopener noreferrer" className="social-pill">
+                    <span>📨</span> Messenger
+                  </a>
+                  <a href={SUPPORT_CHANNELS.zaloUrl} target="_blank" rel="noopener noreferrer" className="social-pill">
                     <span>💬</span> Zalo OA
                   </a>
-                  <a href="https://instagram.com" target="_blank" rel="noreferrer" className="social-pill">
+                  <a href={SUPPORT_CHANNELS.instagramUrl} target="_blank" rel="noopener noreferrer" className="social-pill">
                     <span>📷</span> Instagram
                   </a>
                 </div>

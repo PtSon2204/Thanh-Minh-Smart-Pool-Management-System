@@ -29,7 +29,7 @@ import {
   ExperimentOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useAuthStore } from '../../../features/auth/store/authStore';
 import { notificationService } from '../../../features/notifications/services/notificationService';
@@ -51,6 +51,9 @@ const renderTypeBadge = (type) => {
   }
   if (t === 'INCIDENT') {
     return <span className="db-pill-tag db-tag-incident">Sự cố</span>;
+  }
+  if (t === 'WATER_QUALITY_ALERT') {
+    return <span className="db-pill-tag db-tag-incident">Cảnh báo nước</span>;
   }
   if (t === 'TICKET' || t === 'TICKET_DAY' || t === 'TICKET_MONTH' || t === 'ORDER') {
     return <span className="db-pill-tag db-tag-ticket">Bán vé</span>;
@@ -89,6 +92,7 @@ const getCurrentShift = () => {
 
 export default function DashboardPage() {
   const { session } = useAuthStore();
+  const navigate = useNavigate();
   const adminName = session?.fullName || session?.userName || 'Quản trị viên';
   const shiftInfo = useMemo(() => getCurrentShift(), []);
 
@@ -190,16 +194,40 @@ export default function DashboardPage() {
 
     const unsubNotif = onReceiveNotification((newNotif) => {
       if (!isMounted) return;
+      const notifType = (newNotif.type || '').toUpperCase();
+      const isUrgent = notifType === 'WATER_QUALITY_ALERT' || notifType === 'INCIDENT';
+      const notifKey = `rt-notif-${newNotif.id || Date.now()}`;
 
       // Hiển thị thông báo popup Ant Design góc phải màn hình
-      antNotification.info({
-        message: `Thông báo hệ thống mới: ${newNotif.title || ''}`,
-        description: newNotif.content,
+      (isUrgent ? antNotification.error : antNotification.info)({
+        key: notifKey,
+        message: isUrgent ? `${newNotif.title || 'Cảnh báo khẩn cấp'}` : `Thông báo hệ thống mới: ${newNotif.title || ''}`,
+        description:
+          notifType === 'WATER_QUALITY_ALERT' ? (
+            <div>
+              <div>{newNotif.content}</div>
+              <div style={{ marginTop: 10 }}>
+                <Button
+                  type="primary"
+                  danger
+                  size="small"
+                  onClick={() => {
+                    antNotification.destroy(notifKey);
+                    navigate('/admin/water-quality');
+                  }}
+                >
+                  Kiểm tra &amp; Xét đóng cửa bể
+                </Button>
+              </div>
+            </div>
+          ) : (
+            newNotif.content
+          ),
         placement: 'topRight',
-        duration: 6,
+        duration: isUrgent ? 15 : 6,
         style: {
           borderRadius: 12,
-          borderLeft: '4px solid #0284c7',
+          borderLeft: `4px solid ${isUrgent ? '#cf1322' : '#0284c7'}`,
         },
       });
 
@@ -252,7 +280,7 @@ export default function DashboardPage() {
       isMounted = false;
       unsubNotif();
     };
-  }, []);
+  }, [navigate]);
 
   const handleMarkAsRead = async (id) => {
     try {
@@ -317,7 +345,7 @@ export default function DashboardPage() {
     if (activeTab === 'INCIDENT') {
       return notifications.filter((n) => {
         const t = (n.type || '').toUpperCase();
-        return t === 'INCIDENT' || t === 'WARNING';
+        return t === 'INCIDENT' || t === 'WARNING' || t === 'WATER_QUALITY_ALERT';
       });
     }
     if (activeTab === 'MAINTENANCE') {
@@ -432,9 +460,14 @@ export default function DashboardPage() {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 130,
+      width: 190,
       render: (_, record) => (
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {(record.type || '').toUpperCase() === 'WATER_QUALITY_ALERT' && (
+            <Link to="/admin/water-quality" style={{ fontSize: 12, fontWeight: 600, color: '#cf1322' }}>
+              Xét đóng cửa
+            </Link>
+          )}
           {!record.isRead && (
             <button
               type="button"
@@ -641,7 +674,7 @@ export default function DashboardPage() {
             <div className="db-shortcut-icon">
               <ExperimentOutlined />
             </div>
-            <span>Đo kiểm chất lượng nước</span>
+            <span>Thống kê chất lượng nước</span>
             <RightOutlined style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }} />
           </Link>
 

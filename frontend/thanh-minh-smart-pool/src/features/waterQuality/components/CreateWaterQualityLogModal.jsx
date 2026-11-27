@@ -86,7 +86,20 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
       message.success('Đã ghi nhận phiếu đo chất lượng nước thành công!');
 
       if (res.status === 'Danger') {
-        message.error('CHÚ Ý: Chỉ số đo ở mức NGUY HIỂM. Hệ thống đã gửi cảnh báo tới Ban quản trị!');
+        message.error(
+          'CHÚ Ý: Chỉ số đo ở mức NGUY HIỂM! Hệ thống đã gửi cảnh báo tới Ban quản trị và kích hoạt xử lý chất lượng nước ngay trong ngày hôm nay.',
+        );
+      } else if (res.status === 'Warning') {
+        message.warning(
+          'Chỉ số đo ở mức CẢNH BÁO! Hệ thống đã kích hoạt công việc Xử lý chất lượng nước ngay trong ngày hôm nay.',
+        );
+      } else if (res.threeDayTrendDetected && res.generatedNextDayDutyId) {
+        const nextDateText = res.generatedNextDayDutyDate
+          ? dayjs(res.generatedNextDayDutyDate).format('DD/MM/YYYY')
+          : 'ngày mai';
+        message.warning(
+          `Phát hiện nước đi xuống 3 ngày gần nhất (vẫn trong ngưỡng an toàn)! Hệ thống đã tự tạo Lịch trực bể ngày ${nextDateText} chờ Admin phân công kèm hóa chất đề xuất.`,
+        );
       }
 
       setConfirmation(null);
@@ -330,6 +343,43 @@ export default function CreateWaterQualityLogModal({ visible, onCancel, onSucces
             >
               {preview.recommendation}
             </Paragraph>
+
+            {preview.threeDayTrendDetected && (
+              <Alert
+                type={preview.status === 'WithinLimits' ? 'warning' : 'error'}
+                showIcon
+                style={{ marginTop: 12 }}
+                title={
+                  preview.status === 'WithinLimits'
+                    ? 'Phát hiện xu hướng chất lượng nước đi xuống 3 ngày gần nhất'
+                    : 'Chất lượng nước đi xuống 3 ngày và đã vượt ngưỡng an toàn'
+                }
+                description={
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span>{preview.threeDayTrendSummary}</span>
+                    {preview.trendSuggestedChemicals?.length > 0 && (
+                      <div>
+                        <Text strong style={{ fontSize: 12 }}>
+                          {preview.status === 'WithinLimits'
+                            ? 'Hóa chất đề xuất cho lịch trực bể ngày mai: '
+                            : 'Hóa chất đề xuất xử lý ngay hôm nay: '}
+                        </Text>
+                        <Space size={[4, 4]} wrap>
+                          {preview.trendSuggestedChemicals.map((chem, idx) => (
+                            <Tag color="geekblue" key={`trend-chem-${idx}`}>{chem}</Tag>
+                          ))}
+                        </Space>
+                      </div>
+                    )}
+                    <Text type={preview.status === 'WithinLimits' ? 'secondary' : 'danger'} style={{ fontSize: 12 }}>
+                      {preview.status === 'WithinLimits'
+                        ? 'Chỉ số vẫn trong ngưỡng an toàn. Khi lưu phiếu, hệ thống sẽ tự tạo Lịch trực bể ngày mai (chờ Admin phân công) kèm hóa chất đề xuất.'
+                        : 'Chỉ số đã vượt ngưỡng an toàn. Khi lưu phiếu, hệ thống sẽ kích hoạt xử lý chất lượng nước ngay trong ngày hôm nay (không đẩy sang ngày mai).'}
+                    </Text>
+                  </div>
+                }
+              />
+            )}
           </div>
         )}
 

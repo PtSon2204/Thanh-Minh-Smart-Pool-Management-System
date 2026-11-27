@@ -5,7 +5,6 @@ using SmartPool.Application.Features.ManageSwimClasses.Commands.CreateSwimClass;
 using SmartPool.Application.Interfaces.Repositories;
 using SmartPool.Application.Interfaces.Services;
 using SmartPool.Domain.Entities;
-using SmartPool.Domain.Enums;
 using SmartPool.Infrastructure.Persistence.DbContext;
 using Microsoft.Extensions.Logging;
 using CloudinaryDotNet;
@@ -25,14 +24,18 @@ public sealed partial class SwimClassOperations(
         Guid createdByUserId,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT id FROM smart_pool.users WHERE id = {createdByUserId} FOR UPDATE",
+            cancellationToken);
         var eligibleCoach = await EligibleCoaches()
             .AnyAsync(user => user.Id == createdByUserId, cancellationToken);
 
         if (!eligibleCoach)
             throw new ValidationException(new[]
             {
-                new ValidationFailure("CoachUserId",
-                    "Coach phải có tài khoản hoạt động và quyền COACH.")
+                new ValidationFailure("CreatedByUserId",
+                    "Người tạo lớp phải có tài khoản hoạt động và là Coach.")
             });
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -54,6 +57,7 @@ public sealed partial class SwimClassOperations(
 
         context.SwimClasses.Add(swimClass);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new CreateSwimClassResponse(
             swimClass.Id, swimClass.Name, swimClass.Description, swimClass.Capacity,
@@ -66,8 +70,7 @@ public sealed partial class SwimClassOperations(
         user.IsDeleted != true &&
         user.Status != null && EF.Functions.ILike(user.Status, "ACTIVE") &&
         user.Role != null && user.Role.IsDeleted != true &&
-        ((user.IsCoach && EF.Functions.ILike(user.Role.Name, "CUSTOMER")) ||
-         EF.Functions.ILike(user.Role.Name, RoleEnum.COACH.ToString())));
+        user.IsCoach);
 
     private static void EnsureClassOwner(SwimClass swimClass, Guid coachUserId)
     {

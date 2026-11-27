@@ -247,7 +247,8 @@ namespace SmartPool.Infrastructure
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.AlertSnapshotStagingWorker>();
             services.AddHostedService<SmartPool.Infrastructure.SafetyMonitoring.LiveMonitoringWorker>();
             services.AddHostedService<TicketExpiryReminderWorker>();
-            services.AddHostedService<PoolDutyAutoAssignWorker>();
+            // Lịch trực bể đồng bộ trực tiếp từ Lịch làm việc (employee_shifts) do Admin phân công,
+            // không tự sinh bản ghi giả qua PoolDutyAutoAssignWorker.
 
             return services;
         }
