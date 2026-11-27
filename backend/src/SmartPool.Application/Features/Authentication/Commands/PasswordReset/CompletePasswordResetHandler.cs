@@ -89,7 +89,7 @@ public sealed class CompletePasswordResetHandler : IRequestHandler<CompletePassw
         {
             var user = await _userOperations.GetActiveUserWithPasswordAsync(
                 identity.UserId, identity.Email, cancellationToken);
-            if (user is null || string.IsNullOrWhiteSpace(user.PasswordHash) ||
+            if (user is null || user.MustChangePassword || string.IsNullOrWhiteSpace(user.PasswordHash) ||
                 !FingerprintMatches(identity.PasswordFingerprint,
                     _codes.ComputePasswordFingerprint(user.Id, user.PasswordHash)))
                 return PasswordChanged();

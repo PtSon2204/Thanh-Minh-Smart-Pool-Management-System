@@ -15,6 +15,9 @@ public partial class UserProfile
 
     public DateOnly? DateOfBirth { get; set; }
 
+    // Optional demographic value: "MALE" or "FEMALE"; legacy rows stay null.
+    public string? Gender { get; set; }
+
     public DateTime? UpdatedAt { get; set; }
 
     public virtual User User { get; set; } = null!;

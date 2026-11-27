@@ -376,6 +376,36 @@ public sealed class LoginHandlerTests
         Assert.Equal(harness.DefaultUsers[0].Id, response.Id);
     }
 
+    [Fact]
+    public async Task TemporaryCredential_ReturnsOnlyRestrictedToken()
+    {
+        var harness = new Harness();
+        var user = harness.DefaultUsers[0];
+        user.MustChangePassword = true;
+        user.TemporaryPasswordExpiresAtUtc = DateTime.UtcNow.AddHours(24);
+        harness.AccessTokenService.Setup(service => service.CreatePasswordChangeToken(user, "Admin"))
+            .Returns(new AccessTokenResult("restricted-token", DateTime.UtcNow.AddMinutes(10)));
+        var result = Assert.IsType<OkObjectResult>(await harness.Handle());
+        var response = Assert.IsType<LoginResponse>(result.Value);
+        Assert.True(response.MustChangePassword);
+        Assert.Equal("restricted-token", response.AccessToken);
+        Assert.Empty(response.RefreshToken);
+        harness.RefreshTokenService.Verify(service => service.CreateAsync(It.IsAny<Guid>(),
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExpiredTemporaryCredential_IssuesNoSession()
+    {
+        var harness = new Harness();
+        harness.DefaultUsers[0].MustChangePassword = true;
+        harness.DefaultUsers[0].TemporaryPasswordExpiresAtUtc = DateTime.UtcNow.AddSeconds(-1);
+        Assert.IsType<UnauthorizedObjectResult>(await harness.Handle());
+        harness.AssertNoTokensCreated();
+        harness.AccessTokenService.Verify(service => service.CreatePasswordChangeToken(
+            It.IsAny<User>(), It.IsAny<string>()), Times.Never);
+    }
+
     private static LoginResponse AssertSuccessResponse(IActionResult result, string expectedRole)
     {
         var objectResult = Assert.IsType<OkObjectResult>(result);

@@ -23,6 +23,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         entity.Property(e => e.Status).HasMaxLength(50).HasDefaultValueSql("'Active'::character varying").HasColumnName("status");
         entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()").HasColumnName("updated_at");
         entity.Property(e => e.Username).HasMaxLength(100).HasColumnName("username");
+        entity.Property(e => e.MustChangePassword).HasDefaultValue(false).HasColumnName("must_change_password");
+        entity.Property(e => e.TemporaryPasswordExpiresAtUtc).HasColumnName("temporary_password_expires_at_utc").HasColumnType("timestamp with time zone");
         entity.HasOne(d => d.Role).WithMany(p => p.Users).HasForeignKey(d => d.RoleId).HasConstraintName("users_role_id_fkey");
     }
 }

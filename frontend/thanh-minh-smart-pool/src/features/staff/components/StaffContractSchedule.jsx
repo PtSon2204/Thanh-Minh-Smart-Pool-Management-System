@@ -10,12 +10,12 @@ import {
   formatOnboardingDate,
   onboardingError,
   vietnamToday,
-} from "../onboarding/onboardingUi";
+} from "../staffUi";
 import { statusColor, statusLabel } from "../schedule/scheduleUtils";
 import ContractTermsSummary from "./ContractTermsSummary";
 import "../styles/staffSchedule.css";
 
-function DatedContractSchedule({ employeeId, contract, scope }) {
+export function DatedContractSchedule({ employeeId, contract, scope = "all" }) {
   const monthPickerId = useId();
   const [date, setDate] = useState(() =>
     dayjs(

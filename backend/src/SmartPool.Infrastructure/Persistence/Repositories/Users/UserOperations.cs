@@ -86,7 +86,8 @@ public sealed class UserOperations : IUserOperations
         var changed = await _context.Users
             .Where(user => user.Id == userId && user.IsDeleted != true &&
                 user.Status != null && user.Status.ToLower() == "active" &&
-                user.Email != null && user.Email.ToLower() == expectedEmail &&
+                user.Email != null && user.Email.Trim().ToLower() == expectedEmail &&
+                !user.MustChangePassword &&
                 user.PasswordHash == expectedPasswordHash)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(user => user.PasswordHash, newPasswordHash)
@@ -108,9 +109,12 @@ public sealed class UserOperations : IUserOperations
         var changed = await _context.Users
             .Where(user => user.Id == userId && user.IsDeleted != true &&
                 user.Status != null && user.Status.ToLower() == "active" &&
-                user.PasswordHash == expectedPasswordHash)
+                user.PasswordHash == expectedPasswordHash &&
+                (!user.MustChangePassword || user.TemporaryPasswordExpiresAtUtc > now))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(user => user.PasswordHash, newPasswordHash)
+                .SetProperty(user => user.MustChangePassword, false)
+                .SetProperty(user => user.TemporaryPasswordExpiresAtUtc, (DateTime?)null)
                 .SetProperty(user => user.UpdatedAt, now), cancellationToken);
         if (changed != 1)
             return false;
@@ -234,7 +238,7 @@ public sealed class UserOperations : IUserOperations
             return null;
 
         if (await _context.Users.AnyAsync(item => item.Id != values.Id && item.Email != null &&
-            item.Email.ToLower() == values.Email, cancellationToken))
+            item.Email.Trim().ToLower() == values.Email, cancellationToken))
             throw new UniqueUserFieldException("email");
 
         var internationalPhone = "+84" + values.Phone[1..];
@@ -266,7 +270,7 @@ public sealed class UserOperations : IUserOperations
             await _context.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "users_email_key" })
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "users_email_key" or "users_email_lower_key" or "users_normalized_email_onboarding_key" })
         {
             throw new UniqueUserFieldException("email", exception);
         }
@@ -460,8 +464,8 @@ public sealed class UserOperations : IUserOperations
 
     public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken)
     {
-        var lower = email.ToLower();
-        return await _context.Users.AnyAsync(u => u.Email != null && u.Email.ToLower() == lower, cancellationToken);
+        var lower = email.Trim().ToLowerInvariant();
+        return await _context.Users.AnyAsync(u => u.Email != null && u.Email.Trim().ToLower() == lower, cancellationToken);
     }
 
     public async Task<bool> ExistsByPhoneAsync(string phone, string internationalPhone, CancellationToken cancellationToken)
@@ -508,8 +512,11 @@ public sealed class UserOperations : IUserOperations
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
     {
-        var lower = email.ToLower();
-        return await _context.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == lower, cancellationToken);
+        var lower = email.Trim().ToLowerInvariant();
+        var matches = await _context.Users.IgnoreQueryFilters()
+            .Where(u => u.Email != null && u.Email.Trim().ToLower() == lower)
+            .Take(2).ToListAsync(cancellationToken);
+        return matches.Count == 1 ? matches[0] : null;
     }
 
     public async Task<User?> GetUserByUsernameAsync(string username, CancellationToken cancellationToken)
@@ -524,7 +531,8 @@ public sealed class UserOperations : IUserOperations
         IQueryable<User> query;
         if (id.Contains('@'))
         {
-            query = _context.Users.Where(c => c.Email != null && c.Email.ToLower() == id);
+            query = _context.Users.Where(c => (c.Email != null && c.Email.Trim().ToLower() == id) ||
+                (c.Employee != null && c.Employee.CompanyEmail != null && c.Employee.CompanyEmail.ToLower() == id));
         }
         else if (System.Text.RegularExpressions.Regex.IsMatch(id, @"^(?:0|\+84)[35789][0-9]{8}$"))
         {
@@ -546,13 +554,14 @@ public sealed class UserOperations : IUserOperations
 
     public async Task<User?> FindActiveUserByEmailWithPasswordAsync(string email, CancellationToken cancellationToken)
     {
-        var lower = email.ToLower();
-        return await _context.Users.FirstOrDefaultAsync(candidate =>
-            candidate.Email != null && candidate.Email.ToLower() == lower &&
-            candidate.IsDeleted != true && candidate.Status != null &&
-            candidate.Status.ToLower() == "active" &&
-            candidate.PasswordHash != null && candidate.PasswordHash != "",
-            cancellationToken);
+        var lower = email.Trim().ToLowerInvariant();
+        var matches = await _context.Users.IgnoreQueryFilters()
+            .Where(candidate => candidate.Email != null && candidate.Email.Trim().ToLower() == lower)
+            .Take(2).ToListAsync(cancellationToken);
+        if (matches.Count != 1) return null;
+        var user = matches[0];
+        return user.IsDeleted != true && string.Equals(user.Status, "active", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrEmpty(user.PasswordHash) ? user : null;
     }
 
     public async Task<User?> GetActiveUserWithPasswordAsync(Guid userId, string email, CancellationToken cancellationToken)
@@ -561,7 +570,7 @@ public sealed class UserOperations : IUserOperations
         return await _context.Users.FirstOrDefaultAsync(candidate =>
             candidate.Id == userId && candidate.IsDeleted != true &&
             candidate.Status != null && candidate.Status.ToLower() == "active" &&
-            candidate.Email != null && candidate.Email.ToLower() == lower &&
+            candidate.Email != null && candidate.Email.Trim().ToLower() == lower &&
             candidate.PasswordHash != null && candidate.PasswordHash != "",
             cancellationToken);
     }
@@ -581,7 +590,7 @@ public sealed class UserOperations : IUserOperations
     private static string? UserFieldForConstraint(string? constraintName) => constraintName switch
     {
         "users_username_key" => "username",
-        "users_email_key" => "email",
+        "users_email_key" or "users_email_lower_key" or "users_normalized_email_onboarding_key" => "email",
         "users_phone_key" => "phone",
         _ => null
     };

@@ -54,6 +54,18 @@ const staffService = {
       .then((response) => response.data),
   update: (userId, data) =>
     apiClient.put(`${BASE}/${userId}`, data).then((response) => response.data),
+  resetPassword: (userId, data) =>
+    apiClient
+      .post(`${BASE}/${userId}/reset-password`, data)
+      .then((response) => response.data),
+  uploadAvatar: async (userId, file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await apiClient.post(`${BASE}/${userId}/avatar`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
   getSchedule: (params, signal) =>
     getSchedulePage(`${BASE}/schedule`, params, signal),
   getMySchedule: (params, signal) =>

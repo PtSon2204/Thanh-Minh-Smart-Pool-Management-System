@@ -14,6 +14,7 @@ import {
 
 import { changePasswordFormSchema } from "../../features/auth/types/authSchemas";
 import authService from "../../features/auth/services/authService";
+import { useAuthStore } from "../../features/auth/store/authStore";
 import "./ChangePasswordPage.css";
 
 const fields = [
@@ -38,6 +39,7 @@ const fields = [
 ];
 
 export default function ChangePasswordPage() {
+  const restricted = useAuthStore((state) => state.session?.mustChangePassword);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -117,10 +119,10 @@ export default function ChangePasswordPage() {
 
               <h1>Đổi mật khẩu</h1>
 
-              <p>
+              {restricted ? <p>Nhập mật khẩu tạm thời trong email vào ô mật khẩu hiện tại. Sau khi đổi, hãy đăng nhập lại.</p> : <p>
                 Cập nhật mật khẩu thường xuyên để bảo vệ tài khoản Thành Minh
                 của bạn.
-              </p>
+              </p>}
             </div>
           </div>
 

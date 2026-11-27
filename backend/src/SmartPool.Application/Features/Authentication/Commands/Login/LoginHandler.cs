@@ -64,7 +64,27 @@ public sealed class LoginHandler : IRequestHandler<LoginCommand, IActionResult>
         if (role is null || role.IsDeleted == true)
             return InvalidCredentials();
 
-        if (!(await _contractAccess.EvaluateAsync(authenticatedUser.Id, role.Name, cancellationToken)).IsAllowed)
+        var contractAccess = await _contractAccess.EvaluateAsync(authenticatedUser.Id, role.Name, cancellationToken);
+        if (authenticatedUser.MustChangePassword)
+        {
+            // Credential setup is separated from business authorization: a valid,
+            // unexpired temporary credential may establish a restricted session
+            // before the contract starts. Only the NotStarted state is bypassed.
+            if (authenticatedUser.TemporaryPasswordExpiresAtUtc is not { } expiry || expiry <= DateTime.UtcNow)
+                return new UnauthorizedObjectResult(new { code = "TEMPORARY_PASSWORD_EXPIRED",
+                    message = "Mật khẩu tạm thời đã hết hạn. Hãy liên hệ Admin." });
+            if (!contractAccess.IsAllowed && contractAccess.State != StaffContractState.NotStarted)
+                return InvalidCredentials();
+            var restricted = _accessTokenService.CreatePasswordChangeToken(authenticatedUser, role.Name);
+            return new OkObjectResult(new LoginResponse
+            {
+                Id = authenticatedUser.Id, Username = authenticatedUser.Username ?? string.Empty,
+                Role = role.Name, Roles = [role.Name], MustChangePassword = true,
+                AccessToken = restricted.Token, ExpiresAtUtc = restricted.ExpiresAtUtc
+            });
+        }
+
+        if (!contractAccess.IsAllowed)
             return InvalidCredentials();
 
         var refreshToken = await _refreshTokenService.CreateAsync(authenticatedUser.Id,

@@ -618,33 +618,14 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<string>("CompanyEmail")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("company_email");
+
                     b.Property<DateTime?>("ContractInactiveSinceUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("contract_inactive_since_utc");
-
-                    b.Property<string>("CorrectionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("correction_reason");
-
-                    b.Property<Guid?>("CorrectionRequestId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("correction_request_id");
-
-                    b.Property<DateTime?>("CorrectionRequestedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("correction_requested_at_utc");
-
-                    b.Property<Guid?>("CorrectionRevisionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("correction_revision_id");
-
-                    b.Property<long>("CorrectionVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasDefaultValue(0L)
-                        .HasColumnName("correction_version");
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -678,12 +659,10 @@ namespace SmartPool.Infrastructure.Migrations
                     b.HasKey("UserId")
                         .HasName("employees_pkey");
 
-                    b.HasIndex("CorrectionRevisionId");
+                    b.HasIndex(new[] { "CompanyEmail" }, "employees_company_email_key")
+                        .IsUnique();
 
-                    b.ToTable("employees", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_employees_correction_active", "(correction_request_id IS NULL AND correction_reason IS NULL AND correction_requested_at_utc IS NULL AND correction_revision_id IS NULL) OR (correction_request_id IS NOT NULL AND correction_reason IS NOT NULL AND btrim(correction_reason) <> '' AND correction_requested_at_utc IS NOT NULL)");
-                        });
+                    b.ToTable("employees", "smart_pool");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.EmployeeShift", b =>
@@ -2146,256 +2125,44 @@ namespace SmartPool.Infrastructure.Migrations
                     b.ToTable("shifts", "smart_pool");
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffInvitation", b =>
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffLegalProfileRecord", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CompletedUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContractJson")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DeliveryErrorCode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DeliveryStatus")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateOnly>("JoinDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("ProtectedPasswordHash")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetRole")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TokenDigest")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompletedUserId");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasFilter("\"Status\" IN ('PENDING','EXPIRED')");
-
-                    b.ToTable("staff_invitations", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_staff_invitation_delivery", "\"DeliveryStatus\" IN ('PENDING','SENT','FAILED')");
-
-                            t.HasCheckConstraint("ck_staff_invitation_role", "\"TargetRole\" IN ('SALES','LIFEGUARD','COACH')");
-
-                            t.HasCheckConstraint("ck_staff_invitation_status", "\"Status\" IN ('PENDING','COMPLETED','CANCELLED','EXPIRED')");
-                        });
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffOnboardingDocument", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AssetId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("AssetVersion")
-                        .HasColumnType("text");
-
-                    b.Property<int>("AttemptCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeleteAfterUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletionReason")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DeletionState")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DeliveryType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("LastErrorCode")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("LeaseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("LeaseUntilUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PublicId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Purpose")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ResourceType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RetryAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("RevisionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("Size")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("UploadSettledAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UploadedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UploaderId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeleteAfterUtc");
-
-                    b.HasIndex("DeletionState", "RetryAtUtc");
-
-                    b.HasIndex("RevisionId", "Purpose")
-                        .IsUnique()
-                        .HasFilter("\"DeletionState\" = 'AVAILABLE'");
-
-                    b.ToTable("staff_onboarding_documents", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_staff_document_deadline", "\"Purpose\" = 'AVATAR' OR (\"DeleteAfterUtc\" IS NOT NULL AND \"DeleteAfterUtc\" = \"UploadedAtUtc\" + interval '30 days')");
-
-                            t.HasCheckConstraint("ck_staff_document_deletion", "\"DeletionState\" IN ('UPLOADING','AVAILABLE','PENDING','DELETED')");
-
-                            t.HasCheckConstraint("ck_staff_document_private", "\"Purpose\" = 'AVATAR' OR \"DeliveryType\" = 'authenticated'");
-
-                            t.HasCheckConstraint("ck_staff_document_purpose", "\"Purpose\" IN ('FRONT','BACK','AVATAR')");
-                        });
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffOnboardingRevision", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
 
                     b.Property<string>("CccdDigest")
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("CorrectionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("cccd_digest");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("DocumentsProvided")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid?>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("InvitationId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
 
                     b.Property<string>("ProtectedProfile")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("protected_profile");
 
-                    b.Property<string>("ReservedCccdDigest")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime?>("ReviewedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ReviewerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("RevisionNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("SubmittedAtUtc")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
 
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
-                        .HasColumnType("bigint");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("version");
 
-                    b.HasKey("Id");
+                    b.HasKey("EmployeeId")
+                        .HasName("staff_legal_profiles_pkey");
 
-                    b.HasIndex("EmployeeId")
-                        .IsUnique()
-                        .HasFilter("\"State\" IN ('DRAFT','SUBMITTED','CHANGES_REQUESTED')");
-
-                    b.HasIndex("ReservedCccdDigest")
-                        .IsUnique()
-                        .HasFilter("\"ReservedCccdDigest\" IS NOT NULL");
-
-                    b.HasIndex("ReviewerId");
-
-                    b.HasIndex("EmployeeId", "RevisionNumber")
+                    b.HasIndex(new[] { "CccdDigest" }, "staff_legal_profiles_cccd_digest_key")
                         .IsUnique();
 
-                    b.HasIndex("InvitationId", "RevisionNumber")
-                        .IsUnique();
-
-                    b.ToTable("staff_onboarding_revisions", "smart_pool", t =>
-                        {
-                            t.HasCheckConstraint("ck_staff_revision_owner", "(\"InvitationId\" IS NOT NULL) <> (\"EmployeeId\" IS NOT NULL)");
-
-                            t.HasCheckConstraint("ck_staff_revision_state", "\"State\" IN ('DRAFT','SUBMITTED','APPROVED','CHANGES_REQUESTED','REJECTED')");
-                        });
+                    b.ToTable("staff_legal_profiles", "smart_pool");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleChange", b =>
@@ -2831,6 +2598,12 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_deleted");
 
+                    b.Property<bool>("MustChangePassword")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("must_change_password");
+
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
@@ -2851,6 +2624,10 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("status")
                         .HasDefaultValueSql("'Active'::character varying");
+
+                    b.Property<DateTime?>("TemporaryPasswordExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("temporary_password_expires_at_utc");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -2903,6 +2680,11 @@ namespace SmartPool.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("full_name");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("gender");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -3379,11 +3161,6 @@ namespace SmartPool.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartPool.Domain.Entities.Employee", b =>
                 {
-                    b.HasOne("SmartPool.Domain.Entities.StaffOnboardingRevision", null)
-                        .WithMany()
-                        .HasForeignKey("CorrectionRevisionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("SmartPool.Domain.Entities.User", "User")
                         .WithOne("Employee")
                         .HasForeignKey("SmartPool.Domain.Entities.Employee", "UserId")
@@ -3715,45 +3492,14 @@ namespace SmartPool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffInvitation", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("CompletedUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SmartPool.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffOnboardingDocument", b =>
-                {
-                    b.HasOne("SmartPool.Domain.Entities.StaffOnboardingRevision", null)
-                        .WithMany()
-                        .HasForeignKey("RevisionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SmartPool.Domain.Entities.StaffOnboardingRevision", b =>
+            modelBuilder.Entity("SmartPool.Domain.Entities.StaffLegalProfileRecord", b =>
                 {
                     b.HasOne("SmartPool.Domain.Entities.Employee", null)
                         .WithMany()
                         .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SmartPool.Domain.Entities.StaffInvitation", null)
-                        .WithMany()
-                        .HasForeignKey("InvitationId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SmartPool.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("ReviewerId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("staff_legal_profiles_employee_id_fkey");
                 });
 
             modelBuilder.Entity("SmartPool.Domain.Entities.StaffScheduleChange", b =>

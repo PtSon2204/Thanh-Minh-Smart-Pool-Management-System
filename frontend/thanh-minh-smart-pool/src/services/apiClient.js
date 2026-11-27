@@ -28,6 +28,9 @@ function clearIfCurrent(refreshToken) {
 }
 
 export function refreshSession() {
+  if (useAuthStore.getState().session?.mustChangePassword) {
+    return Promise.reject(new Error('Phiên giới hạn không thể làm mới.'))
+  }
   if (refreshPromise) return refreshPromise
 
   const session = useAuthStore.getState().session
@@ -41,7 +44,7 @@ export function refreshSession() {
     .then(({ data }) => {
       const tokens = refreshResponseSchema.parse(data)
       const current = useAuthStore.getState().session
-      if (current?.refreshToken !== originalToken) {
+      if (current?.mustChangePassword || current?.refreshToken !== originalToken) {
         throw new Error('Phiên đăng nhập đã thay đổi.')
       }
       const updated = { ...current, ...tokens }
@@ -59,6 +62,18 @@ export function refreshSession() {
 }
 
 apiClient.interceptors.request.use(async (config) => {
+  const session = useAuthStore.getState().session
+  if (session?.mustChangePassword) {
+    const token = getAccessToken()
+    if (!token) useAuthStore.getState().setSession(null)
+    if (!token || !(config.method === 'put' && config.url === '/api/auth/change-password')) {
+      throw new axios.CanceledError('Phiên giới hạn chỉ cho phép đổi mật khẩu.')
+    }
+    config.headers.set('Authorization', `Bearer ${token}`)
+    config._authToken = token
+    config._restrictedSession = true
+    return config
+  }
   if (isPublicAuthRequest(config.url)) return config
 
   let token = getAccessToken()
@@ -77,6 +92,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const config = error?.config
+    if (config?._restrictedSession) {
+      if (error?.response?.status === 401 &&
+          useAuthStore.getState().session?.accessToken === config._authToken) {
+        useAuthStore.getState().setSession(null)
+      }
+      return Promise.reject(error)
+    }
+    if (useAuthStore.getState().session?.mustChangePassword) {
+      return Promise.reject(error)
+    }
     if (error?.response?.status !== 401 || !config || isPublicAuthRequest(config.url)) {
       return Promise.reject(error)
     }

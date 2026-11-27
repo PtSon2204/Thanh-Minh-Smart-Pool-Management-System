@@ -59,6 +59,7 @@ public sealed class GoogleLoginHandler : IRequestHandler<GoogleLoginCommand, IAc
         if (user is null)
             return Problem(StatusCodes.Status409Conflict, "GOOGLE_ACCOUNT_NOT_REGISTERED",
                 "Tài khoản Google chưa được đăng ký.");
+        if (user.MustChangePassword) return new UnauthorizedResult();
         if (user.PasswordHash is not null)
             return Problem(StatusCodes.Status409Conflict, "EMAIL_ALREADY_REGISTERED",
                 "Email đã thuộc tài khoản dùng mật khẩu.");

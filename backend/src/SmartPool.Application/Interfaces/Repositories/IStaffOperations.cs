@@ -1,9 +1,8 @@
 using SmartPool.Application.Common.Models;
-using SmartPool.Application.Features.ManageStaffs.Onboarding;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShiftBatch;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
-using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
+using SmartPool.Application.Features.ManageStaffs.Commands.AddEmployee;
 using SmartPool.Application.Features.ManageStaffs.Commands.CorrectAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
@@ -27,12 +26,11 @@ public interface IStaffOperations
     Task<object> ExecuteWorkPatternAsync(SmartPool.Application.Features.ManageStaffs.WorkPatterns.WorkPatternCommand request, CancellationToken cancellationToken);
     Task<SmartPool.Application.Features.ManageStaffs.WorkPatterns.StaffShiftReplacementResult> ReplaceStaffShiftAsync(
         SmartPool.Application.Features.ManageStaffs.WorkPatterns.ReplaceStaffShiftCommand request, CancellationToken cancellationToken);
-    Task<OnboardingWorkspace> ExecuteOnboardingAsync(OnboardingCommand request, CancellationToken cancellationToken);
-    Task<IReadOnlyList<StaffInvitationListItem>> ListInvitationsAsync(ListStaffInvitationsQuery request, CancellationToken cancellationToken);
-    Task<StaffDocumentContent> ReadStaffDocumentAsync(ReadStaffDocumentQuery request, CancellationToken cancellationToken);
     Task<PagedResponse<GetStaffsResponse>> GetStaffsAsync(GetStaffsQuery request, CancellationToken cancellationToken);
     Task<GetStaffOptionsResponse> GetOptionsAsync(CancellationToken cancellationToken);
-    Task<CreateStaffResponse> CreateStaffAsync(CreateStaffCommand request, CancellationToken cancellationToken);
+    Task<AddEmployeeResponse> AddEmployeeAsync(AddEmployeeCommand request, CancellationToken cancellationToken);
+    Task<AddEmployeeResponse> ResetStaffPasswordAsync(Guid userId, Guid actorId, string personalEmail, CancellationToken cancellationToken);
+    Task<string> SetStaffAvatarAsync(Guid userId, Stream content, string fileName, string contentType, CancellationToken cancellationToken);
     Task<UpdateStaffResponse> UpdateStaffAsync(UpdateStaffCommand request, CancellationToken cancellationToken);
     Task<GetStaffEditResponse> GetStaffEditAsync(GetStaffEditQuery request, CancellationToken cancellationToken);
     Task<PagedResponse<GetShiftsResponse>> GetShiftsAsync(GetShiftsQuery request, CancellationToken cancellationToken);

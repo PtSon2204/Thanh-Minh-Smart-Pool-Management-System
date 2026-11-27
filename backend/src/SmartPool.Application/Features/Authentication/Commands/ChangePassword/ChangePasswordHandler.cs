@@ -64,7 +64,8 @@ public sealed class ChangePasswordHandler
         // 3. Tìm tài khoản của chính người dùng đó.
         var user = await _userOperations.GetByIdAsync(userId, cancellationToken);
 
-        if (user is null || string.IsNullOrWhiteSpace(user.PasswordHash))
+        if (user is null || string.IsNullOrWhiteSpace(user.PasswordHash) ||
+            user.MustChangePassword && (user.TemporaryPasswordExpiresAtUtc is not { } expiry || expiry <= DateTime.UtcNow))
         {
             return new UnauthorizedResult();
         }
@@ -84,6 +85,8 @@ public sealed class ChangePasswordHandler
         }
 
         // 5. Hash mật khẩu mới, không lưu mật khẩu dạng văn bản.
+        if (_passwordHasher.VerifyPassword(user, user.PasswordHash, request.NewPassword))
+            return new BadRequestObjectResult(new { message = "Mật khẩu mới phải khác mật khẩu hiện tại." });
         var newHash = _passwordHasher.HashPassword(
             user,
             request.NewPassword);

@@ -71,16 +71,14 @@ internal sealed class StaffWorkPatternTestFixture : IAsyncDisposable
             new Shift { Id = nightShiftId, Name = "Synthetic overnight", StartTime = new(22, 0), EndTime = new(2, 0), IsActive = true });
         await context.SaveChangesAsync();
 
-        var storage = new FakeStorage();
         var mail = new FakeMail();
-        var cleanup = new StaffDocumentCleanup(context, storage, clock);
         var optionsForServices = Options.Create(new StaffOnboardingOptions
         {
             EncryptionKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)),
             IdentityKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)),
             FrontendOrigin = "https://example.test"
         });
-        var onboarding = new StaffOnboardingServices(optionsForServices, new PasswordHasherService(), mail, storage, cleanup);
+        var onboarding = new StaffOnboardingServices(optionsForServices, new PasswordHasherService(), mail);
         var mapper = new MapperConfiguration(config => config.AddProfile<StaffMappingProfile>(), NullLoggerFactory.Instance).CreateMapper();
         var operations = new StaffOperations(context, mapper, clock, Options.Create(new StaffAttendanceQrSettings()), onboarding, Protection);
         return new(context, operations, clock, employeeId, adminId, morningShiftId, afternoonShiftId, nightShiftId);
@@ -159,13 +157,4 @@ internal sealed class StaffWorkPatternTestFixture : IAsyncDisposable
         public Task SendAsync(IEnumerable<string> recipients, string subject, string htmlBody, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class FakeStorage : IStaffDocumentStorage
-    {
-        public Task<StaffStoredAsset> UploadAsync(StaffOnboardingDocument document, byte[] bytes, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-        public Task<byte[]> ReadAsync(StaffOnboardingDocument document, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-        public Task DeleteAsync(StaffOnboardingDocument document, CancellationToken cancellationToken) => Task.CompletedTask;
-        public string AvatarUrl(StaffOnboardingDocument document) => "https://example.test/synthetic.png";
-    }
 }

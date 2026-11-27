@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SmartPool.Application.Features.ManageStaffs.AttendanceQr;
-using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Mapping;
 using SmartPool.Domain.Entities;
 using SmartPool.Domain.Enums;
@@ -119,14 +118,6 @@ internal sealed class StaffEmploymentFixture : IAsyncDisposable
     public StaffOperations CreateOperations(SmartPoolDbContext? operationContext = null, TimeProvider? timeProvider = null) =>
         new(operationContext ?? context, mapper, timeProvider ?? TimeProvider.System, Options.Create(new StaffAttendanceQrSettings()),
             null, new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider());
-
-    public CreateStaffCommand CreateCommand(Guid userId) => new()
-    {
-        UserId = userId,
-        JoinDate = new DateOnly(2026, 10, 5),
-
-        Status = "Working"
-    };
 
     public async Task<UserSnapshot> ReadUserSnapshotAsync(Guid userId)
     {

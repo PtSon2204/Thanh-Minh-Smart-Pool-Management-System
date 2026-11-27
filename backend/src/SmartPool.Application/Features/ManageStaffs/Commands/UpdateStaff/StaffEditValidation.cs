@@ -6,19 +6,17 @@ namespace SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
 
 public static class StaffEditValidation
 {
-    public static async Task ValidateAsync(StaffLegalProfile profile, TimeProvider clock, CancellationToken cancellationToken)
+    public static async Task ValidateAsync(StaffLegalProfile profile, StaffEditDetails details, TimeProvider clock, CancellationToken cancellationToken)
     {
-        if (profile.TaxIdentifier.Length > 0 && profile.TaxIdentifierKind.Length == 0)
+        if ((details.Has(nameof(details.TaxIdentifier)) || details.Has(nameof(details.TaxIdentifierKind))) && profile.TaxIdentifier.Length > 0 && profile.TaxIdentifierKind.Length == 0)
             throw new StaffOnboardingException("INVALID_TAX_IDENTIFIER_KIND", 400);
-        var fields = new List<string> { nameof(profile.FullName), nameof(profile.Phone) };
-        if (profile.DateOfBirth.HasValue) fields.Add(nameof(profile.DateOfBirth));
-        if (profile.CccdNumber.Length > 0) fields.Add(nameof(profile.CccdNumber));
-        if (profile.PermanentAddress.Length > 0) fields.Add(nameof(profile.PermanentAddress));
-        if (profile.TemporaryAddress.Length > 0) fields.Add(nameof(profile.TemporaryAddress));
-        if (profile.BankName.Length > 0) fields.Add(nameof(profile.BankName));
-        if (profile.BankAccountNumber.Length > 0) fields.Add(nameof(profile.BankAccountNumber));
-        if (profile.TaxIdentifierKind.Length > 0) fields.Add(nameof(profile.TaxIdentifierKind));
-        if (profile.TaxIdentifier.Length > 0) fields.Add(nameof(profile.TaxIdentifier));
+        var fields = new List<string>();
+        foreach (var name in new[] { nameof(profile.FullName), nameof(profile.Phone), nameof(profile.DateOfBirth), nameof(profile.CccdNumber), nameof(profile.PermanentAddress), nameof(profile.TaxIdentifierKind), nameof(profile.TaxIdentifier) })
+            if (details.Has(name)) fields.Add(name);
+        if (details.Has(nameof(profile.TemporaryAddress)) && profile.TemporaryAddress.Length > 0) fields.Add(nameof(profile.TemporaryAddress));
+        if (details.Has(nameof(profile.BankName)) && profile.BankName.Length > 0) fields.Add(nameof(profile.BankName));
+        if (details.Has(nameof(profile.BankAccountNumber)) && profile.BankAccountNumber.Length > 0) fields.Add(nameof(profile.BankAccountNumber));
+        if (fields.Count == 0) return;
 
         var validation = await new StaffLegalProfileValidator(true, clock)
             .ValidateAsync(profile, options => options.IncludeProperties(fields.ToArray()), cancellationToken);

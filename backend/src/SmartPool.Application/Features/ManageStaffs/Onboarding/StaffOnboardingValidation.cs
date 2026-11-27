@@ -6,6 +6,11 @@ namespace SmartPool.Application.Features.ManageStaffs.Onboarding;
 
 public static class StaffOnboardingValidation
 {
+    public const string MinimumAgeMessage = "Nhân viên phải đủ 18 tuổi trở lên.";
+
+    public static bool IsAtLeastAge(DateOnly dateOfBirth, TimeProvider clock) =>
+        dateOfBirth <= VietnamTimeBoundary.GetDate(clock).AddYears(-18);
+
     public static string Phone(string? value)
     {
         var phone = value?.Trim() ?? "";
@@ -50,15 +55,6 @@ public static class StaffOnboardingValidation
     }
 }
 
-public sealed class StaffInvitationProfileValidator : AbstractValidator<StaffLegalProfile>
-{
-    public StaffInvitationProfileValidator()
-    {
-        RuleFor(profile => profile.FullName).NotEmpty().MaximumLength(255);
-        RuleFor(profile => profile.Phone).NotEmpty().Matches(VietnameseMobilePhone.ValidationPattern);
-    }
-}
-
 public sealed class StaffLegalProfileValidator : AbstractValidator<StaffLegalProfile>
 {
     public StaffLegalProfileValidator() : this(true, TimeProvider.System) { }
@@ -81,8 +77,8 @@ public sealed class StaffLegalProfileValidator : AbstractValidator<StaffLegalPro
         RuleFor(profile => profile.FullName).NotEmpty();
         RuleFor(profile => profile.Phone).Matches(VietnameseMobilePhone.ValidationPattern);
         RuleFor(profile => profile.DateOfBirth).NotNull()
-            .Must(value => value is null || value.Value.Year <= VietnamTimeBoundary.GetDate(clock).Year - 18)
-            .WithMessage("Nhân viên phải từ 18 tuổi, tính theo năm sinh.");
+            .Must(value => value is null || StaffOnboardingValidation.IsAtLeastAge(value.Value, clock))
+            .WithMessage(StaffOnboardingValidation.MinimumAgeMessage);
         RuleFor(profile => profile.CccdNumber).Matches("^[0-9]{12}$");
         RuleFor(profile => profile.PermanentAddress).NotEmpty();
         RuleFor(profile => profile.TemporaryAddress).NotEmpty();

@@ -1,6 +1,7 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using MimeKit;
 using SmartPool.Application.Interfaces.Services;
 using System.Net.Http.Headers;
@@ -18,11 +19,13 @@ namespace SmartPool.Infrastructure.Services
 
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
+        private readonly IHostEnvironment _environment;
 
-        public EmailService(IConfiguration configuration, HttpClient httpClient)
+        public EmailService(IConfiguration configuration, HttpClient httpClient, IHostEnvironment environment)
         {
             _configuration = configuration;
             _httpClient = httpClient;
+            _environment = environment;
         }
 
         public Task SendAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
@@ -38,6 +41,22 @@ namespace SmartPool.Infrastructure.Services
 
             if (recipientList.Count == 0)
                 return;
+
+            // Local acceptance sink: inert unless EmailSettings:SinkDirectory is
+            // configured. Writes the message to a local file instead of contacting
+            // any provider. Never enable in production.
+            var sinkDirectory = _configuration["EmailSettings:SinkDirectory"]?.Trim();
+            var sinkAllowed = _environment.IsDevelopment() || _environment.IsEnvironment("Testing");
+            if (sinkAllowed && !string.IsNullOrWhiteSpace(sinkDirectory))
+            {
+                Directory.CreateDirectory(sinkDirectory);
+                var sinkFile = Path.Combine(sinkDirectory,
+                    $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.txt");
+                await File.WriteAllTextAsync(sinkFile,
+                    $"To: {string.Join(", ", recipientList)}\r\nSubject: {subject}\r\n\r\n{htmlBody}",
+                    cancellationToken);
+                return;
+            }
 
             var fromName = _configuration["EmailSettings:FromName"]?.Trim()
                            ?? _configuration["EmailSettings:From"]?.Trim()

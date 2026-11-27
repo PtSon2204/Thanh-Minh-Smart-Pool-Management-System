@@ -1,7 +1,6 @@
 using AutoMapper;
 using SmartPool.Application.Features.ManageStaffs.Commands.AssignShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.CancelShiftAssignment;
-using SmartPool.Application.Features.ManageStaffs.Commands.CreateStaff;
 using SmartPool.Application.Features.ManageStaffs.Commands.RecordAttendance;
 using SmartPool.Application.Features.ManageStaffs.Commands.SaveShift;
 using SmartPool.Application.Features.ManageStaffs.Commands.UpdateStaff;
@@ -20,16 +19,7 @@ namespace SmartPool.Application.Features.ManageStaffs.Mapping
             CreateMap<Employee, GetStaffsResponse>()
                 .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.User.Username))
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User.Email))
-                .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => src.User.Phone))
-                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.User.UserProfile == null ? string.Empty : src.User.UserProfile.FullName))
-                .ForMember(dest => dest.AvatarUrl, opt => opt.MapFrom(src => src.User.UserProfile == null ? null : src.User.UserProfile.AvatarUrl))
-                .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.User.UserProfile == null ? null : src.User.UserProfile.Address))
-                .ForMember(dest => dest.DateOfBirth, opt => opt.MapFrom(src => src.User.UserProfile == null ? null : src.User.UserProfile.DateOfBirth))
-                .ForMember(dest => dest.RoleId, opt => opt.MapFrom(src => src.User.RoleId ?? Guid.Empty))
-                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.User.Role == null ? string.Empty : src.User.Role.Name));
-            CreateMap<Employee, CreateStaffResponse>()
-                .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.User.Username))
-                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User.Email))
+                .ForMember(dest => dest.AccountStatus, opt => opt.MapFrom(src => src.User.Status))
                 .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => src.User.Phone))
                 .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.User.UserProfile == null ? string.Empty : src.User.UserProfile.FullName))
                 .ForMember(dest => dest.AvatarUrl, opt => opt.MapFrom(src => src.User.UserProfile == null ? null : src.User.UserProfile.AvatarUrl))

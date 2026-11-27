@@ -8,6 +8,7 @@ export function hasSessionRole(session, role) {
 }
 
 export function getLandingPath(session) {
+  if (session?.mustChangePassword) return '/doi-mat-khau'
   const primary = session?.role?.toUpperCase()
   if (primary === 'ADMIN') return '/admin'
   if (primary === 'SALES') return '/admin/tickets/pos'

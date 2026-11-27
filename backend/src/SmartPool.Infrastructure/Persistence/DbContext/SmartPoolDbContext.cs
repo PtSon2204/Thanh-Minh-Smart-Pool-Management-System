@@ -7,6 +7,31 @@ namespace SmartPool.Infrastructure.Persistence.DbContext;
 
 public class SmartPoolDbContext : EfDbContext
 {
+    private void ValidatePersonalEmailWrites()
+    {
+        foreach (var entry in ChangeTracker.Entries<User>())
+        {
+            var email = entry.Property(user => user.Email);
+            if ((entry.State == EntityState.Added || entry.State == EntityState.Modified && email.IsModified &&
+                !string.Equals(email.OriginalValue, email.CurrentValue, StringComparison.Ordinal)) &&
+                email.CurrentValue?.Trim().EndsWith("@smartpool.com", StringComparison.OrdinalIgnoreCase) == true)
+                throw new FluentValidation.ValidationException([new FluentValidation.Results.ValidationFailure(
+                    "Email", "Không dùng địa chỉ @smartpool.com làm email cá nhân.")]);
+        }
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ValidatePersonalEmailWrites();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ValidatePersonalEmailWrites();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
     public SmartPoolDbContext()
     {
     }
@@ -16,9 +41,6 @@ public class SmartPoolDbContext : EfDbContext
     }
 
     public virtual DbSet<Employee> Employees { get; set; } //1
-    public DbSet<StaffInvitation> StaffInvitations { get; set; } //2
-    public DbSet<StaffOnboardingRevision> StaffOnboardingRevisions { get; set; } //3
-    public DbSet<StaffOnboardingDocument> StaffOnboardingDocuments { get; set; }  //4
     public DbSet<StaffScheduleChange> StaffScheduleChanges { get; set; }  //5
     public DbSet<StaffScheduleDelivery> StaffScheduleDeliveries { get; set; }  //6 
     public virtual DbSet<EmployeeShift> EmployeeShifts { get; set; } //7
@@ -43,6 +65,7 @@ public class SmartPoolDbContext : EfDbContext
     public virtual DbSet<TicketType> TicketTypes { get; set; } //26
     public virtual DbSet<User> Users { get; set; } //27
     public virtual DbSet<UserProfile> UserProfiles { get; set; } //28
+    public DbSet<StaffLegalProfileRecord> StaffLegalProfiles { get; set; } //42
     public virtual DbSet<Voucher> Vouchers { get; set; } //29
     public DbSet<Warning> Warnings { get; set; } //30
     public DbSet<RefreshToken> RefreshTokens { get; set; } //31
@@ -64,10 +87,6 @@ public class SmartPoolDbContext : EfDbContext
         var scheduling = new StaffScheduleChangeConfiguration();
         modelBuilder.ApplyConfiguration<StaffScheduleChange>(scheduling);
         modelBuilder.ApplyConfiguration<StaffScheduleDelivery>(scheduling);
-        var onboarding = new StaffOnboardingConfiguration();
-        modelBuilder.ApplyConfiguration<StaffInvitation>(onboarding);
-        modelBuilder.ApplyConfiguration<StaffOnboardingRevision>(onboarding);
-        modelBuilder.ApplyConfiguration<StaffOnboardingDocument>(onboarding);
         modelBuilder.ApplyConfiguration(new EmployeeShiftConfiguration());
         modelBuilder.ApplyConfiguration(new AttendanceLogConfiguration());
         modelBuilder.ApplyConfiguration(new EntryLogConfiguration());
@@ -90,6 +109,7 @@ public class SmartPoolDbContext : EfDbContext
         modelBuilder.ApplyConfiguration(new TicketTypeConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new UserProfileConfiguration());
+        modelBuilder.ApplyConfiguration(new StaffLegalProfileRecordConfiguration());
         modelBuilder.ApplyConfiguration(new VoucherConfiguration());
         modelBuilder.HasDefaultSchema("smart_pool");
         base.OnModelCreating(modelBuilder);

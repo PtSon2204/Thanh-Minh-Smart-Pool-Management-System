@@ -208,15 +208,6 @@
   grid-column: 1 / -1;
 }
 
-.staff-profile-card-actions {
-  border-top: 1px solid var(--list-divider);
-  padding: var(--space-3) var(--space-4);
-}
-
-.staff-profile-card-actions .ant-btn {
-  width: 100%;
-}
-
 .staff-profiles-page .admin-management-state {
   min-height: 240px;
 }
